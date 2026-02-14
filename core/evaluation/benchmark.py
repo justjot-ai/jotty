@@ -80,7 +80,7 @@ class Benchmark(ABC):
     - validate_answer(): Validate agent's answer
     """
     
-    def __init__(self, name: str, benchmark_path: Optional[str] = None):
+    def __init__(self, name: str, benchmark_path: Optional[str] = None) -> None:
         """
         Initialize benchmark.
         
@@ -103,12 +103,7 @@ class Benchmark(ABC):
         pass
     
     @abstractmethod
-    def evaluate_task(
-        self,
-        task: Dict[str, Any],
-        agent: Any,
-        **kwargs
-    ) -> BenchmarkResult:
+    def evaluate_task(self, task: Dict[str, Any], agent: Any, **kwargs: Any) -> BenchmarkResult:
         """
         Evaluate agent on a single task.
         
@@ -140,12 +135,7 @@ class Benchmark(ABC):
         """
         pass
     
-    def evaluate(
-        self,
-        agent: Any,
-        task_ids: Optional[List[str]] = None,
-        **kwargs
-    ) -> BenchmarkMetrics:
+    def evaluate(self, agent: Any, task_ids: Optional[List[str]] = None, **kwargs: Any) -> BenchmarkMetrics:
         """
         Evaluate agent on benchmark.
         
@@ -226,12 +216,7 @@ class CustomBenchmark(Benchmark):
         )
     """
     
-    def __init__(
-        self,
-        name: str,
-        tasks: List[Dict[str, Any]],
-        validate_func: Optional[Callable[[Dict[str, Any], str], bool]] = None
-    ):
+    def __init__(self, name: str, tasks: List[Dict[str, Any]], validate_func: Optional[Callable[[Dict[str, Any], str], bool]] = None) -> None:
         """
         Initialize custom benchmark.
         
@@ -248,12 +233,7 @@ class CustomBenchmark(Benchmark):
         """Load tasks (already provided)."""
         return self.tasks
     
-    def evaluate_task(
-        self,
-        task: Dict[str, Any],
-        agent: Any,
-        **kwargs
-    ) -> BenchmarkResult:
+    def evaluate_task(self, task: Dict[str, Any], agent: Any, **kwargs: Any) -> BenchmarkResult:
         """
         Evaluate agent on task.
         

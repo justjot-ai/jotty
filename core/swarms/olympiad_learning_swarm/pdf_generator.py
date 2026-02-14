@@ -336,7 +336,7 @@ li {{ margin-bottom: 4px; }}
 class LessonHTMLRenderer:
     """Renders LessonContent into styled HTML."""
 
-    def __init__(self, celebration_word: str = "Brilliant!"):
+    def __init__(self, celebration_word: str = 'Brilliant!') -> None:
         self.celebration = celebration_word
 
     # Titles of sections rendered by dedicated structured blocks

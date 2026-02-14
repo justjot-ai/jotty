@@ -10,7 +10,7 @@ This should be in Jotty behind DSPy LM abstraction, not in supervisor.
 import os
 import subprocess
 import json
-from typing import Iterator, Optional
+from typing import Iterator, Optional, Any
 import dspy
 from dspy.clients.base_lm import BaseLM
 from Jotty.core.foundation.exceptions import LLMError
@@ -33,14 +33,7 @@ class OpenCodeLM(BaseLM):
     - Supports multiple models via OpenCode's model selection
     """
     
-    def __init__(
-        self,
-        model: Optional[str] = None,
-        remote_host: Optional[str] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        **kwargs
-    ):
+    def __init__(self, model: Optional[str] = None, remote_host: Optional[str] = None, temperature: Optional[float] = None, max_tokens: Optional[int] = None, **kwargs: Any) -> None:
         """
         Initialize OpenCode LM provider
         
@@ -65,7 +58,7 @@ class OpenCodeLM(BaseLM):
         arch = os.uname().machine if hasattr(os, 'uname') else 'unknown'
         self.use_remote = arch in ('aarch64', 'arm64')
     
-    def forward(self, prompt: str = None, messages: list = None, **kwargs) -> Dict:
+    def forward(self, prompt: str = None, messages: list = None, **kwargs: Any) -> Dict:
         """
         DSPy BaseLM required method
         Returns OpenAI-compatible response format
@@ -111,7 +104,7 @@ class OpenCodeLM(BaseLM):
             }
         }
     
-    def __call__(self, prompt: str = None, messages: list = None, **kwargs):
+    def __call__(self, prompt: str = None, messages: list = None, **kwargs: Any) -> Any:
         """
         Generate response from OpenCode (non-streaming)
         Implements BaseLM interface
@@ -128,7 +121,7 @@ class OpenCodeLM(BaseLM):
         # Return in DSPy format (list of strings or dicts)
         return [result['choices'][0]['message']['content']]
     
-    def _stream(self, prompt: str, **kwargs) -> Iterator[str]:
+    def _stream(self, prompt: str, **kwargs: Any) -> Iterator[str]:
         """
         Stream response from OpenCode
 

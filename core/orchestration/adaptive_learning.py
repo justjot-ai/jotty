@@ -52,7 +52,7 @@ class AdaptiveLearning:
     Adjusts learning strategy based on improvement velocity and convergence.
     """
     
-    def __init__(self, base_learning_rate: float = 1.0):
+    def __init__(self, base_learning_rate: float = 1.0) -> None:
         self.state = LearningState(base_learning_rate=base_learning_rate)
         self.state.learning_rate = base_learning_rate
     
@@ -161,7 +161,7 @@ class AdaptiveLearning:
         else:
             self.state.is_accelerating = False
     
-    def _adjust_learning_rate(self):
+    def _adjust_learning_rate(self) -> Any:
         """Adjust learning rate based on state."""
         if self.state.is_plateau:
             # Increase learning rate to escape plateau
@@ -182,7 +182,7 @@ class AdaptiveLearning:
             # Normal operation - slight decay
             self.state.learning_rate = max(0.7, self.state.learning_rate * 0.95)
     
-    def _adjust_exploration_rate(self):
+    def _adjust_exploration_rate(self) -> Any:
         """Adjust exploration vs exploitation balance."""
         if self.state.is_plateau:
             # Increase exploration to find new solutions

@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 # Registry-Driven Section Types
 # ============================================
 
-def get_section_registry():
+def get_section_registry() -> Any:
     """Lazy import of section registry to avoid circular imports."""
     from .section_registry import get_registry
     return get_registry()
@@ -521,7 +521,7 @@ def suggest_section_type(
 # Chart Data Normalization Utilities
 # ============================================
 
-def normalize_chart_value(value) -> None:
+def normalize_chart_value(value: Any) -> None:
     """Normalize a chart value - convert float to int if whole number."""
     if value is None:
         return None

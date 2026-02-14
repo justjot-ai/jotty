@@ -1,3 +1,4 @@
+from typing import Any
 """
 Backtest Report Templates
 =========================
@@ -16,7 +17,7 @@ from .base_template import BaseTemplate, TemplateColors, TemplateTypography, Tem
 class TwoSigmaTemplate(BaseTemplate):
     """Two Sigma inspired template - clean, data-focused, modern."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.name = "Two Sigma"
         self.description = "Quantitative research style with clean data visualization"
@@ -233,7 +234,7 @@ tr:hover {{
 class RenTechTemplate(BaseTemplate):
     """Renaissance Technologies inspired template - mathematical, precise."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.name = "Renaissance"
         self.description = "Mathematical precision with dark theme for data focus"
@@ -413,7 +414,7 @@ tr.highlight {{
 class AQRTemplate(BaseTemplate):
     """AQR Capital inspired template - academic, research-focused."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.name = "AQR"
         self.description = "Academic research style with rigorous data presentation"
@@ -592,7 +593,7 @@ tr:last-child td {{
 class ManGroupTemplate(BaseTemplate):
     """Man Group inspired template - institutional, sophisticated."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.name = "Man Group"
         self.description = "Institutional quality with sophisticated design"
@@ -790,7 +791,7 @@ tr:nth-child(even) {{
 class CitadelTemplate(BaseTemplate):
     """Citadel inspired template - professional, executive-focused."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.name = "Citadel"
         self.description = "Executive-focused professional design"
@@ -1057,7 +1058,7 @@ tr:hover {{
 class QuantitativeTemplate(BaseTemplate):
     """Default quantitative research template - balanced, professional."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.name = "Quantitative"
         self.description = "Default quantitative research style"

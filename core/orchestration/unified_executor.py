@@ -1,3 +1,4 @@
+from typing import Any
 """
 ChatExecutor - Native LLM Tool-Calling Executor
 =================================================================================
@@ -260,18 +261,7 @@ class ChatExecutor:
         result = await executor.execute("Research AI trends and create a presentation")
     """
 
-    def __init__(
-        self,
-        provider: Optional[str] = None,
-        model: Optional[str] = None,
-        api_key: Optional[str] = None,
-        status_callback: Optional[Callable[[str, str], None]] = None,
-        stream_callback: Optional[Callable[[str], None]] = None,
-        enabled_tools: Optional[List[str]] = None,
-        output_format: str = "auto",
-        max_steps: int = 10,
-        tool_timeout: float = 30.0
-    ):
+    def __init__(self, provider: Optional[str] = None, model: Optional[str] = None, api_key: Optional[str] = None, status_callback: Optional[Callable[[str, str], None]] = None, stream_callback: Optional[Callable[[str], None]] = None, enabled_tools: Optional[List[str]] = None, output_format: str = 'auto', max_steps: int = 10, tool_timeout: float = 30.0) -> None:
         """
         Initialize unified executor.
 
@@ -403,7 +393,7 @@ The user has requested {section_name} visualization format. You MUST:
 
         return base_prompt + (instruction or "")
 
-    def _status(self, stage: str, detail: str = ""):
+    def _status(self, stage: str, detail: str = '') -> Any:
         """Report status update."""
         if self.status_callback:
             try:
@@ -419,7 +409,7 @@ The user has requested {section_name} visualization format. You MUST:
                 logger.debug(f"Status callback error: {e}")
         logger.info(f" {stage}" + (f": {detail}" if detail else ""))
 
-    async def _stream(self, chunk: str):
+    async def _stream(self, chunk: str) -> Any:
         """Stream a content chunk."""
         if self.stream_callback:
             try:
@@ -884,7 +874,7 @@ The user has requested {section_name} visualization format. You MUST:
                 # Create a queue for streaming events
                 text_buffer = []
 
-                async def stream_handler(chunk: str):
+                async def stream_handler(chunk: str) -> Any:
                     text_buffer.append(chunk)
 
                 # Call LLM with streaming

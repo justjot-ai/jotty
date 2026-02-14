@@ -56,7 +56,7 @@ class JottyClaudeProvider:
     _instance = None
     _server_process = None
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, *args: Any, **kwargs: Any) -> Any:
         """Singleton pattern - only one provider instance."""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
@@ -69,14 +69,7 @@ class JottyClaudeProvider:
         cls._instance = None
         cls._server_process = None
 
-    def __init__(
-        self,
-        host: str = DEFAULT_HOST,
-        port: int = DEFAULT_PORT,
-        model: str = DEFAULT_MODEL,
-        workspace: str = DEFAULT_WORKSPACE,
-        auto_start: bool = True,
-    ):
+    def __init__(self, host: str = DEFAULT_HOST, port: int = DEFAULT_PORT, model: str = DEFAULT_MODEL, workspace: str = DEFAULT_WORKSPACE, auto_start: bool = True) -> None:
         """
         Initialize Jotty Claude Provider.
 
@@ -169,7 +162,7 @@ uvicorn.run(app, host='{self.host}', port={self.port}, log_level='warning')
             logger.error(f" Failed to start wrapper: {e}")
             return False
 
-    def _stop_server(self):
+    def _stop_server(self) -> Any:
         """Stop the wrapper server."""
         if self._server_process:
             try:
@@ -260,11 +253,7 @@ uvicorn.run(app, host='{self.host}', port={self.port}, log_level='warning')
 
 # Convenience functions
 
-def configure_jotty_claude(
-    model: str = DEFAULT_MODEL,
-    auto_start: bool = True,
-    **kwargs
-) -> dspy.LM:
+def configure_jotty_claude(model: str = DEFAULT_MODEL, auto_start: bool = True, **kwargs: Any) -> dspy.LM:
     """
     One-liner to configure DSPy with Jotty's Claude provider.
 
@@ -281,7 +270,7 @@ def configure_jotty_claude(
     return provider.configure_dspy(model)
 
 
-def get_jotty_claude_provider(**kwargs) -> JottyClaudeProvider:
+def get_jotty_claude_provider(**kwargs: Any) -> JottyClaudeProvider:
     """Get the singleton JottyClaudeProvider instance."""
     return JottyClaudeProvider(**kwargs)
 

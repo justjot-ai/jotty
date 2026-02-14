@@ -96,7 +96,7 @@ class ActivepiecesProvider(SkillProvider):
     version = "1.0.0"
     description = "Activepieces flows as skills (one per flow)"
 
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: Dict[str, Any] = None) -> None:
         super().__init__(config or {})
         self._base_url = self.config.get("base_url") or os.getenv(
             "ACTIVEPIECES_BASE_URL", DEFAULT_ACTIVEPIECES_URL

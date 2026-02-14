@@ -1,3 +1,4 @@
+from typing import Any
 #!/usr/bin/env python3
 """
 A2UI Widget Provider - Generic Widget Integration for Jotty SDK
@@ -259,15 +260,7 @@ class A2UIWidgetProvider(BaseMetadataProvider):
     4. Cache and budget widget data
     """
 
-    def __init__(
-        self,
-        widget_catalog: Optional[Dict[str, WidgetDefinition]] = None,
-        data_provider_fn: Optional[Callable] = None,
-        renderer_config: Optional[Dict[str, Any]] = None,
-        token_budget: int = 100000,
-        enable_caching: bool = True,
-        **kwargs
-    ):
+    def __init__(self, widget_catalog: Optional[Dict[str, WidgetDefinition]] = None, data_provider_fn: Optional[Callable] = None, renderer_config: Optional[Dict[str, Any]] = None, token_budget: int = 100000, enable_caching: bool = True, **kwargs: Any) -> None:
         """
         Initialize A2UI widget provider.
 
@@ -594,11 +587,7 @@ class A2UIWidgetProvider(BaseMetadataProvider):
 # Helper Functions (Simple Interface)
 # =============================================================================
 
-def create_widget_provider(
-    widget_catalog: Dict[str, WidgetDefinition],
-    data_provider_fn: Callable,
-    **kwargs
-) -> A2UIWidgetProvider:
+def create_widget_provider(widget_catalog: Dict[str, WidgetDefinition], data_provider_fn: Callable, **kwargs: Any) -> A2UIWidgetProvider:
     """
     Create A2UI widget provider from catalog and data provider.
 

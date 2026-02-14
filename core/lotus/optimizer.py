@@ -92,11 +92,7 @@ class LotusOptimizer:
         stats = optimizer.get_stats()
     """
 
-    def __init__(
-        self,
-        config: Optional[LotusConfig] = None,
-        lm_provider: Optional[Any] = None,
-    ):
+    def __init__(self, config: Optional[LotusConfig] = None, lm_provider: Optional[Any] = None) -> None:
         """
         Initialize unified optimizer.
 
@@ -266,7 +262,7 @@ class LotusOptimizer:
         Returns:
             Filtered items
         """
-        def prompt_fn(item):
+        def prompt_fn(item: Any) -> Any:
             return f"Does this satisfy the condition: {condition}?\nItem: {item}\nAnswer YES or NO:"
 
         def parse_fn(response: str) -> Tuple:
@@ -398,7 +394,7 @@ class LotusOptimizer:
             "savings_from_validation_skip": validator_stats.get("total_skips", 0) * 0.005,
         }
 
-    async def close(self):
+    async def close(self) -> Any:
         """Clean up resources."""
         await self.batch_executor.close()
 

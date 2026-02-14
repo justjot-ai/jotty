@@ -6,7 +6,7 @@ Execute tasks with Orchestrator.
 """
 
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from .base import BaseCommand, CommandResult, ParsedArgs
 
 if TYPE_CHECKING:
@@ -57,7 +57,7 @@ class RunCommand(BaseCommand):
             swarm = await cli.get_swarm_manager()
 
             # Status callback for streaming progress
-            def status_callback(stage: str, detail: str = ""):
+            def status_callback(stage: str, detail: str = '') -> Any:
                 """Stream progress updates to the CLI."""
                 # Use different icons for different stages
                 import re

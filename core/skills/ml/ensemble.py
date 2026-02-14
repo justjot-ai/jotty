@@ -37,13 +37,10 @@ class EnsembleSkill(MLSkill):
     optional_inputs = ["problem_type", "optimized_model", "best_single_score", "all_scores"]
     outputs = ["final_model", "ensemble_score"]
 
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: Dict[str, Any] = None) -> None:
         super().__init__(config)
 
-    async def execute(self,
-                      X: pd.DataFrame,
-                      y: Optional[pd.Series] = None,
-                      **context) -> SkillResult:
+    async def execute(self, X: pd.DataFrame, y: Optional[pd.Series] = None, **context: Any) -> SkillResult:
         """
         Execute ensemble building.
 
@@ -220,7 +217,7 @@ class EnsembleSkill(MLSkill):
             'gb': GradientBoostingRegressor(n_estimators=100, random_state=42),
         }
 
-    def _weighted_voting(self, base_models, all_scores, X_scaled, y, cv, scoring, problem_type) -> Tuple:
+    def _weighted_voting(self, base_models: Any, all_scores: Any, X_scaled: Any, y: Any, cv: Any, scoring: Any, problem_type: Any) -> Tuple:
         """Weighted voting ensemble."""
         from sklearn.model_selection import cross_val_score
         from sklearn.ensemble import VotingClassifier, VotingRegressor
@@ -246,7 +243,7 @@ class EnsembleSkill(MLSkill):
 
         return None, 0
 
-    def _stacking(self, base_models, meta_learner, X_scaled, y, cv, scoring, problem_type) -> Tuple:
+    def _stacking(self, base_models: Any, meta_learner: Any, X_scaled: Any, y: Any, cv: Any, scoring: Any, problem_type: Any) -> Tuple:
         """Stacking ensemble."""
         from sklearn.model_selection import cross_val_score
         from sklearn.ensemble import StackingClassifier, StackingRegressor
@@ -273,7 +270,7 @@ class EnsembleSkill(MLSkill):
         scores = cross_val_score(stacking, X_scaled, y, cv=cv, scoring=scoring)
         return stacking, scores.mean()
 
-    def _greedy_selection(self, base_models, all_scores, X_scaled, y, cv, scoring, problem_type) -> Tuple:
+    def _greedy_selection(self, base_models: Any, all_scores: Any, X_scaled: Any, y: Any, cv: Any, scoring: Any, problem_type: Any) -> Tuple:
         """Greedy ensemble selection."""
         from sklearn.model_selection import cross_val_score
         from sklearn.ensemble import VotingClassifier, VotingRegressor
@@ -308,7 +305,7 @@ class EnsembleSkill(MLSkill):
 
         return [], 0
 
-    def _simple_average(self, base_models, X_scaled, y, cv, scoring, problem_type) -> Tuple:
+    def _simple_average(self, base_models: Any, X_scaled: Any, y: Any, cv: Any, scoring: Any, problem_type: Any) -> Tuple:
         """Simple average ensemble."""
         from sklearn.model_selection import cross_val_score
         from sklearn.ensemble import VotingClassifier, VotingRegressor
@@ -323,7 +320,7 @@ class EnsembleSkill(MLSkill):
         scores = cross_val_score(ensemble, X_scaled, y, cv=cv, scoring=scoring)
         return ensemble, scores.mean()
 
-    def _multi_level_stacking(self, X_scaled, y, cv, scoring, problem_type) -> Tuple:
+    def _multi_level_stacking(self, X_scaled: Any, y: Any, cv: Any, scoring: Any, problem_type: Any) -> Tuple:
         """Multi-level stacking (10/10 Kaggle Winner Strategy)."""
         from sklearn.model_selection import cross_val_score
         from sklearn.ensemble import StackingClassifier, StackingRegressor
@@ -381,9 +378,7 @@ class EnsembleSkill(MLSkill):
         scores = cross_val_score(stacking, X_scaled, y, cv=cv, scoring=scoring)
         return stacking, scores.mean()
 
-    def _build_winning_ensemble(self, strategy, multi_level_stacking, stacking,
-                                 weighted_ensemble, greedy_estimators, base_models,
-                                 simple_ensemble, problem_type):
+    def _build_winning_ensemble(self, strategy: Any, multi_level_stacking: Any, stacking: Any, weighted_ensemble: Any, greedy_estimators: Any, base_models: Any, simple_ensemble: Any, problem_type: Any) -> Any:
         """Build the winning ensemble model."""
         from sklearn.ensemble import VotingClassifier, VotingRegressor
 
@@ -406,7 +401,7 @@ class EnsembleSkill(MLSkill):
             return simple_ensemble, 3
 
     @staticmethod
-    def extract_feature_importance(model, feature_names: List[str]) -> Dict[str, float]:
+    def extract_feature_importance(model: Any, feature_names: List[str]) -> Dict[str, float]:
         """
         Extract feature importance from any ensemble model type.
 

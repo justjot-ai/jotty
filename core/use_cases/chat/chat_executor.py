@@ -20,12 +20,7 @@ class ChatExecutor:
     Executes chat interactions with agents.
     """
     
-    def __init__(
-        self,
-        conductor: Any,  # Conductor instance
-        orchestrator: ChatOrchestrator,
-        context: Optional[ChatContext] = None
-    ):
+    def __init__(self, conductor: Any, orchestrator: ChatOrchestrator, context: Optional[ChatContext] = None) -> None:
         """
         Initialize chat executor.
         

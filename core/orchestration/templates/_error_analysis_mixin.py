@@ -30,7 +30,7 @@ class ErrorAnalysisMixin:
     Intended to be used via multiple inheritance alongside the base report class.
     """
 
-    def add_error_analysis(self, X: pd.DataFrame, y_true, y_pred, y_prob=None, top_n: int = 10) -> None:
+    def add_error_analysis(self, X: pd.DataFrame, y_true: Any, y_pred: Any, y_prob: Any = None, top_n: int = 10) -> None:
         """
         Add error analysis including:
         - Misclassification breakdown
@@ -193,7 +193,7 @@ Selective prediction: reject uncertain samples to improve accuracy.
         except Exception as e:
             self._record_section_failure('Error Analysis', e)
 
-    def _cluster_errors(self, X: pd.DataFrame, errors) -> List[Dict]:
+    def _cluster_errors(self, X: pd.DataFrame, errors: Any) -> List[Dict]:
         """Cluster misclassified samples using adaptive method selection.
 
         Uses PCA for dimensionality reduction, silhouette analysis for optimal k,
@@ -334,7 +334,7 @@ Selective prediction: reject uncertain samples to improve accuracy.
             self._record_internal_warning('ErrorClustering', 'Error clustering failed', e)
             return []
 
-    def _compute_error_decomposition(self, y_true, y_pred, cm) -> Dict:
+    def _compute_error_decomposition(self, y_true: Any, y_pred: Any, cm: Any) -> Dict:
         """Compute FP/FN breakdown for binary; per-class error rates for multiclass."""
         decomposition = {}
         n_classes = len(cm)
@@ -365,8 +365,7 @@ Selective prediction: reject uncertain samples to improve accuracy.
 
         return decomposition
 
-    def _compute_rejection_thresholds(self, y_true, y_pred, y_prob,
-                                       targets=(0.95, 0.99)) -> Dict:
+    def _compute_rejection_thresholds(self, y_true: Any, y_pred: Any, y_prob: Any, targets: Any = (0.95, 0.99)) -> Dict:
         """Find confidence thresholds where accuracy reaches target levels.
 
         Returns dict with threshold, rejection rate, and achieved accuracy for each target.
@@ -412,7 +411,7 @@ Selective prediction: reject uncertain samples to improve accuracy.
 
         return result
 
-    def _analyze_error_patterns(self, X: pd.DataFrame, errors) -> Dict:
+    def _analyze_error_patterns(self, X: pd.DataFrame, errors: Any) -> Dict:
         """Analyze error patterns by feature."""
         patterns = {}
         numeric_cols = X.select_dtypes(include=[np.number]).columns[:10]
@@ -430,7 +429,7 @@ Selective prediction: reject uncertain samples to improve accuracy.
 
         return patterns
 
-    def _create_error_analysis_chart(self, X, errors, y_true, y_pred, patterns) -> str:
+    def _create_error_analysis_chart(self, X: Any, errors: Any, y_true: Any, y_pred: Any, patterns: Any) -> str:
         """Create error analysis visualization."""
         try:
             with self._chart_context('error_analysis', figsize=(12, 5), nrows=1, ncols=2) as (fig, axes):

@@ -47,7 +47,7 @@ class ContextChunk:
     is_compressed: bool = False
     original_tokens: int = 0
     
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not self.tokens:
             self.tokens = SmartTokenizer.get_instance().count_tokens(self.content)
         if not self.original_tokens:
@@ -70,10 +70,7 @@ class SmartContextManager:
     5. Memory consolidation instead of truncation
     """
     
-    def __init__(self, 
-                 max_tokens: int = 28000,
-                 safety_margin: float = 0.85,  # Use 85% of max
-                 enable_api_error_recovery: bool = True):
+    def __init__(self, max_tokens: int = 28000, safety_margin: float = 0.85, enable_api_error_recovery: bool = True) -> None:
         """
         Args:
             max_tokens: Maximum context tokens (from model config)
@@ -106,7 +103,7 @@ class SmartContextManager:
         # LLM summarizer for smart compression
         self._init_summarizer()
     
-    def _init_summarizer(self):
+    def _init_summarizer(self) -> Any:
         """Initialize LLM-based summarizer for smart compression."""
         class SummarizeSignature(dspy.Signature):
             """Summarize text while preserving critical information."""
@@ -407,7 +404,7 @@ class SmartContextManager:
 # INTEGRATION DECORATOR
 # =============================================================================
 
-def with_smart_context(max_tokens: int = 28000):
+def with_smart_context(max_tokens: int = 28000) -> Any:
     """
     Decorator to add smart context management to any agent.
     
@@ -416,10 +413,10 @@ def with_smart_context(max_tokens: int = 28000):
         async def my_agent(query: str, context: str):
             ...
     """
-    def decorator(func):
+    def decorator(func: Any) -> Any:
         manager = SmartContextManager(max_tokens=max_tokens)
         
-        async def wrapper(*args, **kwargs):
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
             # Try to execute
             try:
                 return await func(*args, **kwargs)

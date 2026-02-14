@@ -455,13 +455,13 @@ X['fare_bracket'] = pd.qcut(X['Fare'], q=4, labels=[0, 1, 2, 3], duplicates='dro
 Code only:""",
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize SwarmML template."""
         super().__init__()
         self._problem_type = None
         self._target_metric = None
 
-    def detect_problem_type(self, X, y=None, **kwargs) -> str:
+    def detect_problem_type(self, X: Any, y: Any = None, **kwargs: Any) -> str:
         """
         Auto-detect ML problem type from target variable.
 
@@ -500,7 +500,7 @@ Code only:""",
         }
         return metrics.get(problem_type, "accuracy")
 
-    def validate_inputs(self, **kwargs) -> bool:
+    def validate_inputs(self, **kwargs: Any) -> bool:
         """Validate that required inputs are provided."""
         X = kwargs.get('X')
 
@@ -527,8 +527,7 @@ Code only:""",
             "binning_analyst",
         ]
 
-    def format_feedback_prompt(self, feature_importance: Dict[str, float],
-                                iteration: int, **kwargs) -> str:
+    def format_feedback_prompt(self, feature_importance: Dict[str, float], iteration: int, **kwargs: Any) -> str:
         """
         Format the feedback loop prompt with actual feature importance.
 

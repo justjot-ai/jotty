@@ -113,13 +113,7 @@ class OptimizationPipeline:
         ```
     """
     
-    def __init__(
-        self,
-        agents: List[AgentConfig],
-        config: OptimizationConfig,
-        jotty_config: Optional[SwarmConfig] = None,
-        conductor: Optional[Any] = None  # Jotty Conductor instance
-    ):
+    def __init__(self, agents: List[AgentConfig], config: OptimizationConfig, jotty_config: Optional[SwarmConfig] = None, conductor: Optional[Any] = None) -> None:
         """
         Initialize optimization pipeline.
         
@@ -1395,15 +1389,7 @@ class OptimizationPipeline:
         return outputs
 
 
-def create_optimization_pipeline(
-    agents: List[AgentConfig],
-    max_iterations: int = 5,
-    required_pass_count: int = 2,
-    enable_teacher_model: bool = True,
-    enable_kb_updates: bool = True,
-    output_path: Optional[Union[str, Path]] = None,
-    **kwargs
-) -> OptimizationPipeline:
+def create_optimization_pipeline(agents: List[AgentConfig], max_iterations: int = 5, required_pass_count: int = 2, enable_teacher_model: bool = True, enable_kb_updates: bool = True, output_path: Optional[Union[str, Path]] = None, **kwargs: Any) -> OptimizationPipeline:
     """
     Convenience function to create an OptimizationPipeline.
     

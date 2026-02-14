@@ -8,7 +8,7 @@ LLM-driven agent creation: analyzes task to decide single vs multi-agent.
 import logging
 import re
 import json
-from typing import List, Optional
+from typing import List, Optional, Any
 
 from Jotty.core.foundation.agent_config import AgentConfig
 from Jotty.core.utils.async_utils import StatusReporter
@@ -37,7 +37,7 @@ class ZeroConfigAgentFactory:
         'summarize': 'direct',
     }
 
-    def create_agents(self, task: str, status_callback=None) -> List[AgentConfig]:
+    def create_agents(self, task: str, status_callback: Any = None) -> List[AgentConfig]:
         """
         Analyze task and create appropriate agent configs.
 

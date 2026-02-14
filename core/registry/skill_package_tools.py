@@ -11,7 +11,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def create_package_management_tools(venv_manager) -> Dict[str, Any]:
+def create_package_management_tools(venv_manager: Any) -> Dict[str, Any]:
     """
     Create package management tools for agents.
     

@@ -16,7 +16,7 @@ from typing import Any, List, Tuple, Dict, Optional
 logger = logging.getLogger(__name__)
 
 
-def extract_file_paths(result) -> Tuple[List[Tuple[str, str]], Dict[str, Any]]:
+def extract_file_paths(result: Any) -> Tuple[List[Tuple[str, str]], Dict[str, Any]]:
     """
     Extract file paths and summary info from execution result.
 
@@ -67,7 +67,7 @@ def extract_file_paths(result) -> Tuple[List[Tuple[str, str]], Dict[str, Any]]:
     return file_paths, summary
 
 
-def display_result(renderer, result, elapsed: float, output_history: list):
+def display_result(renderer: Any, result: Any, elapsed: float, output_history: list) -> Any:
     """
     Display execution result with rich formatting.
 

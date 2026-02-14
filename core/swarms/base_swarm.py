@@ -1,3 +1,4 @@
+from typing import Any
 """
 Base Swarm Infrastructure
 =========================
@@ -106,7 +107,7 @@ class BaseSwarm(SwarmLearningMixin, ABC):
     Subclasses implement domain-specific logic.
     """
 
-    def __init__(self, config: SwarmBaseConfig):
+    def __init__(self, config: SwarmBaseConfig) -> None:
         self.config = config
         self._initialized = False
 
@@ -258,7 +259,7 @@ class BaseSwarm(SwarmLearningMixin, ABC):
         save_dir.mkdir(parents=True, exist_ok=True)
         return str(save_dir / f"{safe_name}_{domain}.json")
 
-    def connect_swarm_intelligence(self, swarm_intelligence=None, enable_training: bool = False) -> None:
+    def connect_swarm_intelligence(self, swarm_intelligence: Any = None, enable_training: bool = False) -> None:
         """
         Connect to SwarmIntelligence for Agent0 curriculum integration.
 
@@ -309,14 +310,7 @@ class BaseSwarm(SwarmLearningMixin, ABC):
 
         logger.info(f" SwarmIntelligence connected (training={enable_training})")
 
-    def _send_executor_feedback(
-        self,
-        task_type: str,
-        success: bool,
-        tools_used: List[str] = None,
-        execution_time: float = 0.0,
-        error_type: str = None
-    ):
+    def _send_executor_feedback(self, task_type: str, success: bool, tools_used: List[str] = None, execution_time: float = 0.0, error_type: str = None) -> Any:
         """
         Send executor feedback to SwarmIntelligence for curriculum adaptation.
 
@@ -492,7 +486,7 @@ class BaseSwarm(SwarmLearningMixin, ABC):
             swarm_name, default_tools or []
         )
 
-    def _curate_gold_standard(self, task_type, input_data, output_data, evaluation) -> None:
+    def _curate_gold_standard(self, task_type: Any, input_data: Any, output_data: Any, evaluation: Any) -> None:
         """Auto-curate gold standard from execution scoring >= 0.9."""
         if not self._gold_db:
             return
@@ -551,12 +545,7 @@ class BaseSwarm(SwarmLearningMixin, ABC):
             self._evaluation_history.record(evaluation)
         return evaluation
 
-    def _rule_based_evaluate(
-        self,
-        gold_standard,
-        output: Dict[str, Any],
-        task_type: str
-    ) -> Optional[Evaluation]:
+    def _rule_based_evaluate(self, gold_standard: Any, output: Dict[str, Any], task_type: str) -> Optional[Evaluation]:
         """
         Rule-based evaluation fallback when no LLM is available.
 
@@ -640,16 +629,7 @@ class BaseSwarm(SwarmLearningMixin, ABC):
             return ""
         return self._build_learned_context_string(agent_name=agent_name)
 
-    def _trace_phase(
-        self,
-        agent_name: str,
-        agent_role: AgentRole,
-        input_data: Dict[str, Any],
-        output_data: Dict[str, Any],
-        success: bool,
-        phase_start: datetime,
-        tools_used: List[str] = None
-    ):
+    def _trace_phase(self, agent_name: str, agent_role: AgentRole, input_data: Dict[str, Any], output_data: Dict[str, Any], success: bool, phase_start: datetime, tools_used: List[str] = None) -> Any:
         """Record a phase trace with automatic timing.
         Convenience wrapper for subclasses to call after each execution phase."""
         elapsed = (datetime.now() - phase_start).total_seconds()
@@ -667,15 +647,7 @@ class BaseSwarm(SwarmLearningMixin, ABC):
     # ARXIV SWARM INTEGRATION (Handoff, Coalition, Smart Routing)
     # =========================================================================
 
-    def _handoff_task(
-        self,
-        task_id: str,
-        to_agent: str,
-        task_type: str,
-        context: Dict = None,
-        partial_result: Any = None,
-        progress: float = 0.0
-    ):
+    def _handoff_task(self, task_id: str, to_agent: str, task_type: str, context: Dict = None, partial_result: Any = None, progress: float = 0.0) -> Any:
         """
         Hand off task to another agent with context preservation.
 
@@ -720,13 +692,7 @@ class BaseSwarm(SwarmLearningMixin, ABC):
         swarm_name = self.config.name or 'base_swarm'
         return self._swarm_intelligence.get_pending_handoffs(swarm_name)
 
-    def _form_coalition(
-        self,
-        task_type: str,
-        required_roles: List[str] = None,
-        min_agents: int = 2,
-        max_agents: int = 5
-    ):
+    def _form_coalition(self, task_type: str, required_roles: List[str] = None, min_agents: int = 2, max_agents: int = 5) -> Any:
         """
         Form coalition for complex multi-agent tasks.
 
@@ -878,13 +844,7 @@ class BaseSwarm(SwarmLearningMixin, ABC):
     # PRIORITY QUEUE
     # =========================================================================
 
-    def _enqueue_task(
-        self,
-        task_id: str,
-        task_type: str,
-        priority: int = 5,
-        context: Dict = None
-    ):
+    def _enqueue_task(self, task_id: str, task_type: str, priority: int = 5, context: Dict = None) -> Any:
         """Add task to priority queue."""
         if self._swarm_intelligence:
             self._swarm_intelligence.enqueue_task(
@@ -1069,7 +1029,7 @@ class BaseSwarm(SwarmLearningMixin, ABC):
 
         return await self._swarm_intelligence.execute_parallel(tasks, timeout)
 
-    async def _parallel_map(self, items: List, func, max_concurrent: int = 5) -> List:
+    async def _parallel_map(self, items: List, func: Any, max_concurrent: int = 5) -> List:
         """Apply function to items in parallel."""
         if not self._swarm_intelligence:
             # Fallback
@@ -1086,13 +1046,7 @@ class BaseSwarm(SwarmLearningMixin, ABC):
 
         return await self._swarm_intelligence.parallel_map(items, func, max_concurrent)
 
-    async def _process_in_chunks(
-        self,
-        items: List,
-        chunk_size: int,
-        process_func,
-        delay: float = 0.1
-    ) -> List:
+    async def _process_in_chunks(self, items: List, chunk_size: int, process_func: Any, delay: float = 0.1) -> List:
         """Process items in chunks to avoid timeouts."""
         if not self._swarm_intelligence:
             return await process_func(items)
@@ -1123,7 +1077,7 @@ class BaseSwarm(SwarmLearningMixin, ABC):
         return self._swarm_intelligence.get_cache_stats()
 
     @abstractmethod
-    async def execute(self, *args, **kwargs) -> SwarmResult:
+    async def execute(self, *args: Any, **kwargs: Any) -> SwarmResult:
         """Execute the swarm's main task. Implemented by subclasses."""
         pass
 

@@ -205,7 +205,7 @@ class ModelPipelineMixin:
         trial_count = [0]
         current_model = ['']
 
-        def progress_callback(study, trial) -> None:
+        def progress_callback(study: Any, trial: Any) -> None:
             trial_count[0] += 1
             if trial.value and trial.value > best_score_so_far[0]:
                 best_score_so_far[0] = trial.value
@@ -239,7 +239,7 @@ class ModelPipelineMixin:
             study = optuna.create_study(direction='maximize', sampler=sampler, pruner=pruner)
 
             if model_name in ['lightgbm', 'lgb']:
-                def objective(trial):
+                def objective(trial: Any) -> Any:
                     params = {
                         'n_estimators': trial.suggest_int('n_estimators', 50, 400),
                         'max_depth': trial.suggest_int('max_depth', 3, 12),
@@ -257,7 +257,7 @@ class ModelPipelineMixin:
                     return cross_val_score(model, X_scaled, y, cv=cv, scoring=scoring).mean()
 
             elif model_name in ['xgboost', 'xgb']:
-                def objective(trial):
+                def objective(trial: Any) -> Any:
                     params = {
                         'n_estimators': trial.suggest_int('n_estimators', 50, 400),
                         'max_depth': trial.suggest_int('max_depth', 3, 12),
@@ -275,7 +275,7 @@ class ModelPipelineMixin:
                     return cross_val_score(model, X_scaled, y, cv=cv, scoring=scoring).mean()
 
             elif model_name in ['random_forest', 'rf']:
-                def objective(trial):
+                def objective(trial: Any) -> Any:
                     params = {
                         'n_estimators': trial.suggest_int('n_estimators', 50, 400),
                         'max_depth': trial.suggest_int('max_depth', 3, 20),
@@ -290,7 +290,7 @@ class ModelPipelineMixin:
 
             else:
                 # Default: LightGBM
-                def objective(trial):
+                def objective(trial: Any) -> Any:
                     params = {
                         'n_estimators': trial.suggest_int('n_estimators', 50, 300),
                         'max_depth': trial.suggest_int('max_depth', 3, 10),

@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class PlanUtilsMixin:
-    def _extract_tool_schema(self, tool_func, tool_name: str) -> Dict[str, Any]:
+    def _extract_tool_schema(self, tool_func: Any, tool_name: str) -> Dict[str, Any]:
         """
         Extract parameter schema from a tool function.
 
@@ -390,12 +390,7 @@ Filename: {filename}
             return 'index.html'
         return 'app.py'
 
-    def _create_fallback_plan(
-        self,
-        task: str,
-        task_type,
-        skills: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+    def _create_fallback_plan(self, task: str, task_type: Any, skills: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
         Create a minimal fallback plan when LLM fails.
 
@@ -683,7 +678,7 @@ Filename: {filename}
             metadata=metadata
         )
     
-    async def _convert_skills_to_agents(self, skills: List[Dict[str, Any]]):
+    async def _convert_skills_to_agents(self, skills: List[Dict[str, Any]]) -> Any:
         """Convert skills to AgentConfig for Conductor."""
         try:
             from ..registry.skill_to_agent_converter import SkillToAgentConverter
@@ -737,7 +732,7 @@ Filename: {filename}
             minutes = total_minutes % 60
             return f"{hours}h {minutes}m"
     
-    def _create_task_graph_from_string(self, task_string: str, task_type) -> Optional[Any]:
+    def _create_task_graph_from_string(self, task_string: str, task_type: Any) -> Optional[Any]:
         """Create minimal TaskGraph from raw string."""
         if not TASK_GRAPH_AVAILABLE:
             return None
@@ -753,13 +748,7 @@ Filename: {filename}
     # Plan normalization + parsing (moved from agentic_planner.py)
     # =========================================================================
 
-    def _normalize_raw_plan(
-        self,
-        raw_plan,
-        skills: Optional[List[Dict[str, Any]]] = None,
-        task: str = '',
-        task_type=None,
-    ) -> list:
+    def _normalize_raw_plan(self, raw_plan: Any, skills: Optional[List[Dict[str, Any]]] = None, task: str = '', task_type: Any = None) -> list:
         """
         Single, robust normalizer: convert any LLM plan output to a list of dicts.
 
@@ -873,14 +862,7 @@ Filename: {filename}
         logger.error(f"Could not parse plan. Raw (first 300 chars): {plan_str[:300]}")
         return []
 
-    def _parse_plan_to_steps(
-        self,
-        raw_plan,
-        skills: List[Dict[str, Any]],
-        task: str,
-        task_type=None,
-        max_steps: int = 10,
-    ) -> list:
+    def _parse_plan_to_steps(self, raw_plan: Any, skills: List[Dict[str, Any]], task: str, task_type: Any = None, max_steps: int = 10) -> list:
         """
         Parse raw plan data into ExecutionStep objects.
 
@@ -1195,7 +1177,7 @@ Filename: {filename}
         return steps
 
     @staticmethod
-    def _get_tool_schema_for_step(step: ExecutionStep, registry) -> Optional[ToolSchema]:
+    def _get_tool_schema_for_step(step: ExecutionStep, registry: Any) -> Optional[ToolSchema]:
         """Look up ToolSchema for a step's tool from the registry."""
         if not registry:
             return None
@@ -1258,13 +1240,7 @@ Filename: {filename}
 
         return None
 
-    def _maybe_decompose_plan(
-        self,
-        steps: list,
-        skills: List[Dict[str, Any]],
-        task: str,
-        task_type,
-    ) -> Optional[list]:
+    def _maybe_decompose_plan(self, steps: list, skills: List[Dict[str, Any]], task: str, task_type: Any) -> Optional[list]:
         """
         Check if plan quality can be improved by decomposing composite skills.
 

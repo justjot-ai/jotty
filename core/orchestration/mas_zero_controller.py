@@ -32,7 +32,7 @@ class MASZeroController:
     Takes explicit references to agents and runners.
     """
 
-    def __init__(self, get_agents, get_runners):
+    def __init__(self, get_agents: Any, get_runners: Any) -> None:
         """
         Args:
             get_agents: Callable returning List[AgentConfig]
@@ -50,7 +50,7 @@ class MASZeroController:
     def runners(self) -> dict:
         return self._get_runners()
 
-    def _get_experience_library(self):
+    def _get_experience_library(self) -> Any:
         """Lazy-load per-problem ExperienceLibrary."""
         if self._experience_library is None:
             from .mas_zero import ExperienceLibrary
@@ -186,14 +186,7 @@ class MASZeroController:
     # MAS-EVOLVE: Iterative refinement of MAS design
     # =========================================================================
 
-    async def evolve(
-        self,
-        goal: str,
-        initial_results: Dict[str, Any],
-        max_iterations: int = 2,
-        status_callback=None,
-        **kwargs,
-    ) -> Dict[str, Any]:
+    async def evolve(self, goal: str, initial_results: Dict[str, Any], max_iterations: int = 2, status_callback: Any = None, **kwargs: Any) -> Dict[str, Any]:
         """
         Iteratively refine MAS design based on meta-feedback.
         """

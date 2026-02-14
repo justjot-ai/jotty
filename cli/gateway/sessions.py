@@ -58,12 +58,7 @@ class PersistentSessionManager:
     - Integrated with memory layer for context
     """
 
-    def __init__(
-        self,
-        storage_dir: Optional[Path] = None,
-        max_inactive_days: int = 30,
-        auto_save: bool = True
-    ):
+    def __init__(self, storage_dir: Optional[Path] = None, max_inactive_days: int = 30, auto_save: bool = True) -> None:
         """
         Initialize session manager.
 

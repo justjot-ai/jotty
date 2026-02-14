@@ -45,11 +45,7 @@ class ChatContext:
     Manages conversation context for chat interactions.
     """
     
-    def __init__(
-        self,
-        max_history: int = 50,
-        system_prompt: Optional[str] = None
-    ):
+    def __init__(self, max_history: int = 50, system_prompt: Optional[str] = None) -> None:
         """
         Initialize chat context.
         

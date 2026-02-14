@@ -32,14 +32,14 @@ _DEFAULT_DB = Path.home() / ".jotty" / "evals.db"
 class EvalStore:
     """SQLite-backed eval results store."""
 
-    def __init__(self, db_path: Optional[str] = None):
+    def __init__(self, db_path: Optional[str] = None) -> None:
         self.db_path = Path(db_path) if db_path else _DEFAULT_DB
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = sqlite3.connect(str(self.db_path))
         self._conn.row_factory = sqlite3.Row
         self._init_schema()
 
-    def _init_schema(self):
+    def _init_schema(self) -> Any:
         self._conn.executescript("""
             CREATE TABLE IF NOT EXISTS runs (
                 id TEXT PRIMARY KEY,
@@ -81,17 +81,7 @@ class EvalStore:
         logger.info(f"Eval run started: {run_id} ({model} on {benchmark})")
         return run_id
 
-    def record_result(
-        self,
-        run_id: str,
-        task_id: str,
-        success: bool,
-        answer: str = "",
-        error: str = "",
-        execution_time: float = 0,
-        cost: float = 0,
-        tokens_used: int = 0,
-    ):
+    def record_result(self, run_id: str, task_id: str, success: bool, answer: str = '', error: str = '', execution_time: float = 0, cost: float = 0, tokens_used: int = 0) -> Any:
         """Record a single task result."""
         self._conn.execute(
             "INSERT INTO results (run_id,task_id,success,answer,error,execution_time,cost,tokens_used,recorded_at) "

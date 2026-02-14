@@ -37,7 +37,7 @@ class PersistentClaudeCLI(dspy.BaseLM):
     _instance = None
     _lock = threading.Lock()
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, *args: Any, **kwargs: Any) -> Any:
         """Singleton pattern - reuse the same process."""
         if cls._instance is None:
             with cls._lock:
@@ -46,13 +46,7 @@ class PersistentClaudeCLI(dspy.BaseLM):
                     cls._instance._initialized = False
         return cls._instance
 
-    def __init__(
-        self,
-        model: str = "",
-        timeout: int = 0,
-        auto_clear: bool = True,
-        **kwargs
-    ):
+    def __init__(self, model: str = '', timeout: int = 0, auto_clear: bool = True, **kwargs: Any) -> None:
         if self._initialized:
             return
 
@@ -86,13 +80,13 @@ class PersistentClaudeCLI(dspy.BaseLM):
         self._initialized = True
         logger.info(f"PersistentClaudeCLI initialized (model={model})")
 
-    async def _ensure_process(self):
+    async def _ensure_process(self) -> Any:
         """Ensure the Claude CLI process is running."""
         async with self._process_lock:
             if self._process is None or self._process.returncode is not None:
                 await self._start_process()
 
-    async def _start_process(self):
+    async def _start_process(self) -> Any:
         """Start a new Claude CLI process."""
         if self._process and self._process.returncode is None:
             try:
@@ -119,12 +113,7 @@ class PersistentClaudeCLI(dspy.BaseLM):
         self._call_count = 0
         logger.info(f"Started persistent Claude CLI process (PID: {self._process.pid})")
 
-    def __call__(
-        self,
-        prompt: str = None,
-        messages: List[Dict] = None,
-        **kwargs
-    ) -> List[str]:
+    def __call__(self, prompt: str = None, messages: List[Dict] = None, **kwargs: Any) -> List[str]:
         """Synchronous call interface (required by DSPy)."""
         try:
             loop = asyncio.get_running_loop()
@@ -138,12 +127,7 @@ class PersistentClaudeCLI(dspy.BaseLM):
         except RuntimeError:
             return asyncio.run(self._async_call(prompt, messages, **kwargs))
 
-    async def _async_call(
-        self,
-        prompt: str = None,
-        messages: List[Dict] = None,
-        **kwargs
-    ) -> List[str]:
+    async def _async_call(self, prompt: str = None, messages: List[Dict] = None, **kwargs: Any) -> List[str]:
         """Async implementation using persistent process."""
         # Build input text
         if prompt:
@@ -326,7 +310,7 @@ class PersistentClaudeCLI(dspy.BaseLM):
             cls._instance = None
 
 
-def configure_persistent_claude(model: str = "", **kwargs) -> PersistentClaudeCLI:
+def configure_persistent_claude(model: str = '', **kwargs: Any) -> PersistentClaudeCLI:
     """
     Configure DSPy with PersistentClaudeCLI.
 

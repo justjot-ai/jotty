@@ -54,7 +54,7 @@ class ComponentTemplateGenerator:
         "split": "grid grid-cols-1 md:grid-cols-2 gap-8",
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.generated_count = 0
 
     def generate_stats_variants(self) -> List[Dict[str, Any]]:
@@ -346,7 +346,7 @@ def generate_component_registry() -> Dict[str, int]:
     }
 
 
-def save_component_manifest(output_path: str = None):
+def save_component_manifest(output_path: str = None) -> Any:
     """Save a manifest of all generated components"""
     import json
 

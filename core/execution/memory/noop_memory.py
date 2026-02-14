@@ -11,7 +11,7 @@ from typing import List, Dict, Any
 class NoOpMemory:
     """Memory backend that does nothing."""
 
-    async def store(self, **kwargs):
+    async def store(self, **kwargs: Any) -> Any:
         """Store nothing."""
         pass
 
@@ -19,6 +19,6 @@ class NoOpMemory:
         """Retrieve nothing."""
         return []
 
-    async def clear(self):
+    async def clear(self) -> Any:
         """Clear nothing."""
         pass

@@ -18,7 +18,7 @@ class MemoryTaskQueue(TaskQueue):
     Preserves all supervisor functionality
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         self.tasks: Dict[str, Task] = {}
         self._lock = asyncio.Lock()
     
@@ -52,16 +52,7 @@ class MemoryTaskQueue(TaskQueue):
         async with self._lock:
             return self.tasks.get(task_id)
     
-    async def update_status(
-        self,
-        task_id: str,
-        status: str,
-        pid: Optional[int] = None,
-        error: Optional[str] = None,
-        log_file: Optional[str] = None,
-        agent_type: Optional[str] = None,
-        **kwargs
-    ) -> bool:
+    async def update_status(self, task_id: str, status: str, pid: Optional[int] = None, error: Optional[str] = None, log_file: Optional[str] = None, agent_type: Optional[str] = None, **kwargs: Any) -> bool:
         """Update task status"""
         async with self._lock:
             if task_id not in self.tasks:
@@ -172,17 +163,7 @@ class MemoryTaskQueue(TaskQueue):
             self.tasks[task_id].priority = priority
             return True
     
-    async def update_task_metadata(
-        self,
-        task_id: str,
-        title: Optional[str] = None,
-        description: Optional[str] = None,
-        priority: Optional[int] = None,
-        category: Optional[str] = None,
-        context_files: Optional[str] = None,
-        agent_type: Optional[str] = None,
-        **kwargs
-    ) -> bool:
+    async def update_task_metadata(self, task_id: str, title: Optional[str] = None, description: Optional[str] = None, priority: Optional[int] = None, category: Optional[str] = None, context_files: Optional[str] = None, agent_type: Optional[str] = None, **kwargs: Any) -> bool:
         """Update task metadata"""
         async with self._lock:
             if task_id not in self.tasks:
@@ -217,17 +198,7 @@ class MemoryTaskQueue(TaskQueue):
                 return True
             return False
     
-    async def create_task(
-        self,
-        title: str,
-        description: str = "",
-        priority: int = 3,
-        category: str = "",
-        context_files: Optional[str] = None,
-        status: str = "backlog",
-        agent_type: Optional[str] = None,
-        **kwargs
-    ) -> Optional[str]:
+    async def create_task(self, title: str, description: str = '', priority: int = 3, category: str = '', context_files: Optional[str] = None, status: str = 'backlog', agent_type: Optional[str] = None, **kwargs: Any) -> Optional[str]:
         """Create a new task"""
         if agent_type is None:
             agent_type = 'claude'

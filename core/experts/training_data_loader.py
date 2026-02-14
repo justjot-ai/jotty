@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class TrainingDataLoader:
     """Loads training examples from various sources."""
     
-    def __init__(self, domain: str, validator: Optional[Any] = None):
+    def __init__(self, domain: str, validator: Optional[Any] = None) -> None:
         """
         Initialize training data loader.
         

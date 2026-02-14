@@ -110,7 +110,7 @@ class OlympiadLearningConfig(SwarmBaseConfig):
     include_hints: bool = True
     include_full_solutions: bool = True
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.name = "OlympiadLearningSwarm"
         self.domain = "olympiad_learning"
         if self.llm_timeout <= 0:

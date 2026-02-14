@@ -22,7 +22,7 @@ class SwarmWarmup:
     to bootstrap agent learning before real user tasks.
     """
 
-    def __init__(self, swarm: 'Orchestrator'):
+    def __init__(self, swarm: 'Orchestrator') -> None:
         self.swarm = swarm
 
     async def warmup(

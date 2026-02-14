@@ -342,7 +342,7 @@ class SkillProvider(ABC):
     is_initialized: bool = False
     is_available: bool = True
 
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: Dict[str, Any] = None) -> None:
         """
         Initialize the provider.
 
@@ -456,7 +456,7 @@ class JottyDefaultProvider(SkillProvider):
     version = "2.0.0"
     description = "Jotty's built-in skill implementations via SkillsRegistry"
 
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: Dict[str, Any] = None) -> None:
         super().__init__(config)
 
         # Lazy-loaded skills registry

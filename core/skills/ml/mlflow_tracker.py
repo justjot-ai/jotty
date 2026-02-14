@@ -66,14 +66,14 @@ class MLflowTrackerSkill(MLSkill):
     DEFAULT_TRACKING_URI = "mlruns"
     DEFAULT_EXPERIMENT = "jotty_ml"
 
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: Dict[str, Any] = None) -> None:
         super().__init__(config)
         self._mlflow = None
         self._active_run = None
         self._tracking_uri = None
         self._experiment_name = None
 
-    async def init(self, tracking_uri: str = None, experiment_name: str = None):
+    async def init(self, tracking_uri: str = None, experiment_name: str = None) -> Any:
         """
         Initialize MLflow tracking.
 
@@ -107,10 +107,7 @@ class MLflowTrackerSkill(MLSkill):
         self._initialized = True
         logger.info(f"MLflow initialized: {self._tracking_uri}")
 
-    async def execute(self,
-                      X: pd.DataFrame = None,
-                      y: Optional[pd.Series] = None,
-                      **context) -> SkillResult:
+    async def execute(self, X: pd.DataFrame = None, y: Optional[pd.Series] = None, **context: Any) -> SkillResult:
         """
         Execute tracking operation based on context.
 

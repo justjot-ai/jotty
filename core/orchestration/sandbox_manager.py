@@ -90,7 +90,7 @@ class SandboxManager:
         default_sandbox: Fallback sandbox type when preferred not available
     """
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
         """
         Initialize SandboxManager.
 
@@ -110,7 +110,7 @@ class SandboxManager:
         # Initialize backends
         self._init_backends()
 
-    def _init_backends(self):
+    def _init_backends(self) -> Any:
         """Check availability of E2B and Docker backends."""
         # Check E2B
         try:

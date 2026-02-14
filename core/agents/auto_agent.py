@@ -67,17 +67,7 @@ class AutoAgent(AutonomousAgent):
         result = await agent.execute("RNN vs CNN")
     """
 
-    def __init__(
-        self,
-        default_output_skill: Optional[str] = None,
-        enable_output: bool = False,
-        max_steps: int = 10,
-        timeout: int = 300,
-        planner: Optional[TaskPlanner] = None,
-        skill_filter: Optional[str] = None,
-        system_prompt: Optional[str] = None,
-        name: Optional[str] = None,
-    ):
+    def __init__(self, default_output_skill: Optional[str] = None, enable_output: bool = False, max_steps: int = 10, timeout: int = 300, planner: Optional[TaskPlanner] = None, skill_filter: Optional[str] = None, system_prompt: Optional[str] = None, name: Optional[str] = None) -> None:
         """
         Initialize AutoAgent.
 
@@ -172,7 +162,7 @@ class AutoAgent(AutonomousAgent):
             from concurrent.futures import ThreadPoolExecutor, as_completed
             responses = {}
 
-            def _gen(name, prefix) -> Tuple:
+            def _gen(name: Any, prefix: Any) -> Tuple:
                 prompt = f"{prefix}\n\n{task}"
                 response = lm(prompt=prompt)
                 return name, response[0] if isinstance(response, list) else str(response)
@@ -218,7 +208,7 @@ Provide:
             logger.error(f"Ensemble execution failed: {e}", exc_info=True)
             return {'success': False, 'error': str(e)}
 
-    def _should_auto_ensemble(self, task: str):
+    def _should_auto_ensemble(self, task: str) -> tuple[bool, int]:
         """
         Determine if ensemble should be auto-enabled and with how many perspectives.
 
@@ -249,14 +239,14 @@ Provide:
             class _ReActStreamCallback(BaseCallback):
                 """Hooks into DSPy ReAct to broadcast intermediate reasoning."""
 
-                def on_module_start(self, call_id, instance, inputs) -> None:
+                def on_module_start(self, call_id: Any, instance: Any, inputs: Any) -> None:
                     broadcaster.emit(AgentEvent(
                         type="step_start",
                         data={"module": type(instance).__name__, "inputs_keys": list(inputs.keys())},
                         agent_id=agent_id,
                     ))
 
-                def on_module_end(self, call_id, outputs, exception) -> None:
+                def on_module_end(self, call_id: Any, outputs: Any, exception: Any) -> None:
                     # Extract ReAct internals from DSPy _store
                     store = getattr(outputs, '_store', {}) if outputs else {}
                     data = {}
@@ -270,14 +260,14 @@ Provide:
                         agent_id=agent_id,
                     ))
 
-                def on_tool_start(self, call_id, tool_name, tool_input) -> None:
+                def on_tool_start(self, call_id: Any, tool_name: Any, tool_input: Any) -> None:
                     broadcaster.emit(AgentEvent(
                         type="tool_start",
                         data={"tool": tool_name, "input_preview": str(tool_input)[:200]},
                         agent_id=agent_id,
                     ))
 
-                def on_tool_end(self, call_id, tool_output) -> None:
+                def on_tool_end(self, call_id: Any, tool_output: Any) -> None:
                     broadcaster.emit(AgentEvent(
                         type="tool_end",
                         data={"output_length": len(str(tool_output))},
@@ -351,7 +341,7 @@ Provide:
     # MAIN EXECUTE (Backwards-compatible signature)
     # =========================================================================
 
-    async def execute(self, task: str, **kwargs) -> AgenticExecutionResult:
+    async def execute(self, task: str, **kwargs: Any) -> AgenticExecutionResult:
         """
         Execute a task automatically.
 

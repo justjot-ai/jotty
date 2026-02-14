@@ -153,7 +153,7 @@ class BaseSkill:
     category: str = "general"
     tags: List[str] = []
 
-    def __init__(self, status_callback: Optional[Callable] = None):
+    def __init__(self, status_callback: Optional[Callable] = None) -> None:
         """
         Initialize skill with optional status callback.
 
@@ -167,7 +167,7 @@ class BaseSkill:
         """Set status callback for progress reporting."""
         self._status_callback = callback
 
-    def set_context(self, **context) -> None:
+    def set_context(self, **context: Any) -> None:
         """Set execution context (session_id, user_id, metadata, etc.)."""
         self._context.update(context)
 
@@ -318,35 +318,7 @@ class SkillDefinition:
     └─────────────────────────────────────────────────────────────────────┘
     """
 
-    def __init__(
-        self,
-        name: str,
-        description: str,
-        tools: Optional[Dict[str, Callable]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
-        _tool_loader: Optional[Callable] = None,
-        # Tool metadata for each tool
-        tool_metadata: Optional[Dict[str, ToolMetadata]] = None,
-        # Skill-level attributes
-        category: str = "general",
-        mcp_enabled: bool = False,
-        tags: Optional[List[str]] = None,
-        version: str = "1.0.0",
-        # Discovery fields
-        capabilities: Optional[List[str]] = None,
-        use_when: Optional[str] = None,
-        # Skill type classification (base/derived/composite)
-        skill_type: Optional[SkillType] = None,
-        base_skills: Optional[List[str]] = None,
-        execution_mode: Optional[str] = None,
-        # Trust level (Cline auto-approve pattern)
-        trust_level: Optional[TrustLevel] = None,
-        # Context gate (Cline contextRequirements pattern)
-        # Callable that takes task_context dict → bool (should skill be available?)
-        context_gate: Optional[Callable] = None,
-        # Executor surface classification (browser, terminal, web_search, etc.)
-        executor_type: Optional[str] = None,
-    ):
+    def __init__(self, name: str, description: str, tools: Optional[Dict[str, Callable]] = None, metadata: Optional[Dict[str, Any]] = None, _tool_loader: Optional[Callable] = None, tool_metadata: Optional[Dict[str, ToolMetadata]] = None, category: str = 'general', mcp_enabled: bool = False, tags: Optional[List[str]] = None, version: str = '1.0.0', capabilities: Optional[List[str]] = None, use_when: Optional[str] = None, skill_type: Optional[SkillType] = None, base_skills: Optional[List[str]] = None, execution_mode: Optional[str] = None, trust_level: Optional[TrustLevel] = None, context_gate: Optional[Callable] = None, executor_type: Optional[str] = None) -> None:
         self.name = name
         self.description = description
         self._tools = tools  # None until loaded (lazy) or pre-populated (eager)
@@ -496,7 +468,7 @@ class SkillDefinition:
         return schema
 
     @staticmethod
-    def _schema_from_signature(func, tool_name: str, schema):
+    def _schema_from_signature(func: Any, tool_name: str, schema: Any) -> Any:
         """Fallback: build ToolSchema params from inspect.signature().
 
         Extracts parameter names, type annotations, and required/optional
@@ -614,7 +586,7 @@ class SkillsRegistry:
     - AI-generated skills (created on-demand via SkillGenerator)
     """
     
-    def __init__(self, skills_dir: Optional[str] = None, skill_generator=None):
+    def __init__(self, skills_dir: Optional[str] = None, skill_generator: Any = None) -> None:
         """
         Initialize skills registry.
         
@@ -697,7 +669,7 @@ class SkillsRegistry:
         """
         import threading
 
-        def _warm():
+        def _warm() -> Any:
             for name in self._TOP_SKILLS:
                 skill = self.loaded_skills.get(name)
                 if skill and not skill.is_loaded:
@@ -759,7 +731,7 @@ class SkillsRegistry:
             trigger_type = entry.get("trigger_type", "unknown")
 
             # Build lazy tool loader that binds workflow_id at load time
-            def _make_loader(wid=wf_id, sname=skill_name, wname=wf_name, bskill=base_skill_name) -> Dict:
+            def _make_loader(wid: Any = wf_id, sname: Any = skill_name, wname: Any = wf_name, bskill: Any = base_skill_name) -> Dict:
                 def _loader() -> Dict:
                     # Import the trigger function from the base skill's tools.py
                     base_skill = self.loaded_skills.get(bskill)
@@ -768,7 +740,7 @@ class SkillsRegistry:
                     else:
                         trigger_fn = None
 
-                    async def _trigger(params, _wid=wid, _fn=trigger_fn):
+                    async def _trigger(params: Any, _wid: Any = wid, _fn: Any = trigger_fn) -> Any:
                         params["workflow_id"] = _wid
                         if _fn:
                             return await _fn(params)
@@ -814,7 +786,7 @@ class SkillsRegistry:
         """
         import threading
 
-        def _refresh():
+        def _refresh() -> Any:
             self._refresh_n8n_cache()
 
         threading.Thread(target=_refresh, daemon=True, name="dynamic-skill-refresh").start()
@@ -961,7 +933,7 @@ class SkillsRegistry:
 
         # Create a loader closure that captures the skill directory info
         registry = self  # capture reference for closure
-        def make_tool_loader(s_dir, s_name, is_cc_skill, s_md) -> Dict:
+        def make_tool_loader(s_dir: Any, s_name: Any, is_cc_skill: Any, s_md: Any) -> Dict:
             def loader() -> Dict[str, Callable]:
                 # Dependency check deferred to first tool load
                 dep_result = registry.dependency_manager.ensure_skill_dependencies(s_name, s_dir)
@@ -1245,7 +1217,7 @@ class SkillsRegistry:
             "dict": "object", "object": "object",
         }
 
-        def _flush_tool():
+        def _flush_tool() -> Any:
             nonlocal current_tool, current_desc, current_params, current_required, in_params
             if current_tool:
                 schema = {
@@ -2095,11 +2067,7 @@ class SkillsRegistry:
     # Agent Conversion (Refactoring #4)
     # =============================================================================
     
-    async def get_agent_for_skill(
-        self,
-        skill_name: str,
-        agent_name: Optional[str] = None
-    ):
+    async def get_agent_for_skill(self, skill_name: str, agent_name: Optional[str] = None) -> Any:
         """
         Get or create AgentConfig for a skill.
         

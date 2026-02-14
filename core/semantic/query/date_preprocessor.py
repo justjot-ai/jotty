@@ -5,7 +5,7 @@ Provides natural language date parsing that works across all database types:
 - MongoDB (ISODate strings)
 - PostgreSQL, MySQL, SQLite, SQL Server, Oracle (SQL date literals)
 """
-from typing import Dict, Tuple, List, Optional
+from typing import Dict, Tuple, List, Optional, Any
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 import re
@@ -63,7 +63,7 @@ class BaseDatePreprocessor(ABC):
         (r'since\s+(\d+)\s+years?\s+ago', 'years'),
     ]
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize with special date expressions."""
         # Define special date expressions as lambdas
         self.special_dates = {
@@ -268,7 +268,7 @@ class SQLDatePreprocessor(BaseDatePreprocessor):
         'bigquery': "TIMESTAMP('{date}')",
     }
 
-    def __init__(self, dialect: str = 'postgresql'):
+    def __init__(self, dialect: str = 'postgresql') -> None:
         """
         Initialize SQL date preprocessor.
 

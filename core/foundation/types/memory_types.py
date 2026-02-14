@@ -251,7 +251,7 @@ class MemoryEntry:
     is_protected: bool = False
     protection_reason: str = ""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not self.content_hash:
             self.content_hash = hashlib.md5(self.content.encode()).hexdigest()
         if not self.token_count:

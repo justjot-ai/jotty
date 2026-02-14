@@ -23,7 +23,7 @@ from Jotty.core.utils.async_utils import safe_status
 logger = logging.getLogger(__name__)
 
 
-def _extract_output_text(output) -> str:
+def _extract_output_text(output: Any) -> str:
     """Extract clean text content from an agent output, avoiding nested repr() strings."""
     if output is None:
         return ""
@@ -64,16 +64,10 @@ class ParadigmExecutor:
     for access to agents, runners, semaphore, and learning hooks.
     """
 
-    def __init__(self, manager):
+    def __init__(self, manager: Any) -> None:
         self._manager = manager
 
-    async def run_agent(
-        self,
-        runner,
-        sub_goal: str,
-        agent_name: str,
-        **kwargs,
-    ) -> EpisodeResult:
+    async def run_agent(self, runner: Any, sub_goal: str, agent_name: str, **kwargs: Any) -> EpisodeResult:
         """
         Run a single agent within a paradigm, using fast-path when possible.
 
@@ -158,7 +152,7 @@ class ParadigmExecutor:
         # FULL PATH: Use the complete AgentRunner pipeline
         return await runner.run(goal=sub_goal, **kwargs)
 
-    async def relay(self, goal: str, **kwargs) -> EpisodeResult:
+    async def relay(self, goal: str, **kwargs: Any) -> EpisodeResult:
         """
         Relay paradigm: agents execute sequentially, each building on prior output.
 
@@ -233,7 +227,7 @@ class ParadigmExecutor:
         sm._schedule_background_learning(combined, goal)
         return combined
 
-    async def debate(self, goal: str, **kwargs) -> EpisodeResult:
+    async def debate(self, goal: str, **kwargs: Any) -> EpisodeResult:
         """
         Debate paradigm: agents produce drafts, then critique each other in rounds.
         """
@@ -255,7 +249,7 @@ class ParadigmExecutor:
             sub_goal = agent_config.capabilities[0] if agent_config.capabilities else goal
             draft_tasks.append((agent_config.name, runner, sub_goal))
 
-        async def _run_draft(name, runner, sub_goal):
+        async def _run_draft(name: Any, runner: Any, sub_goal: Any) -> Any:
             async with sm.agent_semaphore:
                 return name, await self.run_agent(
                     runner, sub_goal, name, **kwargs
@@ -322,7 +316,7 @@ class ParadigmExecutor:
         sm._schedule_background_learning(combined, goal)
         return combined
 
-    async def refinement(self, goal: str, **kwargs) -> EpisodeResult:
+    async def refinement(self, goal: str, **kwargs: Any) -> EpisodeResult:
         """
         Collective refinement paradigm: iterative improvement until quality stabilizes.
         """

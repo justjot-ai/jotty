@@ -44,17 +44,7 @@ class DatabaseExtractor(BaseExtractor):
         "oracle": "oracle+oracledb",
     }
 
-    def __init__(
-        self,
-        db_type: str = None,
-        host: str = "localhost",
-        port: int = None,
-        database: str = "",
-        user: str = "",
-        password: str = "",
-        connection_string: str = None,
-        **kwargs
-    ):
+    def __init__(self, db_type: str = None, host: str = 'localhost', port: int = None, database: str = '', user: str = '', password: str = '', connection_string: str = None, **kwargs: Any) -> None:
         """
         Initialize database extractor.
 
@@ -91,16 +81,7 @@ class DatabaseExtractor(BaseExtractor):
                 return db_type
         return "unknown"
 
-    def _build_connection_string(
-        self,
-        db_type: str,
-        host: str,
-        port: int,
-        database: str,
-        user: str,
-        password: str,
-        **kwargs
-    ) -> str:
+    def _build_connection_string(self, db_type: str, host: str, port: int, database: str, user: str, password: str, **kwargs: Any) -> str:
         """Build SQLAlchemy connection string."""
         driver = self.DRIVERS.get(db_type)
         if not driver:
@@ -125,7 +106,7 @@ class DatabaseExtractor(BaseExtractor):
             return f"{driver}://{host}:{port}/{database}"
 
     @property
-    def engine(self):
+    def engine(self) -> Any:
         """Get or create SQLAlchemy engine."""
         if self._engine is None:
             from sqlalchemy import create_engine
@@ -142,7 +123,7 @@ class DatabaseExtractor(BaseExtractor):
         return self._engine
 
     @property
-    def inspector(self):
+    def inspector(self) -> Any:
         """Get or create SQLAlchemy inspector."""
         if self._inspector is None:
             from sqlalchemy import inspect

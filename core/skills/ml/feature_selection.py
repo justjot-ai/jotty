@@ -54,14 +54,11 @@ class FeatureSelectionSkill(MLSkill):
     optional_inputs = ["problem_type"]
     outputs = ["X_selected", "selected_features", "feature_scores"]
 
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: Dict[str, Any] = None) -> None:
         super().__init__(config)
         self._method_results = {}
 
-    async def execute(self,
-                      X: pd.DataFrame,
-                      y: Optional[pd.Series] = None,
-                      **context) -> SkillResult:
+    async def execute(self, X: pd.DataFrame, y: Optional[pd.Series] = None, **context: Any) -> SkillResult:
         """
         Execute feature selection.
 
@@ -212,8 +209,7 @@ class FeatureSelectionSkill(MLSkill):
         X_filtered = X.drop(columns=list(to_drop), errors='ignore')
         return X_filtered, to_drop
 
-    def _multi_model_importance(self, X: pd.DataFrame, y: pd.Series,
-                                 problem_type: str, feature_scores: Dict):
+    def _multi_model_importance(self, X: pd.DataFrame, y: pd.Series, problem_type: str, feature_scores: Dict) -> Any:
         """Multi-model importance voting."""
         import lightgbm as lgb
         import xgboost as xgb
@@ -248,9 +244,7 @@ class FeatureSelectionSkill(MLSkill):
         self._method_results['multi_model'] = list(model_importances.keys())
         return feature_scores, model_importances
 
-    def _null_importance_test(self, X: pd.DataFrame, y: pd.Series,
-                               problem_type: str, feature_scores: Dict,
-                               model_importances: Dict):
+    def _null_importance_test(self, X: pd.DataFrame, y: pd.Series, problem_type: str, feature_scores: Dict, model_importances: Dict) -> Any:
         """Null importance test - identify truly predictive features."""
         import lightgbm as lgb
 
@@ -285,8 +279,7 @@ class FeatureSelectionSkill(MLSkill):
         self._method_results['null_test_passed'] = len(null_passed)
         return feature_scores
 
-    def _stability_selection(self, X: pd.DataFrame, y: pd.Series,
-                              problem_type: str, feature_scores: Dict):
+    def _stability_selection(self, X: pd.DataFrame, y: pd.Series, problem_type: str, feature_scores: Dict) -> Any:
         """Stability selection - consistent importance across seeds."""
         import lightgbm as lgb
 
@@ -320,8 +313,7 @@ class FeatureSelectionSkill(MLSkill):
         self._method_results['stable_features'] = len(stable_features)
         return feature_scores
 
-    def _boruta_test(self, X: pd.DataFrame, y: pd.Series,
-                      problem_type: str, feature_scores: Dict):
+    def _boruta_test(self, X: pd.DataFrame, y: pd.Series, problem_type: str, feature_scores: Dict) -> Any:
         """Boruta-like shadow features test."""
         import lightgbm as lgb
 
@@ -354,8 +346,7 @@ class FeatureSelectionSkill(MLSkill):
 
         return feature_scores
 
-    def _permutation_importance(self, X: pd.DataFrame, y: pd.Series,
-                                 problem_type: str, feature_scores: Dict):
+    def _permutation_importance(self, X: pd.DataFrame, y: pd.Series, problem_type: str, feature_scores: Dict) -> Any:
         """Permutation importance."""
         import lightgbm as lgb
         from sklearn.inspection import permutation_importance
@@ -381,8 +372,7 @@ class FeatureSelectionSkill(MLSkill):
 
         return feature_scores
 
-    def _shap_importance(self, X: pd.DataFrame, y: pd.Series,
-                          problem_type: str, feature_scores: Dict):
+    def _shap_importance(self, X: pd.DataFrame, y: pd.Series, problem_type: str, feature_scores: Dict) -> Any:
         """SHAP-based importance (World-Class)."""
         import lightgbm as lgb
         shap_importance = {}
@@ -424,8 +414,7 @@ class FeatureSelectionSkill(MLSkill):
 
         return feature_scores, shap_importance
 
-    def _successive_halving(self, X: pd.DataFrame, y: pd.Series,
-                             problem_type: str, feature_scores: Dict):
+    def _successive_halving(self, X: pd.DataFrame, y: pd.Series, problem_type: str, feature_scores: Dict) -> Any:
         """
         Successive Halving for feature selection.
 
@@ -490,8 +479,7 @@ class FeatureSelectionSkill(MLSkill):
 
         return feature_scores
 
-    def _hyperband_selection(self, X: pd.DataFrame, y: pd.Series,
-                              problem_type: str, feature_scores: Dict):
+    def _hyperband_selection(self, X: pd.DataFrame, y: pd.Series, problem_type: str, feature_scores: Dict) -> Any:
         """
         Hyperband-style feature selection.
 
@@ -579,8 +567,7 @@ class FeatureSelectionSkill(MLSkill):
 
         return feature_scores
 
-    def _rfecv_selection(self, X: pd.DataFrame, y: pd.Series,
-                          problem_type: str, feature_scores: Dict):
+    def _rfecv_selection(self, X: pd.DataFrame, y: pd.Series, problem_type: str, feature_scores: Dict) -> Any:
         """
         Recursive Feature Elimination with Cross-Validation.
 
@@ -647,8 +634,7 @@ class FeatureSelectionSkill(MLSkill):
 
         return feature_scores
 
-    def _diverse_rf_importance(self, X: pd.DataFrame, y: pd.Series,
-                                problem_type: str, feature_scores: Dict):
+    def _diverse_rf_importance(self, X: pd.DataFrame, y: pd.Series, problem_type: str, feature_scores: Dict) -> Any:
         """
         Use diverse Random Forest configurations for feature importance.
 
@@ -710,7 +696,7 @@ class FeatureSelectionSkill(MLSkill):
 
         return feature_scores
 
-    def _pca_importance(self, X: pd.DataFrame, feature_scores: Dict):
+    def _pca_importance(self, X: pd.DataFrame, feature_scores: Dict) -> Any:
         """
         PCA-based feature scoring.
 
@@ -852,8 +838,7 @@ class FeatureSelectionSkill(MLSkill):
 
         return selected
 
-    def _bohb_selection(self, X: pd.DataFrame, y: pd.Series,
-                        problem_type: str, feature_scores: Dict):
+    def _bohb_selection(self, X: pd.DataFrame, y: pd.Series, problem_type: str, feature_scores: Dict) -> Any:
         """
         BOHB - Bayesian Optimized Hyperband for feature subset search.
 
@@ -894,7 +879,7 @@ class FeatureSelectionSkill(MLSkill):
                 ))
 
             # TPE-like sampling with Hyperband brackets
-            def evaluate_config(config, budget):
+            def evaluate_config(config: Any, budget: Any) -> Any:
                 """Evaluate a feature subset configuration."""
                 selected_feats = [f for f in candidate_features if config.get(f, 0) == 1]
                 if len(selected_feats) < 3:
@@ -980,8 +965,7 @@ class FeatureSelectionSkill(MLSkill):
 
         return feature_scores
 
-    def _pasha_selection(self, X: pd.DataFrame, y: pd.Series,
-                         problem_type: str, feature_scores: Dict):
+    def _pasha_selection(self, X: pd.DataFrame, y: pd.Series, problem_type: str, feature_scores: Dict) -> Any:
         """
         PASHA - Progressive Adaptive Successive Halving Algorithm.
 
@@ -1025,7 +1009,7 @@ class FeatureSelectionSkill(MLSkill):
             # Use feature scores to bias towards good features
             sorted_features = sorted(features, key=lambda f: feature_scores.get(f, 0), reverse=True)
 
-            def generate_config(seed):
+            def generate_config(seed: Any) -> Any:
                 """Generate a feature subset configuration."""
                 np.random.seed(seed)
                 # Bias towards top features
@@ -1050,7 +1034,7 @@ class FeatureSelectionSkill(MLSkill):
             results_lock = threading.Lock()
             rung_results = {}
 
-            def evaluate_at_rung(config_idx, config, budget) -> Tuple:
+            def evaluate_at_rung(config_idx: Any, config: Any, budget: Any) -> Tuple:
                 """Evaluate config at given budget rung."""
                 selected_feats = [f for f, v in config.items() if v == 1]
                 if len(selected_feats) < 3:

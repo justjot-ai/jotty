@@ -57,7 +57,7 @@ class AgentSpec:
     role: Optional[str] = None  # "manager", "worker", etc.
     priority: int = 0  # Higher = executes first in pipeline
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.attr_name is None:
             # Convert display name to attribute: "Architect" -> "_architect"
             # "TestWriter" -> "_test_writer"
@@ -124,7 +124,7 @@ class AgentTeam:
     # Initialized agent instances (set by swarm)
     _instances: Dict[str, Any] = field(default_factory=dict, repr=False)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         from Jotty.core.foundation.config_defaults import DEFAULTS
         if self.timeout == 0.0:
             self.timeout = float(DEFAULTS.LLM_TIMEOUT_SECONDS)
@@ -177,19 +177,14 @@ class AgentTeam:
     def __len__(self) -> int:
         return len(self.agents)
 
-    def __iter__(self):
+    def __iter__(self) -> Any:
         return iter(self.agents.items())
 
     # =========================================================================
     # COORDINATION EXECUTION
     # =========================================================================
 
-    async def execute(
-        self,
-        task: Any,
-        context: Dict[str, Any] = None,
-        **kwargs
-    ) -> TeamResult:
+    async def execute(self, task: Any, context: Dict[str, Any] = None, **kwargs: Any) -> TeamResult:
         """
         Execute the team with the configured coordination pattern.
 
@@ -236,12 +231,7 @@ class AgentTeam:
         else:
             raise ValueError(f"Unknown coordination pattern: {self.pattern}")
 
-    async def _execute_pipeline(
-        self,
-        task: Any,
-        context: Dict[str, Any],
-        **kwargs
-    ) -> TeamResult:
+    async def _execute_pipeline(self, task: Any, context: Dict[str, Any], **kwargs: Any) -> TeamResult:
         """Execute agents sequentially, passing output to next.
 
         When agents expose ``get_io_schema()``, output fields are auto-wired
@@ -322,18 +312,13 @@ class AgentTeam:
             errors=errors
         )
 
-    async def _execute_parallel(
-        self,
-        task: Any,
-        context: Dict[str, Any],
-        **kwargs
-    ) -> TeamResult:
+    async def _execute_parallel(self, task: Any, context: Dict[str, Any], **kwargs: Any) -> TeamResult:
         """Execute all agents in parallel, merge results."""
         outputs = {}
         errors = {}
         execution_order = []
 
-        async def run_agent(attr_name: str, spec: AgentSpec):
+        async def run_agent(attr_name: str, spec: AgentSpec) -> Any:
             agent = self._instances.get(attr_name)
             if not agent:
                 return None
@@ -373,12 +358,7 @@ class AgentTeam:
             errors=errors
         )
 
-    async def _execute_consensus(
-        self,
-        task: Any,
-        context: Dict[str, Any],
-        **kwargs
-    ) -> TeamResult:
+    async def _execute_consensus(self, task: Any, context: Dict[str, Any], **kwargs: Any) -> TeamResult:
         """Execute all agents, use voting for final result."""
         # First run parallel
         parallel_result = await self._execute_parallel(task, context, **kwargs)
@@ -404,12 +384,7 @@ class AgentTeam:
         parallel_result.metadata["votes"] = {k: v["count"] for k, v in votes.items()}
         return parallel_result
 
-    async def _execute_hierarchical(
-        self,
-        task: Any,
-        context: Dict[str, Any],
-        **kwargs
-    ) -> TeamResult:
+    async def _execute_hierarchical(self, task: Any, context: Dict[str, Any], **kwargs: Any) -> TeamResult:
         """Manager delegates to workers, aggregates results."""
         outputs = {}
         errors = {}
@@ -482,12 +457,7 @@ class AgentTeam:
             errors=errors
         )
 
-    async def _execute_blackboard(
-        self,
-        task: Any,
-        context: Dict[str, Any],
-        **kwargs
-    ) -> TeamResult:
+    async def _execute_blackboard(self, task: Any, context: Dict[str, Any], **kwargs: Any) -> TeamResult:
         """Agents contribute to shared blackboard until done."""
         blackboard = {"task": task, "contributions": {}, "done": False}
         outputs = {}
@@ -531,12 +501,7 @@ class AgentTeam:
             metadata={"rounds": round_num + 1}
         )
 
-    async def _execute_round_robin(
-        self,
-        task: Any,
-        context: Dict[str, Any],
-        **kwargs
-    ) -> TeamResult:
+    async def _execute_round_robin(self, task: Any, context: Dict[str, Any], **kwargs: Any) -> TeamResult:
         """Agents take turns processing subtasks."""
         outputs = {}
         errors = {}

@@ -62,7 +62,7 @@ class SessionManager:
         │   └── config_snapshot.json
     """
     
-    def __init__(self, config: 'SwarmConfig'):
+    def __init__(self, config: 'SwarmConfig') -> None:
         """
         Initialize session manager.
         
@@ -101,7 +101,7 @@ class SessionManager:
         logger.info(f" Created session folder: {session_dir.name}")
         return session_dir
     
-    def _setup_directories(self):
+    def _setup_directories(self) -> Any:
         """Create all necessary subdirectories."""
         dirs = [
             self.session_dir / "jotty_state" / "memories" / "agent_memories",
@@ -116,7 +116,7 @@ class SessionManager:
         for d in dirs:
             d.mkdir(parents=True, exist_ok=True)
     
-    def _save_config_snapshot(self):
+    def _save_config_snapshot(self) -> Any:
         """Save config used for this session."""
         config_file = self.session_dir / "config_snapshot.json"
         with open(config_file, 'w') as f:
@@ -253,7 +253,7 @@ class SessionManager:
         except Exception as e:
             logger.error(f" Failed to save state: {e}", exc_info=True)
     
-    def _save_memories(self, memories: Dict[str, Any]):
+    def _save_memories(self, memories: Dict[str, Any]) -> Any:
         """Save all memory files."""
         mem_dir = self.session_dir / "jotty_state" / "memories"
         
@@ -271,7 +271,7 @@ class SessionManager:
                 with open(mem_file, 'w') as f:
                     json.dump(mem_data, f, indent=2, default=str)
     
-    def _save_q_tables(self, q_tables: Dict[str, Any]):
+    def _save_q_tables(self, q_tables: Dict[str, Any]) -> Any:
         """Save Q-table files."""
         q_dir = self.session_dir / "jotty_state" / "q_tables"
         for name, data in q_tables.items():
@@ -279,13 +279,13 @@ class SessionManager:
             with open(q_file, 'w') as f:
                 json.dump(data, f, indent=2, default=str)
     
-    def _save_brain_state(self, brain_state: Dict[str, Any]):
+    def _save_brain_state(self, brain_state: Dict[str, Any]) -> Any:
         """Save brain consolidation state."""
         brain_file = self.session_dir / "jotty_state" / "brain_state" / "consolidated.json"
         with open(brain_file, 'w') as f:
             json.dump(brain_state, f, indent=2, default=str)
     
-    def _save_todos(self, todos: str):
+    def _save_todos(self, todos: str) -> Any:
         """Save session TODO markdown."""
         todo_file = self.session_dir / "jotty_state" / "markovian_todos" / "session_todo.md"
         with open(todo_file, 'w') as f:

@@ -68,7 +68,7 @@ class TrustManager:
     - Per-channel policies control trust requirements
     """
 
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, config_path: Optional[str] = None) -> None:
         self.config_path = Path(config_path or os.path.expanduser("~/.jotty/allowed_users.json"))
         self._allowlist: Dict[str, Set[str]] = {}  # channel -> set of user_ids
         self._pending_codes: Dict[str, PairingCode] = {}  # code -> PairingCode

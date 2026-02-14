@@ -39,7 +39,7 @@ class IntentParser:
     Actual task execution reuses AutoAgent.
     """
     
-    def __init__(self, planner: Optional[TaskPlanner] = None, auto_agent=None):
+    def __init__(self, planner: Optional[TaskPlanner] = None, auto_agent: Any = None) -> None:
         """
         Initialize intent parser.
         

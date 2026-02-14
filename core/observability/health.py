@@ -43,7 +43,7 @@ class HealthCheck:
             print("System healthy!")
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize health check system."""
         self.checks: Dict[str, Callable] = {}
 

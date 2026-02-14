@@ -1,3 +1,4 @@
+from typing import Any
 """
 Jotty CLI Entry Point
 =====================
@@ -29,7 +30,7 @@ import argparse
 from pathlib import Path
 
 
-async def _list_commands(cli, args):
+async def _list_commands(cli: Any, args: Any) -> Any:
     """List all available slash commands."""
     from rich.console import Console
     from rich.table import Table
@@ -78,7 +79,7 @@ async def _list_commands(cli, args):
     return 0
 
 
-async def _run_stock_ml(cli, args):
+async def _run_stock_ml(cli: Any, args: Any) -> Any:
     """Run stock ML command with args."""
     # Build command string
     cmd = "/stock-ml"
@@ -131,7 +132,7 @@ async def _run_stock_ml(cli, args):
     return await cli.run_once(cmd)
 
 
-def main():
+def main() -> Any:
     """Main entry point for Jotty CLI."""
     parser = argparse.ArgumentParser(
         prog="jotty",

@@ -43,7 +43,7 @@ class IntentAnalysis:
 class IntentClassifier:
     """Classify task intent using LLM-based semantic understanding."""
 
-    def __init__(self, lm=None):
+    def __init__(self, lm: Any = None) -> None:
         """
         Initialize classifier.
 
@@ -54,7 +54,7 @@ class IntentClassifier:
         self._cache: Dict[str, IntentAnalysis] = {}
 
     @property
-    def lm(self):
+    def lm(self) -> Any:
         """Lazy-load language model."""
         if self._lm is None:
             # Use the already-configured DSPy LM (from benchmark setup)
@@ -496,7 +496,7 @@ class TaskClassifier:
     KEYWORD_WEIGHT = 0.55
     SKILL_WEIGHT = 0.15
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._intent_classifier = get_intent_classifier()
 
     def classify_swarm(self, goal: str) -> TaskClassification:

@@ -32,8 +32,7 @@ class VisualizationMixin:
     from contextlib import contextmanager as _contextmanager
 
     @_contextmanager
-    def _chart_context(self, chart_name, figsize=(10, 6), nrows=1, ncols=1,
-                       subplot_kw=None, gridspec_kw=None):
+    def _chart_context(self, chart_name: Any, figsize: Any = (10, 6), nrows: Any = 1, ncols: Any = 1, subplot_kw: Any = None, gridspec_kw: Any = None) -> Any:
         """Context manager that creates a matplotlib figure, yields it, then saves and closes.
 
         On normal exit the figure is tight-layouted, saved to
@@ -345,7 +344,7 @@ class VisualizationMixin:
             self._record_chart_failure('vif_chart', e)
             return ""
 
-    def _create_learning_curve_chart(self, sizes, train_mean, train_std, val_mean, val_std) -> str:
+    def _create_learning_curve_chart(self, sizes: Any, train_mean: Any, train_std: Any, val_mean: Any, val_std: Any) -> str:
         """Create learning curve visualization."""
         try:
             with self._chart_context('learning_curves', figsize=(10, 6)) as (fig, ax):
@@ -371,7 +370,7 @@ class VisualizationMixin:
             self._record_chart_failure('learning_curve', e)
             return ""
 
-    def _create_calibration_chart(self, fraction_pos, mean_pred, y_prob) -> str:
+    def _create_calibration_chart(self, fraction_pos: Any, mean_pred: Any, y_prob: Any) -> str:
         """Create calibration curve visualization."""
         try:
             with self._chart_context('calibration', figsize=(12, 5), nrows=1, ncols=2) as (fig, (ax1, ax2)):
@@ -400,7 +399,7 @@ class VisualizationMixin:
             self._record_chart_failure('calibration', e)
             return ""
 
-    def _create_confidence_charts(self, y_true, y_prob, ece_data: Dict) -> str:
+    def _create_confidence_charts(self, y_true: Any, y_prob: Any, ece_data: Dict) -> str:
         """Create confidence vs accuracy curve and per-bin reliability bar chart."""
         try:
             with self._chart_context('confidence_analysis', figsize=(12, 5), nrows=1, ncols=2) as (fig, (ax1, ax2)):
@@ -455,7 +454,7 @@ class VisualizationMixin:
             self._record_chart_failure('confidence_charts', e)
             return ""
 
-    def _create_lift_gain_chart(self, deciles, gains, lift, ks_stat, ks_idx) -> str:
+    def _create_lift_gain_chart(self, deciles: Any, gains: Any, lift: Any, ks_stat: Any, ks_idx: Any) -> str:
         """Create lift and gain visualization."""
         try:
             with self._chart_context('lift_gain', figsize=(12, 5), nrows=1, ncols=2) as (fig, (ax1, ax2)):
@@ -534,7 +533,7 @@ class VisualizationMixin:
             self._record_chart_failure('cv_chart', e)
             return ""
 
-    def _create_shap_summary(self, shap_values, feature_names, X_sample) -> str:
+    def _create_shap_summary(self, shap_values: Any, feature_names: Any, X_sample: Any) -> str:
         """Create SHAP summary plot."""
         try:
             import matplotlib.pyplot as plt
@@ -590,7 +589,7 @@ class VisualizationMixin:
             self._record_chart_failure('shap_bar', e)
             return ""
 
-    def _create_shap_dependence(self, shap_values, feature_names, X_sample, top_n: int) -> str:
+    def _create_shap_dependence(self, shap_values: Any, feature_names: Any, X_sample: Any, top_n: int) -> str:
         """Create SHAP dependence plots."""
         try:
             import shap
@@ -629,7 +628,7 @@ class VisualizationMixin:
             self._record_chart_failure('shap_dependence', e)
             return ""
 
-    def _create_shap_waterfall(self, shap_values, feature_names, X_sample) -> str:
+    def _create_shap_waterfall(self, shap_values: Any, feature_names: Any, X_sample: Any) -> str:
         """Create SHAP waterfall for a sample."""
         try:
             import matplotlib.pyplot as plt
@@ -785,7 +784,7 @@ class VisualizationMixin:
             self._record_chart_failure('hyperparameter_charts', e)
             return ""
 
-    def _create_gauge_chart(self, ax, value: float, title: str):
+    def _create_gauge_chart(self, ax: Any, value: float, title: str) -> Any:
         """Create a single donut/arc gauge chart on given axes."""
         # Color based on value
         if value > 0.9:
@@ -841,7 +840,7 @@ class VisualizationMixin:
             self._record_chart_failure('executive_dashboard', e)
             return ""
 
-    def _create_class_distribution_chart(self, labels: List[str], counts) -> str:
+    def _create_class_distribution_chart(self, labels: List[str], counts: Any) -> str:
         """Create class distribution bar chart."""
         try:
             with self._chart_context('class_distribution', figsize=(12, 5), nrows=1, ncols=2) as (fig, (ax1, ax2)):
@@ -873,8 +872,7 @@ class VisualizationMixin:
             self._record_chart_failure('class_distribution', e)
             return ""
 
-    def _create_permutation_importance_chart(self, result, feature_names: List[str],
-                                              top_idx) -> str:
+    def _create_permutation_importance_chart(self, result: Any, feature_names: List[str], top_idx: Any) -> str:
         """Create permutation importance chart with error bars."""
         try:
             n = len(top_idx)
@@ -900,8 +898,7 @@ class VisualizationMixin:
             self._record_chart_failure('permutation_importance', e)
             return ""
 
-    def _create_pdp_chart(self, model, X, top_features: List[str],
-                           all_feature_names: List[str]) -> str:
+    def _create_pdp_chart(self, model: Any, X: Any, top_features: List[str], all_feature_names: List[str]) -> str:
         """Create PDP charts with ICE background lines."""
         try:
             from sklearn.inspection import partial_dependence
@@ -1122,7 +1119,7 @@ class VisualizationMixin:
             self._record_chart_failure('training_curves', e)
             return ""
 
-    def _create_regression_charts(self, y_true, y_pred, residuals) -> str:
+    def _create_regression_charts(self, y_true: Any, y_pred: Any, residuals: Any) -> str:
         """Create 2x2 regression diagnostic plots."""
         try:
             from scipy import stats as scipy_stats
@@ -1520,7 +1517,7 @@ Plotly.newPlot('{chart_id}', [{','.join(traces)}], {{
             self._record_chart_failure('benchmark_chart', e)
             return ""
 
-    def _create_confusion_matrix_chart(self, cm, labels: List[str] = None) -> str:
+    def _create_confusion_matrix_chart(self, cm: Any, labels: List[str] = None) -> str:
         """Create confusion matrix heatmap."""
         try:
             import seaborn as sns
@@ -1541,7 +1538,7 @@ Plotly.newPlot('{chart_id}', [{','.join(traces)}], {{
             self._record_chart_failure('confusion_matrix', e)
             return ""
 
-    def _create_roc_chart(self, fpr, tpr, roc_auc: float) -> str:
+    def _create_roc_chart(self, fpr: Any, tpr: Any, roc_auc: float) -> str:
         """Create ROC curve chart."""
         try:
             with self._chart_context('roc_curve', figsize=(8, 6)) as (fig, ax):
@@ -1568,7 +1565,7 @@ Plotly.newPlot('{chart_id}', [{','.join(traces)}], {{
             self._record_chart_failure('roc_chart', e)
             return ""
 
-    def _create_pr_chart(self, precision, recall, avg_precision: float) -> str:
+    def _create_pr_chart(self, precision: Any, recall: Any, avg_precision: float) -> str:
         """Create precision-recall curve chart."""
         try:
             with self._chart_context('pr_curve', figsize=(8, 6)) as (fig, ax):
@@ -1594,7 +1591,7 @@ Plotly.newPlot('{chart_id}', [{','.join(traces)}], {{
             self._record_chart_failure('pr_chart', e)
             return ""
 
-    def _create_shap_chart(self, shap_values, feature_names, X_sample) -> str:
+    def _create_shap_chart(self, shap_values: Any, feature_names: Any, X_sample: Any) -> str:
         """Create SHAP summary plot."""
         try:
             import matplotlib.pyplot as plt

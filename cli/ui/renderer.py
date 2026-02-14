@@ -47,21 +47,21 @@ class ShimmerEffect:
     PERIOD = 2.0  # seconds for full wave cycle
     BAND_WIDTH = 5  # characters wide for the shimmer band
 
-    def __init__(self, color_depth: ColorDepth = None):
+    def __init__(self, color_depth: ColorDepth = None) -> None:
         self._color_depth = color_depth or TerminalDetector.detect_color_depth()
         self._message = ""
         self._running = False
         self._thread: Optional[threading.Thread] = None
         self._lock = threading.Lock()
 
-    def start(self, message: str = "Working..."):
+    def start(self, message: str = 'Working...') -> Any:
         """Start the shimmer animation."""
         self._message = message
         self._running = True
         self._thread = threading.Thread(target=self._animate, daemon=True)
         self._thread.start()
 
-    def stop(self):
+    def stop(self) -> Any:
         """Stop the shimmer animation and clear the line."""
         self._running = False
         if self._thread:
@@ -71,12 +71,12 @@ class ShimmerEffect:
         sys.stdout.write("\r" + " " * (len(self._message) + 20) + "\r")
         sys.stdout.flush()
 
-    def update(self, message: str):
+    def update(self, message: str) -> Any:
         """Update the shimmer message."""
         with self._lock:
             self._message = message
 
-    def _animate(self):
+    def _animate(self) -> Any:
         """Background animation loop."""
         frame = 0
         interval = 1.0 / self.FPS
@@ -132,14 +132,14 @@ class MarkdownStreamRenderer:
     across chunk boundaries. Renders complete blocks via Rich Markdown.
     """
 
-    def __init__(self, console: "Console" = None):
+    def __init__(self, console: 'Console' = None) -> None:
         self._console = console
         self._buffer = ""
         self._in_code_block = False
         self._code_fence_pattern = re.compile(r'^```')
         self._rendered_up_to = 0
 
-    def feed(self, chunk: str):
+    def feed(self, chunk: str) -> Any:
         """
         Feed a new chunk of text into the stream renderer.
 
@@ -149,7 +149,7 @@ class MarkdownStreamRenderer:
         self._buffer += chunk
         self._try_render()
 
-    def _try_render(self):
+    def _try_render(self) -> Any:
         """Attempt to render complete blocks from the buffer."""
         remaining = self._buffer[self._rendered_up_to:]
 
@@ -199,7 +199,7 @@ class MarkdownStreamRenderer:
             # No complete block found, wait for more data
             break
 
-    def _render_block(self, block: str):
+    def _render_block(self, block: str) -> Any:
         """Render a complete markdown block."""
         block = block.strip()
         if not block:
@@ -213,7 +213,7 @@ class MarkdownStreamRenderer:
         else:
             print(block)
 
-    def flush(self):
+    def flush(self) -> Any:
         """Render any remaining buffer content."""
         remaining = self._buffer[self._rendered_up_to:]
         if remaining.strip():
@@ -261,7 +261,7 @@ class FooterHints:
         ],
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._state = REPLState.INPUT
 
     @property
@@ -269,7 +269,7 @@ class FooterHints:
         return self._state
 
     @state.setter
-    def state(self, value: REPLState):
+    def state(self, value: REPLState) -> Any:
         self._state = value
 
     def get_toolbar_text(self) -> str:
@@ -317,11 +317,11 @@ class DesktopNotifier:
     Only notifies if task took longer than a configurable threshold.
     """
 
-    def __init__(self, threshold_seconds: int = 10):
+    def __init__(self, threshold_seconds: int = 10) -> None:
         self._threshold = threshold_seconds
         self._platform = sys.platform
 
-    def notify(self, title: str, message: str, elapsed: float = 0):
+    def notify(self, title: str, message: str, elapsed: float = 0) -> Any:
         """
         Send a desktop notification if elapsed time exceeds threshold.
 
@@ -343,7 +343,7 @@ class DesktopNotifier:
         except Exception:
             pass  # Silently fail - notifications are non-critical
 
-    def _notify_macos(self, title: str, message: str):
+    def _notify_macos(self, title: str, message: str) -> Any:
         """Send notification via osascript on macOS."""
         safe_title = title.replace('"', '\\"')
         safe_message = message.replace('"', '\\"')
@@ -354,7 +354,7 @@ class DesktopNotifier:
             stderr=subprocess.DEVNULL,
         )
 
-    def _notify_linux(self, title: str, message: str):
+    def _notify_linux(self, title: str, message: str) -> Any:
         """Send notification via notify-send on Linux."""
         subprocess.Popen(
             ["notify-send", title, message],
@@ -362,7 +362,7 @@ class DesktopNotifier:
             stderr=subprocess.DEVNULL,
         )
 
-    def _notify_windows(self, title: str, message: str):
+    def _notify_windows(self, title: str, message: str) -> Any:
         """Send notification via plyer on Windows."""
         try:
             from plyer import notification as plyer_notification
@@ -386,12 +386,7 @@ class RichRenderer:
     - Color theming
     """
 
-    def __init__(
-        self,
-        theme: Optional[str] = None,
-        no_color: bool = False,
-        max_width: int = 120
-    ):
+    def __init__(self, theme: Optional[str] = None, no_color: bool = False, max_width: int = 120) -> None:
         """
         Initialize renderer.
 
@@ -422,14 +417,14 @@ class RichRenderer:
         """Get Rich console."""
         return self._console
 
-    def print(self, *args, **kwargs):
+    def print(self, *args: Any, **kwargs: Any) -> Any:
         """Print to console."""
         if self._console:
             self._console.print(*args, **kwargs)
         else:
             print(*args)
 
-    def info(self, message: str):
+    def info(self, message: str) -> Any:
         """Print info message."""
         if self._console and not self.no_color:
             self._console.print(f"[{self.theme.info}]i[/{self.theme.info}] {message}")
@@ -438,7 +433,7 @@ class RichRenderer:
         else:
             print(f"[INFO] {message}")
 
-    def success(self, message: str):
+    def success(self, message: str) -> Any:
         """Print success message."""
         if self._console and not self.no_color:
             self._console.print(f"[{self.theme.success}]✓[/{self.theme.success}] {message}")
@@ -447,7 +442,7 @@ class RichRenderer:
         else:
             print(f"[OK] {message}")
 
-    def warning(self, message: str):
+    def warning(self, message: str) -> Any:
         """Print warning message."""
         if self._console and not self.no_color:
             self._console.print(f"[{self.theme.warning}]![/{self.theme.warning}] {message}")
@@ -456,7 +451,7 @@ class RichRenderer:
         else:
             print(f"[WARN] {message}")
 
-    def error(self, message: str):
+    def error(self, message: str) -> Any:
         """Print error message."""
         if self._console and not self.no_color:
             self._console.print(f"[{self.theme.error}]✗[/{self.theme.error}] {message}")
@@ -465,7 +460,7 @@ class RichRenderer:
         else:
             print(f"[ERROR] {message}")
 
-    def header(self, text: str):
+    def header(self, text: str) -> Any:
         """Print section header."""
         if self._console and not self.no_color:
             self._console.print(f"\n[bold {self.theme.primary}]{'═' * 50}[/bold {self.theme.primary}]")
@@ -476,28 +471,21 @@ class RichRenderer:
             print(f"  {text}")
             print(f"{'=' * 50}")
 
-    def subheader(self, text: str):
+    def subheader(self, text: str) -> Any:
         """Print subsection header."""
         if self._console and not self.no_color:
             self._console.print(f"\n[bold {self.theme.secondary}]── {text} ──[/bold {self.theme.secondary}]")
         else:
             print(f"\n── {text} ──")
 
-    def status(self, text: str):
+    def status(self, text: str) -> Any:
         """Print progress/status message with spinner character."""
         if self._console and not self.no_color:
             self._console.print(f"[{self.theme.muted}]⏳[/{self.theme.muted}] {text}")
         else:
             print(f"⏳ {text}")
 
-    def panel(
-        self,
-        content: str,
-        title: Optional[str] = None,
-        subtitle: Optional[str] = None,
-        style: Optional[str] = None,
-        expand: bool = False
-    ):
+    def panel(self, content: str, title: Optional[str] = None, subtitle: Optional[str] = None, style: Optional[str] = None, expand: bool = False) -> Any:
         """
         Print content in a panel.
 
@@ -527,13 +515,7 @@ class RichRenderer:
         )
         self._console.print(panel)
 
-    def code(
-        self,
-        code: str,
-        language: str = "python",
-        line_numbers: bool = False,
-        title: Optional[str] = None
-    ):
+    def code(self, code: str, language: str = 'python', line_numbers: bool = False, title: Optional[str] = None) -> Any:
         """
         Print syntax-highlighted code.
 
@@ -561,7 +543,7 @@ class RichRenderer:
         else:
             self._console.print(syntax)
 
-    def markdown(self, text: str):
+    def markdown(self, text: str) -> Any:
         """
         Print markdown-formatted text with LaTeX support.
 
@@ -639,7 +621,7 @@ class RichRenderer:
             'x': 'ₓ', 'n': 'ₙ', 'm': 'ₘ',
         }
 
-        def process_math(match):
+        def process_math(match: Any) -> Any:
             """Process a LaTeX math expression."""
             math = match.group(1)
 
@@ -659,7 +641,7 @@ class RichRenderer:
             math = re.sub(r'\\frac\{([^}]+)\}\{([^}]+)\}', r'(\1)/(\2)', math)
 
             # Handle superscripts: x^2 or x^{2n}
-            def convert_super(m):
+            def convert_super(m: Any) -> Any:
                 base = m.group(1) if m.group(1) else ''
                 exp = m.group(2)
                 result = base
@@ -670,7 +652,7 @@ class RichRenderer:
             math = re.sub(r'(\w)\^(\w)', convert_super, math)
 
             # Handle subscripts: x_2 or x_{2n}
-            def convert_sub(m):
+            def convert_sub(m: Any) -> Any:
                 base = m.group(1) if m.group(1) else ''
                 sub = m.group(2)
                 result = base
@@ -723,7 +705,7 @@ class RichRenderer:
         self._console.print(tree)
         return tree
 
-    def _build_tree(self, parent: Any, data: Any, key: str = None):
+    def _build_tree(self, parent: Any, data: Any, key: str = None) -> Any:
         """Recursively build tree."""
         if isinstance(data, dict):
             for k, v in data.items():
@@ -742,7 +724,7 @@ class RichRenderer:
         else:
             parent.add(str(data))
 
-    def _print_dict(self, data: Any, indent: int = 0):
+    def _print_dict(self, data: Any, indent: int = 0) -> Any:
         """Print dictionary (fallback)."""
         prefix = "  " * indent
         if isinstance(data, dict):
@@ -761,7 +743,7 @@ class RichRenderer:
         else:
             print(f"{prefix}{data}")
 
-    def result(self, result: Any, title: str = "Result"):
+    def result(self, result: Any, title: str = 'Result') -> Any:
         """
         Print execution result.
 
@@ -813,7 +795,7 @@ class RichRenderer:
         content = "\n".join(output_lines)
         self.panel(content, title=title, style=self.theme.primary if data.get("success", True) else self.theme.error)
 
-    def welcome(self, version: str = "1.0.0"):
+    def welcome(self, version: str = '1.0.0') -> Any:
         """Print welcome banner."""
         banner = f"""
      ██╗ ██████╗ ████████╗████████╗██╗   ██╗
@@ -843,14 +825,14 @@ Multi-Agent AI Assistant v{version}
             return f"[{self.theme.prompt}]jotty>[/{self.theme.prompt}] "
         return "jotty> "
 
-    def goodbye(self):
+    def goodbye(self) -> Any:
         """Print goodbye message."""
         if RICH_AVAILABLE:
             self._console.print(f"\n[{self.theme.muted}]Goodbye! Session saved.[/{self.theme.muted}]")
         else:
             print("\nGoodbye! Session saved.")
 
-    def divider(self, char: str = "─", style: Optional[str] = None):
+    def divider(self, char: str = '─', style: Optional[str] = None) -> Any:
         """Print horizontal divider."""
         style = style or self.theme.muted
         width = min(self.max_width, 80)
@@ -859,11 +841,11 @@ Multi-Agent AI Assistant v{version}
         else:
             print(char * width)
 
-    def newline(self):
+    def newline(self) -> Any:
         """Print blank line."""
         print()
 
-    def clear(self):
+    def clear(self) -> Any:
         """Clear screen."""
         if RICH_AVAILABLE:
             self._console.clear()
@@ -906,7 +888,7 @@ Multi-Agent AI Assistant v{version}
     # Claude Code-style Output Methods
     # =========================================================================
 
-    def task_start(self, task: str, explanation: str = None):
+    def task_start(self, task: str, explanation: str = None) -> Any:
         """
         Show task start message like Claude Code.
 
@@ -919,7 +901,7 @@ Multi-Agent AI Assistant v{version}
             else:
                 print(f"\n{explanation}")
 
-    def steps_indicator(self, count: int):
+    def steps_indicator(self, count: int) -> Any:
         """
         Show step count badge like Claude Code.
 
@@ -931,7 +913,7 @@ Multi-Agent AI Assistant v{version}
         else:
             print(f"\n{count} steps")
 
-    def search_query(self, query: str, result_count: int = None):
+    def search_query(self, query: str, result_count: int = None) -> Any:
         """
         Show search query with result count like Claude Code.
 
@@ -948,7 +930,7 @@ Multi-Agent AI Assistant v{version}
             if result_count is not None:
                 print(f"{result_count} results")
 
-    def search_results(self, results: List[Dict[str, str]]):
+    def search_results(self, results: List[Dict[str, str]]) -> Any:
         """
         Show search results with favicons like Claude Code.
 
@@ -982,7 +964,7 @@ Multi-Agent AI Assistant v{version}
                 print(f"\n🔗 {title}")
                 print(f"   {domain}")
 
-    def reading_file(self, filepath: str, description: str = None):
+    def reading_file(self, filepath: str, description: str = None) -> Any:
         """
         Show file reading operation like Claude Code.
 
@@ -995,7 +977,7 @@ Multi-Agent AI Assistant v{version}
         else:
             print(f"\n📄 {desc}")
 
-    def writing_file(self, filepath: str, description: str = None):
+    def writing_file(self, filepath: str, description: str = None) -> Any:
         """
         Show file writing operation like Claude Code.
 
@@ -1011,7 +993,7 @@ Multi-Agent AI Assistant v{version}
             print(f"\n📝 {desc}")
             print(filepath)
 
-    def installing(self, package: str):
+    def installing(self, package: str) -> Any:
         """
         Show package installation like Claude Code.
 
@@ -1023,7 +1005,7 @@ Multi-Agent AI Assistant v{version}
         else:
             print(f"\n📦 Installing {package}")
 
-    def step_progress(self, step_num: int, total: int, description: str, status: str = "running"):
+    def step_progress(self, step_num: int, total: int, description: str, status: str = 'running') -> Any:
         """
         Show step progress like Claude Code.
 
@@ -1050,7 +1032,7 @@ Multi-Agent AI Assistant v{version}
         else:
             print(f"{icon} Step {step_num}/{total}: {description}")
 
-    def tool_output(self, tool_name: str, output_path: str = None, summary: str = None):
+    def tool_output(self, tool_name: str, output_path: str = None, summary: str = None) -> Any:
         """
         Show tool output like Claude Code.
 

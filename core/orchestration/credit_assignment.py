@@ -50,7 +50,7 @@ class CreditAssignment:
     Tracks which improvements contribute to success and assigns credit scores.
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         self.improvement_credits: Dict[str, ImprovementCredit] = {}
         self.improvement_history: List[Dict[str, Any]] = []  # Track application history
     

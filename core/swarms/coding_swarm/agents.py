@@ -48,7 +48,7 @@ logger = logging.getLogger(__name__)
 class BaseCodeAgent(BaseSwarmAgent):
     """Base class for coding agents. Extends BaseSwarmAgent with streaming support."""
 
-    async def _stream(self, module, phase: str, agent: str, listener_field: str = "reasoning", **kwargs):
+    async def _stream(self, module: Any, phase: str, agent: str, listener_field: str = 'reasoning', **kwargs: Any) -> Any:
         """Call DSPy module with streaming reasoning to progress callback."""
         return await _stream_call(module, phase, agent, listener_field, **kwargs)
 
@@ -60,7 +60,7 @@ class BaseCodeAgent(BaseSwarmAgent):
 class ArchitectAgent(BaseCodeAgent):
     """Designs software architecture."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, learned_context)
         self._designer = dspy.ChainOfThought(ArchitectureDesignSignature)
 
@@ -109,7 +109,7 @@ class ArchitectAgent(BaseCodeAgent):
 class DeveloperAgent(BaseCodeAgent):
     """Generates production code."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, learned_context)
         self._generator = dspy.ChainOfThought(CodeGenerationSignature)
 
@@ -151,7 +151,7 @@ class DeveloperAgent(BaseCodeAgent):
 class DebuggerAgent(BaseCodeAgent):
     """Debugs and fixes code."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, learned_context)
         self._analyzer = dspy.ChainOfThought(DebugAnalysisSignature)
 
@@ -191,7 +191,7 @@ class DebuggerAgent(BaseCodeAgent):
 class OptimizerAgent(BaseCodeAgent):
     """Optimizes code."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, learned_context)
         self._optimizer = dspy.ChainOfThought(CodeOptimizationSignature)
 
@@ -235,7 +235,7 @@ class OptimizerAgent(BaseCodeAgent):
 class TestWriterAgent(BaseCodeAgent):
     """Generates tests."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, learned_context)
         self._generator = dspy.ChainOfThought(TestGenerationSignature)
 
@@ -277,7 +277,7 @@ class TestWriterAgent(BaseCodeAgent):
 class DocWriterAgent(BaseCodeAgent):
     """Generates documentation."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, learned_context)
         self._writer = dspy.ChainOfThought(DocumentationSignature)
 
@@ -324,7 +324,7 @@ class VerifierAgent(BaseCodeAgent):
     MAX_CODE_CHARS = 32000
     MAX_ARCH_CHARS = 4000
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, learned_context)
         self._verifier = dspy.ChainOfThought(CodeVerificationSignature)
 
@@ -394,7 +394,7 @@ class SimplicityJudgeAgent(BaseCodeAgent):
 
     MAX_CODE_CHARS = 32000
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, learned_context)
         self._judge = dspy.ChainOfThought(SimplicityJudgeSignature)
 
@@ -480,7 +480,7 @@ class SimplicityJudgeAgent(BaseCodeAgent):
 class SystemDesignerAgent(BaseCodeAgent):
     """Designs full-stack system architecture."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, learned_context)
         self._designer = dspy.ChainOfThought(SystemDesignSignature)
 
@@ -522,7 +522,7 @@ class SystemDesignerAgent(BaseCodeAgent):
 class DatabaseArchitectAgent(BaseCodeAgent):
     """Generates database schema and ORM models."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, learned_context)
         self._generator = dspy.ChainOfThought(DatabaseSchemaSignature)
 
@@ -550,7 +550,7 @@ class DatabaseArchitectAgent(BaseCodeAgent):
 class APIDesignerAgent(BaseCodeAgent):
     """Generates backend API code and OpenAPI specification."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, learned_context)
         self._generator = dspy.ChainOfThought(APIGenerationSignature)
 
@@ -580,7 +580,7 @@ class APIDesignerAgent(BaseCodeAgent):
 class FrontendDeveloperAgent(BaseCodeAgent):
     """Generates frontend code consuming an OpenAPI specification."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, learned_context)
         self._generator = dspy.ChainOfThought(FrontendGenerationSignature)
 
@@ -608,7 +608,7 @@ class FrontendDeveloperAgent(BaseCodeAgent):
 class IntegrationAgent(BaseCodeAgent):
     """Generates integration artifacts (Docker Compose, configs, startup scripts)."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, learned_context)
         self._generator = dspy.ChainOfThought(IntegrationSignature)
 
@@ -643,7 +643,7 @@ class IntegrationAgent(BaseCodeAgent):
 class ArbitratorAgent(BaseCodeAgent):
     """Evaluates whether a code review rejection is valid and actionable."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, learned_context)
         self._evaluator = dspy.ChainOfThought(ReviewArbitrationSignature)
 
@@ -686,7 +686,7 @@ class ArbitratorAgent(BaseCodeAgent):
 class CodebaseAnalyzerAgent(BaseCodeAgent):
     """Analyzes existing codebase to understand structure and patterns."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, learned_context)
         self._analyzer = dspy.ChainOfThought(CodebaseAnalysisSignature)
 
@@ -724,7 +724,7 @@ class CodebaseAnalyzerAgent(BaseCodeAgent):
 class EditPlannerAgent(BaseCodeAgent):
     """Plans surgical edits to existing code."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, learned_context)
         self._planner = dspy.ChainOfThought(EditPlanSignature)
 

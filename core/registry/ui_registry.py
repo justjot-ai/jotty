@@ -1,3 +1,4 @@
+from typing import Any
 """
 UI Registry - Unified Frontend Components (Eyes)
 =================================================
@@ -253,7 +254,7 @@ class UIRegistry:
         a2ui_blocks = ui.convert_to_a2ui('data-table', my_data)
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._components: Dict[str, UIComponent] = {}
         self._by_category: Dict[str, List[str]] = {}
         self._by_client: Dict[str, List[str]] = {}
@@ -372,18 +373,7 @@ class UIRegistry:
         logger.info(f"📦 Registered {len(registered)} UI components in batch")
         return registered
 
-    def register_from_widget(
-        self,
-        value: str,
-        label: str,
-        icon: str,
-        description: str,
-        category: str,
-        hasOwnUI: bool = False,
-        contentType: str = "text",
-        contentSchema: str = "",
-        **kwargs
-    ) -> UIComponent:
+    def register_from_widget(self, value: str, label: str, icon: str, description: str, category: str, hasOwnUI: bool = False, contentType: str = 'text', contentSchema: str = '', **kwargs: Any) -> UIComponent:
         """
         Register from legacy WidgetSchema format.
         Provides backwards compatibility with WidgetRegistry.
@@ -400,26 +390,7 @@ class UIRegistry:
             **kwargs
         )
 
-    def register_from_agui(
-        self,
-        section_type: str,
-        label: str,
-        category: str,
-        to_a2ui: Optional[str] = None,
-        to_agui: Optional[str] = None,
-        from_a2ui: Optional[str] = None,
-        from_agui: Optional[str] = None,
-        to_a2ui_func: Optional[Callable] = None,
-        to_agui_func: Optional[Callable] = None,
-        from_a2ui_func: Optional[Callable] = None,
-        from_agui_func: Optional[Callable] = None,
-        description: str = "",
-        bidirectional: bool = False,
-        content_type: str = "json",
-        client_id: str = "unknown",
-        version: str = "1.0.0",
-        **kwargs
-    ) -> UIComponent:
+    def register_from_agui(self, section_type: str, label: str, category: str, to_a2ui: Optional[str] = None, to_agui: Optional[str] = None, from_a2ui: Optional[str] = None, from_agui: Optional[str] = None, to_a2ui_func: Optional[Callable] = None, to_agui_func: Optional[Callable] = None, from_a2ui_func: Optional[Callable] = None, from_agui_func: Optional[Callable] = None, description: str = '', bidirectional: bool = False, content_type: str = 'json', client_id: str = 'unknown', version: str = '1.0.0', **kwargs: Any) -> UIComponent:
         """
         Register from legacy AGUIComponentAdapter format.
         Provides backwards compatibility with AGUIComponentRegistry.
@@ -609,7 +580,7 @@ class UIRegistry:
         self._by_content_type.clear()
         logger.info("🗑️ UIRegistry cleared")
 
-    def merge_from_widget_registry(self, widget_registry) -> int:
+    def merge_from_widget_registry(self, widget_registry: Any) -> int:
         """
         Import components from a legacy WidgetRegistry.
         Returns count of imported components.
@@ -630,7 +601,7 @@ class UIRegistry:
         logger.info(f"📥 Imported {count} widgets from WidgetRegistry")
         return count
 
-    def merge_from_agui_registry(self, agui_registry) -> int:
+    def merge_from_agui_registry(self, agui_registry: Any) -> int:
         """
         Import components from a legacy AGUIComponentRegistry.
         Returns count of imported components.
@@ -681,7 +652,7 @@ def get_ui_registry() -> UIRegistry:
     return _global_ui_registry
 
 
-def _load_builtin_components(registry: UIRegistry):
+def _load_builtin_components(registry: UIRegistry) -> Any:
     """Load built-in UI components."""
     # Core UI components that are always available
     CORE_COMPONENTS = [

@@ -8,7 +8,7 @@ Tracks:
 - Memory operation stats
 - Error rates
 """
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 import time
 import logging
 
@@ -25,11 +25,11 @@ except ImportError:
 
 class NoOpMetric:
     """No-op metric when Prometheus not available."""
-    def inc(self, *args, **kwargs): pass
-    def dec(self, *args, **kwargs): pass
-    def set(self, *args, **kwargs): pass
-    def observe(self, *args, **kwargs): pass
-    def labels(self, *args, **kwargs): return self
+    def inc(self, *args: Any, **kwargs: Any) -> None: pass
+    def dec(self, *args: Any, **kwargs: Any) -> None: pass
+    def set(self, *args: Any, **kwargs: Any) -> None: pass
+    def observe(self, *args: Any, **kwargs: Any) -> None: pass
+    def labels(self, *args: Any, **kwargs: Any) -> Any: return self
 
 
 class MetricsCollector:
@@ -43,7 +43,7 @@ class MetricsCollector:
     - Memory operations
     """
 
-    def __init__(self, enabled: bool = True, registry: Optional['CollectorRegistry'] = None):
+    def __init__(self, enabled: bool = True, registry: Optional['CollectorRegistry'] = None) -> None:
         """
         Initialize metrics collector.
         
@@ -140,7 +140,7 @@ class MetricsCollector:
             if not PROMETHEUS_AVAILABLE:
                 logger.info("ℹ️ Prometheus not available - using no-op metrics")
 
-    def record_skill_execution(self, skill_name: str, duration: float, success: bool):
+    def record_skill_execution(self, skill_name: str, duration: float, success: bool) -> Any:
         """
         Record skill execution metrics.
         
@@ -153,7 +153,7 @@ class MetricsCollector:
         self.skill_executions.labels(skill_name=skill_name, status=status).inc()
         self.skill_duration.labels(skill_name=skill_name).observe(duration)
 
-    def record_llm_call(self, model: str, input_tokens: int, output_tokens: int, cost: float, success: bool):
+    def record_llm_call(self, model: str, input_tokens: int, output_tokens: int, cost: float, success: bool) -> Any:
         """
         Record LLM API call metrics.
         
@@ -170,7 +170,7 @@ class MetricsCollector:
         self.llm_tokens.labels(model=model, type='output').inc(output_tokens)
         self.llm_cost.labels(model=model).inc(cost)
 
-    def record_error(self, component: str, error_type: str):
+    def record_error(self, component: str, error_type: str) -> Any:
         """Record error occurrence."""
         self.errors.labels(component=component, error_type=error_type).inc()
 

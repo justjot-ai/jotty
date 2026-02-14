@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 class DataFetcherAgent(BaseSwarmAgent):
     """Fetches financial data from Yahoo Finance and other APIs."""
 
-    def __init__(self, memory=None, context=None, bus=None):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None) -> None:
         super().__init__(memory, context, bus)
         self._fetcher = None
 
@@ -55,7 +55,7 @@ class DataFetcherAgent(BaseSwarmAgent):
 class WebSearchAgent(BaseSwarmAgent):
     """Searches web for news and updates."""
 
-    def __init__(self, memory=None, context=None, bus=None):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None) -> None:
         super().__init__(memory, context, bus)
         self._search_tool = None
 
@@ -197,7 +197,7 @@ class WebSearchAgent(BaseSwarmAgent):
 class SentimentAgent(BaseSwarmAgent):
     """Analyzes sentiment from news."""
 
-    def __init__(self, memory=None, context=None, bus=None, llm_module=None):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, llm_module: Any = None) -> None:
         super().__init__(memory, context, bus)
         self._llm = llm_module
 
@@ -253,7 +253,7 @@ class SentimentAgent(BaseSwarmAgent):
 class LLMAnalysisAgent(BaseSwarmAgent):
     """LLM-powered stock analysis."""
 
-    def __init__(self, memory=None, context=None, bus=None, llm_module=None):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, llm_module: Any = None) -> None:
         super().__init__(memory, context, bus)
         self._llm = llm_module
 
@@ -344,7 +344,7 @@ class LLMAnalysisAgent(BaseSwarmAgent):
 class PeerComparisonAgent(BaseSwarmAgent):
     """Compares stock with sector peers."""
 
-    def __init__(self, memory=None, context=None, bus=None, llm_module=None):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, llm_module: Any = None) -> None:
         super().__init__(memory, context, bus)
         self._llm = llm_module
         self._fetcher = None
@@ -535,12 +535,12 @@ class TechnicalAnalysisAgent(BaseSwarmAgent):
     Adds optional LLM-based summarization on top of the pure computation.
     """
 
-    def __init__(self, memory=None, context=None, bus=None, llm_module=None, data_path: str = None):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, llm_module: Any = None, data_path: str = None) -> None:
         super().__init__(memory, context, bus)
         self._llm = llm_module
         self.data_path = data_path or "/var/www/sites/personal/stock_market/common/Data/NSE/"
 
-    def _get_skill_tool(self):
+    def _get_skill_tool(self) -> Any:
         """Lazy-load the technical-analysis skill tool."""
         if not hasattr(self, '_skill_tool'):
             try:
@@ -1158,7 +1158,7 @@ class SocialSentimentAgent(BaseSwarmAgent):
     - Analyst discussions
     """
 
-    def __init__(self, memory=None, context=None, bus=None, llm_module=None):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, llm_module: Any = None) -> None:
         super().__init__(memory, context, bus)
         self._llm = llm_module
 

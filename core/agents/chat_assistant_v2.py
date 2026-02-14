@@ -40,7 +40,7 @@ class ChatAssistantV2:
     Scales to 70+ section types with ZERO additional code!
     """
 
-    def __init__(self, state_manager=None, anthropic_api_key: Optional[str] = None):
+    def __init__(self, state_manager: Any = None, anthropic_api_key: Optional[str] = None) -> None:
         """
         Initialize ChatAssistant V2.
 
@@ -57,7 +57,7 @@ class ChatAssistantV2:
 
         logger.info(f" ChatAssistant V2 initialized with {len(self.tools)} section tools")
 
-    async def run(self, **kwargs) -> Dict[str, Any]:
+    async def run(self, **kwargs: Any) -> Dict[str, Any]:
         """
         Process user query using LLM tool calling.
 
@@ -181,7 +181,7 @@ Choose the BEST section format for this query and generate appropriate content.
         # Fallback on error
         return self._fallback_response(context)
 
-    def _execute_tool(self, tool_use, context: Dict[str, Any]) -> Dict[str, Any]:
+    def _execute_tool(self, tool_use: Any, context: Dict[str, Any]) -> Dict[str, Any]:
         """
         Execute the tool LLM chose.
 

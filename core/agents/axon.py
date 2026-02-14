@@ -69,14 +69,14 @@ class Message:
     timestamp: float
     metadata: Dict[str, Any] = field(default_factory=dict)
     
-    def __str__(self):
+    def __str__(self) -> str:
         return f"Message({self.from_agent} → {self.to_agent}, {self.format}, {self.size_bytes}B)"
 
 
 class MessageBus:
     """Simple pub/sub message bus."""
     
-    def __init__(self):
+    def __init__(self) -> None:
         self.subscribers: Dict[str, Callable] = {}
         self.message_count = 0
         logger.info(" [MESSAGE BUS] Initialized")
@@ -108,7 +108,7 @@ class MessageBus:
 class FormatRegistry:
     """Tracks format preferences for all agents."""
     
-    def __init__(self):
+    def __init__(self) -> None:
         self.registry: Dict[str, AgentCapabilities] = {}
         logger.info(" [FORMAT REGISTRY] Initialized")
         
@@ -139,7 +139,7 @@ class SmartAgentSlack:
     Agents just send/receive - Agent Slack handles the rest!
     """
     
-    def __init__(self, config: Optional[Dict] = None, enable_cooperation: bool = True):
+    def __init__(self, config: Optional[Dict] = None, enable_cooperation: bool = True) -> None:
         """
         Initialize SmartAgentSlack with embedded helper agents.
         
@@ -177,7 +177,7 @@ class SmartAgentSlack:
             logger.info(" Cooperation: Tracking enabled")
         
     @property
-    def transformer(self):
+    def transformer(self) -> Any:
         """Lazy-init Transformer agent."""
         if self._transformer is None:
             logger.info(" [SMART AGENT SLACK] Lazy-initializing Transformer...")
@@ -196,7 +196,7 @@ class SmartAgentSlack:
         return self._transformer
     
     @property
-    def chunker(self):
+    def chunker(self) -> Any:
         """Lazy-init Chunker agent."""
         if self._chunker is None:
             logger.info(" [SMART AGENT SLACK] Lazy-initializing Chunker...")
@@ -215,7 +215,7 @@ class SmartAgentSlack:
         return self._chunker
     
     @property
-    def compressor(self):
+    def compressor(self) -> Any:
         """Lazy-init Compressor agent."""
         if self._compressor is None:
             logger.info(" [SMART AGENT SLACK] Lazy-initializing Compressor...")
@@ -233,14 +233,7 @@ class SmartAgentSlack:
             logger.info(" [HELPER] Compressor initialized")
         return self._compressor
         
-    def register_agent(
-        self,
-        agent_name: str,
-        signature: Optional[dspy.Signature] = None,
-        max_context: int = 16000,
-        callback: Optional[Callable] = None,
-        capabilities: Optional[AgentCapabilities] = None
-    ):
+    def register_agent(self, agent_name: str, signature: Optional[dspy.Signature] = None, max_context: int = 16000, callback: Optional[Callable] = None, capabilities: Optional[AgentCapabilities] = None) -> Any:
         """
         Register agent and AUTOMATICALLY extract capabilities from signature.
         
@@ -668,14 +661,7 @@ class SmartAgentSlack:
     # 🆕 COOPERATION METHODS
     # =========================================================================
     
-    def _record_cooperation_event(
-        self,
-        event_type: str,
-        from_agent: str,
-        to_agent: str,
-        description: str,
-        impact: float
-    ):
+    def _record_cooperation_event(self, event_type: str, from_agent: str, to_agent: str, description: str, impact: float) -> Any:
         """
         Record a cooperation event.
         
@@ -836,7 +822,7 @@ class SmartAgentSlack:
             return sum(latencies) / len(latencies)
         return 0.1  # Default
     
-    def _log_communication_decision(self, **kwargs):
+    def _log_communication_decision(self, **kwargs: Any) -> Any:
         """Log communication decision for learning."""
         self.communication_log.append({
             'timestamp': time.time(),

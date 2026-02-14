@@ -40,16 +40,10 @@ class EnhancedLogger:
     - RL updates (Q-values, TD-errors)
     """
     
-    def __init__(self, name: str):
+    def __init__(self, name: str) -> None:
         self.logger = logging.getLogger(name)
     
-    def log_actor_start(
-        self, 
-        actor_name: str, 
-        attempt: int,
-        inputs: Dict[str, Any],
-        context_summary: Dict[str, int]
-    ):
+    def log_actor_start(self, actor_name: str, attempt: int, inputs: Dict[str, Any], context_summary: Dict[str, int]) -> Any:
         """Log actor execution start with full inputs"""
         self.logger.info(f"\n{'='*80}")
         self.logger.info(f" EXECUTING: {actor_name} (Attempt {attempt})")
@@ -65,13 +59,7 @@ class EnhancedLogger:
         for component, tokens in context_summary.items():
             self.logger.info(f"  {component}: {tokens} tokens")
     
-    def log_actor_end(
-        self,
-        actor_name: str,
-        output: Any,
-        success: bool,
-        duration: float
-    ):
+    def log_actor_end(self, actor_name: str, output: Any, success: bool, duration: float) -> Any:
         """Log actor execution end with full output"""
         self.logger.info(f"\n OUTPUT from {actor_name}:")
         self.logger.info(f"  Success: {success}")
@@ -90,15 +78,7 @@ class EnhancedLogger:
         
         self.logger.info(f"{'='*80}\n")
     
-    def log_validation(
-        self,
-        validator_name: str,
-        level: str,  # "ACTOR" or "SWARM"
-        inputs: Dict[str, Any],
-        decision: bool,
-        confidence: float,
-        reasoning: str
-    ):
+    def log_validation(self, validator_name: str, level: str, inputs: Dict[str, Any], decision: bool, confidence: float, reasoning: str) -> Any:
         """Log validation with FULL reasoning (no truncation!)"""
         self.logger.info(f"\n {level}-LEVEL VALIDATION: {validator_name}")
         self.logger.info(f" Decision: {' VALID' if decision else ' INVALID'}")
@@ -111,14 +91,7 @@ class EnhancedLogger:
             self.logger.info(f"    {key}: {tokens} tokens")
             self.logger.info(f"      {self._format(value)}")
     
-    def log_compression(
-        self,
-        component: str,
-        original_tokens: int,
-        compressed_tokens: int,
-        method: str,
-        purpose: str
-    ):
+    def log_compression(self, component: str, original_tokens: int, compressed_tokens: int, method: str, purpose: str) -> Any:
         """Log compression event"""
         ratio = compressed_tokens / original_tokens if original_tokens > 0 else 0
         self.logger.info(f"\n COMPRESSION: {component}")
@@ -128,13 +101,7 @@ class EnhancedLogger:
         self.logger.info(f"  Method: {method}")
         self.logger.info(f"  Purpose: {purpose}")
     
-    def log_memory(
-        self,
-        operation: str,
-        content: str,
-        level: str,
-        metadata: Dict
-    ):
+    def log_memory(self, operation: str, content: str, level: str, metadata: Dict) -> Any:
         """Log memory operation with full content"""
         tokens = self._count_tokens(content)
         self.logger.info(f"\n MEMORY {operation.upper()}: {level}")
@@ -143,16 +110,7 @@ class EnhancedLogger:
         self.logger.info(f"  Content:")
         self.logger.info(f"    {content}")
     
-    def log_rl_update(
-        self,
-        actor: str,
-        state: Dict,
-        action: str,
-        reward: float,
-        td_error: float,
-        q_old: float,
-        q_new: float
-    ):
+    def log_rl_update(self, actor: str, state: Dict, action: str, reward: float, td_error: float, q_old: float, q_new: float) -> Any:
         """Log RL learning update"""
         self.logger.info(f"\n RL UPDATE:")
         self.logger.info(f"  Actor: {actor}")
@@ -163,13 +121,7 @@ class EnhancedLogger:
         self.logger.info(f"\n  State:")
         self.logger.info(f"    {json.dumps(state, indent=2, default=str)}")
     
-    def log_context_building(
-        self,
-        actor: str,
-        budget: Dict[str, int],
-        final_tokens: int,
-        components: Dict[str, int]
-    ):
+    def log_context_building(self, actor: str, budget: Dict[str, int], final_tokens: int, components: Dict[str, int]) -> Any:
         """Log context building"""
         self.logger.info(f"\n CONTEXT BUILDING for {actor}:")
         
@@ -245,7 +197,7 @@ class TokenBudgetManager:
      A-TEAM: Ensures we NEVER exceed context limits!
     """
     
-    def __init__(self, total_budget: int = 30000, output_reserve: int = 8000):
+    def __init__(self, total_budget: int = 30000, output_reserve: int = 8000) -> None:
         self.total = total_budget
         self.output_reserve = output_reserve
         self.input_budget = total_budget - output_reserve

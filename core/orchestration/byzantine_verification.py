@@ -45,7 +45,7 @@ class ByzantineVerifier:
     - Asymmetric by design: trust is hard to earn, easy to lose.
     """
 
-    def __init__(self, swarm_intelligence: 'SwarmIntelligence'):
+    def __init__(self, swarm_intelligence: 'SwarmIntelligence') -> None:
         self.si = swarm_intelligence
 
         # Track claim history for verification
@@ -443,8 +443,7 @@ class ConsistencyChecker:
         re.IGNORECASE
     )
 
-    def __init__(self, byzantine_verifier: ByzantineVerifier,
-                 similarity_threshold: float = 0.3):
+    def __init__(self, byzantine_verifier: ByzantineVerifier, similarity_threshold: float = 0.3) -> None:
         """
         Args:
             byzantine_verifier: Underlying verifier for trust scores

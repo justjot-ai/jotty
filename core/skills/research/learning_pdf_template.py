@@ -550,7 +550,7 @@ def _apply_syntax_highlighting(code: str) -> str:
         string_tokens = {}
         token_counter = [0]
 
-        def save_string(m):
+        def save_string(m: Any) -> Any:
             token = f"__XSTRX{token_counter[0]}XENDX__"
             string_tokens[token] = f'<span class="code-string">{m.group(0)}</span>'
             token_counter[0] += 1
@@ -771,7 +771,7 @@ class VisualizationRenderer:
         return data
 
     @classmethod
-    def render(cls, ax, chart_type: str, data: dict, title: str, x_label: str, y_label: str, annotation: str) -> bool:
+    def render(cls, ax: Any, chart_type: str, data: dict, title: str, x_label: str, y_label: str, annotation: str) -> bool:
         """Dispatch to the appropriate renderer. Returns True on success."""
         import matplotlib.pyplot as plt
 
@@ -833,7 +833,7 @@ class VisualizationRenderer:
         return True
 
     @classmethod
-    def _render_bar_chart(cls, ax, data: dict, x_label: str, y_label: str) -> None:
+    def _render_bar_chart(cls, ax: Any, data: dict, x_label: str, y_label: str) -> None:
         """Render a bar chart from spec data."""
         labels = data.get('labels', [])
         values = data.get('values', [])
@@ -899,7 +899,7 @@ class VisualizationRenderer:
             return '#d1d5db'
 
     @classmethod
-    def _render_line_chart(cls, ax, data: dict, x_label: str, y_label: str) -> None:
+    def _render_line_chart(cls, ax: Any, data: dict, x_label: str, y_label: str) -> None:
         """Render a line chart from spec data."""
         labels = data.get('labels', [])
         series_list = data.get('series', [])
@@ -973,7 +973,7 @@ class VisualizationRenderer:
         ax.grid(alpha=0.2, color='#d1d5db', linestyle='--')
 
     @classmethod
-    def _render_heatmap(cls, ax, data: dict, x_label: str, y_label: str) -> None:
+    def _render_heatmap(cls, ax: Any, data: dict, x_label: str, y_label: str) -> None:
         """Render a heatmap from spec data."""
         import numpy as np
 
@@ -1014,7 +1014,7 @@ class VisualizationRenderer:
         ax.figure.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
 
     @classmethod
-    def _render_scatter(cls, ax, data: dict, x_label: str, y_label: str) -> None:
+    def _render_scatter(cls, ax: Any, data: dict, x_label: str, y_label: str) -> None:
         """Render a scatter plot from spec data."""
         x = data.get('x', [])
         y = data.get('y', [])
@@ -1053,7 +1053,7 @@ class VisualizationRenderer:
                             if len(point_labels) <= 12 else None)
 
     @classmethod
-    def _render_pie(cls, ax, data: dict, x_label: str, y_label: str) -> None:
+    def _render_pie(cls, ax: Any, data: dict, x_label: str, y_label: str) -> None:
         """Render a pie chart from spec data."""
         labels = data.get('labels', [])
         values = data.get('values', [])
@@ -1084,12 +1084,7 @@ class VisualizationRenderer:
         ax.axis('equal')
 
 
-async def generate_concept_visualization(
-    concept_name: str,
-    concept_description: str,
-    output_dir: str = "/tmp",
-    **kwargs
-) -> Optional[str]:
+async def generate_concept_visualization(concept_name: str, concept_description: str, output_dir: str = '/tmp', **kwargs: Any) -> Optional[str]:
     """
     Generate an LLM-driven matplotlib visualization for a concept.
 
@@ -1258,7 +1253,7 @@ def _convert_markdown_content(text: str) -> str:
     # =================================================================
     # STEP 2: Handle code blocks (preserve with placeholders)
     # =================================================================
-    def replace_code_block(match) -> str:
+    def replace_code_block(match: Any) -> str:
         """Handle code blocks - extract and highlight code content."""
         full_match = match.group(0)
         # Extract code after optional language specifier
@@ -1275,7 +1270,7 @@ def _convert_markdown_content(text: str) -> str:
     text = re.sub(r'```.*?```', replace_code_block, text, flags=re.DOTALL)
 
     # Also detect unfenced code patterns (4+ space indent or common code patterns)
-    def detect_unfenced_code(match):
+    def detect_unfenced_code(match: Any) -> Any:
         """Detect code that wasn't in fences."""
         code = match.group(1).strip()
         if not code:
@@ -1297,7 +1292,7 @@ def _convert_markdown_content(text: str) -> str:
     )
 
     # Pattern: Multiple consecutive lines that look like code (4+ space indent)
-    def detect_indented_block(match):
+    def detect_indented_block(match: Any) -> Any:
         code = match.group(0).strip()
         if len(code.split('\n')) >= 2:  # At least 2 lines
             code = _apply_syntax_highlighting(code)
@@ -1329,7 +1324,7 @@ def _convert_markdown_content(text: str) -> str:
     # STEP 3: Handle Math expressions (preserve with placeholders)
     # =================================================================
     # Display math: $$...$$ -> styled div
-    def replace_display_math(match):
+    def replace_display_math(match: Any) -> Any:
         math = match.group(1).strip()
         math = math.replace('<', '&lt;').replace('>', '&gt;')
         return preserve(f'<div class="math-display">{math}</div>')
@@ -1337,7 +1332,7 @@ def _convert_markdown_content(text: str) -> str:
     text = re.sub(r'\$\$(.+?)\$\$', replace_display_math, text, flags=re.DOTALL)
 
     # Inline math: $...$ -> styled span (but not currency like $100)
-    def replace_inline_math(match):
+    def replace_inline_math(match: Any) -> Any:
         math = match.group(1).strip()
         # Skip if it looks like currency (just numbers)
         if re.match(r'^[\d,\.]+$', math):
@@ -1357,7 +1352,7 @@ def _convert_markdown_content(text: str) -> str:
     math_symbols_pattern = f'[{re.escape(math_symbols)}]'
 
     # Track what we've already wrapped
-    def wrap_math_expr(match):
+    def wrap_math_expr(match: Any) -> Any:
         eq = match.group(1) if match.lastindex and match.group(1) else match.group(0)
         # Don't wrap if already wrapped or is a placeholder
         if 'math-inline' in eq or '⟦BLOCK' in eq or '<span' in eq:

@@ -12,7 +12,7 @@ Usage:
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Any
 
 from .base import BaseCommand, CommandResult, ParsedArgs
 
@@ -31,7 +31,7 @@ class TelegramCommand(BaseCommand):
     usage = "/telegram [start|stop|status]"
     category = "integrations"
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._bot = None
         self._task: Optional[asyncio.Task] = None
 
@@ -59,14 +59,14 @@ class TelegramCommand(BaseCommand):
             from ...telegram_bot.bot import TelegramBotHandler
 
             # Create status callback
-            def status_callback(stage: str, detail: str = ""):
+            def status_callback(stage: str, detail: str = '') -> Any:
                 if cli.renderer:
                     cli.renderer.status(f"[Telegram] {stage}: {detail}")
 
             self._bot = TelegramBotHandler(status_callback=status_callback)
 
             # Start bot in background task
-            async def run_bot():
+            async def run_bot() -> Any:
                 try:
                     await self._bot.run_async()
                     # Keep running until stopped

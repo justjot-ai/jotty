@@ -16,7 +16,7 @@ Usage:
 
 import logging
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Any
 
 logger = logging.getLogger(__name__)
 
@@ -30,11 +30,11 @@ try:
         answer: str = dspy.OutputField(desc="Concise final answer only")
 
     class GAIAOptimizedSolver(dspy.Module):
-        def __init__(self):
+        def __init__(self) -> None:
             super().__init__()
             self.solve = dspy.ChainOfThought(GAIATaskSignature)
 
-        def forward(self, question, tools_available="web_search, voice_to_text, read_file"):
+        def forward(self, question: Any, tools_available: Any = 'web_search, voice_to_text, read_file') -> Any:
             return self.solve(question=question, tools_available=tools_available)
 
     _DSPY_AVAILABLE = True

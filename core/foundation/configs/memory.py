@@ -1,6 +1,7 @@
 """Memory configuration — capacities, RAG retrieval, chunking."""
 
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass
@@ -23,7 +24,7 @@ class MemoryConfig:
     chunk_size: int = 500
     chunk_overlap: int = 50
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         # Positive capacity fields
         _pos_fields = {
             'episodic_capacity': self.episodic_capacity,

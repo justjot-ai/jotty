@@ -8,7 +8,7 @@ Uses TierExecutor for smart analysis and output formatting.
 
 import logging
 import asyncio
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from .base import BaseCommand, CommandResult, ParsedArgs
 
@@ -108,7 +108,7 @@ class ResearchCommand(BaseCommand):
             # Check if renderer supports async status (Telegram)
             has_async_status = hasattr(cli.renderer, 'send_status_async')
 
-            async def async_status_callback(stage: str, detail: str = ""):
+            async def async_status_callback(stage: str, detail: str = '') -> Any:
                 """Async callback for real-time status streaming."""
                 msg = f"{stage}: {detail}" if detail else stage
                 if has_async_status:
@@ -116,7 +116,7 @@ class ResearchCommand(BaseCommand):
                 else:
                     cli.renderer.status(msg)
 
-            def sync_status_callback(stage: str, detail: str = ""):
+            def sync_status_callback(stage: str, detail: str = '') -> Any:
                 """Sync callback (for CLI)."""
                 cli.renderer.status(f"{stage}: {detail}" if detail else stage)
 

@@ -97,7 +97,7 @@ class ArxivLearningConfig(SwarmBaseConfig):
     llm_timeout: int = 0  # 0 → resolved in __post_init__ from LLM_TIMEOUT_SECONDS
     max_concurrent_llm: int = 5  # Concurrent LLM calls for parallel_deep mode
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.name = "ArxivLearningSwarm"
         if self.llm_timeout <= 0:
             from Jotty.core.foundation.config_defaults import LLM_TIMEOUT_SECONDS

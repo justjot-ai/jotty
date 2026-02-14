@@ -21,7 +21,7 @@ class PipelineExpertAgent(BaseExpert):
     (can be Mermaid, PlantUML, or other formats).
     """
 
-    def __init__(self, config=None, output_format: str = "mermaid", memory=None, improvements: Optional[List[Dict[str, Any]]] = None):
+    def __init__(self, config: Any = None, output_format: str = 'mermaid', memory: Any = None, improvements: Optional[List[Dict[str, Any]]] = None) -> None:
         """
         Initialize Pipeline Expert Agent.
 
@@ -58,12 +58,11 @@ class PipelineExpertAgent(BaseExpert):
     def _create_domain_agent(self, improvements: Optional[List[Dict[str, Any]]] = None) -> Any:
         """Create the pipeline generation agent."""
         class PipelineAgent:
-            def __init__(self, output_format: str):
+            def __init__(self, output_format: str) -> None:
                 self.output_format = output_format
                 self.learned_patterns = []
             
-            def forward(self, task: str = None, description: str = None,
-                       stages: List[str] = None, learned_improvements: List[Dict] = None, **kwargs) -> Any:
+            def forward(self, task: str = None, description: str = None, stages: List[str] = None, learned_improvements: List[Dict] = None, **kwargs: Any) -> Any:
                 """Generate pipeline diagram."""
                 result = type('Result', (), {})()
                 
@@ -94,7 +93,7 @@ class PipelineExpertAgent(BaseExpert):
     def _create_domain_teacher(self) -> Any:
         """Create the pipeline teacher agent."""
         class PipelineTeacher:
-            def forward(self, **kwargs) -> Any:
+            def forward(self, **kwargs: Any) -> Any:
                 """Provide correct pipeline diagram."""
                 result = type('Result', (), {})()
                 gold_standard = kwargs.get('gold_standard', '')
@@ -210,12 +209,7 @@ class PipelineExpertAgent(BaseExpert):
     # PUBLIC API
     # =========================================================================
 
-    async def generate_pipeline(
-        self,
-        stages: List[str],
-        description: str = None,
-        **kwargs
-    ) -> str:
+    async def generate_pipeline(self, stages: List[str], description: str = None, **kwargs: Any) -> str:
         """
         Generate a pipeline diagram.
 

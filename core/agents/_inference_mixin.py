@@ -325,13 +325,7 @@ class InferenceMixin:
         'input too long', 'prompt is too long',
     )
 
-    async def _call_with_compression_retry(
-        self,
-        call_fn,
-        conversation: str,
-        instruction: str,
-        max_retries: int = 3,
-    ):
+    async def _call_with_compression_retry(self, call_fn: Any, conversation: str, instruction: str, max_retries: int = 3) -> Any:
         """Wrap an LLM call with automatic context compression on overflow.
 
         On context_length_exceeded errors:

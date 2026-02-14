@@ -1,7 +1,7 @@
 """Execution configuration — runtime limits, timeouts, parallelism, reproducibility."""
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Any
 
 
 @dataclass
@@ -23,7 +23,7 @@ class ExecutionConfig:
     python_hash_seed: Optional[int] = None
     enable_deterministic: bool = True
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         # Positive integer limits
         _pos_int_fields = {
             'max_actor_iters': self.max_actor_iters,

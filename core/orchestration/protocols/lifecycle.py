@@ -28,21 +28,14 @@ class LifecycleMixin:
     # PRIORITY QUEUE (Handle urgent tasks first)
     # =========================================================================
 
-    def __init_priority_queue(self):
+    def __init_priority_queue(self) -> Any:
         """Initialize priority queue if not exists."""
         if not hasattr(self, 'priority_queue'):
             self.priority_queue: List[Dict] = []
 
 
 
-    def enqueue_task(
-        self,
-        task_id: str,
-        task_type: str,
-        priority: int = 5,
-        deadline: float = None,
-        context: Dict = None
-    ):
+    def enqueue_task(self, task_id: str, task_type: str, priority: int = 5, deadline: float = None, context: Dict = None) -> Any:
         """
         Add task to priority queue.
 
@@ -453,12 +446,7 @@ class LifecycleMixin:
 
 
 
-    async def parallel_map(
-        self,
-        items: List[Any],
-        func,
-        max_concurrent: int = 5
-    ) -> List[Any]:
+    async def parallel_map(self, items: List[Any], func: Any, max_concurrent: int = 5) -> List[Any]:
         """
         Apply function to items in parallel with concurrency limit.
 
@@ -476,7 +464,7 @@ class LifecycleMixin:
 
         semaphore = asyncio.Semaphore(max_concurrent)
 
-        async def limited_func(item, idx):
+        async def limited_func(item: Any, idx: Any) -> Any:
             async with semaphore:
                 try:
                     if asyncio.iscoroutinefunction(func):
@@ -503,7 +491,7 @@ class LifecycleMixin:
     # SMART CACHING (Reduce redundant LLM calls)
     # =========================================================================
 
-    def __init_cache(self):
+    def __init_cache(self) -> Any:
         """Initialize result cache."""
         if not hasattr(self, '_result_cache'):
             self._result_cache: Dict[str, Dict] = {}
@@ -589,12 +577,7 @@ class LifecycleMixin:
     # INCREMENTAL PROCESSING (Stream results as they complete)
     # =========================================================================
 
-    async def execute_incremental(
-        self,
-        tasks: List[Dict],
-        on_complete=None,
-        on_error=None
-    ):
+    async def execute_incremental(self, tasks: List[Dict], on_complete: Any = None, on_error: Any = None) -> Any:
         """
         Execute tasks and yield results incrementally as they complete.
 
@@ -608,7 +591,7 @@ class LifecycleMixin:
         """
         import asyncio
 
-        async def run_task(task: Dict):
+        async def run_task(task: Dict) -> Any:
             task_id = task.get("task_id", "unknown")
             func = task.get("func")
             args = task.get("args", [])
@@ -646,13 +629,7 @@ class LifecycleMixin:
     # CHUNKED PROCESSING (Process large batches efficiently)
     # =========================================================================
 
-    async def process_in_chunks(
-        self,
-        items: List[Any],
-        chunk_size: int,
-        process_func,
-        delay_between_chunks: float = 0.1
-    ) -> List[Any]:
+    async def process_in_chunks(self, items: List[Any], chunk_size: int, process_func: Any, delay_between_chunks: float = 0.1) -> List[Any]:
         """
         Process items in chunks to avoid overwhelming LLM.
 

@@ -23,7 +23,7 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 
-def _python_type_to_openapi(py_type, enums_collected: Dict[str, list] = None) -> Dict[str, Any]:
+def _python_type_to_openapi(py_type: Any, enums_collected: Dict[str, list] = None) -> Dict[str, Any]:
     """Convert a Python type annotation to OpenAPI schema."""
     origin = getattr(py_type, '__origin__', None)
 
@@ -225,16 +225,16 @@ def generate_openapi_spec(
     }
 
     # Define endpoints declaratively
-    def _ref(name) -> Dict:
+    def _ref(name: Any) -> Dict:
         return {"$ref": f"#/components/schemas/{name}"}
 
-    def _json(schema) -> Dict:
+    def _json(schema: Any) -> Dict:
         return {"application/json": {"schema": schema}}
 
     def _sse() -> Dict:
         return {"text/event-stream": {"schema": {"type": "string", "format": "binary"}}}
 
-    def _responses(ok_schema, ok_desc="Success"):
+    def _responses(ok_schema: Any, ok_desc: Any = 'Success') -> Any:
         r = {"200": {"description": ok_desc, "content": _json(ok_schema)}}
         r["400"] = {"description": "Bad request", "content": _json(_ref("ErrorResponse"))}
         r["500"] = {"description": "Internal server error", "content": _json(_ref("ErrorResponse"))}

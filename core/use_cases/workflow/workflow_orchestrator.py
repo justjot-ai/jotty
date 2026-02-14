@@ -17,12 +17,7 @@ class WorkflowOrchestrator:
     Orchestrates workflow execution by selecting and routing to appropriate agents.
     """
     
-    def __init__(
-        self,
-        conductor: Any,  # Conductor instance
-        mode: str = "dynamic",
-        agent_order: Optional[List[str]] = None
-    ):
+    def __init__(self, conductor: Any, mode: str = 'dynamic', agent_order: Optional[List[str]] = None) -> None:
         """
         Initialize workflow orchestrator.
         

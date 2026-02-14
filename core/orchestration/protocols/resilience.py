@@ -104,7 +104,7 @@ class ResilienceMixin:
     # CIRCUIT BREAKER (Stop sending to failing agents)
     # =========================================================================
 
-    def __init_circuit_breakers(self):
+    def __init_circuit_breakers(self) -> Any:
         """Initialize circuit breakers if not exists."""
         if not hasattr(self, 'circuit_breakers'):
             self.circuit_breakers: Dict[str, Dict] = {}  # agent -> {state, failures, last_failure}

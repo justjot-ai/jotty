@@ -86,7 +86,7 @@ class MLflowCommand(BaseCommand):
             self._show_help(cli)
             return CommandResult.fail(f"Unknown subcommand: {subcommand}")
 
-    async def _list_runs(self, args: ParsedArgs, cli: "JottyCLI", tracker) -> CommandResult:
+    async def _list_runs(self, args: ParsedArgs, cli: 'JottyCLI', tracker: Any) -> CommandResult:
         """List runs in an experiment."""
         experiment = self._get_default_experiment(args)
         max_results = int(args.flags.get("limit", args.flags.get("n", "10")))
@@ -121,7 +121,7 @@ class MLflowCommand(BaseCommand):
 
         return CommandResult.ok(data=runs)
 
-    async def _get_best_run(self, args: ParsedArgs, cli: "JottyCLI", tracker) -> CommandResult:
+    async def _get_best_run(self, args: ParsedArgs, cli: 'JottyCLI', tracker: Any) -> CommandResult:
         """Get the best run by metric."""
         experiment = self._get_default_experiment(args)
         metric = args.flags.get("metric", args.flags.get("m", "best_score"))
@@ -165,7 +165,7 @@ class MLflowCommand(BaseCommand):
 
         return CommandResult.ok(data=best)
 
-    async def _load_model(self, args: ParsedArgs, cli: "JottyCLI", tracker) -> CommandResult:
+    async def _load_model(self, args: ParsedArgs, cli: 'JottyCLI', tracker: Any) -> CommandResult:
         """Load a model from a run."""
         if len(args.positional) < 2:
             cli.renderer.error("Run ID required. Usage: /mlflow load <run_id>")
@@ -188,7 +188,7 @@ class MLflowCommand(BaseCommand):
         # Store in CLI context for later use
         return CommandResult.ok(data={'model': model, 'run_id': run_id})
 
-    async def _compare_runs(self, args: ParsedArgs, cli: "JottyCLI", tracker) -> CommandResult:
+    async def _compare_runs(self, args: ParsedArgs, cli: 'JottyCLI', tracker: Any) -> CommandResult:
         """Compare multiple runs."""
         run_ids = args.positional[1:] if len(args.positional) > 1 else []
 
@@ -209,7 +209,7 @@ class MLflowCommand(BaseCommand):
 
         return CommandResult.ok(data=comparison.to_dict('records'))
 
-    async def _launch_ui(self, args: ParsedArgs, cli: "JottyCLI", tracker) -> CommandResult:
+    async def _launch_ui(self, args: ParsedArgs, cli: 'JottyCLI', tracker: Any) -> CommandResult:
         """Launch MLflow UI."""
         import subprocess
         import os
@@ -239,7 +239,7 @@ class MLflowCommand(BaseCommand):
             cli.renderer.error(f"Failed to launch MLflow UI: {e}")
             return CommandResult.fail(str(e))
 
-    async def _list_experiments(self, args: ParsedArgs, cli: "JottyCLI", tracker) -> CommandResult:
+    async def _list_experiments(self, args: ParsedArgs, cli: 'JottyCLI', tracker: Any) -> CommandResult:
         """List all experiments."""
         cli.renderer.header("MLflow Experiments")
 
@@ -257,7 +257,7 @@ class MLflowCommand(BaseCommand):
             cli.renderer.error(f"Failed to list experiments: {e}")
             return CommandResult.fail(str(e))
 
-    async def _show_status(self, args: ParsedArgs, cli: "JottyCLI", tracker) -> CommandResult:
+    async def _show_status(self, args: ParsedArgs, cli: 'JottyCLI', tracker: Any) -> CommandResult:
         """Show current MLflow status and saved state."""
         state = self._get_saved_state()
 
@@ -274,7 +274,7 @@ class MLflowCommand(BaseCommand):
 
         return CommandResult.ok(data=state)
 
-    def _show_help(self, cli: "JottyCLI"):
+    def _show_help(self, cli: 'JottyCLI') -> Any:
         """Show command help."""
         state = self._get_saved_state()
         current_exp = state.get('experiment_name', 'jotty_ml')

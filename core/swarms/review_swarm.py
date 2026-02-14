@@ -1,3 +1,4 @@
+from typing import Any
 """
 Review Swarm - World-Class Code & Documentation Review
 ======================================================
@@ -107,7 +108,7 @@ class ReviewConfig(SwarmBaseConfig):
     language: str = "python"
     style_guide: str = "pep8"
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.name = "ReviewSwarm"
         self.domain = "code_review"
 
@@ -318,7 +319,7 @@ class ReviewSynthesisSignature(dspy.Signature):
 class CodeReviewer(BaseSwarmAgent):
     """Reviews code quality."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, signature=CodeReviewSignature)
         self._reviewer = dspy.ChainOfThought(CodeReviewSignature)
         self.learned_context = learned_context
@@ -367,7 +368,7 @@ class CodeReviewer(BaseSwarmAgent):
 class SecurityScanner(BaseSwarmAgent):
     """Scans for security vulnerabilities."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, signature=SecurityReviewSignature)
         self._scanner = dspy.ChainOfThought(SecurityReviewSignature)
         self.learned_context = learned_context
@@ -411,7 +412,7 @@ class SecurityScanner(BaseSwarmAgent):
 class PerformanceAnalyzer(BaseSwarmAgent):
     """Analyzes performance issues."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, signature=PerformanceReviewSignature)
         self._analyzer = dspy.ChainOfThought(PerformanceReviewSignature)
         self.learned_context = learned_context
@@ -455,7 +456,7 @@ class PerformanceAnalyzer(BaseSwarmAgent):
 class ArchitectureReviewer(BaseSwarmAgent):
     """Reviews architecture."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, signature=ArchitectureReviewSignature)
         self._reviewer = dspy.ChainOfThought(ArchitectureReviewSignature)
         self.learned_context = learned_context
@@ -501,7 +502,7 @@ class ArchitectureReviewer(BaseSwarmAgent):
 class StyleChecker(BaseSwarmAgent):
     """Checks code style."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, signature=StyleReviewSignature)
         self._checker = dspy.ChainOfThought(StyleReviewSignature)
         self.learned_context = learned_context
@@ -547,7 +548,7 @@ class StyleChecker(BaseSwarmAgent):
 class ReviewSynthesizer(BaseSwarmAgent):
     """Synthesizes all reviews."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, signature=ReviewSynthesisSignature)
         self.learned_context = learned_context
         self._synthesizer = dspy.ChainOfThought(ReviewSynthesisSignature)
@@ -624,16 +625,10 @@ class ReviewSwarm(DomainSwarm):
     )
     SWARM_SIGNATURE = ReviewSwarmSignature
 
-    def __init__(self, config: ReviewConfig = None):
+    def __init__(self, config: ReviewConfig = None) -> None:
         super().__init__(config or ReviewConfig())
 
-    async def review(
-        self,
-        code: str,
-        context: str = "",
-        language: str = None,
-        **kwargs
-    ) -> ReviewResult:
+    async def review(self, code: str, context: str = '', language: str = None, **kwargs: Any) -> ReviewResult:
         """
         Perform comprehensive code review.
 
@@ -649,13 +644,7 @@ class ReviewSwarm(DomainSwarm):
         """
         return await self.execute(code, context=context, language=language, **kwargs)
 
-    async def _execute_domain(
-        self,
-        code: str,
-        context: str = "",
-        language: str = None,
-        **kwargs
-    ) -> ReviewResult:
+    async def _execute_domain(self, code: str, context: str = '', language: str = None, **kwargs: Any) -> ReviewResult:
         """
         Perform comprehensive code review.
 
@@ -693,7 +682,7 @@ class ReviewSwarm(DomainSwarm):
             },
         )
 
-    async def _execute_phases(self, executor, code, context, lang, config):
+    async def _execute_phases(self, executor: Any, code: Any, context: Any, lang: Any, config: Any) -> Any:
         """Execute all review phases using PhaseExecutor.
 
         Args:
@@ -765,10 +754,7 @@ class ReviewSwarm(DomainSwarm):
             performance_result, synthesis, lang
         )
 
-    def _build_review_result(
-        self, executor, code_result, security_result,
-        performance_result, synthesis, lang
-    ):
+    def _build_review_result(self, executor: Any, code_result: Any, security_result: Any, performance_result: Any, synthesis: Any, lang: Any) -> Any:
         """Build the final ReviewResult from all phase outputs.
 
         Args:
@@ -901,7 +887,7 @@ class ReviewSwarm(DomainSwarm):
 # CONVENIENCE FUNCTIONS
 # =============================================================================
 
-async def review_code(code: str, **kwargs) -> ReviewResult:
+async def review_code(code: str, **kwargs: Any) -> ReviewResult:
     """
     One-liner code review.
 
@@ -913,7 +899,7 @@ async def review_code(code: str, **kwargs) -> ReviewResult:
     return await swarm.review(code, **kwargs)
 
 
-def review_code_sync(code: str, **kwargs) -> ReviewResult:
+def review_code_sync(code: str, **kwargs: Any) -> ReviewResult:
     """Synchronous code review."""
     return asyncio.run(review_code(code, **kwargs))
 

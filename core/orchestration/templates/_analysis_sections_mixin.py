@@ -27,16 +27,14 @@ class AnalysisSectionsMixin:
     self._validate_inputs(), self._maybe_add_narrative(), etc.
     """
 
-    def add_executive_summary(self, metrics: Dict[str, float], best_model: str,
-                             n_features: int, context: str = ""):
+    def add_executive_summary(self, metrics: Dict[str, float], best_model: str, n_features: int, context: str = '') -> Any:
         """Add executive summary section with risk scoring and traffic-light indicators."""
         try:
             self._add_executive_summary_impl(metrics, best_model, n_features, context)
         except Exception as e:
             self._record_section_failure('Executive Summary', e)
 
-    def add_data_profile(self, shape: Tuple[int, int], dtypes: Dict[str, int],
-                        missing: Dict[str, int], recommendations: List[str]):
+    def add_data_profile(self, shape: Tuple[int, int], dtypes: Dict[str, int], missing: Dict[str, int], recommendations: List[str]) -> Any:
         """Add data profiling section."""
         try:
             self._add_data_profile_impl(shape, dtypes, missing, recommendations)
@@ -118,8 +116,7 @@ Visual representation of the ML pipeline data flow.
         except Exception as e:
             self._record_section_failure('Model Benchmarking', e)
 
-    def add_model_comparison(self, models: Dict, X_test, y_true,
-                             class_labels: List[str] = None):
+    def add_model_comparison(self, models: Dict, X_test: Any, y_true: Any, class_labels: List[str] = None) -> Any:
         """Add side-by-side comparison of multiple trained models.
 
         Args:
@@ -133,8 +130,7 @@ Visual representation of the ML pipeline data flow.
         except Exception as e:
             self._record_section_failure('Model Comparison', e)
 
-    def add_cross_dataset_validation(self, datasets_dict: Dict[str, Tuple],
-                                      model, metric_fn=None, metric_name: str = "Score"):
+    def add_cross_dataset_validation(self, datasets_dict: Dict[str, Tuple], model: Any, metric_fn: Any = None, metric_name: str = 'Score') -> Any:
         """
         Add cross-dataset validation analysis.
 
@@ -246,36 +242,35 @@ Evaluating model generalization across {len(results)} different datasets.
             self._record_section_failure('Cross-Dataset Validation', e)
 
 
-    def add_confusion_matrix(self, y_true, y_pred, labels: List[str] = None) -> None:
+    def add_confusion_matrix(self, y_true: Any, y_pred: Any, labels: List[str] = None) -> None:
         """Add confusion matrix section."""
         try:
             self._add_confusion_matrix_impl(y_true, y_pred, labels)
         except Exception as e:
             self._record_section_failure('Classification Performance', e)
 
-    def add_roc_analysis(self, y_true, y_prob, pos_label=1) -> None:
+    def add_roc_analysis(self, y_true: Any, y_prob: Any, pos_label: Any = 1) -> None:
         """Add ROC curve analysis."""
         try:
             self._add_roc_analysis_impl(y_true, y_prob, pos_label)
         except Exception as e:
             self._record_section_failure('ROC Analysis', e)
 
-    def add_precision_recall(self, y_true, y_prob, pos_label=1) -> None:
+    def add_precision_recall(self, y_true: Any, y_prob: Any, pos_label: Any = 1) -> None:
         """Add precision-recall curve analysis."""
         try:
             self._add_precision_recall_impl(y_true, y_prob, pos_label)
         except Exception as e:
             self._record_section_failure('Precision-Recall Analysis', e)
 
-    def add_baseline_comparison(self, baseline_score: float, final_score: float,
-                               baseline_model: str = "Baseline"):
+    def add_baseline_comparison(self, baseline_score: float, final_score: float, baseline_model: str = 'Baseline') -> Any:
         """Add baseline comparison section."""
         try:
             self._add_baseline_comparison_impl(baseline_score, final_score, baseline_model)
         except Exception as e:
             self._record_section_failure('Baseline Comparison', e)
 
-    def add_shap_analysis(self, shap_values, feature_names: List[str], X_sample=None) -> None:
+    def add_shap_analysis(self, shap_values: Any, feature_names: List[str], X_sample: Any = None) -> None:
         """Add SHAP analysis section."""
         try:
             import shap
@@ -361,7 +356,7 @@ showing how each feature contributes to individual predictions.
         except Exception as e:
             self._record_section_failure('Correlation Analysis', e)
 
-    def add_learning_curves(self, model, X, y, cv: int = 5) -> None:
+    def add_learning_curves(self, model: Any, X: Any, y: Any, cv: int = 5) -> None:
         """
         Add learning curve analysis showing:
         - Training vs validation score over sample sizes
@@ -444,7 +439,7 @@ helping diagnose underfitting vs overfitting.
     # CALIBRATION ANALYSIS
     # =========================================================================
 
-    def add_calibration_analysis(self, y_true, y_prob, n_bins: int = 10) -> None:
+    def add_calibration_analysis(self, y_true: Any, y_prob: Any, n_bins: int = 10) -> None:
         """
         Add probability calibration analysis showing:
         - Calibration curve (reliability diagram)
@@ -552,8 +547,7 @@ Per-class calibration analysis for {n_classes} classes.
     # CONFIDENCE-CALIBRATED PREDICTIONS
     # =========================================================================
 
-    def add_prediction_confidence_analysis(self, X_sample, y_true, y_pred, y_prob,
-                                            feature_names: List[str] = None, top_n: int = 10):
+    def add_prediction_confidence_analysis(self, X_sample: Any, y_true: Any, y_pred: Any, y_prob: Any, feature_names: List[str] = None, top_n: int = 10) -> Any:
         """
         Add confidence-calibrated prediction analysis.
 
@@ -675,7 +669,7 @@ Analyzing model prediction confidence and its relationship to actual correctness
         except Exception as e:
             self._record_section_failure('Prediction Confidence Analysis', e)
 
-    def add_lift_gain_analysis(self, y_true, y_prob) -> None:
+    def add_lift_gain_analysis(self, y_true: Any, y_prob: Any) -> None:
         """
         Add lift and gain charts for marketing/business context:
         - Cumulative gains curve
@@ -764,7 +758,7 @@ These charts help evaluate model effectiveness for targeted campaigns and priori
     # CROSS-VALIDATION DETAILED ANALYSIS
     # =========================================================================
 
-    def add_cv_detailed_analysis(self, model, X, y, cv: int = 5) -> None:
+    def add_cv_detailed_analysis(self, model: Any, X: Any, y: Any, cv: int = 5) -> None:
         """
         Add detailed cross-validation analysis:
         - Fold-by-fold results
@@ -844,8 +838,7 @@ These charts help evaluate model effectiveness for targeted campaigns and priori
     # SHAP DEEP DIVE
     # =========================================================================
 
-    def add_shap_deep_analysis(self, shap_values, feature_names: List[str], X_sample,
-                               model=None, top_n: int = 3):
+    def add_shap_deep_analysis(self, shap_values: Any, feature_names: List[str], X_sample: Any, model: Any = None, top_n: int = 3) -> Any:
         """
         Add comprehensive SHAP analysis:
         - Summary plot
@@ -957,7 +950,7 @@ Shows how features contribute to a single prediction.
     # THRESHOLD OPTIMIZATION
     # =========================================================================
 
-    def add_threshold_optimization(self, y_true, y_prob, cost_fp: float = 1.0, cost_fn: float = 1.0) -> None:
+    def add_threshold_optimization(self, y_true: Any, y_prob: Any, cost_fp: float = 1.0, cost_fn: float = 1.0) -> None:
         """
         Add threshold optimization analysis:
         - Optimal threshold for different objectives
@@ -1067,8 +1060,7 @@ Choosing the right classification threshold depends on business objectives.
     # REPRODUCIBILITY SECTION
     # =========================================================================
 
-    def add_reproducibility_section(self, model, params: Dict = None, random_state: int = None,
-                                    environment: Dict = None):
+    def add_reproducibility_section(self, model: Any, params: Dict = None, random_state: int = None, environment: Dict = None) -> Any:
         """
         Add reproducibility information:
         - Model hyperparameters
@@ -1081,8 +1073,7 @@ Choosing the right classification threshold depends on business objectives.
         except Exception as e:
             self._record_section_failure('Reproducibility', e)
 
-    def add_hyperparameter_visualization(self, study_or_trials, param_names: List[str] = None,
-                                          objective_name: str = "Objective"):
+    def add_hyperparameter_visualization(self, study_or_trials: Any, param_names: List[str] = None, objective_name: str = 'Objective') -> Any:
         """
         Add hyperparameter search visualization.
 
@@ -1160,8 +1151,7 @@ Analysis of {len(trials)} hyperparameter trials exploring {len(param_names)} par
         except Exception as e:
             self._record_section_failure('Hyperparameter Visualization', e)
 
-    def add_executive_dashboard(self, metrics: Dict[str, float], model_name: str = "",
-                                dataset_name: str = ""):
+    def add_executive_dashboard(self, metrics: Dict[str, float], model_name: str = '', dataset_name: str = '') -> Any:
         """
         Add executive dashboard with visual KPI gauge charts.
 
@@ -1452,7 +1442,7 @@ Automated scan of all analysis sections for actionable findings.
     # CLASS DISTRIBUTION ANALYSIS (Phase 2)
     # =========================================================================
 
-    def add_class_distribution(self, y_true, y_pred=None, labels: List[str] = None) -> None:
+    def add_class_distribution(self, y_true: Any, y_pred: Any = None, labels: List[str] = None) -> None:
         """
         Add class distribution analysis with:
         - Class balance bar chart
@@ -1556,7 +1546,7 @@ and choosing appropriate evaluation metrics.
     # PERMUTATION FEATURE IMPORTANCE (Phase 3)
     # =========================================================================
 
-    def add_permutation_importance(self, model, X, y, n_repeats: int = 10) -> None:
+    def add_permutation_importance(self, model: Any, X: Any, y: Any, n_repeats: int = 10) -> None:
         """
         Add permutation feature importance analysis with:
         - sklearn.inspection.permutation_importance with error bars
@@ -1630,8 +1620,7 @@ values are randomly shuffled, breaking the relationship with the target.
     # PARTIAL DEPENDENCE PLOTS (Phase 4)
     # =========================================================================
 
-    def add_partial_dependence(self, model, X, feature_names: List[str] = None,
-                                top_n: int = 3):
+    def add_partial_dependence(self, model: Any, X: Any, feature_names: List[str] = None, top_n: int = 3) -> Any:
         """
         Add Partial Dependence Plots (PDP) with ICE lines:
         - sklearn.inspection.partial_dependence
@@ -1699,7 +1688,7 @@ averaging over the values of all other features.
     # STATISTICAL SIGNIFICANCE TESTING (Phase 5)
     # =========================================================================
 
-    def add_statistical_tests(self, y_true, y_pred, y_prob=None) -> None:
+    def add_statistical_tests(self, y_true: Any, y_pred: Any, y_prob: Any = None) -> None:
         """
         Add statistical significance testing:
         - Bootstrap CI for AUC (1000 iterations)
@@ -1791,7 +1780,7 @@ Bootstrap resampling provides robust confidence intervals for model performance 
         except Exception as e:
             self._record_section_failure('Statistical Tests', e)
 
-    def add_score_distribution(self, y_true, y_prob, labels: List[str] = None) -> None:
+    def add_score_distribution(self, y_true: Any, y_prob: Any, labels: List[str] = None) -> None:
         """
         Add predicted probability distribution by actual class:
         - KDE/histogram of predicted probabilities split by actual class
@@ -1903,8 +1892,7 @@ reveals model discrimination capability.
     # DEEP LEARNING ANALYSIS
     # =========================================================================
 
-    def add_deep_learning_analysis(self, model, X_sample=None, layer_names: List[str] = None,
-                                    training_history: Dict = None):
+    def add_deep_learning_analysis(self, model: Any, X_sample: Any = None, layer_names: List[str] = None, training_history: Dict = None) -> Any:
         """
         Add deep learning-specific analysis (conditional — only if model is a neural network).
 
@@ -2002,9 +1990,7 @@ Feature importance via input gradient analysis (gradient × input).
         except Exception as e:
             self._record_section_failure('Deep Learning Analysis', e)
 
-    def add_model_card(self, model, results: Dict[str, Any],
-                       intended_use: str = "", limitations: str = "",
-                       ethical: str = ""):
+    def add_model_card(self, model: Any, results: Dict[str, Any], intended_use: str = '', limitations: str = '', ethical: str = '') -> Any:
         """
         Add Model Card section following Google Model Card standard:
         - Model details (type, version, framework)
@@ -2018,7 +2004,7 @@ Feature importance via input gradient analysis (gradient × input).
         except Exception as e:
             self._record_section_failure('Model Card', e)
 
-    def add_regression_analysis(self, y_true, y_pred) -> None:
+    def add_regression_analysis(self, y_true: Any, y_pred: Any) -> None:
         """
         Add regression analysis with:
         - 2x2 subplot: Predicted vs Actual, Residuals, Q-Q plot, Residual histogram

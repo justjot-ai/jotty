@@ -38,12 +38,7 @@ class SemanticQueryEngine:
         "bigquery": "Use BigQuery SQL. LIMIT for pagination. CONCAT() for strings.",
     }
 
-    def __init__(
-        self,
-        schema: Schema = None,
-        lookml_model: LookMLModel = None,
-        db_type: str = None
-    ):
+    def __init__(self, schema: Schema = None, lookml_model: LookMLModel = None, db_type: str = None) -> None:
         """
         Initialize query engine.
 
@@ -369,7 +364,7 @@ SQL:"""
         except Exception as e:
             return {"valid": False, "error": str(e)}
 
-    def set_connection(self, **connection_params) -> None:
+    def set_connection(self, **connection_params: Any) -> None:
         """
         Set database connection parameters for query execution.
 
@@ -396,14 +391,7 @@ SQL:"""
             )
         return self._data_loader
 
-    def load_dataframe(
-        self,
-        query: str,
-        output_format: str = "pandas",
-        partition_on: str = None,
-        partition_num: int = None,
-        **kwargs
-    ) -> Any:
+    def load_dataframe(self, query: str, output_format: str = 'pandas', partition_on: str = None, partition_num: int = None, **kwargs: Any) -> Any:
         """
         Load query results directly into a DataFrame using ConnectorX.
 
@@ -444,12 +432,7 @@ SQL:"""
             **kwargs
         )
 
-    def query_to_dataframe(
-        self,
-        question: str,
-        output_format: str = "pandas",
-        **kwargs
-    ) -> Dict[str, Any]:
+    def query_to_dataframe(self, question: str, output_format: str = 'pandas', **kwargs: Any) -> Dict[str, Any]:
         """
         Generate SQL from natural language and load results into DataFrame.
 

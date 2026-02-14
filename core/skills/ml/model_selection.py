@@ -41,13 +41,10 @@ class ModelSelectionSkill(MLSkill):
     optional_inputs = ["problem_type"]
     outputs = ["best_model", "all_scores", "oof_predictions"]
 
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: Dict[str, Any] = None) -> None:
         super().__init__(config)
 
-    async def execute(self,
-                      X: pd.DataFrame,
-                      y: Optional[pd.Series] = None,
-                      **context) -> SkillResult:
+    async def execute(self, X: pd.DataFrame, y: Optional[pd.Series] = None, **context: Any) -> SkillResult:
         """
         Execute model selection.
 

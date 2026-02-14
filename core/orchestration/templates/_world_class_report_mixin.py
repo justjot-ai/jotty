@@ -16,18 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 class WorldClassReportMixin:
-    def generate_professional_report(
-        self,
-        results: Dict[str, Any],
-        y_true=None,
-        y_pred=None,
-        y_prob=None,
-        X_sample=None,
-        shap_values=None,
-        title: str = "ML Analysis Report",
-        context: str = "",
-        filename: str = None
-    ) -> Optional[str]:
+    def generate_professional_report(self, results: Dict[str, Any], y_true: Any = None, y_pred: Any = None, y_prob: Any = None, X_sample: Any = None, shap_values: Any = None, title: str = 'ML Analysis Report', context: str = '', filename: str = None) -> Optional[str]:
         """
         Generate a professional-grade PDF report using Pandoc + LaTeX.
 
@@ -152,30 +141,7 @@ class WorldClassReportMixin:
             logger.error(f"Failed to generate professional report: {e}")
             return None
 
-    def generate_world_class_report(
-        self,
-        X: pd.DataFrame,
-        y: pd.Series,
-        model,
-        results: Dict[str, Any],
-        y_pred=None,
-        y_prob=None,
-        shap_values=None,
-        title: str = "Comprehensive ML Analysis",
-        context: str = "",
-        filename: str = None,
-        include_all: bool = True,
-        theme: str = "professional",
-        # New parameters
-        generate_html: bool = False,
-        llm_narrative: bool = False,
-        sensitive_features: Dict[str, Any] = None,
-        X_reference=None,
-        pipeline_steps: List[Dict] = None,
-        study_or_trials=None,
-        validation_datasets: Dict = None,
-        trained_models: Dict = None,
-    ) -> Optional[str]:
+    def generate_world_class_report(self, X: pd.DataFrame, y: pd.Series, model: Any, results: Dict[str, Any], y_pred: Any = None, y_prob: Any = None, shap_values: Any = None, title: str = 'Comprehensive ML Analysis', context: str = '', filename: str = None, include_all: bool = True, theme: str = 'professional', generate_html: bool = False, llm_narrative: bool = False, sensitive_features: Dict[str, Any] = None, X_reference: Any = None, pipeline_steps: List[Dict] = None, study_or_trials: Any = None, validation_datasets: Dict = None, trained_models: Dict = None) -> Optional[str]:
         """
         Generate the world's most comprehensive ML report.
 
@@ -535,7 +501,7 @@ class WorldClassReportMixin:
             traceback.print_exc()
             return None
 
-    def _generate_smart_recommendations(self, results: Dict, model, feature_importance: Dict) -> List[str]:
+    def _generate_smart_recommendations(self, results: Dict, model: Any, feature_importance: Dict) -> List[str]:
         """Generate intelligent recommendations based on results."""
         recommendations = []
 

@@ -43,7 +43,7 @@ class SlideTypeSelector:
     DATA_ROTATION = ["STATS_GRID", "COMPARISON_TABLE", "CHART_BAR"]
     SPECIAL_ROTATION = ["BEFORE_AFTER", "PROS_CONS", "FORMULA", "CODE_BLOCK", "CHECKLIST"]
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.analyzer = ContentAnalyzer()
         self.used_types: List[str] = []
         self.rhythm_index = 0
@@ -95,7 +95,7 @@ class SlideTypeSelector:
         # Also avoid same category as last 2 slides
         if force_variety and len(self.used_types) >= 2:
             last_categories = [self._get_category(t) for t in self.used_types[-2:]]
-            def is_different_category(t):
+            def is_different_category(t: Any) -> Any:
                 return self._get_category(t) not in last_categories
             filtered = [t for t in candidates if is_different_category(t)]
             if filtered:
@@ -157,7 +157,7 @@ class SlideTypeSelector:
 
         return suggested
 
-    def _advance_rhythm(self):
+    def _advance_rhythm(self) -> Any:
         """Advance the rhythm counter."""
         self.rhythm_index += 1
 
@@ -229,7 +229,7 @@ class LLMSlideSelector:
     VISUAL_TYPES = ["DIAGRAM", "TIMELINE", "ARCHITECTURE", "PROCESS_STEPS"]
     SUMMARY_TYPES = ["KEY_TAKEAWAYS", "BULLET_POINTS"]
 
-    def __init__(self, use_llm: bool = True):
+    def __init__(self, use_llm: bool = True) -> None:
         """Initialize selector.
 
         Args:
@@ -562,7 +562,7 @@ class VisualizationGoalGenerator:
         ],
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.analyzer = ContentAnalyzer()
 
     def generate_goals(self, content: str, title: str = "", max_goals: int = 3) -> List[VisualizationGoal]:

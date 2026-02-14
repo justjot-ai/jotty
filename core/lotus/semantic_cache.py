@@ -103,11 +103,7 @@ class SemanticCache:
     DRY: Reuses CacheConfig from LotusConfig.
     """
 
-    def __init__(
-        self,
-        config: Optional[LotusConfig] = None,
-        embedding_fn: Optional[callable] = None,
-    ):
+    def __init__(self, config: Optional[LotusConfig] = None, embedding_fn: Optional[callable] = None) -> None:
         """
         Initialize semantic cache.
 
@@ -411,7 +407,7 @@ class SemanticCache:
 
 
 # Decorator for caching semantic operations
-def cached_operation(cache: SemanticCache):
+def cached_operation(cache: SemanticCache) -> Any:
     """
     Decorator to cache semantic operations.
 
@@ -422,8 +418,8 @@ def cached_operation(cache: SemanticCache):
         async def my_operation(instruction: str, content: str) -> str:
             return await llm.generate(instruction, content)
     """
-    def decorator(fn):
-        async def wrapper(instruction: str, content: Any, *args, **kwargs):
+    def decorator(fn: Any) -> Any:
+        async def wrapper(instruction: str, content: Any, *args: Any, **kwargs: Any) -> Any:
             return await cache.get_or_compute_async(
                 instruction,
                 content,

@@ -55,12 +55,7 @@ class BaseDataLoader(ABC):
     """
 
     @abstractmethod
-    def load(
-        self,
-        query: str,
-        output_format: OutputFormat = OutputFormat.PANDAS,
-        **kwargs
-    ) -> Any:
+    def load(self, query: str, output_format: OutputFormat = OutputFormat.PANDAS, **kwargs: Any) -> Any:
         """
         Load query results into a DataFrame.
 
@@ -145,17 +140,7 @@ class ConnectorXLoader(BaseDataLoader):
         'redshift': 5439,
     }
 
-    def __init__(
-        self,
-        db_type: str = None,
-        host: str = "localhost",
-        port: int = None,
-        database: str = "",
-        user: str = "",
-        password: str = "",
-        connection_string: str = None,
-        **kwargs
-    ):
+    def __init__(self, db_type: str = None, host: str = 'localhost', port: int = None, database: str = '', user: str = '', password: str = '', connection_string: str = None, **kwargs: Any) -> None:
         """
         Initialize ConnectorX loader.
 
@@ -188,7 +173,7 @@ class ConnectorXLoader(BaseDataLoader):
         db_type = db_type.lower()
         return self.PROTOCOL_MAP.get(db_type, db_type)
 
-    def _validate_connectorx(self):
+    def _validate_connectorx(self) -> Any:
         """Validate ConnectorX is installed."""
         try:
             import connectorx
@@ -229,17 +214,7 @@ class ConnectorXLoader(BaseDataLoader):
 
         return conn_str
 
-    def load(
-        self,
-        query: str,
-        output_format: Union[OutputFormat, str] = OutputFormat.PANDAS,
-        partition_on: str = None,
-        partition_num: int = None,
-        partition_range: tuple = None,
-        protocol: str = None,
-        return_type: str = None,
-        **kwargs
-    ) -> Any:
+    def load(self, query: str, output_format: Union[OutputFormat, str] = OutputFormat.PANDAS, partition_on: str = None, partition_num: int = None, partition_range: tuple = None, protocol: str = None, return_type: str = None, **kwargs: Any) -> Any:
         """
         Load query results using ConnectorX.
 
@@ -307,14 +282,7 @@ class ConnectorXLoader(BaseDataLoader):
         }
         return mapping.get(output_format, 'pandas')
 
-    def load_parallel(
-        self,
-        query: str,
-        partition_column: str,
-        num_partitions: int = 4,
-        output_format: OutputFormat = OutputFormat.PANDAS,
-        **kwargs
-    ) -> Any:
+    def load_parallel(self, query: str, partition_column: str, num_partitions: int = 4, output_format: OutputFormat = OutputFormat.PANDAS, **kwargs: Any) -> Any:
         """
         Load query results with automatic parallel partitioning.
 
@@ -383,12 +351,7 @@ class DataLoaderFactory:
     }
 
     @classmethod
-    def create(
-        cls,
-        db_type: str,
-        use_connectorx: bool = True,
-        **connection_params
-    ) -> BaseDataLoader:
+    def create(cls, db_type: str, use_connectorx: bool = True, **connection_params: Any) -> BaseDataLoader:
         """
         Create a data loader for the given database type.
 
@@ -433,17 +396,7 @@ class SQLAlchemyLoader(BaseDataLoader):
         'oracle': 'oracle+oracledb',
     }
 
-    def __init__(
-        self,
-        db_type: str = None,
-        host: str = "localhost",
-        port: int = None,
-        database: str = "",
-        user: str = "",
-        password: str = "",
-        connection_string: str = None,
-        **kwargs
-    ):
+    def __init__(self, db_type: str = None, host: str = 'localhost', port: int = None, database: str = '', user: str = '', password: str = '', connection_string: str = None, **kwargs: Any) -> None:
         """Initialize SQLAlchemy loader."""
         self.db_type = db_type or 'postgresql'
         self.host = host
@@ -473,19 +426,14 @@ class SQLAlchemyLoader(BaseDataLoader):
         return f"{driver}://{self.user}:{encoded_password}@{self.host}{port_str}/{self.database}"
 
     @property
-    def engine(self):
+    def engine(self) -> Any:
         """Get or create SQLAlchemy engine."""
         if self._engine is None:
             from sqlalchemy import create_engine
             self._engine = create_engine(self.get_connection_string())
         return self._engine
 
-    def load(
-        self,
-        query: str,
-        output_format: Union[OutputFormat, str] = OutputFormat.PANDAS,
-        **kwargs
-    ) -> Any:
+    def load(self, query: str, output_format: Union[OutputFormat, str] = OutputFormat.PANDAS, **kwargs: Any) -> Any:
         """Load query results using Pandas read_sql."""
         import pandas as pd
 

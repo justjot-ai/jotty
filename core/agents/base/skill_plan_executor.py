@@ -64,7 +64,7 @@ class ToolCallCache:
             cache.set(key, result)
     """
 
-    def __init__(self, ttl_seconds: int = 300, max_size: int = 100):
+    def __init__(self, ttl_seconds: int = 300, max_size: int = 100) -> None:
         self._ttl = ttl_seconds
         self._max_size = max_size
         self._cache: Dict[str, Tuple[Any, float]] = {}
@@ -127,14 +127,7 @@ class SkillPlanExecutor:
         max_replans: Maximum number of replanning attempts
     """
 
-    def __init__(
-        self,
-        skills_registry,
-        max_steps: int = 10,
-        enable_replanning: bool = True,
-        max_replans: int = 3,
-        planner=None,
-    ):
+    def __init__(self, skills_registry: Any, max_steps: int = 10, enable_replanning: bool = True, max_replans: int = 3, planner: Any = None) -> None:
         self._skills_registry = skills_registry
         self._max_steps = max_steps
         self._enable_replanning = enable_replanning
@@ -156,7 +149,7 @@ class SkillPlanExecutor:
     # =========================================================================
 
     @property
-    def planner(self):
+    def planner(self) -> Any:
         """Lazy-load TaskPlanner."""
         if self._planner is None:
             try:
@@ -557,12 +550,7 @@ class SkillPlanExecutor:
     # STEP EXECUTION
     # =========================================================================
 
-    async def execute_step(
-        self,
-        step,
-        outputs: Dict[str, Any],
-        status_callback: Optional[Callable] = None,
-    ) -> Dict[str, Any]:
+    async def execute_step(self, step: Any, outputs: Dict[str, Any], status_callback: Optional[Callable] = None) -> Dict[str, Any]:
         """
         Execute a single ExecutionStep.
 
@@ -1097,7 +1085,7 @@ class SkillPlanExecutor:
     # =========================================================================
 
     @staticmethod
-    def _strict_tool_lookup(skill, tool_name: str) -> Optional[Callable]:
+    def _strict_tool_lookup(skill: Any, tool_name: str) -> Optional[Callable]:
         """Case-insensitive exact match for tool lookup. No substring matching.
 
         Returns the tool callable if found, None otherwise.
@@ -1116,14 +1104,7 @@ class SkillPlanExecutor:
     # ERROR-FEEDBACK-RETRY
     # =========================================================================
 
-    def _attempt_param_fix(
-        self,
-        params: Dict[str, Any],
-        validation,
-        tool_schema,
-        outputs: Dict[str, Any],
-        step,
-    ) -> Optional[Dict[str, Any]]:
+    def _attempt_param_fix(self, params: Dict[str, Any], validation: Any, tool_schema: Any, outputs: Dict[str, Any], step: Any) -> Optional[Dict[str, Any]]:
         """Attempt to fix validation errors before tool execution.
 
         Strategies:
@@ -1254,7 +1235,7 @@ class SkillPlanExecutor:
     # =========================================================================
 
     @staticmethod
-    def _infer_artifact_tags(step, result: Dict[str, Any]) -> List[str]:
+    def _infer_artifact_tags(step: Any, result: Dict[str, Any]) -> List[str]:
         """Infer semantic tags for a step result based on skill name and content.
 
         Used to populate ``SwarmArtifactStore`` entries so downstream
@@ -1420,7 +1401,7 @@ class SkillPlanExecutor:
             else:
                 # Multiple independent steps — run in parallel
                 _status(f"Parallel", f"executing {len(layer)} steps concurrently")
-                async def _run_step(idx):
+                async def _run_step(idx: Any) -> Any:
                     s = steps[idx]
                     return idx, await self.execute_step(s, outputs, status_callback)
 

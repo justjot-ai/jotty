@@ -183,7 +183,7 @@ class LLMTrajectoryPredictor:
     not just pattern-match like a traditional DQN.
     """
     
-    def __init__(self, config, horizon: int = 5):
+    def __init__(self, config: Any, horizon: int = 5) -> None:
         self.config = config
         self.horizon = horizon
         self.predictor = dspy.ChainOfThought(TrajectoryPredictionSignature) if DSPY_AVAILABLE else None
@@ -410,7 +410,7 @@ class LLMTrajectoryPredictor:
             return "; ".join(differences)
         return "Minor divergence in execution details"
     
-    def _update_agent_models(self, divergence: Divergence):
+    def _update_agent_models(self, divergence: Divergence) -> Any:
         """Update models of agent behavior."""
         for step_pred, step_actual in zip(
             divergence.predicted.steps,
@@ -498,7 +498,7 @@ class DivergenceMemory:
     High-surprise events are more valuable for learning.
     """
     
-    def __init__(self, config, max_size: int = 500):
+    def __init__(self, config: Any, max_size: int = 500) -> None:
         self.config = config
         self.max_size = max_size
         self.memories: List[Divergence] = []
@@ -547,7 +547,7 @@ class CooperativeCreditAssigner:
     A-Team v8.0: No hardcoded weights! Uses adaptive learned weights.
     """
     
-    def __init__(self, config):
+    def __init__(self, config: Any) -> None:
         self.config = config
         
         # A-Team v8.0: Adaptive weights instead of hardcoded 0.3, 0.2

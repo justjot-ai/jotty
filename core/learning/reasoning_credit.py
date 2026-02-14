@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from ..memory.cortex import SwarmMemory
 
 
-def _ensure_swarm_config(config):
+def _ensure_swarm_config(config: Any) -> Any:
     """Accept LearningConfig or SwarmConfig, return SwarmConfig."""
     if isinstance(config, FocusedLearningConfig):
         return SwarmConfig.from_configs(learning=config)
@@ -53,7 +53,7 @@ class ReasoningCreditAssigner:
     4. Temporal position (early vs late decisions)
     """
     
-    def __init__(self, config):
+    def __init__(self, config: Any) -> None:
         self.config = _ensure_swarm_config(config)
         self.reasoning_weight = self.config.reasoning_weight
         self.evidence_weight = self.config.evidence_weight

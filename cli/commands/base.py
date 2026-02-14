@@ -161,11 +161,11 @@ class CommandRegistry:
     Maps command names and aliases to command instances.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._commands: Dict[str, BaseCommand] = {}
         self._aliases: Dict[str, str] = {}
 
-    def register(self, command: BaseCommand):
+    def register(self, command: BaseCommand) -> Any:
         """
         Register a command.
 

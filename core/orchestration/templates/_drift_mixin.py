@@ -29,7 +29,7 @@ class DriftMixin:
     self._store_section_data.
     """
 
-    def _compute_categorical_drift(self, ref_col, cur_col, feature_name: str) -> Dict:
+    def _compute_categorical_drift(self, ref_col: Any, cur_col: Any, feature_name: str) -> Dict:
         """Compute drift for categorical features using Chi-squared test and Cramer's V."""
         try:
             from scipy.stats import chi2_contingency
@@ -75,7 +75,7 @@ class DriftMixin:
             self._record_internal_warning('CategoricalDrift', 'Failed to compute categorical drift metrics', e)
             return {'chi2_stat': 0.0, 'chi2_pval': 1.0, 'cramers_v': 0.0, 'status': 'OK'}
 
-    def _compute_mahalanobis_drift(self, X_ref_numeric, X_cur_numeric) -> Dict:
+    def _compute_mahalanobis_drift(self, X_ref_numeric: Any, X_cur_numeric: Any) -> Dict:
         """Compute multivariate Mahalanobis distance between reference and current datasets."""
         try:
             from scipy.stats import chi2
@@ -106,7 +106,7 @@ class DriftMixin:
             self._record_internal_warning('MahalanobisDrift', 'Failed to compute Mahalanobis distance drift', e)
             return {'mahalanobis_distance': 0.0, 'p_value': 1.0, 'n_features': 0}
 
-    def _compute_mmd(self, X_ref, X_cur, n_permutations=None) -> Dict:
+    def _compute_mmd(self, X_ref: Any, X_cur: Any, n_permutations: Any = None) -> Dict:
         """Compute Maximum Mean Discrepancy with RBF kernel (median heuristic for bandwidth).
 
         Args:
@@ -139,7 +139,7 @@ class DriftMixin:
             median_dist = float(np.median(dists[dists > 0]))
             sigma2 = median_dist if median_dist > 0 else 1.0
 
-            def _rbf_kernel(X, Y):
+            def _rbf_kernel(X: Any, Y: Any) -> Any:
                 d = cdist(X, Y, 'sqeuclidean')
                 return np.exp(-d / (2.0 * sigma2))
 
@@ -182,7 +182,7 @@ class DriftMixin:
             self._record_internal_warning('MMDComputation', 'Failed to compute Maximum Mean Discrepancy', e)
             return {'mmd_stat': 0.0, 'p_value': 1.0, 'significant': False, 'bandwidth': 0.0}
 
-    def _classifier_drift_detection(self, X_ref, X_cur) -> Dict:
+    def _classifier_drift_detection(self, X_ref: Any, X_cur: Any) -> Dict:
         """Detect drift by training a classifier to distinguish reference vs current.
 
         If the classifier can easily tell them apart (AUC > 0.6), drift is present.
@@ -230,8 +230,7 @@ class DriftMixin:
             self._record_internal_warning('ClassifierDrift', 'Failed to perform classifier-based drift detection', e)
             return {'auc': 0.5, 'drift_detected': False, 'feature_importances': {}}
 
-    def _compute_ensemble_drift_score(self, mahal_result, mmd_result,
-                                        classifier_result) -> Dict:
+    def _compute_ensemble_drift_score(self, mahal_result: Any, mmd_result: Any, classifier_result: Any) -> Dict:
         """Combine Mahalanobis, MMD, and classifier drift scores into ensemble.
 
         Weights: Mahalanobis=0.3, MMD=0.35, Classifier=0.35.
@@ -275,10 +274,7 @@ class DriftMixin:
                           'results may be unreliable for non-Gaussian features.'),
         }
 
-    def add_drift_analysis(self, X_reference, X_current, feature_names: List[str] = None,
-                           psi_warn: float = 0.1, psi_alert: float = 0.25,
-                           feature_importance: Dict[str, float] = None,
-                           y_reference=None, y_current=None):
+    def add_drift_analysis(self, X_reference: Any, X_current: Any, feature_names: List[str] = None, psi_warn: float = 0.1, psi_alert: float = 0.25, feature_importance: Dict[str, float] = None, y_reference: Any = None, y_current: Any = None) -> Any:
         """
         Add data drift monitoring analysis between reference and current datasets.
 
@@ -587,7 +583,7 @@ Monitoring for distribution shift between reference (training) and current (prod
         except Exception as e:
             self._record_section_failure('Drift Analysis', e)
 
-    def _calculate_psi(self, reference, current, n_bins: int = None) -> float:
+    def _calculate_psi(self, reference: Any, current: Any, n_bins: int = None) -> float:
         """Calculate Population Stability Index between two distributions.
 
         Uses quantile-based binning by default (configurable via self.config).
@@ -630,7 +626,7 @@ Monitoring for distribution shift between reference (training) and current (prod
         psi = np.sum((cur_pct - ref_pct) * np.log(cur_pct / ref_pct))
         return float(psi)
 
-    def _calculate_js_divergence(self, reference, current, n_bins: int = None) -> float:
+    def _calculate_js_divergence(self, reference: Any, current: Any, n_bins: int = None) -> float:
         """Calculate Jensen-Shannon divergence between two distributions."""
         try:
             from scipy.spatial.distance import jensenshannon

@@ -15,6 +15,13 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
+class SpanStatus:
+    """Span status constants for tracing."""
+    OK = "OK"
+    ERROR = "ERROR"
+
+
 # Try to import OpenTelemetry, fall back to no-op if not installed
 try:
     from opentelemetry import trace
@@ -29,22 +36,23 @@ except ImportError:
 
 class NoOpSpan:
     """No-op span when OpenTelemetry not available."""
-    def __enter__(self): return self
-    def __exit__(self, *args): pass
-    def set_attribute(self, key: str, value: Any): pass
-    def add_event(self, name: str, attributes: Optional[Dict] = None): pass
+    def __enter__(self) -> Any: return self
+    def __exit__(self, *args: Any) -> None: pass
+    def set_attribute(self, key: str, value: Any) -> None: pass
+    def set_status(self, status: str, description: str = "") -> None: pass
+    def add_event(self, name: str, attributes: Optional[Dict] = None) -> None: pass
 
 
 class NoOpTracer:
     """No-op tracer when OpenTelemetry not available."""
-    def start_span(self, name: str, **kwargs): return NoOpSpan()
-    def start_as_current_span(self, name: str, **kwargs): return NoOpSpan()
+    def start_span(self, name: str, **kwargs: Any) -> "NoOpSpan": return NoOpSpan()
+    def start_as_current_span(self, name: str, **kwargs: Any) -> "NoOpSpan": return NoOpSpan()
 
 
 class JottyTracer:
     """Jotty distributed tracing wrapper."""
 
-    def __init__(self, enabled: bool = True, console_export: bool = False):
+    def __init__(self, enabled: bool = True, console_export: bool = False) -> None:
         self.enabled = enabled and OTEL_AVAILABLE
 
         if self.enabled:
@@ -61,13 +69,13 @@ class JottyTracer:
         else:
             self.tracer = NoOpTracer()
 
-    def trace(self, span_name: Optional[str] = None, **attributes):
+    def trace(self, span_name: Optional[str] = None, **attributes: Any) -> Any:
         """Decorator for tracing functions."""
         def decorator(func: Callable) -> Callable:
             name = span_name or f"{func.__module__}.{func.__name__}"
 
             @wraps(func)
-            def sync_wrapper(*args, **kwargs):
+            def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
                 with self.tracer.start_as_current_span(name) as span:
                     for key, value in attributes.items():
                         if hasattr(span, 'set_attribute'):
@@ -91,7 +99,7 @@ class JottyTracer:
                             span.set_attribute("duration_ms", duration * 1000)
 
             @wraps(func)
-            async def async_wrapper(*args, **kwargs):
+            async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
                 with self.tracer.start_as_current_span(name) as span:
                     for key, value in attributes.items():
                         if hasattr(span, 'set_attribute'):
@@ -118,6 +126,22 @@ class JottyTracer:
 
         return decorator
 
+    def new_trace(self, metadata: Optional[Dict] = None) -> Dict:
+        """Start a new trace with metadata."""
+        return metadata or {}
+
+    def end_trace(self, trace: Any) -> None:
+        """End a trace."""
+        pass
+
+    def get_trace_history(self) -> list:
+        """Get trace history."""
+        return []
+
+    def span(self, name: str, **attributes: Any) -> Any:
+        """Create a span context manager."""
+        return self.tracer.start_as_current_span(name)
+
 
 _tracer: Optional[JottyTracer] = None
 
@@ -130,16 +154,16 @@ def get_tracer(enabled: bool = True, console_export: bool = False) -> JottyTrace
     return _tracer
 
 
-def trace_skill(skill_name: str):
+def trace_skill(skill_name: str) -> Any:
     """Decorator for tracing skill execution."""
     return get_tracer().trace(f"skill.{skill_name}", skill_name=skill_name, component="skill")
 
 
-def trace_agent(agent_name: str):
+def trace_agent(agent_name: str) -> Any:
     """Decorator for tracing agent execution."""
     return get_tracer().trace(f"agent.{agent_name}", agent_name=agent_name, component="agent")
 
 
-def trace_swarm(swarm_name: str):
+def trace_swarm(swarm_name: str) -> Any:
     """Decorator for tracing swarm execution."""
     return get_tracer().trace(f"swarm.{swarm_name}", swarm_name=swarm_name, component="swarm")

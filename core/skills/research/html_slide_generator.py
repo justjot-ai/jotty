@@ -141,13 +141,12 @@ class HTMLSlideGenerator(SlideAssetsMixin, SlideRenderersMixin):
         }
     }
 
-    def __init__(self, config: PresentationConfig):
+    def __init__(self, config: PresentationConfig) -> None:
         self.config = config
         self.colors = self.THEME_COLORS.get(config.theme, self.THEME_COLORS["navy"])
         self.slides: List[SlideConfig] = []
 
-    def add_slide(self, slide_type: SlideType, data: Dict[str, Any],
-                  animation: str = "slide_up", delay_start: float = 0.1):
+    def add_slide(self, slide_type: SlideType, data: Dict[str, Any], animation: str = 'slide_up', delay_start: float = 0.1) -> Any:
         """Add a slide to the presentation"""
         self.slides.append(SlideConfig(
             slide_type=slide_type,
@@ -204,11 +203,11 @@ class HTMLSlideGenerator(SlideAssetsMixin, SlideRenderersMixin):
         code_blocks = []
         inline_codes = []
 
-        def store_code_block(match):
+        def store_code_block(match: Any) -> Any:
             code_blocks.append(match.group(0))
             return f'__CODE_BLOCK_{len(code_blocks) - 1}__'
 
-        def store_inline_code(match):
+        def store_inline_code(match: Any) -> Any:
             inline_codes.append(match.group(0))
             return f'__INLINE_CODE_{len(inline_codes) - 1}__'
 
@@ -233,7 +232,7 @@ class HTMLSlideGenerator(SlideAssetsMixin, SlideRenderersMixin):
 
         # Handle "Step N:" pattern - make bold and add line break before
         # This handles: "Step 1:", "Step 2:", etc. anywhere in text
-        def format_step(match):
+        def format_step(match: Any) -> Any:
             prefix = match.group(1) or ''
             step_num = match.group(2)
             # Check if already wrapped in strong
@@ -255,7 +254,7 @@ class HTMLSlideGenerator(SlideAssetsMixin, SlideRenderersMixin):
         # Protect existing LaTeX delimiters for MathJax processing
         math_placeholders = []
 
-        def protect_math(match):
+        def protect_math(match: Any) -> Any:
             math_placeholders.append(match.group(0))
             return f'__MATH_{len(math_placeholders) - 1}__'
 
@@ -297,7 +296,7 @@ class HTMLSlideGenerator(SlideAssetsMixin, SlideRenderersMixin):
             return latex
 
         for pattern in ascii_formula_patterns:
-            def wrap_ascii_formula(match):
+            def wrap_ascii_formula(match: Any) -> Any:
                 formula = match.group(0).strip()
                 # Don't double-wrap
                 if formula.startswith('$'):
@@ -316,7 +315,7 @@ class HTMLSlideGenerator(SlideAssetsMixin, SlideRenderersMixin):
         # =================================================================
         # Only match *short phrase* patterns - max 50 chars, no newlines, no special chars
         # Skip if preceded by word char (like θ*) or followed by word char
-        def replace_italic(match):
+        def replace_italic(match: Any) -> Any:
             content = match.group(1)
             # Skip if content is too long or contains line breaks
             if len(content) > 50 or '\n' in content or '<br' in content:
@@ -443,7 +442,7 @@ class LearningSlideBuilder:
     - Professionally paced (good rhythm and flow)
     """
 
-    def __init__(self, use_llm_selector: bool = True):
+    def __init__(self, use_llm_selector: bool = True) -> None:
         """Initialize the slide builder.
 
         Args:

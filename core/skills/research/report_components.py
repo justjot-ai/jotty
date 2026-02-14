@@ -338,7 +338,7 @@ class FinancialTablesFormatter:
 class DCFCalculator:
     """DCF valuation calculator with sensitivity analysis."""
 
-    def __init__(self, model: DCFModel):
+    def __init__(self, model: DCFModel) -> None:
         self.model = model
 
     def calculate_dcf(self, shares_outstanding: float, net_debt: float) -> Dict[str, float]:
@@ -1354,7 +1354,7 @@ class PriceChartGenerator:
 class ReportTemplate:
     """Professional report template generator."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.formatter = FinancialTablesFormatter()
         self.peer_formatter = PeerComparisonFormatter()
         self.chart_generator = ChartGenerator()

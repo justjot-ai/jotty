@@ -38,7 +38,7 @@ class GoldStandardDB:
     - Domain filtering
     """
 
-    def __init__(self, path: Optional[str] = None):
+    def __init__(self, path: Optional[str] = None) -> None:
         self.path = Path(path) if path else Path.home() / "jotty" / "gold_standards"
         self.path.mkdir(parents=True, exist_ok=True)
         self._cache: Dict[str, GoldStandard] = {}
@@ -127,7 +127,7 @@ class ImprovementHistory:
     - Measuring improvement velocity
     """
 
-    def __init__(self, path: Optional[str] = None):
+    def __init__(self, path: Optional[str] = None) -> None:
         self.path = Path(path) if path else Path.home() / "jotty" / "improvements"
         self.path.mkdir(parents=True, exist_ok=True)
         self.history: List[Dict[str, Any]] = []
@@ -197,7 +197,7 @@ class EvaluationHistory:
     """Persistent evaluation tracking across sessions.
     Follows same pattern as ImprovementHistory."""
 
-    def __init__(self, path=None):
+    def __init__(self, path: Any = None) -> None:
         self.path = Path(path) if path else Path.home() / "jotty" / "evaluations"
         self.path.mkdir(parents=True, exist_ok=True)
         self.evaluations: List[Dict[str, Any]] = []
@@ -214,7 +214,7 @@ class EvaluationHistory:
         with open(history_file, 'w') as f:
             json.dump(self.evaluations[-200:], f, indent=2, default=str)
 
-    def record(self, evaluation) -> None:
+    def record(self, evaluation: Any) -> None:
         entry = {
             'timestamp': datetime.now().isoformat(),
             'overall_score': evaluation.overall_score if hasattr(evaluation, 'overall_score') else 0,
@@ -225,16 +225,16 @@ class EvaluationHistory:
         self.evaluations.append(entry)
         self._save()
 
-    def get_recent(self, n=10) -> List[Dict]:
+    def get_recent(self, n: Any = 10) -> List[Dict]:
         return self.evaluations[-n:]
 
-    def get_average_score(self, n=10) -> float:
+    def get_average_score(self, n: Any = 10) -> float:
         recent = self.get_recent(n)
         if not recent:
             return 0.0
         return sum(e.get('overall_score', 0) for e in recent) / len(recent)
 
-    def get_failures(self, n=20) -> List[Dict]:
+    def get_failures(self, n: Any = 20) -> List[Dict]:
         """Get recent failures for failure recovery analysis."""
         return [e for e in self.evaluations[-n:] if e.get('overall_score', 1.0) < 0.5]
 

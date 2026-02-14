@@ -119,33 +119,13 @@ class AGUIComponentRegistry:
     ```
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._adapters: Dict[str, AGUIComponentAdapter] = {}
         self._by_category: Dict[str, List[str]] = {}
         self._by_client: Dict[str, List[str]] = {}
         logger.info(" AGUIComponentRegistry initialized")
 
-    def register(
-        self,
-        section_type: str,
-        label: str,
-        category: str,
-        to_a2ui: Optional[str] = None,
-        to_agui: Optional[str] = None,
-        from_a2ui: Optional[str] = None,
-        from_agui: Optional[str] = None,
-        to_a2ui_func: Optional[Callable] = None,
-        to_agui_func: Optional[Callable] = None,
-        from_a2ui_func: Optional[Callable] = None,
-        from_agui_func: Optional[Callable] = None,
-        description: str = '',
-        bidirectional: bool = False,
-        content_type: str = 'json',
-        example_input: Optional[str] = None,
-        example_output: Optional[str] = None,
-        client_id: str = 'unknown',
-        version: str = '1.0.0'
-    ):
+    def register(self, section_type: str, label: str, category: str, to_a2ui: Optional[str] = None, to_agui: Optional[str] = None, from_a2ui: Optional[str] = None, from_agui: Optional[str] = None, to_a2ui_func: Optional[Callable] = None, to_agui_func: Optional[Callable] = None, from_a2ui_func: Optional[Callable] = None, from_agui_func: Optional[Callable] = None, description: str = '', bidirectional: bool = False, content_type: str = 'json', example_input: Optional[str] = None, example_output: Optional[str] = None, client_id: str = 'unknown', version: str = '1.0.0') -> Any:
         """
         Register a client AGUI component adapter.
 
@@ -258,7 +238,7 @@ class AGUIComponentRegistry:
         """List all section types."""
         return list(self._adapters.keys())
 
-    def convert_to_a2ui(self, section_type: str, content: str, **props) -> Optional[List[Dict[str, Any]]]:
+    def convert_to_a2ui(self, section_type: str, content: str, **props: Any) -> Optional[List[Dict[str, Any]]]:
         """
         Convert section content to A2UI blocks using registered adapter.
 
@@ -283,7 +263,7 @@ class AGUIComponentRegistry:
             logger.error(f"Error converting {section_type} to A2UI: {e}")
             return None
 
-    def convert_to_agui(self, section_type: str, content: str, **props) -> Optional[Dict[str, Any]]:
+    def convert_to_agui(self, section_type: str, content: str, **props: Any) -> Optional[Dict[str, Any]]:
         """
         Convert section content to AGUI component using registered adapter.
 

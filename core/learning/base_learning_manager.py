@@ -33,7 +33,7 @@ class BaseLearningManager(ABC):
     Defines the contract that all learning systems must implement.
     """
     
-    def __init__(self, config: SwarmConfig):
+    def __init__(self, config: SwarmConfig) -> None:
         """
         Initialize learning manager with configuration.
         
@@ -62,15 +62,7 @@ class BaseLearningManager(ABC):
         pass
     
     @abstractmethod
-    def record_experience(
-        self,
-        state: Dict[str, Any],
-        action: Any,
-        reward: float,
-        next_state: Optional[Dict[str, Any]] = None,
-        done: bool = False,
-        **kwargs
-    ):
+    def record_experience(self, state: Dict[str, Any], action: Any, reward: float, next_state: Optional[Dict[str, Any]] = None, done: bool = False, **kwargs: Any) -> Any:
         """
         Record an experience tuple for learning.
         
@@ -85,12 +77,7 @@ class BaseLearningManager(ABC):
         pass
     
     @abstractmethod
-    def end_episode(
-        self,
-        final_reward: float,
-        success: bool = True,
-        **kwargs
-    ) -> Dict[str, Any]:
+    def end_episode(self, final_reward: float, success: bool = True, **kwargs: Any) -> Dict[str, Any]:
         """
         End episode and perform learning updates.
         
@@ -105,12 +92,7 @@ class BaseLearningManager(ABC):
         pass
     
     @abstractmethod
-    def get_value(
-        self,
-        state: Dict[str, Any],
-        action: Optional[Any] = None,
-        **kwargs
-    ) -> float:
+    def get_value(self, state: Dict[str, Any], action: Optional[Any] = None, **kwargs: Any) -> float:
         """
         Get estimated value for state(-action pair).
         
@@ -250,12 +232,7 @@ class MultiAgentLearningManager(BaseLearningManager):
         pass
     
     @abstractmethod
-    def update_agent_model(
-        self,
-        agent_name: str,
-        actual_action: Any,
-        predicted_action: Any
-    ):
+    def update_agent_model(self, agent_name: str, actual_action: Any, predicted_action: Any) -> Any:
         """
         Update model of another agent based on prediction error.
         

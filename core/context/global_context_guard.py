@@ -107,7 +107,7 @@ class OverflowDetector:
     4. Error code analysis: Check HTTP/API error codes
     """
     
-    def __init__(self, max_tokens: int = 28000):
+    def __init__(self, max_tokens: int = 28000) -> None:
         self.max_tokens = max_tokens
         
         # Structural indicators (in class/type names)
@@ -279,7 +279,7 @@ class GlobalContextGuard:
     MEDIUM = 2    # Include if space available (default)
     LOW = 3       # Include only if abundant space
     
-    def __init__(self, max_tokens: int = 28000, memory=None):
+    def __init__(self, max_tokens: int = 28000, memory: Any = None) -> None:
         self.max_tokens = max_tokens
         self.detector = OverflowDetector(max_tokens)
         self.compressor = ContentCompressor()
@@ -376,11 +376,11 @@ class GlobalContextGuard:
     def wrap_function(self, func: Callable) -> Callable:
         """Wrap a function with context guard."""
         @functools.wraps(func)
-        async def async_wrapper(*args, **kwargs):
+        async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
             return await self._guarded_call(func, args, kwargs)
         
         @functools.wraps(func)
-        def sync_wrapper(*args, **kwargs):
+        def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
             try:
                 asyncio.get_running_loop()
                 # Already in async context — can't use run_until_complete.
@@ -497,7 +497,7 @@ def patch_dspy_with_guard(guard: GlobalContextGuard) -> None:
     
     dspy._original_lm_call = dspy.LM.__call__
     
-    def guarded_lm_call(lm_self, prompt, *args, **kwargs):
+    def guarded_lm_call(lm_self: Any, prompt: Any, *args: Any, **kwargs: Any) -> Any:
         """Wrapped LM call with context guard."""
         try:
             return dspy._original_lm_call(lm_self, prompt, *args, **kwargs)

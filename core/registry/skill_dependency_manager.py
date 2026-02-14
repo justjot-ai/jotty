@@ -24,7 +24,7 @@ class SkillDependencyManager:
     Caches results per-session so each skill's deps are checked at most once.
     """
     
-    def __init__(self, venv_manager=None):
+    def __init__(self, venv_manager: Any = None) -> None:
         """
         Initialize dependency manager.
         
@@ -191,7 +191,7 @@ class SkillDependencyManager:
 _dependency_manager_instance: Optional[SkillDependencyManager] = None
 
 
-def get_dependency_manager(venv_manager=None) -> SkillDependencyManager:
+def get_dependency_manager(venv_manager: Any = None) -> SkillDependencyManager:
     """Get singleton dependency manager instance."""
     global _dependency_manager_instance
     if _dependency_manager_instance is None:

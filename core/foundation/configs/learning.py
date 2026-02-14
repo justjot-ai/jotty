@@ -1,7 +1,7 @@
 """Learning configuration — RL, exploration, credit, consolidation, protection."""
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Any
 
 
 @dataclass
@@ -86,7 +86,7 @@ class LearningConfig:
     suspicion_threshold: float = 0.95
     min_rejection_rate: float = 0.05
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         # --- Probability / ratio fields: must be in [0, 1] ---
         _unit_fields = {
             'learning_alpha': self.learning_alpha,

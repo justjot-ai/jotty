@@ -1,6 +1,7 @@
 """Intelligence configuration — trust tuning, routing, agent communication, local mode."""
 
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass
@@ -24,7 +25,7 @@ class IntelligenceConfig:
     local_mode: bool = False
     local_model: str = "ollama/llama3"
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         # Unit interval [0, 1] fields
         _unit_fields = {
             'trust_decrease_on_struggle': self.trust_decrease_on_struggle,

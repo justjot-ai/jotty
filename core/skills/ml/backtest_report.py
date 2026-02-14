@@ -115,7 +115,7 @@ class BacktestResult:
 class BacktestChartGenerator:
     """Generate charts for backtest reports."""
 
-    def __init__(self, output_dir: Path):
+    def __init__(self, output_dir: Path) -> None:
         self.output_dir = output_dir
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -485,7 +485,7 @@ class BacktestChartGenerator:
 class BacktestReportGenerator:
     """Generate comprehensive ML backtest PDF reports."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.report_dir = Path.home() / "jotty" / "backtest_reports"
         self.report_dir.mkdir(parents=True, exist_ok=True)
 
@@ -916,7 +916,7 @@ class BacktestReportSkill:
     name = "backtest_report"
     description = "Generate comprehensive ML backtest PDF reports"
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.generator = BacktestReportGenerator()
 
     async def execute(self, result: BacktestResult, template: str = "quantitative",

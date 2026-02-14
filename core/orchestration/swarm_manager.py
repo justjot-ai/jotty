@@ -259,7 +259,7 @@ def _create_mas_learning(sm: "Orchestrator") -> "MASLearning":
 class AgentFactory:
     """Creates and manages AgentRunners and LOTUS optimization."""
 
-    def __init__(self, manager: 'Orchestrator'):
+    def __init__(self, manager: 'Orchestrator') -> None:
         self._manager = manager
 
     def ensure_runners(self) -> None:
@@ -313,7 +313,7 @@ class AgentFactory:
         # Auto-load previous learnings + integrate MAS terminal in background.
         # Uses asyncio task instead of raw thread so run() can await readiness
         # via sm._learning_ready event before executing with partial state.
-        async def _bg_learning_init():
+        async def _bg_learning_init() -> Any:
             try:
                 sm.learning.auto_load()
                 sm.mas_learning.integrate_with_terminal(sm.swarm_terminal)
@@ -350,8 +350,8 @@ class AgentFactory:
         sm = self._manager
         from Jotty.core.agents.feedback_channel import FeedbackMessage, FeedbackType
 
-        def _make_slack_callback(target_actor_name: str):
-            def _callback(message):
+        def _make_slack_callback(target_actor_name: str) -> Any:
+            def _callback(message: Any) -> Any:
                 try:
                     fb = FeedbackMessage(
                         source_actor=message.from_agent,
@@ -454,11 +454,11 @@ class AgentFactory:
 class ExecutionEngine:
     """Executes tasks via single/multi-agent paradigms."""
 
-    def __init__(self, manager: 'Orchestrator'):
+    def __init__(self, manager: 'Orchestrator') -> None:
         self._manager = manager
         self._paradigms = ParadigmExecutor(manager)
 
-    async def run(self, goal: str, **kwargs) -> EpisodeResult:
+    async def run(self, goal: str, **kwargs: Any) -> EpisodeResult:
         """
         Run task execution with full autonomy.
 
@@ -912,7 +912,7 @@ class ExecutionEngine:
                 profile_context.__exit__(type(e), e, None)
             raise
 
-    async def _execute_single_agent(self, goal: str, **kwargs) -> EpisodeResult:
+    async def _execute_single_agent(self, goal: str, **kwargs: Any) -> EpisodeResult:
         """
         Execute single-agent mode.
 
@@ -1128,7 +1128,7 @@ class ExecutionEngine:
 
         return result
 
-    async def _execute_multi_agent(self, goal: str, **kwargs) -> EpisodeResult:
+    async def _execute_multi_agent(self, goal: str, **kwargs: Any) -> EpisodeResult:
         """
         Execute multi-agent mode with configurable discussion paradigm.
 
@@ -1332,7 +1332,7 @@ class ExecutionEngine:
             # Execute batch concurrently (status_callback already extracted at method start)
             # AIOS-inspired: Semaphore limits how many agents call LLM simultaneously.
             # Without this, N agents × (architect + agent + auditor) = 3N concurrent API calls.
-            async def _run_task(task):
+            async def _run_task(task: Any) -> Any:
                 # Check if we'll need to wait for a slot
                 if sm.agent_semaphore._value == 0:
                     sm._scheduling_stats['total_waited'] += 1
@@ -1391,7 +1391,7 @@ class ExecutionEngine:
             # Reads from SwarmConfig.actor_timeout (default 900s).
             PER_AGENT_TIMEOUT = getattr(sm.config, 'actor_timeout', 900.0)
 
-            async def _run_task_with_timeout(task):
+            async def _run_task_with_timeout(task: Any) -> Any:
                 try:
                     return await asyncio.wait_for(_run_task(task), timeout=PER_AGENT_TIMEOUT)
                 except asyncio.TimeoutError:
@@ -1543,25 +1543,25 @@ class ExecutionEngine:
     # DISCUSSION PARADIGMS — delegated to ParadigmExecutor
     # =========================================================================
 
-    async def _paradigm_run_agent(self, runner, sub_goal, agent_name, **kwargs):
+    async def _paradigm_run_agent(self, runner: Any, sub_goal: Any, agent_name: Any, **kwargs: Any) -> Any:
         return await self._paradigms.run_agent(runner, sub_goal, agent_name, **kwargs)
 
-    async def _paradigm_relay(self, goal, **kwargs):
+    async def _paradigm_relay(self, goal: Any, **kwargs: Any) -> Any:
         return await self._paradigms.relay(goal, **kwargs)
 
-    async def _paradigm_debate(self, goal, **kwargs):
+    async def _paradigm_debate(self, goal: Any, **kwargs: Any) -> Any:
         return await self._paradigms.debate(goal, **kwargs)
 
-    async def _paradigm_refinement(self, goal, **kwargs):
+    async def _paradigm_refinement(self, goal: Any, **kwargs: Any) -> Any:
         return await self._paradigms.refinement(goal, **kwargs)
 
-    def _aggregate_results(self, results, goal):
+    def _aggregate_results(self, results: Any, goal: Any) -> Any:
         return self._paradigms.aggregate_results(results, goal)
 
-    def _assign_cooperative_credit(self, results, goal):
+    def _assign_cooperative_credit(self, results: Any, goal: Any) -> Any:
         return self._paradigms.assign_cooperative_credit(results, goal)
 
-    async def autonomous_setup(self, goal: str, status_callback=None):
+    async def autonomous_setup(self, goal: str, status_callback: Any = None) -> Any:
         """
         Autonomous setup: Research, install, configure.
 
@@ -1712,16 +1712,7 @@ class Orchestrator:
     # INIT - Fast, minimal, no I/O
     # =========================================================================
 
-    def __init__(
-        self,
-        agents: Optional[Union[AgentConfig, List[AgentConfig], str]] = None,
-        config: Optional[SwarmConfig] = None,
-        architect_prompts: Optional[List[str]] = None,
-        auditor_prompts: Optional[List[str]] = None,
-        enable_zero_config: bool = True,
-        enable_lotus: bool = True,
-        max_concurrent_agents: int = 3,
-    ):
+    def __init__(self, agents: Optional[Union[AgentConfig, List[AgentConfig], str]] = None, config: Optional[SwarmConfig] = None, architect_prompts: Optional[List[str]] = None, auditor_prompts: Optional[List[str]] = None, enable_zero_config: bool = True, enable_lotus: bool = True, max_concurrent_agents: int = 3) -> None:
         """
         Initialize Orchestrator.
 
@@ -1831,7 +1822,7 @@ class Orchestrator:
     # LAZY RUNNER CREATION — delegated to AgentFactory
     # =========================================================================
 
-    def _ensure_runners(self): self._agent_factory.ensure_runners()
+    def _ensure_runners(self) -> None: self._agent_factory.ensure_runners()
 
     # =========================================================================
     # DELEGATION: Single __getattr__ replaces 15+ @property boilerplate
@@ -1860,7 +1851,7 @@ class Orchestrator:
             self._agent_semaphore = asyncio.Semaphore(self.max_concurrent_agents)
         return self._agent_semaphore
 
-    def __getattr__(self, name: str):
+    def __getattr__(self, name: str) -> Any:
         """
         Delegate attribute access to composed managers.
 
@@ -1885,7 +1876,7 @@ class Orchestrator:
 
         raise AttributeError(f"'{type(self).__name__}' has no attribute '{name}'")
 
-    def __setattr__(self, name: str, value):
+    def __setattr__(self, name: str, value: Any) -> None:
         """Handle setting delegated attributes (credit_weights, provider_registry)."""
         if name == 'credit_weights' and '_lazy_learning' in self.__dict__:
             self.learning.credit_weights = value
@@ -1894,29 +1885,28 @@ class Orchestrator:
         else:
             super().__setattr__(name, value)
 
-    def _maybe_drain_training_task(self, result) -> None:
+    def _maybe_drain_training_task(self, result: Any) -> None:
         """Drain one queued training task after a successful run (placeholder)."""
         pass
 
     # --- Composed manager delegation (thin methods, not properties) ---
 
-    async def execute_with_provider(self, category, task, context=None, provider_name=None):
+    async def execute_with_provider(self, category: Any, task: Any, context: Any = None, provider_name: Any = None) -> Any:
         return await self._providers.execute_with_provider(category, task, context, provider_name)
 
-    def get_provider_summary(self):
+    def get_provider_summary(self) -> Any:
         return self._providers.get_provider_summary()
 
-    async def _execute_ensemble(self, goal, strategy='multi_perspective',
-                                status_callback=None, max_perspectives=4):
+    async def _execute_ensemble(self, goal: Any, strategy: Any = 'multi_perspective', status_callback: Any = None, max_perspectives: Any = 4) -> Any:
         return await self._ensemble.execute_ensemble(goal, strategy, status_callback, max_perspectives)
 
-    def _should_auto_ensemble(self, goal):
+    def _should_auto_ensemble(self, goal: Any) -> Any:
         return self._ensemble.should_auto_ensemble(goal)
 
-    def _auto_load_learnings(self):
+    def _auto_load_learnings(self) -> Any:
         self._learning_ops.auto_load_learnings()
 
-    def _auto_save_learnings(self):
+    def _auto_save_learnings(self) -> Any:
         self._learning_ops.auto_save_learnings(
             mas_learning=getattr(self, 'mas_learning', None),
             swarm_terminal=getattr(self, 'swarm_terminal', None),
@@ -1924,17 +1914,13 @@ class Orchestrator:
             memory_persistence=getattr(self, 'memory_persistence', None),
         )
 
-    def _save_learnings(self):
+    def _save_learnings(self) -> Any:
         self._auto_save_learnings()
 
-    def load_relevant_learnings(self, task_description, agent_types=None):
+    def load_relevant_learnings(self, task_description: Any, agent_types: Any = None) -> Any:
         return self._learning_ops.load_relevant_learnings(task_description, agent_types)
 
-    async def train(
-        self,
-        num_tasks: int = 5,
-        status_callback=None,
-    ) -> Dict[str, Any]:
+    async def train(self, num_tasks: int = 5, status_callback: Any = None) -> Dict[str, Any]:
         """
         Run self-curriculum training: generate tasks from weaknesses and execute them.
 
@@ -2042,51 +2028,49 @@ class Orchestrator:
             'checkpoint': checkpoint_path,  # rollback with self.learning.restore_checkpoint(path)
         }
 
-    def record_agent_result(self, agent_name, task_type, success, time_taken, output_quality=0.0) -> None:
+    def record_agent_result(self, agent_name: Any, task_type: Any, success: Any, time_taken: Any, output_quality: Any = 0.0) -> None:
         self._learning_ops.record_agent_result(agent_name, task_type, success, time_taken, output_quality)
 
-    def record_session_result(self, task_description, agent_performances,
-                              total_time, success, fixes_applied=None, stigmergy_signals=0):
+    def record_session_result(self, task_description: Any, agent_performances: Any, total_time: Any, success: Any, fixes_applied: Any = None, stigmergy_signals: Any = 0) -> Any:
         self._learning_ops.record_session_result(
             task_description, agent_performances, total_time, success,
             fixes_applied, stigmergy_signals,
         )
 
-    def get_transferable_context(self, query, agent=None):
+    def get_transferable_context(self, query: Any, agent: Any = None) -> Any:
         return self._learning_ops.get_transferable_context(query, agent)
 
-    def get_swarm_wisdom(self, query):
+    def get_swarm_wisdom(self, query: Any) -> Any:
         return self._learning_ops.get_swarm_wisdom(query)
 
-    def get_agent_specializations(self):
+    def get_agent_specializations(self) -> Any:
         return self._learning_ops.get_agent_specializations()
 
-    def get_best_agent_for_task(self, query):
+    def get_best_agent_for_task(self, query: Any) -> Any:
         return self._learning_ops.get_best_agent_for_task(query)
 
-    def _mas_zero_verify(self, goal, results):
+    def _mas_zero_verify(self, goal: Any, results: Any) -> Any:
         return self._mas_zero.verify(goal, results)
 
-    def _mas_zero_evaluate(self, goal, results):
+    def _mas_zero_evaluate(self, goal: Any, results: Any) -> Any:
         return self._mas_zero.evaluate(goal, results)
 
-    def _mas_zero_should_reduce(self, goal):
+    def _mas_zero_should_reduce(self, goal: Any) -> Any:
         return self._mas_zero.should_reduce(goal)
 
-    async def _mas_zero_evolve(self, goal, initial_results, max_iterations=2,
-                               status_callback=None, **kwargs):
+    async def _mas_zero_evolve(self, goal: Any, initial_results: Any, max_iterations: Any = 2, status_callback: Any = None, **kwargs: Any) -> Any:
         return await self._mas_zero.evolve(
             goal, initial_results, max_iterations, status_callback, **kwargs
         )
 
-    def _reset_experience(self):
+    def _reset_experience(self) -> Any:
         self._mas_zero.reset_experience()
 
     # =========================================================================
     # LIFECYCLE MANAGEMENT
     # =========================================================================
 
-    async def startup(self):
+    async def startup(self) -> Any:
         """
         Async startup - prepare Orchestrator for execution.
 
@@ -2100,7 +2084,7 @@ class Orchestrator:
         logger.info("Orchestrator startup complete")
         return self
 
-    async def shutdown(self):
+    async def shutdown(self) -> Any:
         """
         Graceful shutdown - persist learnings and release resources.
 
@@ -2124,12 +2108,12 @@ class Orchestrator:
         except Exception as e:
             logger.error(f"Shutdown error: {e}")
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> Any:
         """Async context manager: `async with Orchestrator() as sm:`"""
         await self.startup()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> bool:
         """Async context manager cleanup."""
         await self.shutdown()
         return False
@@ -2207,7 +2191,7 @@ class Orchestrator:
         result['training_daemon'] = self.training_daemon_status()
 
         # Intelligence effectiveness A/B metrics (per task_type)
-        def _format_im(bucket) -> Dict:
+        def _format_im(bucket: Any) -> Dict:
             gr = bucket.get('guided_runs', 0)
             gs = bucket.get('guided_successes', 0)
             ur = bucket.get('unguided_runs', 0)
@@ -2285,15 +2269,15 @@ class Orchestrator:
     # LOTUS OPTIMIZATION — delegated to AgentFactory
     # =========================================================================
 
-    def _init_lotus_optimization(self): self._agent_factory.init_lotus_optimization()
-    def get_lotus_stats(self): return self._agent_factory.get_lotus_stats()
-    def get_lotus_savings(self): return self._agent_factory.get_lotus_savings()
+    def _init_lotus_optimization(self) -> None: self._agent_factory.init_lotus_optimization()
+    def get_lotus_stats(self) -> Any: return self._agent_factory.get_lotus_stats()
+    def get_lotus_savings(self) -> Any: return self._agent_factory.get_lotus_savings()
 
     # =========================================================================
     # ML Learning Bridge (for SkillOrchestrator / Swarm pipeline integration)
     # =========================================================================
 
-    def get_ml_learning(self):
+    def get_ml_learning(self) -> Any:
         """Get MASLearning instance for ML pipeline integration."""
         return self.mas_learning
 
@@ -2330,7 +2314,7 @@ class Orchestrator:
     # _ensemble_mixin.py, _learning_delegation_mixin.py
     # =========================================================================
 
-    def _register_agents_with_axon(self): self._agent_factory.register_agents_with_axon()
+    def _register_agents_with_axon(self) -> None: self._agent_factory.register_agents_with_axon()
 
     # list_capabilities() and get_help() removed — see CLAUDE.md or docs/
     
@@ -2438,24 +2422,24 @@ class Orchestrator:
             workspace_dir=_os.getcwd(),
         )
 
-    async def run(self, goal, **kwargs): return await self._engine.run(goal, **kwargs)
+    async def run(self, goal: str, **kwargs: Any) -> Any: return await self._engine.run(goal, **kwargs)
 
     # _execute_ensemble and _should_auto_ensemble — delegated to EnsembleManager
 
-    async def _execute_single_agent(self, goal, **kwargs): return await self._engine._execute_single_agent(goal, **kwargs)
-    async def _execute_multi_agent(self, goal, **kwargs): return await self._engine._execute_multi_agent(goal, **kwargs)
-    async def _paradigm_run_agent(self, *args, **kwargs): return await self._engine._paradigm_run_agent(*args, **kwargs)
-    async def _paradigm_relay(self, goal, **kwargs): return await self._engine._paradigm_relay(goal, **kwargs)
-    async def _paradigm_debate(self, goal, **kwargs): return await self._engine._paradigm_debate(goal, **kwargs)
-    async def _paradigm_refinement(self, goal, **kwargs): return await self._engine._paradigm_refinement(goal, **kwargs)
-    def _aggregate_results(self, results, goal): return self._engine._aggregate_results(results, goal)
-    def _assign_cooperative_credit(self, results, goal): return self._engine._assign_cooperative_credit(results, goal)
+    async def _execute_single_agent(self, goal: str, **kwargs: Any) -> Any: return await self._engine._execute_single_agent(goal, **kwargs)
+    async def _execute_multi_agent(self, goal: str, **kwargs: Any) -> Any: return await self._engine._execute_multi_agent(goal, **kwargs)
+    async def _paradigm_run_agent(self, *args: Any, **kwargs: Any) -> Any: return await self._engine._paradigm_run_agent(*args, **kwargs)
+    async def _paradigm_relay(self, goal: str, **kwargs: Any) -> Any: return await self._engine._paradigm_relay(goal, **kwargs)
+    async def _paradigm_debate(self, goal: str, **kwargs: Any) -> Any: return await self._engine._paradigm_debate(goal, **kwargs)
+    async def _paradigm_refinement(self, goal: str, **kwargs: Any) -> Any: return await self._engine._paradigm_refinement(goal, **kwargs)
+    def _aggregate_results(self, results: Any, goal: str) -> Any: return self._engine._aggregate_results(results, goal)
+    def _assign_cooperative_credit(self, results: Any, goal: str) -> Any: return self._engine._assign_cooperative_credit(results, goal)
 
-    def _create_zero_config_agents(self, task, status_callback=None): return self._agent_factory.create_zero_config_agents(task, status_callback)
+    def _create_zero_config_agents(self, task: Any, status_callback: Any = None) -> Any: return self._agent_factory.create_zero_config_agents(task, status_callback)
 
     # _should_auto_ensemble — see _ensemble_mixin.py
 
-    def _post_episode_learning(self, result: EpisodeResult, goal: str):
+    def _post_episode_learning(self, result: EpisodeResult, goal: str) -> Any:
         """Delegate to SwarmLearningPipeline + update intelligence metrics."""
         self.learning.post_episode(
             result=result,
@@ -2492,7 +2476,7 @@ class Orchestrator:
                 except Exception as e2:
                     logger.debug(f"Paradigm result recording failed: {e2}")
 
-    def _schedule_background_learning(self, result: EpisodeResult, goal: str):
+    def _schedule_background_learning(self, result: EpisodeResult, goal: str) -> Any:
         """
         Fire-and-forget: run post-episode learning + auto-save in a background task.
         
@@ -2502,7 +2486,7 @@ class Orchestrator:
         """
         import asyncio
 
-        async def _background():
+        async def _background() -> Any:
             try:
                 self._post_episode_learning(result, goal)
             except Exception as e:
@@ -2525,7 +2509,7 @@ class Orchestrator:
             self._post_episode_learning(result, goal)
             self._auto_save_learnings()
 
-    async def _drain_background_tasks(self, timeout: float = 10.0):
+    async def _drain_background_tasks(self, timeout: float = 10.0) -> Any:
         """Await all pending background learning tasks (with timeout)."""
         import asyncio
         tasks = getattr(self, '_background_tasks', set())
@@ -2542,7 +2526,7 @@ class Orchestrator:
                     for t in still_pending:
                         t.cancel()
 
-    def _log_execution_summary(self, result: EpisodeResult):
+    def _log_execution_summary(self, result: EpisodeResult) -> Any:
         """Log a user-friendly summary with artifacts after execution.
         
         Uses the OUTER result.success (which includes auditor verdict) 
@@ -2582,7 +2566,7 @@ class Orchestrator:
         except Exception as e:
             logger.debug(f"Summary logging skipped: {e}")
 
-    def _learn_from_result(self, result: EpisodeResult, agent_config: AgentConfig, goal: str = ''):
+    def _learn_from_result(self, result: EpisodeResult, agent_config: AgentConfig, goal: str = '') -> Any:
         """Delegate to SwarmLearningPipeline."""
         self.learning.learn_from_result(
             result=result,
@@ -2591,7 +2575,7 @@ class Orchestrator:
             goal=goal,
         )
     
-    async def autonomous_setup(self, goal, status_callback=None): return await self._engine.autonomous_setup(goal, status_callback)
+    async def autonomous_setup(self, goal: str, status_callback: Any = None) -> Any: return await self._engine.autonomous_setup(goal, status_callback)
 
     # =====================================================================
     # State Management Methods (V1 capabilities integrated)
@@ -2609,7 +2593,7 @@ class Orchestrator:
     # Warmup — delegated to SwarmWarmup
     # =====================================================================
 
-    async def warmup(self, **kwargs) -> Dict[str, Any]:
+    async def warmup(self, **kwargs: Any) -> Dict[str, Any]:
         """DrZero-inspired zero-data bootstrapping. See SwarmWarmup."""
         if not hasattr(self, '_warmup') or self._warmup is None:
             from Jotty.core.orchestration.swarm_warmup import SwarmWarmup
@@ -2627,14 +2611,14 @@ class Orchestrator:
     # DAG — delegated to SwarmDAGExecutor
     # =====================================================================
 
-    async def run_with_dag(self, implementation_plan: str, **kwargs) -> EpisodeResult:
+    async def run_with_dag(self, implementation_plan: str, **kwargs: Any) -> EpisodeResult:
         """Execute via DAG-based orchestration. See SwarmDAGExecutor."""
         if not hasattr(self, '_dag_executor') or self._dag_executor is None:
             from Jotty.core.orchestration.swarm_dag_executor import SwarmDAGExecutor
             self._dag_executor = SwarmDAGExecutor(self)
         return await self._dag_executor.run(implementation_plan, **kwargs)
 
-    def get_dag_agents(self):
+    def get_dag_agents(self) -> Any:
         """Get DAG agents for external use."""
         if not hasattr(self, '_dag_executor') or self._dag_executor is None:
             from Jotty.core.orchestration.swarm_dag_executor import SwarmDAGExecutor
@@ -2645,21 +2629,21 @@ class Orchestrator:
     # Self-improvement — delegated to TrainingDaemon
     # =========================================================================
 
-    async def run_training_task(self):
+    async def run_training_task(self) -> Any:
         return await self._training.run_training_task()
 
     @property
-    def pending_training_tasks(self):
+    def pending_training_tasks(self) -> Any:
         return self._training.pending_count
 
-    async def start_training_loop(self, **kwargs):
+    async def start_training_loop(self, **kwargs: Any) -> Any:
         return await self._training.start_training_loop(**kwargs)
 
-    def start_training_daemon(self, **kwargs):
+    def start_training_daemon(self, **kwargs: Any) -> Any:
         return self._training.start(**kwargs)
 
-    def stop_training_daemon(self):
+    def stop_training_daemon(self) -> Any:
         return self._training.stop()
 
-    def training_daemon_status(self):
+    def training_daemon_status(self) -> Any:
         return self._training.status()

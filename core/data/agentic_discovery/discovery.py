@@ -1,3 +1,4 @@
+from typing import Any
 """
 Agentic Discovery Module - LLM-Based Artifact Analysis and Registration
 ========================================================================
@@ -142,7 +143,7 @@ class ArtifactAnalyzer:
     Falls back to heuristic analysis if DSPy unavailable.
     """
     
-    def __init__(self, lm: Optional[Any] = None):
+    def __init__(self, lm: Optional[Any] = None) -> None:
         self.lm = lm
         
         if DSPY_AVAILABLE:
@@ -275,7 +276,7 @@ class SemanticTagger:
     - Structure-based tags (its format/type)
     """
     
-    def __init__(self, lm: Optional[Any] = None):
+    def __init__(self, lm: Optional[Any] = None) -> None:
         self.lm = lm
         
         if DSPY_AVAILABLE:
@@ -351,7 +352,7 @@ class InformationExtractor:
     Shannon-inspired: Measures information content and structure.
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         logger.info(" InformationExtractor initialized")
     
     def extract(self, artifact: Any, artifact_type: ArtifactType) -> ExtractionResult:
@@ -473,7 +474,7 @@ class ArtifactValidator:
     - No circular references
     """
     
-    def __init__(self, strict: bool = False):
+    def __init__(self, strict: bool = False) -> None:
         self.strict = strict
         logger.info(" ArtifactValidator initialized")
     
@@ -591,15 +592,7 @@ class RegistrationOrchestrator:
     - Pluggable components
     """
     
-    def __init__(
-        self,
-        data_registry: Any = None,
-        lm: Optional[Any] = None,
-        model: Optional[str] = None,
-        config: Any = None,
-        enable_validation: bool = True,
-        enable_llm_analysis: bool = True
-    ):
+    def __init__(self, data_registry: Any = None, lm: Optional[Any] = None, model: Optional[str] = None, config: Any = None, enable_validation: bool = True, enable_llm_analysis: bool = True) -> None:
         """
         Initialize the RegistrationOrchestrator.
         
@@ -765,15 +758,7 @@ class RegistrationOrchestrator:
         
         return ArtifactType.CUSTOM
     
-    def _register_with_registry(
-        self,
-        artifact_id: str,
-        artifact: Any,
-        source_actor: str,
-        analysis: AnalysisResult,
-        tagging: TaggingResult,
-        extraction: ExtractionResult
-    ):
+    def _register_with_registry(self, artifact_id: str, artifact: Any, source_actor: str, analysis: AnalysisResult, tagging: TaggingResult, extraction: ExtractionResult) -> Any:
         """Register artifact with DataRegistry."""
         try:
             # Import DataArtifact from parent package

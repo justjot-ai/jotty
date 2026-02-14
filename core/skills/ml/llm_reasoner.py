@@ -215,17 +215,17 @@ X['age_group'] = pd.cut(X['Age'], bins=[0,12,18,35,60,100], labels=[0,1,2,3,4])
 Code only:""",
     }
 
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: Dict[str, Any] = None) -> None:
         super().__init__(config)
         self._llm = None
         self._llm_available = None
 
-    async def init(self):
+    async def init(self) -> Any:
         """Initialize LLM client."""
         await super().init()
         self._init_llm()
 
-    def _init_llm(self):
+    def _init_llm(self) -> Any:
         """Initialize LLM client using core.llm module."""
         if self._llm_available is None:
             try:
@@ -238,10 +238,7 @@ Code only:""",
                 self._llm_available = False
         return self._llm_available
 
-    async def execute(self,
-                      X: pd.DataFrame,
-                      y: Optional[pd.Series] = None,
-                      **context) -> SkillResult:
+    async def execute(self, X: pd.DataFrame, y: Optional[pd.Series] = None, **context: Any) -> SkillResult:
         """
         Execute LLM feature reasoning.
 
@@ -349,7 +346,7 @@ Code only:""",
             f"  {col}: {vals}" for col, vals in samples.items()
         ])
 
-    def _format_prompt(self, template: str, **kwargs) -> str:
+    def _format_prompt(self, template: str, **kwargs: Any) -> str:
         """Format prompt template with context."""
         # Handle feature_importance for feedback loop
         if 'feature_importance' in kwargs and kwargs['feature_importance']:
@@ -426,12 +423,7 @@ Code only:""",
         logger.info(f"Applied {applied}/{len(dedup_suggestions)} suggestions")
         return X_new
 
-    async def feedback_loop(self,
-                            X: pd.DataFrame,
-                            y: pd.Series,
-                            feature_importance: Dict[str, float],
-                            iteration: int = 1,
-                            **context) -> SkillResult:
+    async def feedback_loop(self, X: pd.DataFrame, y: pd.Series, feature_importance: Dict[str, float], iteration: int = 1, **context: Any) -> SkillResult:
         """
         Run feedback loop to generate improved features.
 

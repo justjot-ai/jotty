@@ -1,3 +1,4 @@
+from typing import Any
 """
 Fundamental Analysis Swarm - World-Class Financial Analysis
 ============================================================
@@ -111,7 +112,7 @@ class FundamentalConfig(SwarmBaseConfig):
     currency: str = "INR"
     market: str = "NSE"
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.name = "FundamentalSwarm"
         self.domain = "fundamental_analysis"
 
@@ -392,7 +393,7 @@ class InvestmentThesisSignature(dspy.Signature):
 class FinancialStatementAgent(BaseSwarmAgent):
     """Analyzes financial statements."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, signature=FinancialStatementSignature)
         self.learned_context = learned_context
         self._analyzer = dspy.ChainOfThought(FinancialStatementSignature)
@@ -436,7 +437,7 @@ class FinancialStatementAgent(BaseSwarmAgent):
 class RatioAnalysisAgent(BaseSwarmAgent):
     """Performs ratio analysis."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, signature=RatioAnalysisSignature)
         self.learned_context = learned_context
         self._analyzer = dspy.ChainOfThought(RatioAnalysisSignature)
@@ -489,7 +490,7 @@ class RatioAnalysisAgent(BaseSwarmAgent):
 class ValuationAgent(BaseSwarmAgent):
     """Performs company valuation."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, signature=DCFValuationSignature)
         self.learned_context = learned_context
         self._dcf = dspy.ChainOfThought(DCFValuationSignature)
@@ -549,7 +550,7 @@ class ValuationAgent(BaseSwarmAgent):
 class QualityEarningsAgent(BaseSwarmAgent):
     """Assesses earnings quality."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, signature=QualityEarningsSignature)
         self.learned_context = learned_context
         self._analyzer = dspy.ChainOfThought(QualityEarningsSignature)
@@ -592,7 +593,7 @@ class QualityEarningsAgent(BaseSwarmAgent):
 class ManagementAgent(BaseSwarmAgent):
     """Analyzes management quality."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, signature=ManagementAnalysisSignature)
         self.learned_context = learned_context
         self._analyzer = dspy.ChainOfThought(ManagementAnalysisSignature)
@@ -639,7 +640,7 @@ class ManagementAgent(BaseSwarmAgent):
 class MoatAgent(BaseSwarmAgent):
     """Analyzes competitive moat."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, signature=CompetitiveMoatSignature)
         self.learned_context = learned_context
         self._analyzer = dspy.ChainOfThought(CompetitiveMoatSignature)
@@ -685,7 +686,7 @@ class MoatAgent(BaseSwarmAgent):
 class ThesisAgent(BaseSwarmAgent):
     """Generates investment thesis."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, signature=InvestmentThesisSignature)
         self.learned_context = learned_context
         self._generator = dspy.ChainOfThought(InvestmentThesisSignature)
@@ -789,14 +790,10 @@ class FundamentalSwarm(DomainSwarm):
     )
     SWARM_SIGNATURE = FundamentalSwarmSignature
 
-    def __init__(self, config: FundamentalConfig = None):
+    def __init__(self, config: FundamentalConfig = None) -> None:
         super().__init__(config or FundamentalConfig())
 
-    async def _execute_domain(
-        self,
-        ticker: str,
-        **kwargs
-    ) -> FundamentalResult:
+    async def _execute_domain(self, ticker: str, **kwargs: Any) -> FundamentalResult:
         """Execute fundamental analysis (called by DomainSwarm.execute())."""
         return await self.analyze(ticker, **kwargs)
 
@@ -868,14 +865,7 @@ class FundamentalSwarm(DomainSwarm):
             },
         )
 
-    async def _execute_phases(
-        self,
-        executor,
-        ticker: str,
-        exchange: str,
-        financial_data: Dict[str, Any],
-        market_data: Dict[str, Any]
-    ) -> FundamentalResult:
+    async def _execute_phases(self, executor: Any, ticker: str, exchange: str, financial_data: Dict[str, Any], market_data: Dict[str, Any]) -> FundamentalResult:
         """Execute all fundamental analysis phases using PhaseExecutor.
 
         Args:
@@ -1026,7 +1016,7 @@ class FundamentalSwarm(DomainSwarm):
 # CONVENIENCE FUNCTIONS
 # =============================================================================
 
-async def analyze_fundamentals(ticker: str, **kwargs) -> FundamentalResult:
+async def analyze_fundamentals(ticker: str, **kwargs: Any) -> FundamentalResult:
     """
     One-liner fundamental analysis.
 
@@ -1038,7 +1028,7 @@ async def analyze_fundamentals(ticker: str, **kwargs) -> FundamentalResult:
     return await swarm.analyze(ticker, **kwargs)
 
 
-def analyze_fundamentals_sync(ticker: str, **kwargs) -> FundamentalResult:
+def analyze_fundamentals_sync(ticker: str, **kwargs: Any) -> FundamentalResult:
     """Synchronous fundamental analysis."""
     return asyncio.run(analyze_fundamentals(ticker, **kwargs))
 

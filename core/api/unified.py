@@ -39,12 +39,7 @@ class JottyAPI:
             print(event)
     """
     
-    def __init__(
-        self,
-        agents: List[AgentConfig],
-        config: Optional[SwarmConfig] = None,
-        conductor: Optional[Orchestrator] = None
-    ):
+    def __init__(self, agents: List[AgentConfig], config: Optional[SwarmConfig] = None, conductor: Optional[Orchestrator] = None) -> None:
         """
         Initialize Jotty API.
         
@@ -92,13 +87,7 @@ class JottyAPI:
             )
         return self._workflow_use_case
     
-    async def chat_execute(
-        self,
-        message: str,
-        history: Optional[List[Any]] = None,
-        agent_id: Optional[str] = None,
-        **kwargs
-    ) -> Dict[str, Any]:
+    async def chat_execute(self, message: str, history: Optional[List[Any]] = None, agent_id: Optional[str] = None, **kwargs: Any) -> Dict[str, Any]:
         """
         Execute chat interaction synchronously.
         
@@ -131,13 +120,7 @@ class JottyAPI:
         
         return result.to_dict()
     
-    async def chat_stream(
-        self,
-        message: str,
-        history: Optional[List[Any]] = None,
-        agent_id: Optional[str] = None,
-        **kwargs
-    ) -> AsyncIterator[Dict[str, Any]]:
+    async def chat_stream(self, message: str, history: Optional[List[Any]] = None, agent_id: Optional[str] = None, **kwargs: Any) -> AsyncIterator[Dict[str, Any]]:
         """
         Execute chat interaction with streaming.
         
@@ -170,14 +153,7 @@ class JottyAPI:
         ):
             yield event
     
-    async def workflow_execute(
-        self,
-        goal: str,
-        context: Optional[Dict[str, Any]] = None,
-        mode: str = "dynamic",
-        agent_order: Optional[List[str]] = None,
-        **kwargs
-    ) -> Dict[str, Any]:
+    async def workflow_execute(self, goal: str, context: Optional[Dict[str, Any]] = None, mode: str = 'dynamic', agent_order: Optional[List[str]] = None, **kwargs: Any) -> Dict[str, Any]:
         """
         Execute workflow synchronously.
         
@@ -213,14 +189,7 @@ class JottyAPI:
         
         return result.to_dict()
     
-    async def workflow_stream(
-        self,
-        goal: str,
-        context: Optional[Dict[str, Any]] = None,
-        mode: str = "dynamic",
-        agent_order: Optional[List[str]] = None,
-        **kwargs
-    ) -> AsyncIterator[Dict[str, Any]]:
+    async def workflow_stream(self, goal: str, context: Optional[Dict[str, Any]] = None, mode: str = 'dynamic', agent_order: Optional[List[str]] = None, **kwargs: Any) -> AsyncIterator[Dict[str, Any]]:
         """
         Execute workflow with streaming.
         
@@ -255,13 +224,7 @@ class JottyAPI:
         ):
             yield event
     
-    async def workflow_enqueue(
-        self,
-        goal: str,
-        context: Optional[Dict[str, Any]] = None,
-        priority: int = 3,
-        **kwargs
-    ) -> str:
+    async def workflow_enqueue(self, goal: str, context: Optional[Dict[str, Any]] = None, priority: int = 3, **kwargs: Any) -> str:
         """
         Enqueue workflow task for asynchronous execution.
         

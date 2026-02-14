@@ -61,13 +61,7 @@ class MetaAgent(BaseAgent):
     Subclasses (ExpertAgent, ReviewerAgent, etc.) implement specific logic.
     """
 
-    def __init__(
-        self,
-        signature: Type = None,
-        config: MetaAgentConfig = None,
-        gold_db=None,
-        improvement_history=None,
-    ):
+    def __init__(self, signature: Type = None, config: MetaAgentConfig = None, gold_db: Any = None, improvement_history: Any = None) -> None:
         """
         Initialize MetaAgent.
 
@@ -87,7 +81,7 @@ class MetaAgent(BaseAgent):
         # DSPy module (created from signature)
         self._dspy_module = None
 
-    def _ensure_initialized(self):
+    def _ensure_initialized(self) -> Any:
         """Initialize DSPy module if signature provided."""
         super()._ensure_initialized()
 
@@ -195,7 +189,7 @@ class MetaAgent(BaseAgent):
                 "feedback": [f"Evaluation error: {str(e)}"],
             }
 
-    def _simple_evaluation(self, gold_standard, output: Dict[str, Any]) -> Dict[str, Any]:
+    def _simple_evaluation(self, gold_standard: Any, output: Dict[str, Any]) -> Dict[str, Any]:
         """Simple fallback evaluation without LLM."""
         expected = gold_standard.expected_output
         scores = {}
@@ -379,7 +373,7 @@ class MetaAgent(BaseAgent):
     # DEFAULT IMPLEMENTATION
     # =========================================================================
 
-    async def _execute_impl(self, **kwargs) -> Dict[str, Any]:
+    async def _execute_impl(self, **kwargs: Any) -> Dict[str, Any]:
         """
         Default implementation using DSPy module.
 
@@ -410,12 +404,7 @@ class MetaAgent(BaseAgent):
 # CONVENIENCE FUNCTIONS
 # =============================================================================
 
-def create_meta_agent(
-    signature: Type = None,
-    gold_db=None,
-    improvement_history=None,
-    model: str = "",
-) -> MetaAgent:
+def create_meta_agent(signature: Type = None, gold_db: Any = None, improvement_history: Any = None, model: str = '') -> MetaAgent:
     """
     Factory function to create a MetaAgent.
 

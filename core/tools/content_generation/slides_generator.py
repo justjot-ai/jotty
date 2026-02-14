@@ -14,7 +14,7 @@ import os
 import asyncio
 import logging
 from pathlib import Path
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Any
 
 # Add Paper2Slides to Python path
 JOTTY_ROOT = Path(__file__).parent.parent.parent.parent
@@ -47,11 +47,7 @@ class SlidesGenerator:
     - Checkpoint-based resumable workflow
     """
 
-    def __init__(
-        self,
-        output_base_dir: Optional[Path] = None,
-        fast_mode: bool = False
-    ):
+    def __init__(self, output_base_dir: Optional[Path] = None, fast_mode: bool = False) -> None:
         """
         Initialize slides generator
 
@@ -194,7 +190,7 @@ class SlidesGenerator:
             'num_slides': len(png_files)
         }
 
-    def generate_slides_sync(self, *args, **kwargs) -> Dict[str, Path]:
+    def generate_slides_sync(self, *args: Any, **kwargs: Any) -> Dict[str, Path]:
         """Synchronous wrapper for generate_slides"""
         return asyncio.run(self.generate_slides(*args, **kwargs))
 

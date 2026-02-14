@@ -45,14 +45,11 @@ class FeatureEngineeringSkill(MLSkill):
     optional_inputs = ["y", "problem_type"]
     outputs = ["X_engineered"]
 
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: Dict[str, Any] = None) -> None:
         super().__init__(config)
         self._techniques_used = []
 
-    async def execute(self,
-                      X: pd.DataFrame,
-                      y: Optional[pd.Series] = None,
-                      **context) -> SkillResult:
+    async def execute(self, X: pd.DataFrame, y: Optional[pd.Series] = None, **context: Any) -> SkillResult:
         """
         Execute feature engineering.
 

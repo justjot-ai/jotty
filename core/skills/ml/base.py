@@ -111,7 +111,7 @@ class MLSkill(ABC):
     requires_gpu: bool = False
     estimated_memory_gb: float = 1.0
 
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: Dict[str, Any] = None) -> None:
         """
         Initialize skill with optional configuration.
 
@@ -121,7 +121,7 @@ class MLSkill(ABC):
         self.config = config or {}
         self._initialized = False
 
-    async def init(self):
+    async def init(self) -> Any:
         """
         Initialize any resources needed by the skill.
 
@@ -130,10 +130,7 @@ class MLSkill(ABC):
         self._initialized = True
 
     @abstractmethod
-    async def execute(self,
-                      X: pd.DataFrame,
-                      y: Optional[pd.Series] = None,
-                      **context) -> SkillResult:
+    async def execute(self, X: pd.DataFrame, y: Optional[pd.Series] = None, **context: Any) -> SkillResult:
         """
         Execute the skill.
 
@@ -147,7 +144,7 @@ class MLSkill(ABC):
         """
         pass
 
-    def validate_inputs(self, X, y=None, **context) -> bool:
+    def validate_inputs(self, X: Any, y: Any = None, **context: Any) -> bool:
         """
         Validate inputs before execution.
 
@@ -209,11 +206,11 @@ class SkillPipeline:
     Handles data flow between skills automatically.
     """
 
-    def __init__(self, skills: List[MLSkill]):
+    def __init__(self, skills: List[MLSkill]) -> None:
         self.skills = skills
         self._results: List[SkillResult] = []
 
-    async def execute(self, X: pd.DataFrame, y: pd.Series = None, **context) -> List[SkillResult]:
+    async def execute(self, X: pd.DataFrame, y: pd.Series = None, **context: Any) -> List[SkillResult]:
         """
         Execute all skills in sequence.
 

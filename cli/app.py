@@ -45,12 +45,7 @@ class JottyCLI:
     - Plugin system
     """
 
-    def __init__(
-        self,
-        config_path: Optional[str] = None,
-        no_color: bool = False,
-        debug: bool = False,
-    ):
+    def __init__(self, config_path: Optional[str] = None, no_color: bool = False, debug: bool = False) -> None:
         """
         Initialize JottyCLI.
 
@@ -117,7 +112,7 @@ class JottyCLI:
 
         logger.info("JottyCLI initialized")
 
-    def _register_commands(self):
+    def _register_commands(self) -> Any:
         """Register all built-in commands."""
         register_all_commands(self.command_registry)
 
@@ -126,7 +121,7 @@ class JottyCLI:
         self.command_registry.register(ClearCommand())
         self.command_registry.register(HistoryCommand())
 
-    async def get_swarm_manager(self):
+    async def get_swarm_manager(self) -> Any:
         """
         Get or create Orchestrator (lazy initialization).
 
@@ -223,7 +218,7 @@ class JottyCLI:
 
         return self._swarm_manager
 
-    def get_skills_registry(self):
+    def get_skills_registry(self) -> Any:
         """
         Get or create SkillsRegistry (lazy initialization).
 
@@ -247,7 +242,7 @@ class JottyCLI:
 
         return self._skills_registry
 
-    async def run_interactive(self):
+    async def run_interactive(self) -> Any:
         """Run interactive REPL mode."""
         # Auto-resume last session if enabled
         if self.config.session.auto_resume:
@@ -469,7 +464,7 @@ class JottyCLI:
 
         return True
 
-    async def _execute_lean_mode(self, task: str, status_callback=None) -> Any:
+    async def _execute_lean_mode(self, task: str, status_callback: Any = None) -> Any:
         """
         Execute task via ModeRouter (CHAT mode) - native LLM tool calling.
 
@@ -496,7 +491,7 @@ class JottyCLI:
         stream_started = False
         md_stream = MarkdownStreamRenderer(self.renderer.console)
 
-        def stream_callback(chunk: str):
+        def stream_callback(chunk: str) -> Any:
             nonlocal stream_started
 
             if not stream_started:
@@ -528,7 +523,7 @@ class JottyCLI:
 
         # Convert RouteResult to EpisodeResult-like object for display compatibility
         class LeanResult:
-            def __init__(self, rr, streamed=False):
+            def __init__(self, rr: Any, streamed: Any = False) -> None:
                 self.success = rr.success
                 self.output = rr.content
                 self.error = rr.error
@@ -579,7 +574,7 @@ class JottyCLI:
 
         return cleaned.strip()
 
-    async def _handle_export_command(self, args: str):
+    async def _handle_export_command(self, args: str) -> Any:
         """
         Handle /export command to export outputs.
 
@@ -655,7 +650,7 @@ class JottyCLI:
             self.renderer.info("  /export list    - show all outputs")
             self.renderer.info("  /export all m   - entire conversation")
 
-    async def _show_output_list(self):
+    async def _show_output_list(self) -> Any:
         """Show list of recent outputs for selection."""
         if not hasattr(self, '_output_history') or not self._output_history:
             self.renderer.warning("No outputs yet.")
@@ -670,7 +665,7 @@ class JottyCLI:
 
         self.renderer.print("\n[dim]Use: /export N cdpm (e.g., /export 2 dp)[/dim]")
 
-    async def _export_all_outputs(self, formats: str):
+    async def _export_all_outputs(self, formats: str) -> Any:
         """Export all outputs as single document."""
         if not hasattr(self, '_output_history') or not self._output_history:
             self.renderer.warning("No outputs to export.")
@@ -693,7 +688,7 @@ class JottyCLI:
         if 'm' in formats:
             await self._export_to_markdown(combined)
 
-    async def _show_export_options(self, content: str):
+    async def _show_export_options(self, content: str) -> Any:
         """
         Show interactive export options after output.
 
@@ -744,7 +739,7 @@ class JottyCLI:
         except (EOFError, KeyboardInterrupt):
             pass  # User cancelled
 
-    async def _copy_to_clipboard(self, content: str):
+    async def _copy_to_clipboard(self, content: str) -> Any:
         """Copy content to system clipboard."""
         try:
             import subprocess
@@ -797,7 +792,7 @@ class JottyCLI:
         except Exception as e:
             self.renderer.error(f"Copy failed: {e}")
 
-    async def _export_to_docx(self, content: str):
+    async def _export_to_docx(self, content: str) -> Any:
         """Export content to DOCX file with LaTeX math support."""
         from pathlib import Path
         from datetime import datetime
@@ -864,7 +859,7 @@ class JottyCLI:
         except Exception as e:
             self.renderer.error(f"DOCX export failed: {e}")
 
-    async def _export_to_pdf(self, content: str):
+    async def _export_to_pdf(self, content: str) -> Any:
         """Export content to PDF file with LaTeX math support."""
         from pathlib import Path
         from datetime import datetime
@@ -986,13 +981,13 @@ class JottyCLI:
         latex_blocks = []
 
         # Block LaTeX: $$...$$
-        def save_block_latex(match):
+        def save_block_latex(match: Any) -> Any:
             latex_blocks.append(('block', match.group(1)))
             return f'__LATEX_BLOCK_{len(latex_blocks)-1}__'
         html = re.sub(r'\$\$(.+?)\$\$', save_block_latex, html, flags=re.DOTALL)
 
         # Inline LaTeX: $...$
-        def save_inline_latex(match):
+        def save_inline_latex(match: Any) -> Any:
             latex_blocks.append(('inline', match.group(1)))
             return f'__LATEX_INLINE_{len(latex_blocks)-1}__'
         html = re.sub(r'\$(.+?)\$', save_inline_latex, html)
@@ -1041,7 +1036,7 @@ class JottyCLI:
 
         return content
 
-    async def _export_to_markdown(self, content: str):
+    async def _export_to_markdown(self, content: str) -> Any:
         """Export content to Markdown file."""
         from pathlib import Path
         from datetime import datetime
@@ -1058,7 +1053,7 @@ class JottyCLI:
         except Exception as e:
             self.renderer.error(f"Markdown export failed: {e}")
 
-    async def _auto_preview_file(self, file_path: str, max_lines: int = 15):
+    async def _auto_preview_file(self, file_path: str, max_lines: int = 15) -> Any:
         """Show inline preview of generated file."""
         from pathlib import Path
 
@@ -1148,7 +1143,7 @@ class JottyCLI:
 
         self.renderer.print("[dim]─── /preview for more ───[/dim]")
 
-    async def _try_auto_resume(self):
+    async def _try_auto_resume(self) -> Any:
         """Try to auto-resume the last session."""
         try:
             sessions = self.session.list_sessions()
@@ -1184,7 +1179,7 @@ class JottyCLI:
             )
         return self._notifier
 
-    def _init_clipboard_watcher(self):
+    def _init_clipboard_watcher(self) -> Any:
         """Lazy-init clipboard watcher (graceful no-op on headless/CI)."""
         if self._clipboard_watcher is not None:
             return self._clipboard_watcher
@@ -1196,7 +1191,7 @@ class JottyCLI:
             self._clipboard_watcher = None
         return self._clipboard_watcher
 
-    def _show_welcome(self):
+    def _show_welcome(self) -> Any:
         """Show welcome banner."""
         from .. import __version__ as jotty_version
         from . import __version__ as cli_version
@@ -1227,7 +1222,7 @@ class JottyCLI:
         return await swarm.run(goal)
 
 
-def main():
+def main() -> Any:
     """Main entry point."""
     import sys
     from . import __main__

@@ -72,14 +72,7 @@ Returns: {self.return_type}
 # DECORATOR FOR METADATA METHODS
 # =============================================================================
 
-def jotty_method(
-    desc: str,
-    when: str = "Use when relevant to agent's task",
-    cache: bool = True,
-    timeout: float = 30.0,
-    for_architect: bool = False,
-    for_auditor: bool = False
-):
+def jotty_method(desc: str, when: str = "Use when relevant to agent's task", cache: bool = True, timeout: float = 30.0, for_architect: bool = False, for_auditor: bool = False) -> Any:
     """
     Decorator to add metadata to user's methods.
     
@@ -128,7 +121,7 @@ def jotty_method(
         - If both for_architect=False and for_auditor=False, tool is available to actors only
         - Metadata manager decides tool routing, NOT Jotty (keeps Jotty generic!)
     """
-    def decorator(func):
+    def decorator(func: Any) -> Any:
         # Store metadata on function
         func._jotty_meta = {
             'desc': desc,
@@ -159,7 +152,7 @@ class MetadataIntrospector:
     NO hardcoded method names! Discovers whatever user provides!
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         self.cache = {}
     
     def discover(self, metadata_obj: Any) -> List[MethodMetadata]:
@@ -270,14 +263,14 @@ class MetadataToolWrapper:
     - Async/sync methods
     """
     
-    def __init__(self, metadata_obj: Any, method_meta: MethodMetadata):
+    def __init__(self, metadata_obj: Any, method_meta: MethodMetadata) -> None:
         self.metadata = metadata_obj
         self.meta = method_meta
         self.cache = {} if method_meta.cache else None
         self.call_count = 0
         self.total_time = 0.0
     
-    async def __call__(self, **kwargs) -> Any:
+    async def __call__(self, **kwargs: Any) -> Any:
         """
         Call the wrapped method with caching and error handling.
         
@@ -418,7 +411,7 @@ class JottyMetadataBase:
     JOTTY v1.0 - Metadata Base Class
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         self._introspector = MetadataIntrospector()
         self._tools = None
         self._validated = False
@@ -513,7 +506,7 @@ class MetadataValidator:
         validator.test_call(MyMetadata(), 'get_schema', table='users')
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         self.introspector = MetadataIntrospector()
     
     def check(self, metadata_obj: Any) -> bool:
@@ -573,7 +566,7 @@ class MetadataValidator:
         
         return tools
     
-    async def test_call(self, metadata_obj: Any, method_name: str, **kwargs) -> Any:
+    async def test_call(self, metadata_obj: Any, method_name: str, **kwargs: Any) -> Any:
         """
         Test calling a specific method.
         

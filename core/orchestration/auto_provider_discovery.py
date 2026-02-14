@@ -49,7 +49,7 @@ class DiscoveryResult:
     error: Optional[str] = None
     steps_completed: List[str] = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.steps_completed is None:
             self.steps_completed = []
 
@@ -82,7 +82,7 @@ class AutoProviderDiscovery:
         'pandas', 'numpy', 'matplotlib', 'plotly',
     }
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
         """
         Initialize AutoProviderDiscovery.
 
@@ -110,7 +110,7 @@ class AutoProviderDiscovery:
         self._code_generator = None
         self._registry = None
 
-    def _init_components(self):
+    def _init_components(self) -> Any:
         """Lazy initialize pipeline components."""
         if self._researcher is None:
             from .swarm_researcher import SwarmResearcher
@@ -322,7 +322,7 @@ class AutoProviderDiscovery:
 
         return categories or ['api_calls']  # Default
 
-    def _save_adapter(self, generated) -> Path:
+    def _save_adapter(self, generated: Any) -> Path:
         """
         Save generated adapter code to providers directory.
 

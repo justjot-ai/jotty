@@ -31,12 +31,12 @@ class LazyComponent(Generic[T]):
     repeated factory calls.
     """
 
-    def __init__(self, factory: Callable[..., T], attr_name: str = ""):
+    def __init__(self, factory: Callable[..., T], attr_name: str = '') -> None:
         self._factory = factory
         self._attr_name = attr_name  # Set by __set_name__
         self._lock = threading.Lock()
 
-    def __set_name__(self, owner: type, name: str):
+    def __set_name__(self, owner: type, name: str) -> None:
         self._attr_name = f"_lazy_{name}"
 
     def __get__(self, obj: Any, objtype: type = None) -> T:
@@ -55,6 +55,6 @@ class LazyComponent(Generic[T]):
             obj.__dict__[self._attr_name] = instance
             return instance
 
-    def __set__(self, obj: Any, value: T):
+    def __set__(self, obj: Any, value: T) -> Any:
         """Allow explicit override (e.g., in tests)."""
         obj.__dict__[self._attr_name] = value

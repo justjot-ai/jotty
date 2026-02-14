@@ -165,13 +165,7 @@ class EditMixin:
         _progress("Test", "Loop", f"Max iterations ({max_iters}) reached")
         return current_files, history
 
-    async def edit(
-        self,
-        requirements: str,
-        target_files: Dict[str, str] = None,
-        progress_callback=None,
-        codebase_path: str = None,
-    ) -> CodingResult:
+    async def edit(self, requirements: str, target_files: Dict[str, str] = None, progress_callback: Any = None, codebase_path: str = None) -> CodingResult:
         """
         Edit existing code based on requirements.
 
@@ -307,7 +301,7 @@ class EditMixin:
             edited_files = {}
             edit_summaries = []
 
-            async def _plan_and_apply_edit(file_path: str):
+            async def _plan_and_apply_edit(file_path: str) -> Any:
                 if file_path not in target_files:
                     return file_path, target_files.get(file_path, ''), {'skipped': True}
 

@@ -284,7 +284,7 @@ class SkillSelectionMixin:
             formatted.append(d)
         return formatted
 
-    def _parse_selected_skills(self, raw) -> List[str]:
+    def _parse_selected_skills(self, raw: Any) -> List[str]:
         """Parse LLM output into list of skill names."""
         import re
 

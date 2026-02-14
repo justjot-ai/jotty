@@ -90,7 +90,7 @@ class TokenCounter:
     # Conservative mode: Cap large contexts at 30k for safety
     USE_CONSERVATIVE_MODE = False  # Set to True to cap at 30k
     
-    def __init__(self, model: Optional[str] = None):
+    def __init__(self, model: Optional[str] = None) -> None:
         """
         Initialize token counter.
         

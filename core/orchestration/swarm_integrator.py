@@ -29,7 +29,7 @@ class SwarmIntegrator:
     DRY Principle: Reuses existing system tools (cron, systemd, etc.).
     """
     
-    def __init__(self, config=None):
+    def __init__(self, config: Any = None) -> None:
         """
         Initialize SwarmIntegrator.
         

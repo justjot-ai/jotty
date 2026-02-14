@@ -14,7 +14,7 @@ The chunker UNDERSTANDS the content structure!
 """
 
 import dspy
-from typing import Dict, List, Optional, Callable
+from typing import Dict, List, Optional, Callable, Any
 import logging
 
 from ..utils.tokenizer import SmartTokenizer
@@ -56,7 +56,7 @@ class ContextChunker:
     NO rule-based splitting! Uses LLM to find natural boundaries.
     """
     
-    def __init__(self, lm=None):
+    def __init__(self, lm: Any = None) -> None:
         """
         Initialize chunker.
         

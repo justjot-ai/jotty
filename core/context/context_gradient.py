@@ -112,7 +112,7 @@ class ContextGradient:
     4. Cooperation Gradient: Update cooperation strategies
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         self.memory_extractor = dspy.ChainOfThought(MemoryGradientSignature)
         self.cooperation_extractor = dspy.ChainOfThought(CooperationGradientSignature)
         
@@ -466,7 +466,7 @@ class ContextApplier:
     This is where the "gradient" gets applied!
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         logger.info(" ContextApplier initialized")
     
     def apply_updates(
@@ -501,7 +501,7 @@ class ContextApplier:
         logger.info(" Context updates applied")
         return updated_context
     
-    def _apply_memory_update(self, update: ContextUpdate, context: Dict):
+    def _apply_memory_update(self, update: ContextUpdate, context: Dict) -> Any:
         """Apply memory update."""
         if 'memory' not in context:
             context['memory'] = []
@@ -516,7 +516,7 @@ class ContextApplier:
         
         logger.info(f" Memory: Added lesson (confidence={update.confidence:.2f})")
     
-    def _apply_q_update(self, update: ContextUpdate, context: Dict):
+    def _apply_q_update(self, update: ContextUpdate, context: Dict) -> Any:
         """Apply Q-table update."""
         if 'q_table' not in context:
             context['q_table'] = {}
@@ -529,7 +529,7 @@ class ContextApplier:
             context['q_table'][(state_key, action)] = new_q
             logger.info(f" Q-table: Updated Q({state_key}, {action}) = {new_q:.3f}")
     
-    def _apply_dqn_update(self, update: ContextUpdate, context: Dict):
+    def _apply_dqn_update(self, update: ContextUpdate, context: Dict) -> Any:
         """Apply DQN update."""
         if 'dqn_corrections' not in context:
             context['dqn_corrections'] = []
@@ -542,7 +542,7 @@ class ContextApplier:
         
         logger.info(f" DQN: Added prediction corrections")
     
-    def _apply_cooperation_update(self, update: ContextUpdate, context: Dict):
+    def _apply_cooperation_update(self, update: ContextUpdate, context: Dict) -> Any:
         """Apply cooperation update."""
         if 'cooperation_insights' not in context:
             context['cooperation_insights'] = []

@@ -116,13 +116,7 @@ class AdaptiveValidator:
             validator.record_skip("my_agent", "filter")
     """
 
-    def __init__(
-        self,
-        config: Optional[LotusConfig] = None,
-        skip_threshold: float = 0.95,
-        sample_rate: float = 0.10,
-        min_samples: int = 10,
-    ):
+    def __init__(self, config: Optional[LotusConfig] = None, skip_threshold: float = 0.95, sample_rate: float = 0.1, min_samples: int = 10) -> None:
         """
         Initialize adaptive validator.
 
@@ -226,12 +220,7 @@ class AdaptiveValidator:
             confidence=success_rate,
         )
 
-    def record_result(
-        self,
-        agent: str,
-        operation: str,
-        success: bool,
-    ):
+    def record_result(self, agent: str, operation: str, success: bool) -> Any:
         """
         Record a validation result.
 
@@ -248,11 +237,7 @@ class AdaptiveValidator:
             f"(rate: {self._history[key].success_rate:.1%})"
         )
 
-    def record_skip(
-        self,
-        agent: str,
-        operation: str,
-    ):
+    def record_skip(self, agent: str, operation: str) -> Any:
         """
         Record a skipped validation.
 

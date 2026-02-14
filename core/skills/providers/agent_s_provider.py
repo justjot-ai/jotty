@@ -58,7 +58,7 @@ class AgentSProvider(SkillProvider):
     version = "3.0.0"
     description = "Full computer/GUI control via Agent-S"
 
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: Dict[str, Any] = None) -> None:
         super().__init__(config)
 
         self.capabilities = [

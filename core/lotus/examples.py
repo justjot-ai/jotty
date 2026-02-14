@@ -5,14 +5,14 @@ Demonstrates how to use the LOTUS optimization layer for cost-efficient LLM oper
 """
 
 import asyncio
-from typing import List, Tuple
+from typing import List, Tuple, Any
 
 
 # =============================================================================
 # Example 1: Basic LOTUS Optimizer Usage
 # =============================================================================
 
-async def example_basic_optimizer():
+async def example_basic_optimizer() -> Any:
     """
     Basic usage of LotusOptimizer for cost-efficient LLM operations.
     """
@@ -54,7 +54,7 @@ async def example_basic_optimizer():
 # Example 2: Using Semantic Operators (LOTUS-style API)
 # =============================================================================
 
-async def example_semantic_operators():
+async def example_semantic_operators() -> Any:
     """
     Using LOTUS-style semantic operators for declarative data processing.
     """
@@ -91,7 +91,7 @@ async def example_semantic_operators():
 # Example 3: Model Cascade for Cost Optimization
 # =============================================================================
 
-async def example_model_cascade():
+async def example_model_cascade() -> Any:
     """
     Demonstrates model cascade for 10x cost reduction.
     """
@@ -109,10 +109,10 @@ async def example_model_cascade():
         "Please review the attached doc", # Moderate
     ]
 
-    def prompt_fn(item):
+    def prompt_fn(item: Any) -> Any:
         return f"Is this spam? Answer YES or NO with confidence.\n\nText: {item}"
 
-    def parse_fn(response) -> Tuple:
+    def parse_fn(response: Any) -> Tuple:
         is_spam = "yes" in response.lower()
         confidence = 0.9 if "confident" in response.lower() else 0.7
         return is_spam, confidence
@@ -132,7 +132,7 @@ async def example_model_cascade():
 # Example 4: Semantic Cache for Repeat Queries
 # =============================================================================
 
-async def example_semantic_cache():
+async def example_semantic_cache() -> Any:
     """
     Demonstrates semantic caching for zero-cost repeat queries.
     """
@@ -146,7 +146,7 @@ async def example_semantic_cache():
     content = "The quick brown fox jumps over the lazy dog."
 
     # First query - cache miss, computes result
-    async def compute():
+    async def compute() -> Any:
         return "A fox jumps over a dog."  # Simulated LLM result
 
     result1 = await cache.get_or_compute_async(instruction, content, compute)
@@ -167,7 +167,7 @@ async def example_semantic_cache():
 # Example 5: Adaptive Validation
 # =============================================================================
 
-async def example_adaptive_validation():
+async def example_adaptive_validation() -> Any:
     """
     Demonstrates adaptive validation to skip unnecessary checks.
     """

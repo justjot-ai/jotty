@@ -25,7 +25,7 @@ class MCPTool:
 class MCPToolExecutor:
     """Execute MCP tools from DSPy agents"""
 
-    def __init__(self, mcp_config_path: str = None, base_url: str = None):
+    def __init__(self, mcp_config_path: str = None, base_url: str = None) -> None:
         """
         Initialize with MCP server configuration
 

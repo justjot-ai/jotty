@@ -88,7 +88,7 @@ class SkillOrchestrator(FeatureEngineeringMixin, FeatureSelectionMixin, ModelPip
         SkillCategory.EXPLANATION,
     ]
 
-    def __init__(self, use_llm_features: bool = True, show_progress: bool = True):
+    def __init__(self, use_llm_features: bool = True, show_progress: bool = True) -> None:
         self._skills_registry = None
         self._tools_registry = None
         self._skill_adapters: Dict[str, SkillAdapter] = {}
@@ -160,7 +160,7 @@ class SkillOrchestrator(FeatureEngineeringMixin, FeatureSelectionMixin, ModelPip
 
         return StandardScaler().fit_transform(X_numeric)
 
-    async def init(self):
+    async def init(self) -> Any:
         """Initialize registries and discover skills."""
         if self._initialized:
             return
@@ -183,7 +183,7 @@ class SkillOrchestrator(FeatureEngineeringMixin, FeatureSelectionMixin, ModelPip
             logger.warning(f"SkillOrchestrator init failed: {e}")
             self._initialized = True  # Continue with built-in implementations
 
-    def _build_skill_adapters(self):
+    def _build_skill_adapters(self) -> Any:
         """Build adapters for all ML-related skills."""
         ml_skill_keywords = [
             'data', 'feature', 'model', 'automl', 'hyperopt', 'ensemble',

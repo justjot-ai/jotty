@@ -110,7 +110,7 @@ class HippocampalExtractor:
     Only high-strength experiences become long-term memories.
     """
     
-    def __init__(self, config: BrainModeConfig, goal: str = ""):
+    def __init__(self, config: BrainModeConfig, goal: str = '') -> None:
         self.config = config
         self.goal = goal
         self.expected_reward = 0.5  # Running average of rewards
@@ -238,7 +238,7 @@ class HippocampalExtractor:
         import hashlib
         return hashlib.md5(content[:200].encode(errors='replace')).hexdigest()
     
-    def _update_expectations(self, candidate: MemoryCandidate):
+    def _update_expectations(self, candidate: MemoryCandidate) -> Any:
         """Update running expectations (like brain adaptation)."""
         # Exponential moving average of rewards
         alpha = 0.1
@@ -274,7 +274,7 @@ class SharpWaveRippleConsolidator:
     This process happens automatically when the system enters "sleep mode".
     """
     
-    def __init__(self, config: BrainModeConfig, memory_store: Any = None):
+    def __init__(self, config: BrainModeConfig, memory_store: Any = None) -> None:
         self.config = config
         self.memory_store = memory_store
         self.consolidation_count = 0
@@ -495,12 +495,7 @@ class BrainStateMachine:
     and consolidation phases.
     """
     
-    def __init__(
-        self,
-        config: BrainModeConfig,
-        consolidator: SharpWaveRippleConsolidator = None,
-        extractor: HippocampalExtractor = None
-    ):
+    def __init__(self, config: BrainModeConfig, consolidator: SharpWaveRippleConsolidator = None, extractor: HippocampalExtractor = None) -> None:
         self.config = config
         self.mode = BrainMode.ONLINE
         self.consolidator = consolidator or SharpWaveRippleConsolidator(config)
@@ -682,7 +677,7 @@ class AgentAbstractor:
     without consuming all tokens on individual agent details.
     """
     
-    def __init__(self, config: BrainModeConfig):
+    def __init__(self, config: BrainModeConfig) -> None:
         self.config = config
         self.detail_threshold = 10
         
@@ -772,7 +767,7 @@ class AgentAbstractor:
         
         return view
     
-    def _rebuild_roles(self, agents: List[str]):
+    def _rebuild_roles(self, agents: List[str]) -> Any:
         """Rebuild role definitions from current agents."""
         self.role_definitions = {}
         

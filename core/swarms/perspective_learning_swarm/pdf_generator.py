@@ -10,7 +10,7 @@ Language sections use appropriate fonts (Noto Sans Devanagari, Noto Sans Kannada
 import logging
 import asyncio
 import re
-from typing import Optional
+from typing import Optional, Any
 from pathlib import Path
 
 from .types import (
@@ -355,7 +355,7 @@ li {{ margin-bottom: 4px; }}
 class PerspectiveHTMLRenderer:
     """Renders PerspectiveLearning LessonContent into styled HTML."""
 
-    def __init__(self, celebration_word: str = "Wonderful!"):
+    def __init__(self, celebration_word: str = 'Wonderful!') -> None:
         self.celebration = celebration_word
 
     def render(self, content: LessonContent) -> str:

@@ -83,7 +83,7 @@ class ChannelRouter:
     - Message queue for async processing
     """
 
-    def __init__(self, use_persistent_sessions: bool = True):
+    def __init__(self, use_persistent_sessions: bool = True) -> None:
         self._handlers: Dict[ChannelType, Callable] = {}
         self._responders: Dict[ChannelType, Callable] = {}
         self._message_queue: asyncio.Queue = asyncio.Queue()
@@ -96,7 +96,7 @@ class ChannelRouter:
         self._session_manager = None
         self._legacy_sessions: Dict[str, Dict[str, Any]] = {}  # Fallback
 
-    def _get_session_manager(self):
+    def _get_session_manager(self) -> Any:
         """Get persistent session manager (lazy init)."""
         if self._session_manager is None and self._use_persistent_sessions:
             try:
@@ -107,26 +107,26 @@ class ChannelRouter:
                 self._use_persistent_sessions = False
         return self._session_manager
 
-    def set_trust_manager(self, trust_manager):
+    def set_trust_manager(self, trust_manager: Any) -> Any:
         """Set trust manager for message authorization."""
         self._trust_manager = trust_manager
         logger.info("Trust manager configured")
 
-    def set_cli(self, cli):
+    def set_cli(self, cli: Any) -> Any:
         """Set JottyCLI instance for processing messages."""
         self._cli = cli
 
-    def register_handler(self, channel: ChannelType, handler: Callable):
+    def register_handler(self, channel: ChannelType, handler: Callable) -> Any:
         """Register incoming message handler for a channel."""
         self._handlers[channel] = handler
         logger.info(f"Registered handler for {channel.value}")
 
-    def register_responder(self, channel: ChannelType, responder: Callable):
+    def register_responder(self, channel: ChannelType, responder: Callable) -> Any:
         """Register response sender for a channel."""
         self._responders[channel] = responder
         logger.info(f"Registered responder for {channel.value}")
 
-    async def handle_message(self, event: MessageEvent):
+    async def handle_message(self, event: MessageEvent) -> Any:
         """Handle incoming message from any channel."""
         logger.info(f"[{event.channel.value}] {event.user_name}: {event.content[:50]}...")
 
@@ -325,7 +325,7 @@ class ChannelRouter:
             logger.error(f"Jotty processing error: {e}", exc_info=True)
             return f"Error processing message: {str(e)}"
 
-    async def _send_response(self, response: ResponseEvent):
+    async def _send_response(self, response: ResponseEvent) -> Any:
         """Send response to the appropriate channel with formatting."""
         # Apply channel-specific formatting before sending
         try:
@@ -373,7 +373,7 @@ class ChannelRouter:
         # Fallback to sync method
         return self.get_session(channel, channel_id, user_id)
 
-    def clear_session(self, channel: ChannelType, channel_id: str, user_id: str):
+    def clear_session(self, channel: ChannelType, channel_id: str, user_id: str) -> Any:
         """Clear session for a user/channel."""
         # Clear from persistent manager
         session_manager = self._get_session_manager()

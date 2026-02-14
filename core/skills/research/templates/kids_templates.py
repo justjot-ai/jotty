@@ -1,3 +1,4 @@
+from typing import Any
 """
 Kids Book Templates
 ===================
@@ -14,7 +15,7 @@ from .base_template import BaseTemplate, TemplateColors, TemplateTypography, Tem
 class StorybookTemplate(BaseTemplate):
     """Storybook template - Colorful, whimsical, large fonts for children."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.name = "Storybook"
         self.description = "Colorful storybook design with large fonts and playful elements"
@@ -198,7 +199,7 @@ img {{
 class EducationalTemplate(BaseTemplate):
     """Educational template - Fun facts, quizzes, learning-focused."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.name = "Educational"
         self.description = "Learning-focused design with quizzes and fun facts"
@@ -384,7 +385,7 @@ th {{
 class ActivityBookTemplate(BaseTemplate):
     """Activity Book template - Interactive, puzzles, games."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.name = "Activity Book"
         self.description = "Interactive design with puzzles, games, and activities"

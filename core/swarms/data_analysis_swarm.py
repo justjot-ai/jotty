@@ -1,3 +1,4 @@
+from typing import Any
 """
 Data Analysis Swarm - World-Class Data Science & Analytics
 ==========================================================
@@ -109,7 +110,7 @@ class DataAnalysisConfig(SwarmBaseConfig):
     outlier_method: str = "iqr"
     missing_threshold: float = 0.5
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.name = "DataAnalysisSwarm"
         self.domain = "data_analysis"
 
@@ -330,7 +331,7 @@ class VisualizationSignature(dspy.Signature):
 class DataProfilerAgent(BaseSwarmAgent):
     """Profiles datasets."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, signature=DataProfilingSignature)
         self._profiler = dspy.ChainOfThought(DataProfilingSignature)
         self.learned_context = learned_context
@@ -378,7 +379,7 @@ class DataProfilerAgent(BaseSwarmAgent):
 class EDAAgent(BaseSwarmAgent):
     """Performs exploratory data analysis."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, signature=EDASignature)
         self._explorer = dspy.ChainOfThought(EDASignature)
         self.learned_context = learned_context
@@ -422,7 +423,7 @@ class EDAAgent(BaseSwarmAgent):
 class StatisticalAgent(BaseSwarmAgent):
     """Performs statistical analysis."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, signature=StatisticalAnalysisSignature)
         self._analyst = dspy.ChainOfThought(StatisticalAnalysisSignature)
         self.learned_context = learned_context
@@ -470,7 +471,7 @@ class StatisticalAgent(BaseSwarmAgent):
 class InsightAgent(BaseSwarmAgent):
     """Generates insights."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, signature=InsightGenerationSignature)
         self._generator = dspy.ChainOfThought(InsightGenerationSignature)
         self.learned_context = learned_context
@@ -520,7 +521,7 @@ class InsightAgent(BaseSwarmAgent):
 class MLRecommenderAgent(BaseSwarmAgent):
     """Recommends ML approaches."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, signature=MLRecommendationSignature)
         self._recommender = dspy.ChainOfThought(MLRecommendationSignature)
         self.learned_context = learned_context
@@ -570,7 +571,7 @@ class MLRecommenderAgent(BaseSwarmAgent):
 class VisualizationAgent(BaseSwarmAgent):
     """Recommends visualizations."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, signature=VisualizationSignature)
         self._visualizer = dspy.ChainOfThought(VisualizationSignature)
         self.learned_context = learned_context
@@ -651,14 +652,10 @@ class DataAnalysisSwarm(DomainSwarm):
     )
     SWARM_SIGNATURE = DataAnalysisSwarmSignature
 
-    def __init__(self, config: DataAnalysisConfig = None):
+    def __init__(self, config: DataAnalysisConfig = None) -> None:
         super().__init__(config or DataAnalysisConfig())
 
-    async def _execute_domain(
-        self,
-        data: Any,
-        **kwargs
-    ) -> AnalysisResult:
+    async def _execute_domain(self, data: Any, **kwargs: Any) -> AnalysisResult:
         """Execute data analysis (called by DomainSwarm.execute())."""
         return await self.analyze(data, **kwargs)
 
@@ -768,17 +765,7 @@ class DataAnalysisSwarm(DomainSwarm):
             },
         )
 
-    async def _execute_phases(
-        self,
-        executor,
-        data_summary: Dict[str, Any],
-        sample_data: List[Dict],
-        column_info: Dict[str, str],
-        config: DataAnalysisConfig,
-        question: str,
-        target_column: str,
-        business_context: str,
-    ) -> AnalysisResult:
+    async def _execute_phases(self, executor: Any, data_summary: Dict[str, Any], sample_data: List[Dict], column_info: Dict[str, str], config: DataAnalysisConfig, question: str, target_column: str, business_context: str) -> AnalysisResult:
         """Execute the domain-specific analysis phases using PhaseExecutor.
 
         Args:
@@ -954,7 +941,7 @@ class DataAnalysisSwarm(DomainSwarm):
 # CONVENIENCE FUNCTIONS
 # =============================================================================
 
-async def analyze_data(data: Any, **kwargs) -> AnalysisResult:
+async def analyze_data(data: Any, **kwargs: Any) -> AnalysisResult:
     """
     One-liner data analysis.
 
@@ -966,7 +953,7 @@ async def analyze_data(data: Any, **kwargs) -> AnalysisResult:
     return await swarm.analyze(data, **kwargs)
 
 
-def analyze_data_sync(data: Any, **kwargs) -> AnalysisResult:
+def analyze_data_sync(data: Any, **kwargs: Any) -> AnalysisResult:
     """Synchronous data analysis."""
     return asyncio.run(analyze_data(data, **kwargs))
 

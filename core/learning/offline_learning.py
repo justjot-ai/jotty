@@ -31,7 +31,7 @@ from ..memory.cortex import SwarmMemory
 from .learning import TDLambdaLearner, AdaptiveLearningRate
 
 
-def _ensure_swarm_config(config):
+def _ensure_swarm_config(config: Any) -> Any:
     """Accept LearningConfig or SwarmConfig, return SwarmConfig."""
     if isinstance(config, FocusedLearningConfig):
         return SwarmConfig.from_configs(learning=config)
@@ -83,7 +83,7 @@ class PrioritizedEpisodeBuffer:
     - Outcome (failures often more informative)
     """
     
-    def __init__(self, capacity: int, alpha: float = 0.6):
+    def __init__(self, capacity: int, alpha: float = 0.6) -> None:
         """
         Parameters:
             capacity: Maximum episodes to store
@@ -172,7 +172,7 @@ class PrioritizedEpisodeBuffer:
                 self.priorities[i] = new_priority
                 break
     
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.episodes)
 
 
@@ -188,7 +188,7 @@ class CounterfactualLearner:
     to improve credit assignment and learn from mistakes.
     """
     
-    def __init__(self, config):
+    def __init__(self, config: Any) -> None:
         self.config = _ensure_swarm_config(config)
         self.analyzer = dspy.ChainOfThought(CounterfactualSignature)
         
@@ -316,7 +316,7 @@ class PatternDiscovery:
     - Discriminative features
     """
     
-    def __init__(self, config):
+    def __init__(self, config: Any) -> None:
         self.config = _ensure_swarm_config(config)
         self.discoverer = dspy.ChainOfThought(PatternDiscoverySignature)
     
@@ -430,7 +430,7 @@ class OfflineLearner:
     - Causal knowledge extraction
     """
     
-    def __init__(self, config):
+    def __init__(self, config: Any) -> None:
         self.config = _ensure_swarm_config(config)
         
         # Episode buffer
@@ -574,9 +574,7 @@ class OfflineLearner:
         
         return {"analyzed": analyzed, "lessons": len(lessons)}
     
-    async def _store_discovered_patterns(self,
-                                          agent_memories: Dict[str, SwarmMemory],
-                                          pattern_results: Dict[str, Any]):
+    async def _store_discovered_patterns(self, agent_memories: Dict[str, SwarmMemory], pattern_results: Dict[str, Any]) -> Any:
         """Store discovered patterns in agent memories."""
         if "error" in pattern_results or "insufficient_data" in pattern_results:
             return

@@ -39,7 +39,7 @@ class LocalLLMProvider:
         response = await provider.generate("What is 2+2?")
     """
 
-    def __init__(self, model: str = "ollama/llama3"):
+    def __init__(self, model: str = 'ollama/llama3') -> None:
         """
         Initialize local LLM provider.
 
@@ -61,7 +61,7 @@ class LocalLLMProvider:
         # llama.cpp settings
         self.llamacpp_host = os.getenv("LLAMACPP_HOST", "http://localhost:8080")
 
-    def _parse_model_spec(self):
+    def _parse_model_spec(self) -> Any:
         """Parse model specification into provider and model name."""
         if "/" in self.model_spec:
             parts = self.model_spec.split("/", 1)
@@ -72,13 +72,7 @@ class LocalLLMProvider:
             self.provider_type = "ollama"
             self.model_name = self.model_spec
 
-    async def generate(
-        self,
-        prompt: str,
-        max_tokens: int = 2048,
-        temperature: float = LLM_TEMPERATURE,
-        **kwargs
-    ) -> LocalLLMResponse:
+    async def generate(self, prompt: str, max_tokens: int = 2048, temperature: float = LLM_TEMPERATURE, **kwargs: Any) -> LocalLLMResponse:
         """
         Generate text using local LLM.
 
@@ -220,13 +214,7 @@ class LocalLLMProvider:
                 model=self.model_spec
             )
 
-    def generate_sync(
-        self,
-        prompt: str,
-        max_tokens: int = 2048,
-        temperature: float = LLM_TEMPERATURE,
-        **kwargs
-    ) -> LocalLLMResponse:
+    def generate_sync(self, prompt: str, max_tokens: int = 2048, temperature: float = LLM_TEMPERATURE, **kwargs: Any) -> LocalLLMResponse:
         """Synchronous wrapper for generate()."""
         import asyncio
         loop = asyncio.new_event_loop()

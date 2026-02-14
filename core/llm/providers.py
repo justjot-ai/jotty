@@ -79,12 +79,7 @@ class ClaudeCLIProvider:
     """
 
     @staticmethod
-    def generate(
-        prompt: str,
-        model: str = DEFAULT_MODEL_ALIAS,
-        timeout: int = LLM_TIMEOUT_SECONDS,
-        **kwargs
-    ) -> LLMResponse:
+    def generate(prompt: str, model: str = DEFAULT_MODEL_ALIAS, timeout: int = LLM_TIMEOUT_SECONDS, **kwargs: Any) -> LLMResponse:
         """
         Generate text using Claude CLI.
 
@@ -167,12 +162,7 @@ class AnthropicAPIProvider:
     """
 
     @staticmethod
-    def generate(
-        prompt: str,
-        model: str = DEFAULT_MODEL_ALIAS,
-        max_tokens: int = LLM_MAX_OUTPUT_TOKENS,
-        **kwargs
-    ) -> LLMResponse:
+    def generate(prompt: str, model: str = DEFAULT_MODEL_ALIAS, max_tokens: int = LLM_MAX_OUTPUT_TOKENS, **kwargs: Any) -> LLMResponse:
         """
         Generate text using Anthropic API.
 
@@ -245,11 +235,7 @@ class GeminiProvider:
     """
 
     @staticmethod
-    def generate(
-        prompt: str,
-        model: str = "flash",
-        **kwargs
-    ) -> LLMResponse:
+    def generate(prompt: str, model: str = 'flash', **kwargs: Any) -> LLMResponse:
         """
         Generate text using Gemini API.
 
@@ -311,12 +297,7 @@ class OpenAIProvider:
     """
 
     @staticmethod
-    def generate(
-        prompt: str,
-        model: str = "gpt4o",
-        max_tokens: int = LLM_MAX_OUTPUT_TOKENS,
-        **kwargs
-    ) -> LLMResponse:
+    def generate(prompt: str, model: str = 'gpt4o', max_tokens: int = LLM_MAX_OUTPUT_TOKENS, **kwargs: Any) -> LLMResponse:
         """
         Generate text using OpenAI API.
 
@@ -391,7 +372,7 @@ PROVIDERS = {
 }
 
 
-def get_provider(provider_name: str):
+def get_provider(provider_name: str) -> Any:
     """Get a provider class by name."""
     return PROVIDERS.get(provider_name)
 

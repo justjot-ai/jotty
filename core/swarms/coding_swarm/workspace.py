@@ -7,7 +7,7 @@ Non-blocking: falls back to string-only mode if SwarmTerminal is unavailable.
 """
 
 import logging
-from typing import Optional, List
+from typing import Optional, List, Any
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ class WorkspaceManager:
     Lazy-loads all dependencies on first use.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._terminal = None
         self._workspace_dir: Optional[str] = None
         self._initialized = False

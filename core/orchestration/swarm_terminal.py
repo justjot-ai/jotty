@@ -152,13 +152,7 @@ class SwarmTerminal:
     - Generate new skills when needed
     """
 
-    def __init__(
-        self,
-        config: Optional[Any] = None,
-        auto_fix: bool = True,
-        max_fix_attempts: int = 3,
-        skills_dir: Optional[str] = None
-    ):
+    def __init__(self, config: Optional[Any] = None, auto_fix: bool = True, max_fix_attempts: int = 3, skills_dir: Optional[str] = None) -> None:
         """
         Initialize SwarmTerminal.
 
@@ -221,7 +215,7 @@ class SwarmTerminal:
 
         logger.info(" SwarmTerminal initialized (intelligent terminal agent)")
 
-    def _load_web_search(self):
+    def _load_web_search(self) -> Any:
         """Load web search capability."""
         try:
             from Jotty.core.skills import get_skills_registry
@@ -245,7 +239,7 @@ class SwarmTerminal:
             except ImportError:
                 logger.debug("Web search not available for error resolution")
 
-    def _load_file_operations(self):
+    def _load_file_operations(self) -> Any:
         """Load file operations for safe file writing (instead of shell echo/cat)."""
         try:
             from Jotty.core.registry.skills_registry import get_skills_registry
@@ -511,7 +505,7 @@ class SwarmTerminal:
         import asyncio
         import signal
 
-        def _run_sync():
+        def _run_sync() -> Any:
             proc = None
             try:
                 proc = subprocess.Popen(
@@ -790,7 +784,7 @@ class SwarmTerminal:
         normalized = re.sub(r'[/\\][\w./\\]+', 'PATH', normalized)
         return normalized[:200]
 
-    def _cache_fix(self, error: str, solution: ErrorSolution):
+    def _cache_fix(self, error: str, solution: ErrorSolution) -> Any:
         """Cache successful fix."""
         cache_key = self._error_cache_key(error)
         self._fix_cache[cache_key] = solution
@@ -925,6 +919,6 @@ Auto-generated skill to solve: {problem[:100]}
 
 
 # Convenience function
-def create_swarm_terminal(**kwargs) -> SwarmTerminal:
+def create_swarm_terminal(**kwargs: Any) -> SwarmTerminal:
     """Create SwarmTerminal instance."""
     return SwarmTerminal(**kwargs)

@@ -134,12 +134,7 @@ class DebateManager:
     4. DOCUMENTATION (track reasoning)
     """
 
-    def __init__(
-        self,
-        experts: List[Expert],
-        max_rounds: int = 5,
-        consensus_threshold: float = 1.0
-    ):
+    def __init__(self, experts: List[Expert], max_rounds: int = 5, consensus_threshold: float = 1.0) -> None:
         """
         Initialize debate manager.
 

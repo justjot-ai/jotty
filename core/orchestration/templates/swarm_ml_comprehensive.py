@@ -1,3 +1,4 @@
+from typing import Any
 """
 SwarmML Comprehensive - Learning-Enhanced Machine Learning Template
 ====================================================================
@@ -468,7 +469,7 @@ Output patterns as JSON:
 JSON only:""",
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize comprehensive ML template with learning components."""
         super().__init__()
         self._learning_state = LearningState()
@@ -476,7 +477,7 @@ JSON only:""",
         self._learning_coordinator = None
         self._initialized_learning = False
 
-    async def init_learning(self):
+    async def init_learning(self) -> Any:
         """Initialize learning components."""
         if self._initialized_learning:
             return
@@ -507,7 +508,7 @@ JSON only:""",
             logger.warning(f"Learning components not available: {e}")
             self._initialized_learning = False
 
-    async def before_execution(self, **kwargs) -> Dict[str, Any]:
+    async def before_execution(self, **kwargs: Any) -> Dict[str, Any]:
         """
         Pre-execution learning phase.
 
@@ -576,7 +577,7 @@ JSON only:""",
 
         return result
 
-    async def after_execution(self, results: Dict[str, Any], **kwargs):
+    async def after_execution(self, results: Dict[str, Any], **kwargs: Any) -> Any:
         """
         Post-execution learning phase.
 
@@ -766,7 +767,7 @@ JSON only:""",
             'score_history': self._learning_state.score_history[-5:] if self._learning_state.score_history else [],
         }
 
-    def _build_task_description(self, **kwargs) -> str:
+    def _build_task_description(self, **kwargs: Any) -> str:
         """Build task description from inputs."""
         parts = []
 
@@ -786,7 +787,7 @@ JSON only:""",
 
         return " | ".join(parts)
 
-    def _save_learning(self):
+    def _save_learning(self) -> Any:
         """Persist all learning state."""
         try:
             if self._transfer_store:
@@ -802,7 +803,7 @@ JSON only:""",
         except Exception as e:
             logger.debug(f"Save learning failed: {e}")
 
-    def _guarded_section(self, section_name: str, report, fn_name: str, *args, **kwargs) -> None:
+    def _guarded_section(self, section_name: str, report: Any, fn_name: str, *args: Any, **kwargs: Any) -> None:
         """Execute report section with skip guard and outcome recording."""
         manager = getattr(self, '_swarm_manager', None)
 

@@ -94,13 +94,7 @@ class ATeamConductor:
     4. 100% CONSENSUS required
     """
 
-    def __init__(
-        self,
-        experts: List[Expert],
-        max_rounds: int = 5,
-        consensus_threshold: float = 1.0,
-        mode: str = "template"
-    ):
+    def __init__(self, experts: List[Expert], max_rounds: int = 5, consensus_threshold: float = 1.0, mode: str = 'template') -> None:
         """
         Initialize A-TEAM Conductor.
 

@@ -38,7 +38,7 @@ class InterpretabilityMixin:
     )
 
     @staticmethod
-    def _is_tree_model(model) -> bool:
+    def _is_tree_model(model: Any) -> bool:
         """Check if a model is tree-based via isinstance or string matching.
 
         Tries isinstance checks for sklearn, xgboost, lightgbm, catboost.
@@ -86,8 +86,7 @@ class InterpretabilityMixin:
         return any(t.lower() in model_name.lower()
                    for t in InterpretabilityMixin._TREE_MODEL_TYPES)
 
-    def add_feature_interactions(self, shap_values, feature_names: List[str],
-                                 X_sample=None, model=None, top_n: int = 3):
+    def add_feature_interactions(self, shap_values: Any, feature_names: List[str], X_sample: Any = None, model: Any = None, top_n: int = 3) -> Any:
         """
         Add feature interaction detection:
         - SHAP interaction values for tree models
@@ -181,8 +180,7 @@ High SHAP correlation between features suggests they interact in the model.
         except Exception as e:
             self._record_section_failure('Feature Interactions', e)
 
-    def _create_interaction_chart(self, shap_values, feature_names: List[str],
-                                   X_sample, top_interactions: List[Dict]) -> str:
+    def _create_interaction_chart(self, shap_values: Any, feature_names: List[str], X_sample: Any, top_interactions: List[Dict]) -> str:
         """Create feature interaction scatter plots."""
         try:
             n = len(top_interactions)
@@ -223,8 +221,7 @@ High SHAP correlation between features suggests they interact in the model.
     # INTERPRETABILITY ANALYSIS (LIME / PERTURBATION)
     # =========================================================================
 
-    def add_interpretability_analysis(self, model, X_sample, y_pred,
-                                       feature_names: List[str], top_n: int = 5):
+    def add_interpretability_analysis(self, model: Any, X_sample: Any, y_pred: Any, feature_names: List[str], top_n: int = 5) -> Any:
         """
         Add local interpretability analysis using LIME or perturbation-based explanations.
 
@@ -472,7 +469,7 @@ Top feature interaction pairs detected via SHAP interaction values:
         except Exception as e:
             self._record_section_failure('Interpretability Analysis', e)
 
-    def _shap_explain(self, model, X_arr, feature_names):
+    def _shap_explain(self, model: Any, X_arr: Any, feature_names: Any) -> Any:
         """Compute SHAP-based feature contributions using TreeExplainer or KernelExplainer.
 
         Args:
@@ -535,7 +532,7 @@ Top feature interaction pairs detected via SHAP interaction values:
 
         return None
 
-    def _shap_interaction_values(self, model, X_arr, feature_names, top_k=5):
+    def _shap_interaction_values(self, model: Any, X_arr: Any, feature_names: Any, top_k: Any = 5) -> Any:
         """Compute SHAP interaction values for tree-based models.
 
         Uses TreeExplainer.shap_interaction_values to extract top-k feature interaction pairs.
@@ -586,8 +583,7 @@ Top feature interaction pairs detected via SHAP interaction values:
             self._record_internal_warning('SHAPInteractionValues', 'Failed to compute SHAP interaction values', e)
             return []
 
-    def _perturbation_explain(self, model, X_arr, idx, feature_names, has_proba,
-                               magnitudes=None):
+    def _perturbation_explain(self, model: Any, X_arr: Any, idx: Any, feature_names: Any, has_proba: Any, magnitudes: Any = None) -> Any:
         """Compute feature contributions via bidirectional multi-magnitude perturbation.
 
         Args:
@@ -665,7 +661,7 @@ Top feature interaction pairs detected via SHAP interaction values:
 
         return contributions
 
-    def _find_prototype_counterfactual(self, model, X_arr, idx, feature_names):
+    def _find_prototype_counterfactual(self, model: Any, X_arr: Any, idx: Any, feature_names: Any) -> Any:
         """Find nearest training instance with opposite prediction (L2 in standardized space).
 
         Always valid since it's a real observed data point.
@@ -730,8 +726,7 @@ Top feature interaction pairs detected via SHAP interaction values:
             self._record_internal_warning('PrototypeCounterfactual', 'Failed to find prototype counterfactual', e)
             return None
 
-    def _growing_spheres_counterfactual(self, model, X_arr, idx, feature_names,
-                                         n_directions=50, max_radius_steps=20):
+    def _growing_spheres_counterfactual(self, model: Any, X_arr: Any, idx: Any, feature_names: Any, n_directions: Any = 50, max_radius_steps: Any = 20) -> Any:
         """Find counterfactual by expanding random perturbation radius until prediction flips.
 
         Args:
@@ -801,8 +796,7 @@ Top feature interaction pairs detected via SHAP interaction values:
             self._record_internal_warning('GrowingSpheresCounterfactual', 'Failed to generate growing spheres counterfactual', e)
             return None
 
-    def _sparse_counterfactual(self, model, X_arr, idx, feature_names,
-                                actionability=None):
+    def _sparse_counterfactual(self, model: Any, X_arr: Any, idx: Any, feature_names: Any, actionability: Any = None) -> Any:
         """Generate counterfactual with explicit L0 sparsity constraint.
 
         Tries single-feature changes first, then pairs, then triples.
@@ -898,8 +892,7 @@ Top feature interaction pairs detected via SHAP interaction values:
             self._record_internal_warning('SparseCounterfactual', 'Failed to generate sparse counterfactual', e)
             return None
 
-    def _greedy_mean_counterfactual(self, model, X_arr, idx, feature_names, has_proba,
-                                     n_counterfactuals=3, step_fraction=0.1):
+    def _greedy_mean_counterfactual(self, model: Any, X_arr: Any, idx: Any, feature_names: Any, has_proba: Any, n_counterfactuals: Any = 3, step_fraction: Any = 0.1) -> Any:
         """Generate counterfactuals by incremental perturbation toward feature means (legacy).
 
         Args:
@@ -984,9 +977,7 @@ Top feature interaction pairs detected via SHAP interaction values:
             self._record_internal_warning('GreedyMeanCounterfactual', 'Failed to generate greedy mean counterfactual', e)
             return None
 
-    def _generate_counterfactual(self, model, X_arr, idx, feature_names, has_proba,
-                                  n_counterfactuals=3, step_fraction=0.1,
-                                  actionability=None):
+    def _generate_counterfactual(self, model: Any, X_arr: Any, idx: Any, feature_names: Any, has_proba: Any, n_counterfactuals: Any = 3, step_fraction: Any = 0.1, actionability: Any = None) -> Any:
         """Orchestrate counterfactual generation using multiple strategies.
 
         Priority: prototype -> sparse -> growing_spheres -> greedy_mean.
@@ -1044,7 +1035,7 @@ Top feature interaction pairs detected via SHAP interaction values:
             self._record_internal_warning('CounterfactualGeneration', 'Failed to orchestrate counterfactual generation', e)
             return None
 
-    def _create_lime_chart(self, explanations, feature_names):
+    def _create_lime_chart(self, explanations: Any, feature_names: Any) -> Any:
         """Create horizontal bar chart of feature contributions."""
         try:
             n_exp = min(len(explanations), 4)

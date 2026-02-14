@@ -40,12 +40,7 @@ class MongoDBMemoryBackend:
     Follows DRY: Uses Jotty's existing MemoryEntry and MemoryLevel structures.
     """
     
-    def __init__(
-        self,
-        memory: SwarmMemory,
-        mongo_uri: Optional[str] = None,
-        agent_name: Optional[str] = None
-    ):
+    def __init__(self, memory: SwarmMemory, mongo_uri: Optional[str] = None, agent_name: Optional[str] = None) -> None:
         """
         Initialize MongoDB backend for SwarmMemory.
         
@@ -79,7 +74,7 @@ class MongoDBMemoryBackend:
         
         logger.info(f" MongoDB backend initialized for agent '{self.agent_name}'")
     
-    def _ensure_indexes(self):
+    def _ensure_indexes(self) -> Any:
         """Create necessary indexes for efficient queries."""
         try:
             # Compound index for agent + level + time
@@ -432,7 +427,7 @@ class MongoDBMemoryBackend:
         
         return context
     
-    def _extract_success_pattern(self, task_spec: str, category: str, task_id: str):
+    def _extract_success_pattern(self, task_spec: str, category: str, task_id: str) -> Any:
         """Extract success pattern using Jotty's memory API."""
         try:
             # Use Jotty's memory to store pattern

@@ -56,10 +56,7 @@ class ContextGuard:
     This guard ENSURES the agent NEVER exceeds context limits.
     """
     
-    def __init__(self, 
-                 max_context_tokens: int = 28000,
-                 safety_margin: float = 0.9,  # Use only 90% of max
-                 enable_compression: bool = True):
+    def __init__(self, max_context_tokens: int = 28000, safety_margin: float = 0.9, enable_compression: bool = True) -> None:
         """
         Args:
             max_context_tokens: Absolute maximum context size
@@ -241,14 +238,7 @@ class JottyDecorator:
             ...
     """
     
-    def __init__(self,
-                 architect_prompts: List[str] = None,
-                 auditor_prompts: List[str] = None,
-                 architect_tools: List[Any] = None,
-                 auditor_tools: List[Any] = None,
-                 config: SwarmConfig = None,
-                 async_mode: bool = True,
-                 context_guard: bool = True):
+    def __init__(self, architect_prompts: List[str] = None, auditor_prompts: List[str] = None, architect_tools: List[Any] = None, auditor_tools: List[Any] = None, config: SwarmConfig = None, async_mode: bool = True, context_guard: bool = True) -> None:
         """
         Args:
             architect_prompts: Paths to Architect prompts (optional)
@@ -277,7 +267,7 @@ class JottyDecorator:
         # Warn about empty prompts
         self._handle_empty_prompts()
     
-    def _handle_empty_prompts(self):
+    def _handle_empty_prompts(self) -> Any:
         """Handle empty prompt lists with warnings."""
         if not self.architect_prompts:
             warnings.warn(
@@ -311,14 +301,14 @@ class JottyDecorator:
         decorator = self
         
         class JottyWrapped(cls):
-            def __init__(self, *args, **kwargs):
+            def __init__(self, *args: Any, **kwargs: Any) -> None:
                 super().__init__(*args, **kwargs)
                 self._jotty_config = decorator.config
                 self._jotty_guard = decorator.guard
                 self._architect_prompts = decorator.architect_prompts
                 self._auditor_prompts = decorator.auditor_prompts
             
-            def forward(self, *args, **kwargs):
+            def forward(self, *args: Any, **kwargs: Any) -> Any:
                 # Apply context guard
                 if self._jotty_guard:
                     # Extract text content and check
@@ -345,7 +335,7 @@ class JottyDecorator:
         
         if asyncio.iscoroutinefunction(func):
             @functools.wraps(func)
-            async def async_wrapper(*args, **kwargs):
+            async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
                 # Pre-validation could go here
                 result = await func(*args, **kwargs)
                 # Post-validation could go here
@@ -353,7 +343,7 @@ class JottyDecorator:
             return async_wrapper
         else:
             @functools.wraps(func)
-            def sync_wrapper(*args, **kwargs):
+            def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
                 # Pre-validation could go here
                 result = func(*args, **kwargs)
                 # Post-validation could go here
@@ -361,12 +351,7 @@ class JottyDecorator:
             return sync_wrapper
 
 
-def jotty_wrap(architect_prompts: List[str] = None,
-                 auditor_prompts: List[str] = None,
-                 architect_tools: List[Any] = None,
-                 auditor_tools: List[Any] = None,
-                 config: SwarmConfig = None,
-                 **kwargs) -> 'JottyDecorator':
+def jotty_wrap(architect_prompts: List[str] = None, auditor_prompts: List[str] = None, architect_tools: List[Any] = None, auditor_tools: List[Any] = None, config: SwarmConfig = None, **kwargs: Any) -> 'JottyDecorator':
     """
     Convenience function for JOTTY decorator.
     
@@ -435,7 +420,7 @@ Accept any non-null output.
 - reasoning: "No custom Auditor prompts configured - using default pass-through"
 """
 
-    def __init__(self, base_path: str = "agent_generated/jotty"):
+    def __init__(self, base_path: str = 'agent_generated/jotty') -> None:
         self.base_path = Path(base_path)
         self.base_path.mkdir(parents=True, exist_ok=True)
         
@@ -445,7 +430,7 @@ Accept any non-null output.
         # Create default files
         self._create_defaults()
     
-    def _create_defaults(self):
+    def _create_defaults(self) -> Any:
         """Create default prompt files."""
         if not self.default_architect_path.exists():
             self.default_architect_path.write_text(self.DEFAULT_ARCHITECT_PROMPT)
@@ -496,13 +481,7 @@ class JottyEnhanced:
     JOTTY v1.0 - Enhanced Decorator
     """
     
-    def __init__(self,
-                 actor: dspy.Module,
-                 architect_prompts: List[str] = None,
-                 auditor_prompts: List[str] = None,
-                 architect_tools: List[Any] = None,
-                 auditor_tools: List[Any] = None,
-                 config: SwarmConfig = None):
+    def __init__(self, actor: dspy.Module, architect_prompts: List[str] = None, auditor_prompts: List[str] = None, architect_tools: List[Any] = None, auditor_tools: List[Any] = None, config: SwarmConfig = None) -> None:
         """
         Initialize enhanced JOTTY.
         
@@ -537,7 +516,7 @@ class JottyEnhanced:
             config=self.config
         )
     
-    async def arun(self, **kwargs) -> EpisodeResult:
+    async def arun(self, **kwargs: Any) -> EpisodeResult:
         """
         Run with context guard protection.
         """
@@ -557,7 +536,7 @@ class JottyEnhanced:
         
         return await self._jotty.arun(**kwargs)
     
-    def run(self, **kwargs) -> EpisodeResult:
+    def run(self, **kwargs: Any) -> EpisodeResult:
         """Synchronous run."""
         return asyncio.run(self.arun(**kwargs))
     

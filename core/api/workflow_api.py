@@ -30,12 +30,7 @@ class WorkflowAPI:
         task_id = await workflow.enqueue(goal="...", priority=5)
     """
     
-    def __init__(
-        self,
-        conductor: Orchestrator,
-        mode: str = "dynamic",
-        agent_order: Optional[List[str]] = None
-    ):
+    def __init__(self, conductor: Orchestrator, mode: str = 'dynamic', agent_order: Optional[List[str]] = None) -> None:
         """
         Initialize Workflow API.
         
@@ -51,12 +46,7 @@ class WorkflowAPI:
             agent_order=agent_order
         )
     
-    async def execute(
-        self,
-        goal: str,
-        context: Optional[Dict[str, Any]] = None,
-        **kwargs
-    ) -> Dict[str, Any]:
+    async def execute(self, goal: str, context: Optional[Dict[str, Any]] = None, **kwargs: Any) -> Dict[str, Any]:
         """
         Execute workflow synchronously.
         
@@ -75,12 +65,7 @@ class WorkflowAPI:
         )
         return result.to_dict()
     
-    async def stream(
-        self,
-        goal: str,
-        context: Optional[Dict[str, Any]] = None,
-        **kwargs
-    ) -> AsyncIterator[Dict[str, Any]]:
+    async def stream(self, goal: str, context: Optional[Dict[str, Any]] = None, **kwargs: Any) -> AsyncIterator[Dict[str, Any]]:
         """
         Execute workflow with streaming.
         
@@ -99,13 +84,7 @@ class WorkflowAPI:
         ):
             yield event
     
-    async def enqueue(
-        self,
-        goal: str,
-        context: Optional[Dict[str, Any]] = None,
-        priority: int = 3,
-        **kwargs
-    ) -> str:
+    async def enqueue(self, goal: str, context: Optional[Dict[str, Any]] = None, priority: int = 3, **kwargs: Any) -> str:
         """
         Enqueue workflow task for asynchronous execution.
         

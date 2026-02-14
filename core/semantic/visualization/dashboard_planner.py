@@ -81,15 +81,7 @@ class DashboardPlanner:
         )
     """
 
-    def __init__(
-        self,
-        viz_layer,
-        provider: str = "claude-cli",
-        model: str = "",
-        max_charts: int = 6,
-        library: str = "plotly",
-        **kwargs
-    ):
+    def __init__(self, viz_layer: Any, provider: str = 'claude-cli', model: str = '', max_charts: int = 6, library: str = 'plotly', **kwargs: Any) -> None:
         """
         Initialize dashboard planner.
 
@@ -113,7 +105,7 @@ class DashboardPlanner:
         self._llm_generate = None
 
     @property
-    def llm_generate(self):
+    def llm_generate(self) -> Any:
         """Lazy import of core.llm.generate."""
         if self._llm_generate is None:
             from core.llm import generate
@@ -254,12 +246,7 @@ Respond ONLY with the JSON, no other text."""
             logger.error(f"Response was: {response.text[:500]}")
             raise RuntimeError(f"Failed to parse dashboard plan: {e}")
 
-    def generate_chart_insight(
-        self,
-        chart,
-        chart_plan: ChartPlan,
-        df
-    ) -> str:
+    def generate_chart_insight(self, chart: Any, chart_plan: ChartPlan, df: Any) -> str:
         """Generate LLM insight for a chart."""
         # Get relevant data summary
         if chart_plan.columns:
@@ -431,7 +418,7 @@ Keep it professional and actionable. Do not use markdown formatting."""
                 error=str(e)
             )
 
-    def _generate_interactive_html(self, chart, title: str) -> Optional[str]:
+    def _generate_interactive_html(self, chart: Any, title: str) -> Optional[str]:
         """
         Generate interactive HTML from chart code for Plotly/Altair.
 

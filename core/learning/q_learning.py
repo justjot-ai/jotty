@@ -49,7 +49,7 @@ class LLMQPredictor:
      GENERIC: No domain-specific logic, works for any swarm.
     """
     
-    def __init__(self, config):
+    def __init__(self, config: Any) -> None:
         self.config = config
         self.predictor = dspy.ChainOfThought(LLMQPredictorSignature)
         
@@ -527,8 +527,7 @@ class LLMQPredictor:
         
         return " | ".join(parts)
     
-    def _update_q_value(self, state_desc: str, action_desc: str, reward: float, 
-                        next_state_desc: str = None, done: bool = False):
+    def _update_q_value(self, state_desc: str, action_desc: str, reward: float, next_state_desc: str = None, done: bool = False) -> Any:
         """
         REAL Q-learning update: Q(s,a) ← Q(s,a) + α[r + γ max_a' Q(s',a') - Q(s,a)]
         
@@ -1165,7 +1164,7 @@ class LLMQPredictor:
     # ===== NEUROCHUNK TIERED MEMORY MANAGEMENT =====
     
     @property
-    def chunker(self):
+    def chunker(self) -> Any:
         """Lazy-init chunker to avoid circular imports."""
         if self._chunker is None:
             try:

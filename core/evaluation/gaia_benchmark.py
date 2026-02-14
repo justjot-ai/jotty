@@ -39,7 +39,7 @@ class GAIABenchmark(Benchmark):
         3. Structure: ./data/gaia/test/ and ./data/gaia/validation/
     """
 
-    def __init__(self, benchmark_path: Optional[str] = None):
+    def __init__(self, benchmark_path: Optional[str] = None) -> None:
         """
         Initialize GAIA benchmark.
 
@@ -115,12 +115,7 @@ class GAIABenchmark(Benchmark):
         logger.info(f"Loaded {len(tasks)} GAIA tasks")
         return tasks
     
-    def evaluate_task(
-        self,
-        task: Dict[str, Any],
-        agent: Any,
-        **kwargs
-    ) -> BenchmarkResult:
+    def evaluate_task(self, task: Dict[str, Any], agent: Any, **kwargs: Any) -> BenchmarkResult:
         """
         Evaluate agent on GAIA task.
 

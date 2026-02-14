@@ -60,7 +60,7 @@ class BaseSkill(ABC):
     - Combined into composite skills
     """
 
-    def __init__(self, name: str = None, description: str = None):
+    def __init__(self, name: str = None, description: str = None) -> None:
         """
         Initialize skill.
 
@@ -81,7 +81,7 @@ class BaseSkill(ABC):
         return (self.__class__.__doc__ or "No description available").strip().split('\n')[0]
 
     @abstractmethod
-    def execute(self, **kwargs) -> SkillResult:
+    def execute(self, **kwargs: Any) -> SkillResult:
         """
         Execute the skill.
 
@@ -98,7 +98,7 @@ class BaseSkill(ABC):
         if event in self._hooks:
             self._hooks[event].append(callback)
 
-    def _run_hooks(self, event: str, **kwargs):
+    def _run_hooks(self, event: str, **kwargs: Any) -> Any:
         """Run all hooks for an event."""
         for hook in self._hooks.get(event, []):
             try:
@@ -127,15 +127,7 @@ class VisualizationSkill(BaseSkill):
         result = pipeline.execute(question="Monthly revenue trend")
     """
 
-    def __init__(
-        self,
-        source=None,  # SemanticLayer, DataFrame, or VisualizationLayer
-        library: str = "matplotlib",
-        llm_provider: str = "claude-cli",
-        default_n_charts: int = 1,
-        include_code: bool = False,
-        **kwargs
-    ):
+    def __init__(self, source: Any = None, library: str = 'matplotlib', llm_provider: str = 'claude-cli', default_n_charts: int = 1, include_code: bool = False, **kwargs: Any) -> None:
         """
         Initialize visualization skill.
 
@@ -159,7 +151,7 @@ class VisualizationSkill(BaseSkill):
         if source is not None:
             self._init_viz_layer(source)
 
-    def _init_viz_layer(self, source):
+    def _init_viz_layer(self, source: Any) -> Any:
         """Initialize VisualizationLayer from source."""
         from .layer import VisualizationLayer
 
@@ -177,22 +169,13 @@ class VisualizationSkill(BaseSkill):
             )
 
     @property
-    def viz_layer(self):
+    def viz_layer(self) -> Any:
         """Get visualization layer."""
         if self._viz_layer is None:
             raise ValueError("No data source configured. Pass source to __init__ or execute().")
         return self._viz_layer
 
-    def execute(
-        self,
-        question: str = None,
-        data=None,
-        goal=None,
-        library: str = None,
-        n: int = None,
-        output_format: str = "result",  # result, html, base64
-        **kwargs
-    ) -> SkillResult:
+    def execute(self, question: str = None, data: Any = None, goal: Any = None, library: str = None, n: int = None, output_format: str = 'result', **kwargs: Any) -> SkillResult:
         """
         Execute visualization skill.
 
@@ -265,7 +248,7 @@ class VisualizationSkill(BaseSkill):
                 error=str(e)
             )
 
-    def explore(self, n_goals: int = 5, **kwargs) -> SkillResult:
+    def explore(self, n_goals: int = 5, **kwargs: Any) -> SkillResult:
         """
         Generate exploration goals for data.
 
@@ -302,12 +285,7 @@ class DataAnalysisSkill(BaseSkill):
         )
     """
 
-    def __init__(
-        self,
-        source=None,
-        llm_provider: str = "claude-cli",
-        **kwargs
-    ):
+    def __init__(self, source: Any = None, llm_provider: str = 'claude-cli', **kwargs: Any) -> None:
         """
         Initialize data analysis skill.
 
@@ -325,14 +303,7 @@ class DataAnalysisSkill(BaseSkill):
         )
         self._source = source
 
-    def execute(
-        self,
-        question: str,
-        include_stats: bool = True,
-        include_summary: bool = True,
-        n_charts: int = 3,
-        **kwargs
-    ) -> SkillResult:
+    def execute(self, question: str, include_stats: bool = True, include_summary: bool = True, n_charts: int = 3, **kwargs: Any) -> SkillResult:
         """
         Execute comprehensive data analysis.
 
@@ -455,13 +426,7 @@ class DashboardSkill(BaseSkill):
         )
     """
 
-    def __init__(
-        self,
-        source=None,
-        llm_provider: str = "claude-cli",
-        default_library: str = "matplotlib",
-        **kwargs
-    ):
+    def __init__(self, source: Any = None, llm_provider: str = 'claude-cli', default_library: str = 'matplotlib', **kwargs: Any) -> None:
         """
         Initialize dashboard skill.
 
@@ -480,16 +445,7 @@ class DashboardSkill(BaseSkill):
             **kwargs
         )
 
-    def execute(
-        self,
-        questions: List[str] = None,
-        n_auto_charts: int = 4,
-        title: str = "Dashboard",
-        columns: int = 2,
-        output_format: str = "html",
-        theme: str = "light",
-        **kwargs
-    ) -> SkillResult:
+    def execute(self, questions: List[str] = None, n_auto_charts: int = 4, title: str = 'Dashboard', columns: int = 2, output_format: str = 'html', theme: str = 'light', **kwargs: Any) -> SkillResult:
         """
         Generate a dashboard.
 
@@ -567,7 +523,7 @@ class CompositeSkill(BaseSkill):
         result = pipeline.execute(question="Monthly sales trend")
     """
 
-    def __init__(self, skills: List[tuple], name: str = "CompositeSkill"):
+    def __init__(self, skills: List[tuple], name: str = 'CompositeSkill') -> None:
         """
         Initialize composite skill.
 
@@ -578,7 +534,7 @@ class CompositeSkill(BaseSkill):
         super().__init__(name=name)
         self.skills = skills
 
-    def execute(self, **kwargs) -> SkillResult:
+    def execute(self, **kwargs: Any) -> SkillResult:
         """
         Execute all skills in sequence.
 

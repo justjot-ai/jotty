@@ -13,7 +13,7 @@ import json
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from .base import BaseCommand, CommandResult, ParsedArgs
 
@@ -63,7 +63,7 @@ class HeartbeatCommand(BaseCommand):
         else:
             return await self._show_status(cli)
 
-    async def _get_engine(self, cli: "JottyCLI"):
+    async def _get_engine(self, cli: 'JottyCLI') -> Any:
         """Get or create heartbeat engine."""
         if HeartbeatCommand._engine is None:
             from ..heartbeat import HeartbeatEngine, create_default_tasks
@@ -74,7 +74,7 @@ class HeartbeatCommand(BaseCommand):
                 HeartbeatCommand._engine.add_task(task)
 
             # Add notification handler
-            async def notify_handler(title, message, priority):
+            async def notify_handler(title: Any, message: Any, priority: Any) -> Any:
                 # Send to connected channels
                 if priority == "urgent":
                     icon = ""

@@ -22,7 +22,7 @@ class SQLiteTaskQueue(TaskQueue):
     Compatible with supervisor's StateManager database schema
     """
     
-    def __init__(self, db_path: str, init_schema: bool = True):
+    def __init__(self, db_path: str, init_schema: bool = True) -> None:
         """
         Initialize SQLite task queue
         
@@ -38,7 +38,7 @@ class SQLiteTaskQueue(TaskQueue):
             self._init_schema()
     
     @contextmanager
-    def _get_connection(self):
+    def _get_connection(self) -> Any:
         """Get database connection with proper settings (matches supervisor)"""
         conn = sqlite3.connect(self.db_path, timeout=30.0)
         conn.row_factory = sqlite3.Row
@@ -51,7 +51,7 @@ class SQLiteTaskQueue(TaskQueue):
         finally:
             conn.close()
     
-    def _init_schema(self):
+    def _init_schema(self) -> Any:
         """Initialize database schema if it doesn't exist"""
         schema_file = Path(__file__).parent.parent.parent.parent / "supervisor" / "task_schema.sql"
         
@@ -177,16 +177,7 @@ class SQLiteTaskQueue(TaskQueue):
                 return Task.from_dict(dict(row))
             return None
     
-    async def update_status(
-        self,
-        task_id: str,
-        status: str,
-        pid: Optional[int] = None,
-        error: Optional[str] = None,
-        log_file: Optional[str] = None,
-        agent_type: Optional[str] = None,
-        **kwargs
-    ) -> bool:
+    async def update_status(self, task_id: str, status: str, pid: Optional[int] = None, error: Optional[str] = None, log_file: Optional[str] = None, agent_type: Optional[str] = None, **kwargs: Any) -> bool:
         """Update task status (compatible with supervisor)"""
         with self._get_connection() as conn:
             if status == 'in_progress':
@@ -333,17 +324,7 @@ class SQLiteTaskQueue(TaskQueue):
             conn.commit()
             return conn.total_changes > 0
     
-    async def update_task_metadata(
-        self,
-        task_id: str,
-        title: Optional[str] = None,
-        description: Optional[str] = None,
-        priority: Optional[int] = None,
-        category: Optional[str] = None,
-        context_files: Optional[str] = None,
-        agent_type: Optional[str] = None,
-        **kwargs
-    ) -> bool:
+    async def update_task_metadata(self, task_id: str, title: Optional[str] = None, description: Optional[str] = None, priority: Optional[int] = None, category: Optional[str] = None, context_files: Optional[str] = None, agent_type: Optional[str] = None, **kwargs: Any) -> bool:
         """Update task metadata"""
         with self._get_connection() as conn:
             updates = []
@@ -394,17 +375,7 @@ class SQLiteTaskQueue(TaskQueue):
             conn.commit()
             return conn.total_changes > 0
     
-    async def create_task(
-        self,
-        title: str,
-        description: str = "",
-        priority: int = 3,
-        category: str = "",
-        context_files: Optional[str] = None,
-        status: str = "backlog",
-        agent_type: Optional[str] = None,
-        **kwargs
-    ) -> Optional[str]:
+    async def create_task(self, title: str, description: str = '', priority: int = 3, category: str = '', context_files: Optional[str] = None, status: str = 'backlog', agent_type: Optional[str] = None, **kwargs: Any) -> Optional[str]:
         """Create a new task (compatible with supervisor)"""
         if agent_type is None:
             agent_type = 'claude'

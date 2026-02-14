@@ -1,3 +1,4 @@
+from typing import Any
 """
 Jotty Unified Gateway
 =====================
@@ -41,7 +42,7 @@ __all__ = [
 ]
 
 
-def main():
+def main() -> Any:
     """Main entry point for running the gateway server."""
     import argparse
     import os

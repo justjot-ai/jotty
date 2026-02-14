@@ -44,7 +44,7 @@ class ParamValidator:
         'kindle_email': r'^[a-zA-Z0-9._%+-]+@kindle\.com$',
     }
 
-    def __init__(self, params: Dict[str, Any] = None):
+    def __init__(self, params: Dict[str, Any] = None) -> None:
         """
         Initialize validator with parameters.
 
@@ -55,10 +55,10 @@ class ParamValidator:
         self.validated: Dict[str, Any] = {}
         self.errors: List[str] = []
 
-    def __enter__(self):
+    def __enter__(self) -> Any:
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> bool:
         # Don't suppress exceptions
         return False
 

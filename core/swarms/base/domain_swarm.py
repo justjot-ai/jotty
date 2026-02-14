@@ -1,3 +1,4 @@
+from typing import Any
 """
 DomainSwarm - Template Base Class for Domain-Specific Swarms
 =============================================================
@@ -79,7 +80,7 @@ class PhaseExecutor:
         )
     """
 
-    def __init__(self, swarm: 'DomainSwarm'):
+    def __init__(self, swarm: 'DomainSwarm') -> None:
         self.swarm = swarm
         self._start_time = datetime.now()
 
@@ -87,16 +88,7 @@ class PhaseExecutor:
         """Seconds since executor was created."""
         return (datetime.now() - self._start_time).total_seconds()
 
-    async def run_phase(
-        self,
-        phase_num: int,
-        phase_name: str,
-        agent_name: str,
-        agent_role: AgentRole,
-        coro,
-        input_data: Dict[str, Any] = None,
-        tools_used: List[str] = None,
-    ) -> Any:
+    async def run_phase(self, phase_num: int, phase_name: str, agent_name: str, agent_role: AgentRole, coro: Any, input_data: Dict[str, Any] = None, tools_used: List[str] = None) -> Any:
         """Execute a single agent phase with automatic tracing.
 
         Args:
@@ -233,7 +225,7 @@ class DomainSwarm(BaseSwarm):
     _safe_join = staticmethod(_safe_join)
     _safe_num = staticmethod(_safe_num)
 
-    def __init__(self, config: SwarmBaseConfig):
+    def __init__(self, config: SwarmBaseConfig) -> None:
         """
         Initialize DomainSwarm.
 
@@ -276,7 +268,7 @@ class DomainSwarm(BaseSwarm):
         self._agents_initialized = True
         logger.info(f"{self.__class__.__name__} agents initialized")
 
-    def _create_agent(self, spec: 'AgentSpec'):
+    def _create_agent(self, spec: 'AgentSpec') -> Any:
         """
         Create an agent instance with dynamic parameter binding.
 
@@ -338,7 +330,7 @@ class DomainSwarm(BaseSwarm):
     # SIGNATURE / I/O SCHEMA
     # =========================================================================
 
-    def get_io_schema(self):
+    def get_io_schema(self) -> Any:
         """Get typed I/O schema from SWARM_SIGNATURE.
 
         Returns AgentIOSchema if SWARM_SIGNATURE is set, else None.
@@ -389,12 +381,7 @@ class DomainSwarm(BaseSwarm):
     # TEAM COORDINATION
     # =========================================================================
 
-    async def execute_team(
-        self,
-        task: Any,
-        context: Dict[str, Any] = None,
-        **kwargs
-    ) -> TeamResult:
+    async def execute_team(self, task: Any, context: Dict[str, Any] = None, **kwargs: Any) -> TeamResult:
         """
         Execute the agent team with its configured coordination pattern.
 
@@ -559,7 +546,7 @@ class DomainSwarm(BaseSwarm):
     # EXECUTION TEMPLATE
     # =========================================================================
 
-    async def execute(self, *args, **kwargs) -> SwarmResult:
+    async def execute(self, *args: Any, **kwargs: Any) -> SwarmResult:
         """
         Execute the swarm with pre/post learning hooks.
 
@@ -636,7 +623,7 @@ class DomainSwarm(BaseSwarm):
         return result
 
     @abstractmethod
-    async def _execute_domain(self, *args, **kwargs) -> SwarmResult:
+    async def _execute_domain(self, *args: Any, **kwargs: Any) -> SwarmResult:
         """
         Implement domain-specific execution logic.
 
@@ -659,7 +646,7 @@ class DomainSwarm(BaseSwarm):
     # COMPOSITE AGENT BRIDGE
     # =========================================================================
 
-    def to_composite(self, signature=None):
+    def to_composite(self, signature: Any = None) -> Any:
         """Convert this swarm to a CompositeAgent for composition.
 
         Returns a CompositeAgent that delegates execute() to this swarm,

@@ -62,11 +62,7 @@ class BaseUseCase(ABC):
     - enqueue(): Asynchronous execution (if supported)
     """
     
-    def __init__(
-        self,
-        conductor: Any,  # Conductor instance
-        config: Optional[UseCaseConfig] = None
-    ):
+    def __init__(self, conductor: Any, config: Optional[UseCaseConfig] = None) -> None:
         """
         Initialize use case.
         
@@ -83,7 +79,7 @@ class BaseUseCase(ABC):
         """Return the use case type."""
         pass
     
-    def _validate_config(self):
+    def _validate_config(self) -> Any:
         """Validate configuration."""
         if self.config.use_case_type != self._get_use_case_type():
             raise ValueError(
@@ -92,12 +88,7 @@ class BaseUseCase(ABC):
             )
     
     @abstractmethod
-    async def execute(
-        self,
-        goal: str,
-        context: Optional[Dict[str, Any]] = None,
-        **kwargs
-    ) -> UseCaseResult:
+    async def execute(self, goal: str, context: Optional[Dict[str, Any]] = None, **kwargs: Any) -> UseCaseResult:
         """
         Execute use case synchronously.
         
@@ -112,12 +103,7 @@ class BaseUseCase(ABC):
         pass
     
     @abstractmethod
-    async def stream(
-        self,
-        goal: str,
-        context: Optional[Dict[str, Any]] = None,
-        **kwargs
-    ) -> AsyncIterator[Dict[str, Any]]:
+    async def stream(self, goal: str, context: Optional[Dict[str, Any]] = None, **kwargs: Any) -> AsyncIterator[Dict[str, Any]]:
         """
         Execute use case with streaming.
         
@@ -131,13 +117,7 @@ class BaseUseCase(ABC):
         """
         pass
     
-    async def enqueue(
-        self,
-        goal: str,
-        context: Optional[Dict[str, Any]] = None,
-        priority: int = 3,
-        **kwargs
-    ) -> str:
+    async def enqueue(self, goal: str, context: Optional[Dict[str, Any]] = None, priority: int = 3, **kwargs: Any) -> str:
         """
         Enqueue task for asynchronous execution.
         

@@ -43,7 +43,7 @@ class PromptOptimizer:
     - Use bullet points instead of paragraphs
     """
     
-    def __init__(self, aggressive: bool = False):
+    def __init__(self, aggressive: bool = False) -> None:
         """
         Initialize prompt optimizer.
         
@@ -201,7 +201,7 @@ class LLMCache:
     Uses simple hash-based caching.
     """
     
-    def __init__(self, max_size: int = 100):
+    def __init__(self, max_size: int = 100) -> None:
         """
         Initialize cache.
         

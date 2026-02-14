@@ -42,7 +42,7 @@ class ReproducibilityConfig:
     python_hash_seed: Optional[int] = None  # Python hash randomization seed
     enable_deterministic: bool = True  # Enable deterministic operations
     
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Set seeds if provided."""
         if self.random_seed is not None:
             set_reproducible_seeds(

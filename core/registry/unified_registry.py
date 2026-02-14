@@ -1,3 +1,4 @@
+from typing import Any
 """
 Unified Registry - Combined Backend (Skills) + Frontend (UI)
 =============================================================
@@ -78,14 +79,7 @@ class UnifiedRegistry:
         claude_tools = registry.get_claude_tools()
     """
 
-    def __init__(
-        self,
-        skills_registry=None,
-        ui_registry=None,
-        # Legacy support
-        widget_registry=None,
-        tools_registry=None,
-    ):
+    def __init__(self, skills_registry: Any = None, ui_registry: Any = None, widget_registry: Any = None, tools_registry: Any = None) -> None:
         """
         Initialize unified registry.
 
@@ -113,23 +107,23 @@ class UnifiedRegistry:
     # =========================================================================
 
     @property
-    def skills(self):
+    def skills(self) -> Any:
         """Access SkillsRegistry (Backend/Hands)."""
         return self._skills
 
     @property
-    def ui(self):
+    def ui(self) -> Any:
         """Access UIRegistry (Frontend/Eyes)."""
         return self._ui
 
     # Legacy aliases
     @property
-    def tools(self):
+    def tools(self) -> Any:
         """Legacy alias for skills registry."""
         return self._skills
 
     @property
-    def widgets(self):
+    def widgets(self) -> Any:
         """Legacy alias for UI registry."""
         return self._ui
 
@@ -141,7 +135,7 @@ class UnifiedRegistry:
         """List all available skill names."""
         return list(self._skills.loaded_skills.keys())
 
-    def get_skill(self, name: str):
+    def get_skill(self, name: str) -> Any:
         """Get a skill by name."""
         return self._skills.get_skill(name)
 
@@ -189,7 +183,7 @@ class UnifiedRegistry:
         """List all available UI component types."""
         return self._ui.list_types()
 
-    def get_ui_component(self, component_type: str):
+    def get_ui_component(self, component_type: str) -> Any:
         """Get a UI component by type."""
         return self._ui.get(component_type)
 
@@ -425,13 +419,13 @@ def reset_unified_registry() -> None:
 
 # These functions allow old code to continue working
 
-def get_tools_registry():
+def get_tools_registry() -> Any:
     """Legacy: Returns skills registry as tools registry."""
     logger.warning("get_tools_registry() is deprecated. Use get_unified_registry().skills instead.")
     return get_unified_registry().skills
 
 
-def get_widget_registry():
+def get_widget_registry() -> Any:
     """Legacy: Returns UI registry as widget registry."""
     logger.warning("get_widget_registry() is deprecated. Use get_unified_registry().ui instead.")
     return get_unified_registry().ui

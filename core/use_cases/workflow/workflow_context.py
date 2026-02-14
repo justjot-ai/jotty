@@ -34,11 +34,7 @@ class WorkflowContext:
     Manages workflow context and task state.
     """
     
-    def __init__(
-        self,
-        workflow_id: Optional[str] = None,
-        max_tasks: int = 100
-    ):
+    def __init__(self, workflow_id: Optional[str] = None, max_tasks: int = 100) -> None:
         """
         Initialize workflow context.
         
@@ -101,13 +97,7 @@ class WorkflowContext:
         """Get a task by ID."""
         return self.tasks.get(task_id)
     
-    def update_task_status(
-        self,
-        task_id: str,
-        status: TaskStatus,
-        result: Any = None,
-        error: Optional[str] = None
-    ):
+    def update_task_status(self, task_id: str, status: TaskStatus, result: Any = None, error: Optional[str] = None) -> Any:
         """Update task status."""
         task = self.tasks.get(task_id)
         if task:

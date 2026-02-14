@@ -1,6 +1,7 @@
 """Persistence configuration — state storage, auto-save/load, retention."""
 
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass
@@ -26,7 +27,7 @@ class PersistenceConfig:
     auto_load: bool = True
     auto_save: bool = True
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         # Positive integer fields
         _pos_int_fields = {
             'auto_save_interval': self.auto_save_interval,

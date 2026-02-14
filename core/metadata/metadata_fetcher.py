@@ -115,15 +115,7 @@ class MetaDataFetcher:
             logger.info(f"Fetched {key}: {value}")
     """
     
-    def __init__(
-        self,
-        metadata_provider: Any,
-        enable_cache: bool = True,
-        default_cache_ttl: int = 300,
-        max_retries: int = 0,
-        retry_delay: float = 0.0,
-        react_max_iters: int = 5
-    ):
+    def __init__(self, metadata_provider: Any, enable_cache: bool = True, default_cache_ttl: int = 300, max_retries: int = 0, retry_delay: float = 0.0, react_max_iters: int = 5) -> None:
         """
         Initialize MetaDataFetcher with advanced configuration.
         
@@ -165,7 +157,7 @@ class MetaDataFetcher:
         self._discover_and_convert_tools()
         logger.info(f" MetaDataFetcher: Ready with {len(self.tools)} tools discovered")
     
-    def _discover_and_convert_tools(self):
+    def _discover_and_convert_tools(self) -> Any:
         """
         Auto-discover @jotty_method decorated methods and convert to dspy.Tool.
         
@@ -624,7 +616,7 @@ Return ONLY the JSON, no other text."""
         
         return None
     
-    def _add_to_cache(self, query: str, data: Dict[str, Any]):
+    def _add_to_cache(self, query: str, data: Dict[str, Any]) -> Any:
         """Add result to cache."""
         query_hash = self._hash_query(query)
         

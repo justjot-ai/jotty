@@ -121,7 +121,7 @@ class TaskProgress:
         print(progress.render())
     """
 
-    def __init__(self, goal: str = ""):
+    def __init__(self, goal: str = '') -> None:
         self.goal = goal
         self.steps: List[Dict[str, Any]] = []  # {name, status, started_at, finished_at}
         self.created_at = _time.time()
@@ -188,19 +188,7 @@ class AgentRunner:
     - Handles learning and memory
     """
     
-    def __init__(
-        self,
-        agent: Any,  # AutoAgent or DSPy agent
-        config: AgentRunnerConfig,
-        task_planner=None,  # Shared TaskPlanner (V2)
-        task_board=None,  # Shared TaskBoard (V2)
-        swarm_memory=None,  # Shared SwarmMemory (V2)
-        swarm_state_manager=None,  # SwarmStateManager for state tracking (V2)
-        learning_manager=None,  # Swarm-level LearningManager (V1 pipeline)
-        transfer_learning=None,  # TransferableLearningStore for cross-swarm learning
-        swarm_terminal=None,  # SwarmTerminal for intelligent command execution
-        swarm_intelligence=None,  # SwarmIntelligence for curriculum feedback (Agent0)
-    ):
+    def __init__(self, agent: Any, config: AgentRunnerConfig, task_planner: Any = None, task_board: Any = None, swarm_memory: Any = None, swarm_state_manager: Any = None, learning_manager: Any = None, transfer_learning: Any = None, swarm_terminal: Any = None, swarm_intelligence: Any = None) -> None:
         """
         Initialize AgentRunner.
 
@@ -385,7 +373,7 @@ class AgentRunner:
 
         # Wrap BaseAgent hooks to match AgentRunner's hook signature (**context)
         for pre_hook in getattr(agent, '_pre_hooks', []):
-            def _wrap_pre(fn=pre_hook, **ctx) -> None:
+            def _wrap_pre(fn: Any = pre_hook, **ctx: Any) -> None:
                 try:
                     if asyncio.iscoroutinefunction(fn):
                         # Can't await in sync hook runner — skip async agent hooks
@@ -397,7 +385,7 @@ class AgentRunner:
             self.add_hook('pre_execute', _wrap_pre, name=f"agent_bridge_pre_{id(pre_hook)}")
 
         for post_hook in getattr(agent, '_post_hooks', []):
-            def _wrap_post(fn=post_hook, **ctx) -> None:
+            def _wrap_post(fn: Any = post_hook, **ctx: Any) -> None:
                 try:
                     if asyncio.iscoroutinefunction(fn):
                         return
@@ -453,7 +441,7 @@ class AgentRunner:
                 return True
         return False
 
-    def _run_hooks(self, hook_type: str, **context) -> dict:
+    def _run_hooks(self, hook_type: str, **context: Any) -> dict:
         """
         Run all hooks for a lifecycle point.
 
@@ -681,11 +669,7 @@ class AgentRunner:
             logger.info(f" Context {i}: {p[:500]}")
         return parts
 
-    async def _record_post_execution_learning(
-        self, goal: str, agent_output, success: bool, trajectory: list,
-        architect_results: list, auditor_results: list,
-        architect_shaped_reward: float, duration: float, kwargs: dict
-    ) -> dict:
+    async def _record_post_execution_learning(self, goal: str, agent_output: Any, success: bool, trajectory: list, architect_results: list, auditor_results: list, architect_shaped_reward: float, duration: float, kwargs: dict) -> dict:
         """Stage 3: Record learning data (memory, TD-lambda, Q-learning, feedback).
 
         Returns dict with episode_memory_entry, tagged_outputs, agent_contributions.
@@ -823,7 +807,7 @@ class AgentRunner:
             'agent_contributions': agent_contributions,
         }
 
-    async def run(self, goal: str, **kwargs) -> EpisodeResult:
+    async def run(self, goal: str, **kwargs: Any) -> EpisodeResult:
         """
         Run agent execution with validation and learning.
 
@@ -859,7 +843,7 @@ class AgentRunner:
     # PIPELINE STAGES (extracted from run() for testability)
     # =========================================================================
 
-    async def _setup_context(self, goal: str, **kwargs) -> ExecutionContext:
+    async def _setup_context(self, goal: str, **kwargs: Any) -> ExecutionContext:
         """Parse kwargs, validation gate, task progress, pre_run hook, TD-lambda start.
 
         Returns a populated ExecutionContext ready for subsequent stages.

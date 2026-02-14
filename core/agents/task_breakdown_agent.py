@@ -49,7 +49,7 @@ class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
     - DAGAgentMixin: For BaseAgent infrastructure (metrics, hooks)
     """
 
-    def __init__(self, config: Optional[SwarmConfig] = None):
+    def __init__(self, config: Optional[SwarmConfig] = None) -> None:
         super().__init__()
         self.jotty_config = config or SwarmConfig()
 
@@ -72,7 +72,7 @@ class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
 
         logger.info(" TaskBreakdownAgent initialized with SHARED swarm resources")
 
-    async def execute(self, implementation_plan: str, **kwargs) -> AgentResult:
+    async def execute(self, implementation_plan: str, **kwargs: Any) -> AgentResult:
         """
         Execute task breakdown with BaseAgent-compatible interface.
 
@@ -121,7 +121,7 @@ class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
                 error=str(e)
             )
 
-    def _handle_message(self, message):
+    def _handle_message(self, message: Any) -> Any:
         """Handle incoming messages from other agents."""
         logger.debug(f"TaskBreakdownAgent received: {message}")
 

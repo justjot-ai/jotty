@@ -28,7 +28,7 @@ class CursorCLILM(BaseLM):
     - Returning raw LLM text for DSPy's adapter to parse with [[ ## ]] markers
     """
 
-    def __init__(self, model="sonnet-4", **kwargs):
+    def __init__(self, model: Any = 'sonnet-4', **kwargs: Any) -> None:
         super().__init__(model=f"cursor-cli/{model}", **kwargs)
         self.cli_model = model
         self.history = []
@@ -95,7 +95,7 @@ class CursorCLILM(BaseLM):
 
         return raw_output
 
-    def __call__(self, prompt=None, messages=None, **kwargs):
+    def __call__(self, prompt: Any = None, messages: Any = None, **kwargs: Any) -> Any:
         """
         DSPy-compatible call interface.
 
@@ -152,6 +152,6 @@ class CursorCLILM(BaseLM):
 
         return [response_text]
 
-    def inspect_history(self, n=1):
+    def inspect_history(self, n: Any = 1) -> Any:
         """DSPy-compatible history inspection."""
         return self.history[-n:] if self.history else []

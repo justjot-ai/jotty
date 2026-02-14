@@ -658,7 +658,7 @@ class SlideRenderersMixin:
         # Placeholders for protected content
         math_placeholders = []
 
-        def protect_math(match):
+        def protect_math(match: Any) -> Any:
             math_placeholders.append(match.group(0))
             return f'__MATH_{len(math_placeholders) - 1}__'
 
@@ -679,7 +679,7 @@ class SlideRenderersMixin:
         ]
 
         for pattern in ascii_formula_patterns:
-            def wrap_formula(match):
+            def wrap_formula(match: Any) -> Any:
                 formula = match.group(0).strip()
                 # Don't double-wrap
                 if formula.startswith('$'):

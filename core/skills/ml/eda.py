@@ -38,10 +38,7 @@ class EDASkill(MLSkill):
     optional_inputs = ["y", "problem_type"]
     outputs = ["insights", "recommendations"]
 
-    async def execute(self,
-                      X: pd.DataFrame,
-                      y: Optional[pd.Series] = None,
-                      **context) -> SkillResult:
+    async def execute(self, X: pd.DataFrame, y: Optional[pd.Series] = None, **context: Any) -> SkillResult:
         """
         Execute EDA analysis.
 

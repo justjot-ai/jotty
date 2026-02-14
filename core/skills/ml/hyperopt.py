@@ -37,13 +37,10 @@ class HyperoptSkill(MLSkill):
     optional_inputs = ["problem_type", "time_budget", "model_ranking"]
     outputs = ["optimized_model", "best_params"]
 
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: Dict[str, Any] = None) -> None:
         super().__init__(config)
 
-    async def execute(self,
-                      X: pd.DataFrame,
-                      y: Optional[pd.Series] = None,
-                      **context) -> SkillResult:
+    async def execute(self, X: pd.DataFrame, y: Optional[pd.Series] = None, **context: Any) -> SkillResult:
         """
         Execute hyperparameter optimization.
 
@@ -95,7 +92,7 @@ class HyperoptSkill(MLSkill):
         trial_count = [0]
         current_model = ['']
 
-        def progress_callback(study, trial) -> None:
+        def progress_callback(study: Any, trial: Any) -> None:
             trial_count[0] += 1
             if trial.value and trial.value > best_score_so_far[0]:
                 best_score_so_far[0] = trial.value
@@ -173,8 +170,7 @@ class HyperoptSkill(MLSkill):
             execution_time=execution_time,
         )
 
-    def _get_objective(self, model_name: str, X_scaled, y, cv, scoring: str,
-                        problem_type: str):
+    def _get_objective(self, model_name: str, X_scaled: Any, y: Any, cv: Any, scoring: str, problem_type: str) -> Any:
         """Get objective function for model."""
         from sklearn.model_selection import cross_val_score
         from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
@@ -182,7 +178,7 @@ class HyperoptSkill(MLSkill):
         import xgboost as xgb
 
         if model_name in ['lightgbm', 'lgb']:
-            def objective(trial):
+            def objective(trial: Any) -> Any:
                 params = {
                     'n_estimators': trial.suggest_int('n_estimators', 50, 400),
                     'max_depth': trial.suggest_int('max_depth', 3, 12),
@@ -201,7 +197,7 @@ class HyperoptSkill(MLSkill):
             return objective
 
         elif model_name in ['xgboost', 'xgb']:
-            def objective(trial):
+            def objective(trial: Any) -> Any:
                 params = {
                     'n_estimators': trial.suggest_int('n_estimators', 50, 400),
                     'max_depth': trial.suggest_int('max_depth', 3, 12),
@@ -220,7 +216,7 @@ class HyperoptSkill(MLSkill):
             return objective
 
         elif model_name in ['random_forest', 'rf']:
-            def objective(trial):
+            def objective(trial: Any) -> Any:
                 params = {
                     'n_estimators': trial.suggest_int('n_estimators', 50, 400),
                     'max_depth': trial.suggest_int('max_depth', 3, 20),
@@ -236,7 +232,7 @@ class HyperoptSkill(MLSkill):
 
         elif model_name in ['catboost', 'cat']:
             # CatBoost - handles categoricals natively
-            def objective(trial) -> float:
+            def objective(trial: Any) -> float:
                 try:
                     from catboost import CatBoostClassifier, CatBoostRegressor
                     params = {
@@ -258,7 +254,7 @@ class HyperoptSkill(MLSkill):
         elif model_name in ['histgb', 'hist_gradient_boosting']:
             # HistGradientBoosting - fast, handles NaN
             from sklearn.ensemble import HistGradientBoostingClassifier, HistGradientBoostingRegressor
-            def objective(trial):
+            def objective(trial: Any) -> Any:
                 params = {
                     'max_iter': trial.suggest_int('max_iter', 50, 400),
                     'max_depth': trial.suggest_int('max_depth', 3, 15),
@@ -275,7 +271,7 @@ class HyperoptSkill(MLSkill):
         elif model_name in ['extra_trees', 'et']:
             # ExtraTrees - more randomized than RF
             from sklearn.ensemble import ExtraTreesClassifier, ExtraTreesRegressor
-            def objective(trial):
+            def objective(trial: Any) -> Any:
                 params = {
                     'n_estimators': trial.suggest_int('n_estimators', 50, 400),
                     'max_depth': trial.suggest_int('max_depth', 3, 20),
@@ -292,7 +288,7 @@ class HyperoptSkill(MLSkill):
         elif model_name in ['gradient_boosting', 'gb']:
             # sklearn GradientBoosting
             from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
-            def objective(trial):
+            def objective(trial: Any) -> Any:
                 params = {
                     'n_estimators': trial.suggest_int('n_estimators', 50, 200),
                     'max_depth': trial.suggest_int('max_depth', 3, 10),
@@ -308,7 +304,7 @@ class HyperoptSkill(MLSkill):
 
         else:
             # Default: LightGBM
-            def objective(trial):
+            def objective(trial: Any) -> Any:
                 params = {
                     'n_estimators': trial.suggest_int('n_estimators', 50, 300),
                     'max_depth': trial.suggest_int('max_depth', 3, 10),
@@ -320,7 +316,7 @@ class HyperoptSkill(MLSkill):
                 return cross_val_score(model, X_scaled, y, cv=cv, scoring=scoring).mean()
             return objective
 
-    def _build_optimized_model(self, model_name: str, params: Dict, problem_type: str):
+    def _build_optimized_model(self, model_name: str, params: Dict, problem_type: str) -> Any:
         """Build optimized model with best params."""
         import lightgbm as lgb
         import xgboost as xgb

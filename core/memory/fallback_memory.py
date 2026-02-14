@@ -97,13 +97,7 @@ class SimpleFallbackMemory:
         recent = memory.get_recent(10)
     """
 
-    def __init__(
-        self,
-        max_entries: int = 500,
-        episodic_capacity: int = 300,
-        semantic_capacity: int = 150,
-        procedural_capacity: int = 50
-    ):
+    def __init__(self, max_entries: int = 500, episodic_capacity: int = 300, semantic_capacity: int = 150, procedural_capacity: int = 50) -> None:
         """
         Initialize fallback memory.
 
@@ -378,13 +372,7 @@ class SimpleFallbackMemory:
     # COMPATIBILITY METHODS (match BrainInspiredMemoryManager interface)
     # =========================================================================
 
-    def remember(
-        self,
-        content: str,
-        level: str = "episodic",
-        importance: float = 0.5,
-        **kwargs
-    ) -> str:
+    def remember(self, content: str, level: str = 'episodic', importance: float = 0.5, **kwargs: Any) -> str:
         """
         Compatibility alias for store().
 
@@ -405,13 +393,7 @@ class SimpleFallbackMemory:
             metadata=kwargs
         )
 
-    def recall(
-        self,
-        query: str,
-        top_k: int = 5,
-        level: Optional[str] = None,
-        **kwargs
-    ) -> List[str]:
+    def recall(self, query: str, top_k: int = 5, level: Optional[str] = None, **kwargs: Any) -> List[str]:
         """
         Compatibility alias for retrieve().
 
@@ -589,7 +571,7 @@ class SimpleFallbackMemory:
 # FACTORY FUNCTION
 # =============================================================================
 
-def get_fallback_memory(**kwargs) -> SimpleFallbackMemory:
+def get_fallback_memory(**kwargs: Any) -> SimpleFallbackMemory:
     """Get a SimpleFallbackMemory instance."""
     return SimpleFallbackMemory(**kwargs)
 

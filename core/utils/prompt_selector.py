@@ -9,7 +9,7 @@ import re
 import yaml
 import logging
 from pathlib import Path
-from typing import Tuple, Optional, Dict, List
+from typing import Tuple, Optional, Dict, List, Any
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ class PromptSelector:
         architect_path, auditor_path = selector.select_prompts(task_description)
     """
 
-    def __init__(self, registry_path: str = None):
+    def __init__(self, registry_path: str = None) -> None:
         """
         Initialize the prompt selector.
 
@@ -59,7 +59,7 @@ class PromptSelector:
             'templates': {}
         }
 
-    def _compile_patterns(self):
+    def _compile_patterns(self) -> Any:
         """Pre-compile regex patterns for efficiency."""
         templates = self.registry.get('templates', {})
 

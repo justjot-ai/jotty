@@ -369,13 +369,7 @@ class JottyUniversal:
     JOTTY v1.0 - Universal Wrapper
     """
     
-    def __init__(self,
-                 actor: Actor,
-                 architect: ValidatorSpec = None,
-                 auditor: ValidatorSpec = None,
-                 tools: List[Callable] = None,
-                 config: ConfigSpec = None,
-                 name: str = None):
+    def __init__(self, actor: Actor, architect: ValidatorSpec = None, auditor: ValidatorSpec = None, tools: List[Callable] = None, config: ConfigSpec = None, name: str = None) -> None:
         """
         Initialize universal wrapper.
         
@@ -496,7 +490,7 @@ class JottyUniversal:
     
     def _default_validator(self, is_architect: bool) -> Callable:
         """Create default pass-through validator."""
-        async def default_architect(**kwargs) -> Dict:
+        async def default_architect(**kwargs: Any) -> Dict:
             return {
                 "should_proceed": True,
                 "confidence": 0.5,
@@ -504,7 +498,7 @@ class JottyUniversal:
                 "injected_instructions": ""
             }
         
-        async def default_auditor(**kwargs) -> Dict:
+        async def default_auditor(**kwargs: Any) -> Dict:
             return {
                 "is_valid": True,
                 "confidence": 0.5,
@@ -538,7 +532,7 @@ class JottyUniversal:
             
             validator = dspy.ChainOfThought(InlineAuditor)
         
-        async def run_validator(**kwargs) -> Dict:
+        async def run_validator(**kwargs: Any) -> Dict:
             try:
                 result = validator(**kwargs)
                 return vars(result)
@@ -561,7 +555,7 @@ class JottyUniversal:
     
     def _chain_validators(self, validators: List[Callable], is_architect: bool) -> Callable:
         """Chain multiple validators."""
-        async def chained(**kwargs) -> Dict:
+        async def chained(**kwargs: Any) -> Dict:
             results = []
             for v in validators:
                 result = await v(**kwargs) if asyncio.iscoroutinefunction(v) else v(**kwargs)
@@ -596,11 +590,11 @@ class JottyUniversal:
     # EXECUTION
     # =========================================================================
     
-    async def __call__(self, **kwargs) -> Any:
+    async def __call__(self, **kwargs: Any) -> Any:
         """Execute with Jotty validation."""
         return await self.arun(**kwargs)
     
-    async def arun(self, **kwargs) -> Dict:
+    async def arun(self, **kwargs: Any) -> Dict:
         """
         Run actor with full Jotty validation.
         
@@ -672,7 +666,7 @@ class JottyUniversal:
             }
         }
     
-    def run(self, **kwargs) -> Dict:
+    def run(self, **kwargs: Any) -> Dict:
         """Synchronous wrapper."""
         return asyncio.run(self.arun(**kwargs))
     
@@ -715,12 +709,7 @@ class JottyUniversal:
             return await self.auditor_fn(output=output_str, **kwargs)
         return self.auditor_fn(output=output_str, **kwargs)
     
-    def _update_learning(self, 
-                         kwargs: Dict,
-                         output: Any,
-                         architect: Dict,
-                         auditor: Dict,
-                         success: bool):
+    def _update_learning(self, kwargs: Dict, output: Any, architect: Dict, auditor: Dict, success: bool) -> Any:
         """Update Q-table from experience."""
         # Simple state key
         state_key = f"{self.name}:{hash(str(kwargs)) % 10000}"
@@ -742,11 +731,7 @@ class JottyUniversal:
 # CONVENIENCE FUNCTION
 # =============================================================================
 
-def jotty_universal(actor: Actor = None,
-                      architect: ValidatorSpec = None,
-                      auditor: ValidatorSpec = None,
-                      config: ConfigSpec = None,
-                      **kwargs) -> Union['JottyUniversal', Callable]:
+def jotty_universal(actor: Actor = None, architect: ValidatorSpec = None, auditor: ValidatorSpec = None, config: ConfigSpec = None, **kwargs: Any) -> Union['JottyUniversal', Callable]:
     """
     Decorator/function to wrap anything with JOTTY.
     
@@ -760,7 +745,7 @@ def jotty_universal(actor: Actor = None,
     """
     if actor is None:
         # Being used as decorator with args
-        def decorator(fn):
+        def decorator(fn: Any) -> Any:
             return JottyUniversal(fn, architect=architect, auditor=auditor, config=config, **kwargs)
         return decorator
     

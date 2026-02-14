@@ -68,7 +68,7 @@ class VisualizationIdeaConfig:
     # Styling
     colors: List[str] = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not self.llm_model:
             from Jotty.core.foundation.config_defaults import DEFAULT_MODEL_ALIAS
             self.llm_model = DEFAULT_MODEL_ALIAS
@@ -89,11 +89,7 @@ class JustJotIdeaBuilder:
     - Executive summary for dashboards
     """
 
-    def __init__(
-        self,
-        viz_layer,
-        config: VisualizationIdeaConfig = None
-    ):
+    def __init__(self, viz_layer: Any, config: VisualizationIdeaConfig = None) -> None:
         """
         Initialize the idea builder.
 
@@ -113,21 +109,14 @@ class JustJotIdeaBuilder:
         self._llm_generate = None
 
     @property
-    def llm_generate(self):
+    def llm_generate(self) -> Any:
         """Lazy import of core.llm.generate."""
         if self._llm_generate is None:
             from core.llm import generate
             self._llm_generate = generate
         return self._llm_generate
 
-    def create_visualization_idea(
-        self,
-        question: str,
-        title: str = None,
-        description: str = None,
-        tags: List[str] = None,
-        **kwargs
-    ) -> JustJotIdea:
+    def create_visualization_idea(self, question: str, title: str = None, description: str = None, tags: List[str] = None, **kwargs: Any) -> JustJotIdea:
         """
         Create a complete visualization idea from a natural language question.
 
@@ -304,7 +293,7 @@ class JustJotIdeaBuilder:
 
         return idea
 
-    def _create_data_section(self, df) -> JustJotSection:
+    def _create_data_section(self, df: Any) -> JustJotSection:
         """Create data table section."""
         return self.section_transformer.transform_dataframe(
             df,
@@ -313,13 +302,7 @@ class JustJotIdeaBuilder:
             max_rows=self.config.max_data_rows
         )
 
-    def _create_chart_section(
-        self,
-        chart,
-        df,
-        title: str,
-        interactive_html: str = None
-    ) -> JustJotSection:
+    def _create_chart_section(self, chart: Any, df: Any, title: str, interactive_html: str = None) -> JustJotSection:
         """Create chart section based on config."""
         # If we have interactive HTML and config wants it, use HTML section
         if interactive_html and self.config.interactive:
@@ -328,17 +311,12 @@ class JustJotIdeaBuilder:
         # Use ChartTransformer for LIDA code analysis
         return self.chart_transformer.transform(chart, df, title=title)
 
-    def _create_code_section(self, chart) -> JustJotSection:
+    def _create_code_section(self, chart: Any) -> JustJotSection:
         """Create code section."""
         code = getattr(chart, 'code', '') or ''
         return self.section_transformer.transform_code(code, "Visualization Code")
 
-    def _create_insight_section(
-        self,
-        question: str,
-        chart,
-        df
-    ) -> JustJotSection:
+    def _create_insight_section(self, question: str, chart: Any, df: Any) -> JustJotSection:
         """Generate and create insight section using LLM."""
         # Get data summary
         data_summary = df.describe().to_string()
@@ -371,7 +349,7 @@ Keep it concise and professional. No markdown formatting."""
 
         return self.section_transformer.transform_text(insight_text, "Key Insights")
 
-    def _generate_title(self, question: str, chart) -> str:
+    def _generate_title(self, question: str, chart: Any) -> str:
         """Generate a concise title for the idea."""
         # Try to extract from chart code
         if chart.code:
@@ -433,12 +411,7 @@ Keep it concise and professional. No markdown formatting."""
 # Convenience Functions
 # ============================================
 
-def create_quick_visualization_idea(
-    df,
-    question: str,
-    title: str = None,
-    interactive: bool = True
-) -> JustJotIdea:
+def create_quick_visualization_idea(df: Any, question: str, title: str = None, interactive: bool = True) -> JustJotIdea:
     """
     Quick function to create a visualization idea from DataFrame.
 
@@ -460,12 +433,7 @@ def create_quick_visualization_idea(
     return builder.create_visualization_idea(question, title=title)
 
 
-def create_quick_dashboard_idea(
-    df,
-    user_request: str,
-    num_charts: int = 4,
-    title: str = None
-) -> JustJotIdea:
+def create_quick_dashboard_idea(df: Any, user_request: str, num_charts: int = 4, title: str = None) -> JustJotIdea:
     """
     Quick function to create a dashboard idea from DataFrame.
 

@@ -369,7 +369,7 @@ class CircuitBreaker:
                 raise
     """
 
-    def __init__(self, name: str, failure_threshold: int = 5, cooldown_seconds: float = 60.0):
+    def __init__(self, name: str, failure_threshold: int = 5, cooldown_seconds: float = 60.0) -> None:
         self.name = name
         self.failure_threshold = failure_threshold
         self.cooldown_seconds = cooldown_seconds
@@ -441,8 +441,7 @@ class AdaptiveTimeout:
         timeout.record("llm_call", 2.3)   # Record observed latency
     """
 
-    def __init__(self, default_seconds: float = 30.0, min_seconds: float = 5.0,
-                 max_seconds: float = 300.0, window_size: int = 50):
+    def __init__(self, default_seconds: float = 30.0, min_seconds: float = 5.0, max_seconds: float = 300.0, window_size: int = 50) -> None:
         self.default_seconds = default_seconds
         self.min_seconds = min_seconds
         self.max_seconds = max_seconds
@@ -505,7 +504,7 @@ class DeadLetterQueue:
         dlq.mark_resolved(letter)         # Remove after successful retry
     """
 
-    def __init__(self, max_size: int = 100):
+    def __init__(self, max_size: int = 100) -> None:
         self._queue: List[DeadLetter] = []
         self._lock = threading.Lock()
         self._max_size = max_size
@@ -584,7 +583,7 @@ class TimeoutWarning:
         (0.95, "95% of time budget used. Finalize output immediately."),
     ]
 
-    def __init__(self, timeout_seconds: float):
+    def __init__(self, timeout_seconds: float) -> None:
         self.timeout_seconds = timeout_seconds
         self._start_time: Optional[float] = None
         self._triggered: set = set()

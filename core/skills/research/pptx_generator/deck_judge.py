@@ -188,7 +188,7 @@ Be strict - only include:true when there's genuine data to support the diagram."
         which diagrams would genuinely enhance understanding vs. being force-fit.
         """
 
-        def __init__(self, lm=None):
+        def __init__(self, lm: Any = None) -> None:
             """
             Initialize with optional language model.
 
@@ -285,7 +285,7 @@ Be strict - only include:true when there's genuine data to support the diagram."
         LLM-powered deck quality evaluator using DSPy.
         """
 
-        def __init__(self, lm=None):
+        def __init__(self, lm: Any = None) -> None:
             self.lm = lm
             self.predictor = dspy.Predict(DeckQualitySignature)
 
@@ -374,7 +374,7 @@ class DiagramDecisionEngine:
     - Each diagram must have real data to back it
     """
 
-    def __init__(self, paper_data: Dict[str, Any]):
+    def __init__(self, paper_data: Dict[str, Any]) -> None:
         self.paper_data = paper_data
         self.decisions: Dict[DiagramType, DiagramDecision] = {}
 
@@ -581,7 +581,7 @@ class DeckJudge:
         'engagement': "Does the deck engage the audience and maintain interest?",
     }
 
-    def __init__(self, lm=None):
+    def __init__(self, lm: Any = None) -> None:
         """
         Initialize the judge.
 
@@ -850,7 +850,7 @@ class AutoImprovementLoop:
     Continues improving until target score is reached or max iterations.
     """
 
-    def __init__(self, target_score: float = 9.5, max_iterations: int = 5):
+    def __init__(self, target_score: float = 9.5, max_iterations: int = 5) -> None:
         self.target_score = target_score
         self.max_iterations = max_iterations
         self.history: List[Tuple[int, DeckScore]] = []
@@ -922,11 +922,7 @@ class AutoImprovementLoop:
 # MAIN API - LLM-first with rule-based fallback
 # =============================================================================
 
-def analyze_and_decide_diagrams(
-    paper_data: Dict[str, Any],
-    use_llm: bool = True,
-    lm=None
-) -> Tuple[Dict[DiagramType, DiagramDecision], List[str]]:
+def analyze_and_decide_diagrams(paper_data: Dict[str, Any], use_llm: bool = True, lm: Any = None) -> Tuple[Dict[DiagramType, DiagramDecision], List[str]]:
     """
     Analyze paper and return diagram decisions using LLM (primary) or rules (fallback).
 
@@ -989,13 +985,7 @@ def analyze_and_decide_diagrams(
     return decisions, approved
 
 
-def evaluate_deck_quality(
-    paper_data: Dict[str, Any],
-    deck_info: Dict[str, Any],
-    diagram_decisions: Optional[Dict[DiagramType, DiagramDecision]] = None,
-    use_llm: bool = True,
-    lm=None
-) -> DeckScore:
+def evaluate_deck_quality(paper_data: Dict[str, Any], deck_info: Dict[str, Any], diagram_decisions: Optional[Dict[DiagramType, DiagramDecision]] = None, use_llm: bool = True, lm: Any = None) -> DeckScore:
     """
     Evaluate deck quality using LLM (primary) or rules (fallback).
 

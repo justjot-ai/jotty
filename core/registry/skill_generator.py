@@ -32,7 +32,7 @@ class SkillGenerator:
     similar to Clawd.bot's capability.
     """
     
-    def __init__(self, skills_dir: Optional[str] = None, lm: Optional[BaseLM] = None, skills_registry=None):
+    def __init__(self, skills_dir: Optional[str] = None, lm: Optional[BaseLM] = None, skills_registry: Any = None) -> None:
         """
         Initialize skill generator.
         
@@ -599,7 +599,7 @@ Generate the improved, runnable Python code:"""
 _generator_instance: Optional[SkillGenerator] = None
 
 
-def get_skill_generator(skills_dir: Optional[str] = None, lm: Optional[BaseLM] = None, skills_registry=None) -> SkillGenerator:
+def get_skill_generator(skills_dir: Optional[str] = None, lm: Optional[BaseLM] = None, skills_registry: Any = None) -> SkillGenerator:
     """
     Get singleton skill generator instance.
     

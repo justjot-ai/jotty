@@ -48,7 +48,7 @@ class SmartTokenizer:
         'whitespace_heavy': 5.0,  # Content with lots of whitespace
     }
 
-    def __init__(self, encoding_name: str = None):
+    def __init__(self, encoding_name: str = None) -> None:
         """
         Initialize tokenizer with specified encoding.
 
@@ -67,7 +67,7 @@ class SmartTokenizer:
         self._tiktoken_calls = 0
         self._heuristic_calls = 0
 
-    def _init_tiktoken(self):
+    def _init_tiktoken(self) -> Any:
         """Initialize tiktoken if available."""
         try:
             import tiktoken

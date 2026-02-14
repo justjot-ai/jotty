@@ -13,7 +13,7 @@ from .base import LLMProvider, LLM_MAX_OUTPUT_TOKENS
 from .types import LLMResponse, TextBlock, ToolUseBlock
 
 
-def _get_client_kwargs(api_key: Optional[str] = None):
+def _get_client_kwargs(api_key: Optional[str] = None) -> Any:
     from Jotty.core.foundation.anthropic_client_kwargs import get_anthropic_client_kwargs
     return get_anthropic_client_kwargs(api_key=api_key)
 
@@ -21,14 +21,14 @@ def _get_client_kwargs(api_key: Optional[str] = None):
 class AnthropicProvider(LLMProvider):
     """Anthropic Claude provider."""
 
-    def __init__(self, model: str = "claude-sonnet-4-20250514", api_key: Optional[str] = None):
+    def __init__(self, model: str = 'claude-sonnet-4-20250514', api_key: Optional[str] = None) -> None:
         self.model = model
         self._client_kwargs = _get_client_kwargs(api_key)
         self.api_key = self._client_kwargs.get("api_key") or os.environ.get("ANTHROPIC_API_KEY")
         self._client = None
 
     @property
-    def client(self):
+    def client(self) -> Any:
         if self._client is None:
             import anthropic
             self._client = anthropic.Anthropic(**self._client_kwargs)
@@ -82,7 +82,7 @@ class AnthropicProvider(LLMProvider):
 
         return self._parse_response(response), full_content
 
-    def _parse_response(self, response) -> LLMResponse:
+    def _parse_response(self, response: Any) -> LLMResponse:
         content = []
         for block in response.content:
             if block.type == "text":

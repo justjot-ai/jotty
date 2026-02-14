@@ -61,7 +61,7 @@ class CircuitBreaker:
             return await llm.generate(...)
     """
     
-    def __init__(self, config: CircuitBreakerConfig):
+    def __init__(self, config: CircuitBreakerConfig) -> None:
         self.config = config
         self.state = CircuitState.CLOSED
         self.failure_count = 0
@@ -128,7 +128,7 @@ class CircuitBreaker:
         """Decorator to protect a function with circuit breaker."""
         if asyncio.iscoroutinefunction(func):
             @functools.wraps(func)
-            async def async_wrapper(*args, **kwargs):
+            async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
                 can_call, reason = self.can_request()
                 if not can_call:
                     raise CircuitOpenError(f"[{self.config.name}] {reason}")
@@ -143,7 +143,7 @@ class CircuitBreaker:
             return async_wrapper
         else:
             @functools.wraps(func)
-            def sync_wrapper(*args, **kwargs):
+            def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
                 can_call, reason = self.can_request()
                 if not can_call:
                     raise CircuitOpenError(f"[{self.config.name}] {reason}")
@@ -183,7 +183,7 @@ class CircuitOpenError(Exception):
 from Jotty.core.foundation.exceptions import TimeoutError  # noqa: F811
 
 
-def timeout(seconds: float, error_message: str = "Operation timed out"):
+def timeout(seconds: float, error_message: str = 'Operation timed out') -> Any:
     """
     Timeout decorator for synchronous functions.
     
@@ -200,12 +200,12 @@ def timeout(seconds: float, error_message: str = "Operation timed out"):
     """
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             # For async functions, use async_timeout instead
             if asyncio.iscoroutinefunction(func):
                 raise ValueError(f"Use async_timeout for async function {func.__name__}")
             
-            def timeout_handler(signum, frame) -> None:
+            def timeout_handler(signum: Any, frame: Any) -> None:
                 raise TimeoutError(f"{error_message} (after {seconds}s)")
             
             # Set timeout (Unix only)
@@ -229,7 +229,7 @@ def timeout(seconds: float, error_message: str = "Operation timed out"):
     return decorator
 
 
-def async_timeout(seconds: float, error_message: str = "Operation timed out"):
+def async_timeout(seconds: float, error_message: str = 'Operation timed out') -> Any:
     """
     Timeout decorator for async functions.
     
@@ -246,7 +246,7 @@ def async_timeout(seconds: float, error_message: str = "Operation timed out"):
     """
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
-        async def wrapper(*args, **kwargs):
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
             try:
                 return await asyncio.wait_for(
                     func(*args, **kwargs),
@@ -298,20 +298,14 @@ class DeadLetterQueue:
             )
     """
     
-    def __init__(self, max_size: int = 1000):
+    def __init__(self, max_size: int = 1000) -> None:
         self.max_size = max_size
         self.queue: deque = deque(maxlen=max_size)
         self.total_added = 0
         self.total_retried = 0
         self.total_successful_retries = 0
     
-    def add(
-        self,
-        operation_name: str,
-        args: Tuple = (),
-        kwargs: Dict = None,
-        error: Exception = None
-    ):
+    def add(self, operation_name: str, args: Tuple = (), kwargs: Dict = None, error: Exception = None) -> Any:
         """Add failed operation to queue."""
         failed_op = FailedOperation(
             operation_name=operation_name,
@@ -405,13 +399,7 @@ class AdaptiveTimeout:
         timeout = adaptive.get_timeout("llm_call")  # e.g., 32.5s
     """
     
-    def __init__(
-        self,
-        initial: float = 30.0,
-        percentile: float = 95.0,
-        min_timeout: float = 5.0,
-        max_timeout: float = 300.0
-    ):
+    def __init__(self, initial: float = 30.0, percentile: float = 95.0, min_timeout: float = 5.0, max_timeout: float = 300.0) -> None:
         self.initial = initial
         self.percentile = percentile
         self.min_timeout = min_timeout
@@ -448,19 +436,19 @@ class AdaptiveTimeout:
         
         return timeout
     
-    def measure(self, operation: str):
+    def measure(self, operation: str) -> Any:
         """Context manager to measure operation latency."""
         class MeasureContext:
-            def __init__(ctx_self, adaptive_timeout, op):
+            def __init__(ctx_self: Any, adaptive_timeout: Any, op: Any) -> None:
                 ctx_self.adaptive_timeout = adaptive_timeout
                 ctx_self.operation = op
                 ctx_self.start_time = None
             
-            def __enter__(ctx_self):
+            def __enter__(ctx_self: Any) -> Any:
                 ctx_self.start_time = time.time()
                 return ctx_self
             
-            def __exit__(ctx_self, exc_type, exc_val, exc_tb):
+            def __exit__(ctx_self: Any, exc_type: Any, exc_val: Any, exc_tb: Any) -> bool:
                 if ctx_self.start_time:
                     latency = time.time() - ctx_self.start_time
                     ctx_self.adaptive_timeout.record_latency(ctx_self.operation, latency)

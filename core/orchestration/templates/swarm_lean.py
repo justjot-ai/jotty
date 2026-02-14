@@ -1,3 +1,4 @@
+from typing import Any
 """
 SwarmLean - Claude Code-like Lean Execution Template
 =====================================================
@@ -242,7 +243,7 @@ Format the content appropriately for the requested output type.
 Use clear headings, bullet points, and professional formatting.""",
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize SwarmLean template."""
         super().__init__()
         self._task_type = None
@@ -303,7 +304,7 @@ Use clear headings, bullet points, and professional formatting.""",
         """LLM decides output format - no keywords."""
         return self._classify_task(task)['output_format']
 
-    def validate_inputs(self, **kwargs) -> bool:
+    def validate_inputs(self, **kwargs: Any) -> bool:
         """Validate that required inputs are provided."""
         task = kwargs.get('task')
         return task is not None and len(str(task).strip()) > 0

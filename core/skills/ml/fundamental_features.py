@@ -72,18 +72,18 @@ class FundamentalFeaturesSkill(MLSkill):
         'metal': ['TATASTEEL', 'JSWSTEEL', 'HINDALCO', 'VEDL', 'COALINDIA'],
     }
 
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: Dict[str, Any] = None) -> None:
         super().__init__(config)
         self._yf = None
         self.CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
-    def _ensure_yfinance(self):
+    def _ensure_yfinance(self) -> Any:
         if self._yf is None:
             import yfinance as yf
             self._yf = yf
         return self._yf
 
-    async def execute(self, X: pd.DataFrame = None, y: Optional[pd.Series] = None, **context) -> SkillResult:
+    async def execute(self, X: pd.DataFrame = None, y: Optional[pd.Series] = None, **context: Any) -> SkillResult:
         start_time = time.time()
         symbol = context.get('symbol')
         if not symbol:

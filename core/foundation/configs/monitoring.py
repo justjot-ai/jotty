@@ -1,7 +1,7 @@
 """Monitoring configuration — logging, profiling, budget enforcement."""
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Any
 
 
 @dataclass
@@ -22,7 +22,7 @@ class MonitoringConfig:
     enable_budget_enforcement: bool = True
     budget_warning_threshold: float = 0.8
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         # Log level validation
         valid_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
         if self.log_level not in valid_levels:

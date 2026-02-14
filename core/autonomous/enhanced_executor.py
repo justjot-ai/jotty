@@ -32,7 +32,7 @@ class AutonomousExecutor:
     - Reuses SkillsRegistry for tool access
     """
     
-    def __init__(self, auto_agent: Optional[AutoAgent] = None):
+    def __init__(self, auto_agent: Optional[AutoAgent] = None) -> None:
         """
         Initialize enhanced executor.
         

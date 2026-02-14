@@ -23,7 +23,7 @@ class ExpertRegistry:
     Provides centralized access to expert agents and manages their lifecycle.
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         self._experts: Dict[str, ExpertAgent] = {}
         self._initialized = False
     

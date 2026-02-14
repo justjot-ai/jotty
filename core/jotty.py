@@ -92,12 +92,7 @@ from .context.context_gradient import (
 # JOTTY CONVENIENCE FUNCTIONS
 # =============================================================================
 
-def create_swarm_manager(
-    agents: List[AgentConfig],
-    config: Optional[SwarmConfig] = None,
-    metadata_provider: Any = None,
-    **kwargs
-) -> Orchestrator:
+def create_swarm_manager(agents: List[AgentConfig], config: Optional[SwarmConfig] = None, metadata_provider: Any = None, **kwargs: Any) -> Orchestrator:
     """
     Create a new Orchestrator (orchestrator) for agent swarms.
     

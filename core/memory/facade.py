@@ -15,7 +15,7 @@ Usage:
 """
 
 import threading
-from typing import Optional, Union, Dict, TYPE_CHECKING
+from typing import Optional, Union, Dict, TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from Jotty.core.foundation.data_structures import SwarmConfig
@@ -29,7 +29,7 @@ _lock = threading.Lock()
 _singletons: Dict[str, object] = {}
 
 
-def _resolve_memory_config(config) -> 'SwarmConfig':
+def _resolve_memory_config(config: Any) -> 'SwarmConfig':
     """Convert MemoryConfig or SwarmConfig to SwarmConfig for internal use.
 
     Accepts:
@@ -86,7 +86,7 @@ def get_brain_manager() -> 'BrainInspiredMemoryManager':
     return _singletons[key]
 
 
-def get_consolidator(config=None) -> 'SharpWaveRippleConsolidator':
+def get_consolidator(config: Any = None) -> 'SharpWaveRippleConsolidator':
     """
     Return a SharpWaveRippleConsolidator for brain-inspired memory consolidation.
 

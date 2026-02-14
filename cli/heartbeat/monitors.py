@@ -47,14 +47,14 @@ class EmailMonitor:
     - Calendar invites
     """
 
-    def __init__(self, cli=None):
+    def __init__(self, cli: Any = None) -> None:
         self._cli = cli
         self._vip_contacts: List[str] = []
         self._urgent_keywords = ["urgent", "asap", "emergency", "important", "deadline"]
         self._last_check: Optional[datetime] = None
         self._seen_ids: set = set()
 
-    def add_vip(self, email: str):
+    def add_vip(self, email: str) -> Any:
         """Add a VIP contact."""
         self._vip_contacts.append(email.lower())
 
@@ -72,7 +72,7 @@ class CalendarMonitor:
     Sends reminders before meetings.
     """
 
-    def __init__(self, cli=None):
+    def __init__(self, cli: Any = None) -> None:
         self._cli = cli
         self._reminder_minutes = [15, 5]  # Remind 15 min and 5 min before
         self._reminded_events: set = set()
@@ -109,18 +109,18 @@ class FileMonitor:
         r'#\s*AI([!?])\s*(.*)', re.IGNORECASE
     )
 
-    def __init__(self, cli=None):
+    def __init__(self, cli: Any = None) -> None:
         self._cli = cli
         self._watched_paths: Dict[str, str] = {}  # path -> hash
         self._watch_dirs: List[Path] = []
 
-    def watch_file(self, path: str):
+    def watch_file(self, path: str) -> Any:
         """Add a file to watch."""
         path_obj = Path(path).expanduser()
         if path_obj.exists():
             self._watched_paths[str(path_obj)] = self._hash_file(path_obj)
 
-    def watch_directory(self, path: str):
+    def watch_directory(self, path: str) -> Any:
         """Add a directory to watch for new files."""
         path_obj = Path(path).expanduser()
         if path_obj.is_dir():
@@ -253,7 +253,7 @@ class InboxMonitor:
     - Discord
     """
 
-    def __init__(self, cli=None):
+    def __init__(self, cli: Any = None) -> None:
         self._cli = cli
         self._last_check: Dict[str, datetime] = {}
         self._unread_counts: Dict[str, int] = {}
@@ -287,11 +287,11 @@ class WebMonitor:
     - Stock updates
     """
 
-    def __init__(self, cli=None):
+    def __init__(self, cli: Any = None) -> None:
         self._cli = cli
         self._watched_urls: Dict[str, Dict] = {}  # url -> {selector, last_value}
 
-    def watch_url(self, url: str, selector: str = None, description: str = ""):
+    def watch_url(self, url: str, selector: str = None, description: str = '') -> Any:
         """Add URL to watch."""
         self._watched_urls[url] = {
             "selector": selector,
@@ -344,7 +344,7 @@ class ClipboardWatcher:
 
     POLL_INTERVAL = 0.5  # seconds
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._running = False
         self._thread: Optional[threading.Thread] = None
         self._callbacks: List[Callable[[str], None]] = []
@@ -352,7 +352,7 @@ class ClipboardWatcher:
         self._read_fn: Optional[Callable[[], str]] = None
         self._setup_reader()
 
-    def _setup_reader(self):
+    def _setup_reader(self) -> Any:
         """Detect available clipboard reader."""
         # Try pyperclip
         try:
@@ -422,11 +422,11 @@ class ClipboardWatcher:
         )
         return result.stdout if result.returncode == 0 else ""
 
-    def on_change(self, callback: Callable[[str], None]):
+    def on_change(self, callback: Callable[[str], None]) -> Any:
         """Register a callback for clipboard changes."""
         self._callbacks.append(callback)
 
-    def start(self):
+    def start(self) -> Any:
         """Start the clipboard watcher daemon thread."""
         if not self._read_fn:
             return  # No clipboard reader available
@@ -441,14 +441,14 @@ class ClipboardWatcher:
         self._thread = threading.Thread(target=self._poll_loop, daemon=True)
         self._thread.start()
 
-    def stop(self):
+    def stop(self) -> Any:
         """Stop the clipboard watcher."""
         self._running = False
         if self._thread:
             self._thread.join(timeout=2.0)
             self._thread = None
 
-    def _poll_loop(self):
+    def _poll_loop(self) -> Any:
         """Background polling loop."""
         while self._running:
             try:

@@ -91,7 +91,7 @@ class HeartbeatEngine:
         await engine.start()
     """
 
-    def __init__(self, cli=None):
+    def __init__(self, cli: Any = None) -> None:
         self._cli = cli
         self._tasks: Dict[str, HeartbeatTask] = {}
         self._running = False
@@ -102,30 +102,30 @@ class HeartbeatEngine:
         # Load saved state
         self._load_state()
 
-    def set_cli(self, cli):
+    def set_cli(self, cli: Any) -> Any:
         """Set CLI instance for executing tasks."""
         self._cli = cli
 
-    def add_notifier(self, notifier: Callable):
+    def add_notifier(self, notifier: Callable) -> Any:
         """Add notification handler (e.g., send to Telegram, WhatsApp)."""
         self._notifiers.append(notifier)
 
-    def add_task(self, task: HeartbeatTask):
+    def add_task(self, task: HeartbeatTask) -> Any:
         """Add a heartbeat task."""
         self._tasks[task.name] = task
         logger.info(f"Heartbeat task added: {task.name} ({task.frequency.name})")
 
-    def remove_task(self, name: str):
+    def remove_task(self, name: str) -> Any:
         """Remove a task."""
         if name in self._tasks:
             del self._tasks[name]
 
-    def enable_task(self, name: str, enabled: bool = True):
+    def enable_task(self, name: str, enabled: bool = True) -> Any:
         """Enable/disable a task."""
         if name in self._tasks:
             self._tasks[name].enabled = enabled
 
-    async def start(self):
+    async def start(self) -> Any:
         """Start the heartbeat engine."""
         if self._running:
             logger.warning("Heartbeat already running")
@@ -135,7 +135,7 @@ class HeartbeatEngine:
         self._task = asyncio.create_task(self._heartbeat_loop())
         logger.info("Heartbeat engine started")
 
-    async def stop(self):
+    async def stop(self) -> Any:
         """Stop the heartbeat engine."""
         self._running = False
         if self._task:
@@ -147,7 +147,7 @@ class HeartbeatEngine:
         self._save_state()
         logger.info("Heartbeat engine stopped")
 
-    async def _heartbeat_loop(self):
+    async def _heartbeat_loop(self) -> Any:
         """Main heartbeat loop."""
         logger.info("Heartbeat loop started")
 
@@ -167,7 +167,7 @@ class HeartbeatEngine:
                 logger.error(f"Heartbeat loop error: {e}", exc_info=True)
                 await asyncio.sleep(60)
 
-    async def _run_task(self, task: HeartbeatTask):
+    async def _run_task(self, task: HeartbeatTask) -> Any:
         """Run a heartbeat task."""
         try:
             logger.debug(f"Running heartbeat task: {task.name}")
@@ -196,7 +196,7 @@ class HeartbeatEngine:
             task.last_error = str(e)
             logger.error(f"Heartbeat task {task.name} failed: {e}")
 
-    async def _send_notification(self, title: str, message: str, priority: str = "normal"):
+    async def _send_notification(self, title: str, message: str, priority: str = 'normal') -> Any:
         """Send notification through all registered notifiers."""
         for notifier in self._notifiers:
             try:
@@ -212,7 +212,7 @@ class HeartbeatEngine:
             icon = "" if priority == "urgent" else ""
             self._cli.renderer.print(f"\n{icon} [bold]{title}[/bold]: {message}")
 
-    def _load_state(self):
+    def _load_state(self) -> Any:
         """Load saved state."""
         try:
             if self._state_file.exists():
@@ -225,7 +225,7 @@ class HeartbeatEngine:
         except Exception as e:
             logger.warning(f"Could not load heartbeat state: {e}")
 
-    def _save_state(self):
+    def _save_state(self) -> Any:
         """Save state to disk."""
         try:
             self._state_file.parent.mkdir(parents=True, exist_ok=True)
@@ -264,7 +264,7 @@ class HeartbeatEngine:
 
 # ============ BUILT-IN HEARTBEAT TASKS ============
 
-async def morning_briefing_handler(cli) -> Dict:
+async def morning_briefing_handler(cli: Any) -> Dict:
     """Generate and send morning briefing."""
     current_hour = datetime.now().hour
 
@@ -290,14 +290,14 @@ async def morning_briefing_handler(cli) -> Dict:
         return {}
 
 
-async def email_monitor_handler(cli) -> Dict:
+async def email_monitor_handler(cli: Any) -> Dict:
     """Check for urgent emails (placeholder - needs email integration)."""
     # This would integrate with Gmail API
     # For now, it's a placeholder
     return {}
 
 
-async def reminder_handler(cli) -> Dict:
+async def reminder_handler(cli: Any) -> Dict:
     """Check for upcoming reminders."""
     # Load reminders from ~/.jotty/reminders.json
     reminders_file = Path.home() / ".jotty" / "reminders.json"

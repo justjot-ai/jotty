@@ -13,13 +13,13 @@ from .types import LLMResponse, TextBlock, ToolUseBlock
 class GoogleProvider(LLMProvider):
     """Google Gemini provider."""
 
-    def __init__(self, model: str = "gemini-2.0-flash-exp", api_key: Optional[str] = None):
+    def __init__(self, model: str = 'gemini-2.0-flash-exp', api_key: Optional[str] = None) -> None:
         self.model = model
         self.api_key = api_key or os.environ.get("GOOGLE_API_KEY")
         self._client = None
 
     @property
-    def client(self):
+    def client(self) -> Any:
         if self._client is None:
             import google.generativeai as genai
             genai.configure(api_key=self.api_key)
@@ -95,7 +95,7 @@ class GoogleProvider(LLMProvider):
                 full_content += block.text
         return response, full_content
 
-    def _parse_response(self, response) -> LLMResponse:
+    def _parse_response(self, response: Any) -> LLMResponse:
         content = []
 
         for candidate in response.candidates:

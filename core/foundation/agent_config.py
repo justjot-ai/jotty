@@ -73,7 +73,7 @@ class AgentConfig:
     
     enabled: bool = True
     
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Initialize with validation."""
         # Ensure prompts are lists
         if self.architect_prompts is None:

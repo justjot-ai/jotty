@@ -1,3 +1,4 @@
+from typing import Any
 """
 Testing Swarm - World-Class Test Automation & Quality Assurance
 ================================================================
@@ -109,7 +110,7 @@ class TestingConfig(SwarmBaseConfig):
     parallel_tests: bool = True
     language: str = "python"
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.name = "TestingSwarm"
         self.domain = "testing"
 
@@ -310,7 +311,7 @@ class TestQualitySignature(dspy.Signature):
 class CodeAnalyzerAgent(BaseSwarmAgent):
     """Analyzes code for testability."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, signature=CodeAnalysisSignature)
         self.learned_context = learned_context
         self._analyzer = dspy.ChainOfThought(CodeAnalysisSignature)
@@ -364,7 +365,7 @@ class CodeAnalyzerAgent(BaseSwarmAgent):
 class UnitTestAgent(BaseSwarmAgent):
     """Generates unit tests."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, signature=UnitTestSignature)
         self.learned_context = learned_context
         self._generator = dspy.ChainOfThought(UnitTestSignature)
@@ -408,7 +409,7 @@ class UnitTestAgent(BaseSwarmAgent):
 class IntegrationTestAgent(BaseSwarmAgent):
     """Generates integration tests."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, signature=IntegrationTestSignature)
         self.learned_context = learned_context
         self._generator = dspy.ChainOfThought(IntegrationTestSignature)
@@ -452,7 +453,7 @@ class IntegrationTestAgent(BaseSwarmAgent):
 class E2ETestAgent(BaseSwarmAgent):
     """Generates end-to-end tests."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, signature=E2ETestSignature)
         self.learned_context = learned_context
         self._generator = dspy.ChainOfThought(E2ETestSignature)
@@ -496,7 +497,7 @@ class E2ETestAgent(BaseSwarmAgent):
 class CoverageAgent(BaseSwarmAgent):
     """Analyzes test coverage."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, signature=CoverageAnalysisSignature)
         self.learned_context = learned_context
         self._analyzer = dspy.ChainOfThought(CoverageAnalysisSignature)
@@ -540,7 +541,7 @@ class CoverageAgent(BaseSwarmAgent):
 class QualityAgent(BaseSwarmAgent):
     """Assesses test quality."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, signature=TestQualitySignature)
         self.learned_context = learned_context
         self._assessor = dspy.ChainOfThought(TestQualitySignature)
@@ -606,26 +607,14 @@ class TestingSwarm(DomainSwarm):
     )
     SWARM_SIGNATURE = TestingSwarmSignature
 
-    def __init__(self, config: TestingConfig = None):
+    def __init__(self, config: TestingConfig = None) -> None:
         super().__init__(config or TestingConfig())
 
-    async def _execute_domain(
-        self,
-        code: str,
-        language: str = None,
-        **kwargs
-    ) -> TestingResult:
+    async def _execute_domain(self, code: str, language: str = None, **kwargs: Any) -> TestingResult:
         """Execute test generation (called by DomainSwarm.execute())."""
         return await self.generate_tests(code, language, **kwargs)
 
-    async def generate_tests(
-        self,
-        code: str,
-        language: str = None,
-        test_types: List[TestType] = None,
-        framework: TestFramework = None,
-        **kwargs
-    ) -> TestingResult:
+    async def generate_tests(self, code: str, language: str = None, test_types: List[TestType] = None, framework: TestFramework = None, **kwargs: Any) -> TestingResult:
         """
         Generate comprehensive test suite.
 
@@ -667,14 +656,7 @@ class TestingSwarm(DomainSwarm):
             },
         )
 
-    async def _execute_phases(
-        self,
-        executor,
-        code: str,
-        lang: str,
-        types: List[TestType],
-        fw: TestFramework
-    ) -> TestingResult:
+    async def _execute_phases(self, executor: Any, code: str, lang: str, types: List[TestType], fw: TestFramework) -> TestingResult:
         """Execute all testing phases using PhaseExecutor.
 
         Args:
@@ -901,7 +883,7 @@ class TestingSwarm(DomainSwarm):
 # CONVENIENCE FUNCTIONS
 # =============================================================================
 
-async def test(code: str, **kwargs) -> TestingResult:
+async def test(code: str, **kwargs: Any) -> TestingResult:
     """
     One-liner test generation.
 
@@ -913,7 +895,7 @@ async def test(code: str, **kwargs) -> TestingResult:
     return await swarm.generate_tests(code, **kwargs)
 
 
-def test_sync(code: str, **kwargs) -> TestingResult:
+def test_sync(code: str, **kwargs: Any) -> TestingResult:
     """Synchronous test generation."""
     return asyncio.run(test(code, **kwargs))
 

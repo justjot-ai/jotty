@@ -35,12 +35,7 @@ class TableRenderer:
     Creates formatted tables using Rich.
     """
 
-    def __init__(
-        self,
-        theme: Optional[Theme] = None,
-        console: Optional[Any] = None,
-        no_color: bool = False
-    ):
+    def __init__(self, theme: Optional[Theme] = None, console: Optional[Any] = None, no_color: bool = False) -> None:
         """
         Initialize table renderer.
 
@@ -154,7 +149,7 @@ class TableRenderer:
 
         return "\n".join(lines)
 
-    def print_table(self, table: Any):
+    def print_table(self, table: Any) -> Any:
         """Print table to console."""
         if RICH_AVAILABLE and hasattr(table, "row_count"):
             self.console.print(table)

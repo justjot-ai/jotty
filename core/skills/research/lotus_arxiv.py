@@ -83,7 +83,7 @@ class LotusArxiv:
     cross-paper summarization using LOTUS operators.
     """
 
-    def __init__(self, config: Optional[LotusArxivConfig] = None):
+    def __init__(self, config: Optional[LotusArxivConfig] = None) -> None:
         self.config = config or LotusArxivConfig()
         self._initialized = False
 

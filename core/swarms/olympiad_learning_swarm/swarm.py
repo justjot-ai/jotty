@@ -108,15 +108,11 @@ class OlympiadLearningSwarm(DomainSwarm):
         (RankTipsAgent, "RankTips", "_rank_tips"),
     )
 
-    def __init__(self, config: OlympiadLearningConfig = None):
+    def __init__(self, config: OlympiadLearningConfig = None) -> None:
         super().__init__(config or OlympiadLearningConfig())
         self._optimization_mode = self.config.optimization_mode
 
-    async def _execute_domain(
-        self,
-        topic: str = None,
-        **kwargs
-    ) -> OlympiadLearningResult:
+    async def _execute_domain(self, topic: str = None, **kwargs: Any) -> OlympiadLearningResult:
         """Execute learning content generation."""
         return await self.teach(topic=topic, **kwargs)
 
@@ -261,7 +257,7 @@ class OlympiadLearningSwarm(DomainSwarm):
         html_path = None
 
         if content:
-            async def _noop():
+            async def _noop() -> Any:
                 return None
 
             output_results = await executor.run_parallel(
@@ -355,7 +351,7 @@ class OlympiadLearningSwarm(DomainSwarm):
         # Phase 2: Parallel generation of all independent components
         semaphore = asyncio.Semaphore(config.max_concurrent_llm)
 
-        async def rate_limited(coro):
+        async def rate_limited(coro: Any) -> Any:
             async with semaphore:
                 return await coro
 
@@ -1078,11 +1074,7 @@ class OlympiadLearningSwarm(DomainSwarm):
         parts.append(f"\n*Master these {len(rank_tips)} tips and you won't just pass — you'll dominate, {student_name}!*\n")
         return '\n'.join(parts)
 
-    def _build_sections(
-        self, topic, student_name, building_blocks, decomposition,
-        intuition, pattern_result, strategy_result, problems,
-        mistake_result, connection_result, config
-    ) -> List[LessonSection]:
+    def _build_sections(self, topic: Any, student_name: Any, building_blocks: Any, decomposition: Any, intuition: Any, pattern_result: Any, strategy_result: Any, problems: Any, mistake_result: Any, connection_result: Any, config: Any) -> List[LessonSection]:
         """Build LessonSection objects for structured output."""
         sections = []
 
@@ -1230,15 +1222,7 @@ class OlympiadLearningSwarm(DomainSwarm):
     # TELEGRAM
     # =========================================================================
 
-    async def _send_to_telegram(
-        self,
-        topic: str,
-        student_name: str,
-        content: LessonContent,
-        full_content: str,
-        pdf_path: Optional[str] = None,
-        html_path: Optional[str] = None,
-    ):
+    async def _send_to_telegram(self, topic: str, student_name: str, content: LessonContent, full_content: str, pdf_path: Optional[str] = None, html_path: Optional[str] = None) -> Any:
         """Send lesson summary + PDF + HTML to Telegram.
 
         Args:

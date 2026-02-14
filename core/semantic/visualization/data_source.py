@@ -26,7 +26,7 @@ class DataSourceResult:
     error: str = None
     metadata: Dict[str, Any] = None
 
-    def to_dataframe(self):
+    def to_dataframe(self) -> Any:
         """Convert result to pandas DataFrame."""
         import pandas as pd
 
@@ -65,7 +65,7 @@ class DataSource(ABC):
     """
 
     @abstractmethod
-    def query(self, question: str, **kwargs) -> DataSourceResult:
+    def query(self, question: str, **kwargs: Any) -> DataSourceResult:
         """
         Execute a query against the data source.
 
@@ -130,7 +130,7 @@ class SemanticDataSource(DataSource):
     NL Question → SemanticLayer → SQL/Pipeline → ConnectorX → DataFrame
     """
 
-    def __init__(self, semantic_layer, use_connectorx: bool = True):
+    def __init__(self, semantic_layer: Any, use_connectorx: bool = True) -> None:
         """
         Initialize with a SemanticLayer instance.
 
@@ -142,7 +142,7 @@ class SemanticDataSource(DataSource):
         self.use_connectorx = use_connectorx
         self._setup_loader()
 
-    def _setup_loader(self):
+    def _setup_loader(self) -> Any:
         """Setup ConnectorX loader if available."""
         if self.use_connectorx and hasattr(self.semantic_layer, 'query_engine'):
             engine = self.semantic_layer.query_engine
@@ -150,7 +150,7 @@ class SemanticDataSource(DataSource):
             if conn_params:
                 engine.set_connection(**conn_params)
 
-    def query(self, question: str, output_format: str = "pandas", **kwargs) -> DataSourceResult:
+    def query(self, question: str, output_format: str = 'pandas', **kwargs: Any) -> DataSourceResult:
         """
         Execute NL query through SemanticLayer.
 
@@ -248,7 +248,7 @@ class DataFrameSource(DataSource):
     Use when you already have data loaded and want to visualize it.
     """
 
-    def __init__(self, dataframe, name: str = "data"):
+    def __init__(self, dataframe: Any, name: str = 'data') -> None:
         """
         Initialize with a DataFrame.
 
@@ -261,7 +261,7 @@ class DataFrameSource(DataSource):
         self._df = None
 
     @property
-    def df(self):
+    def df(self) -> Any:
         """Get pandas DataFrame."""
         if self._df is None:
             import pandas as pd
@@ -273,7 +273,7 @@ class DataFrameSource(DataSource):
                 self._df = pd.DataFrame(self.dataframe)
         return self._df
 
-    def query(self, question: str, **kwargs) -> DataSourceResult:
+    def query(self, question: str, **kwargs: Any) -> DataSourceResult:
         """
         For DataFrame source, 'query' just returns the data.
 
@@ -309,7 +309,7 @@ class MongoDBSource(DataSource):
     Works with our MongoDBQueryEngine for NL-to-Pipeline queries.
     """
 
-    def __init__(self, uri: str, database: str, semantic_layer=None):
+    def __init__(self, uri: str, database: str, semantic_layer: Any = None) -> None:
         """
         Initialize MongoDB source.
 
@@ -324,14 +324,14 @@ class MongoDBSource(DataSource):
         self._client = None
 
     @property
-    def client(self):
+    def client(self) -> Any:
         """Get MongoDB client."""
         if self._client is None:
             from pymongo import MongoClient
             self._client = MongoClient(self.uri)
         return self._client
 
-    def query(self, question: str, collection: str = None, **kwargs) -> DataSourceResult:
+    def query(self, question: str, collection: str = None, **kwargs: Any) -> DataSourceResult:
         """
         Execute query against MongoDB.
 
@@ -424,7 +424,7 @@ class DataSourceFactory:
     """
 
     @classmethod
-    def create(cls, source, **kwargs) -> DataSource:
+    def create(cls, source: Any, **kwargs: Any) -> DataSource:
         """
         Create a DataSource from various input types.
 

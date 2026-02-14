@@ -60,7 +60,7 @@ class JottyAPIServer:
     For n8n integration, use webhook nodes to call these endpoints.
     """
 
-    def __init__(self, host: str = "0.0.0.0", port: int = 8765):
+    def __init__(self, host: str = '0.0.0.0', port: int = 8765) -> None:
         self.host = host
         self.port = port
         self._cli = None
@@ -68,14 +68,14 @@ class JottyAPIServer:
         self._app = None
         self._task_results: Dict[str, Any] = {}
 
-    def _get_cli(self):
+    def _get_cli(self) -> Any:
         """Lazy-load JottyCLI (only needed for /api/command)."""
         if self._cli is None:
             from ..app import JottyCLI
             self._cli = JottyCLI()
         return self._cli
 
-    def _get_mode_router(self):
+    def _get_mode_router(self) -> Any:
         """Lazy-load ModeRouter (used for all task/skill execution)."""
         if self._router is None:
             # Use absolute imports — works both when run as Jotty.cli.api.server
@@ -84,7 +84,7 @@ class JottyAPIServer:
             self._router = get_mode_router()
         return self._router
 
-    def _make_context(self, mode: str = "chat", **kwargs):
+    def _make_context(self, mode: str = 'chat', **kwargs: Any) -> Any:
         """Create an ExecutionContext for ModeRouter calls."""
         from Jotty.core.foundation.types.sdk_types import (
             ExecutionMode, ChannelType, ExecutionContext, ResponseFormat,
@@ -129,7 +129,7 @@ class JottyAPIServer:
         # =====================================================================
 
         @app.get("/api/health")
-        async def health():
+        async def health() -> Any:
             return {"status": "healthy", "service": "jotty-api"}
 
         # =====================================================================
@@ -137,7 +137,7 @@ class JottyAPIServer:
         # =====================================================================
 
         @app.post("/api/run")
-        async def run_task(request: TaskRequest, background_tasks: BackgroundTasks):
+        async def run_task(request: TaskRequest, background_tasks: BackgroundTasks) -> Any:
             """Execute a natural language task via ModeRouter."""
             if request.async_mode:
                 task_id = f"task_{len(self._task_results)}"
@@ -164,7 +164,7 @@ class JottyAPIServer:
         # =====================================================================
 
         @app.post("/api/command")
-        async def run_command(request: CommandRequest):
+        async def run_command(request: CommandRequest) -> Any:
             """Execute a slash command (delegates to CLI)."""
             cli = self._get_cli()
             full_cmd = f"/{request.command} {request.args}".strip()
@@ -176,7 +176,7 @@ class JottyAPIServer:
         # =====================================================================
 
         @app.get("/api/skills")
-        async def list_skills():
+        async def list_skills() -> Any:
             """List available skills via registry."""
             router = self._get_mode_router()
             router._ensure_initialized()
@@ -195,7 +195,7 @@ class JottyAPIServer:
             return {"skills": skills, "count": len(skills)}
 
         @app.post("/api/skills/{skill_name}")
-        async def execute_skill(skill_name: str, params: Dict[str, Any] = {}):
+        async def execute_skill(skill_name: str, params: Dict[str, Any] = {}) -> Any:
             """Execute a specific skill via ModeRouter."""
             from Jotty.core.foundation.types.sdk_types import SDKRequest, ExecutionMode
 
@@ -220,7 +220,7 @@ class JottyAPIServer:
         # =====================================================================
 
         @app.get("/api/tasks/{task_id}")
-        async def get_task_result(task_id: str):
+        async def get_task_result(task_id: str) -> Any:
             """Get result of async task."""
             if task_id not in self._task_results:
                 raise HTTPException(status_code=404, detail="Task not found")
@@ -231,7 +231,7 @@ class JottyAPIServer:
         # =====================================================================
 
         @app.get("/api/commands")
-        async def list_commands():
+        async def list_commands() -> Any:
             """List available CLI commands."""
             cli = self._get_cli()
             commands = []
@@ -249,7 +249,7 @@ class JottyAPIServer:
         self._app = app
         return app
 
-    async def _execute_task_async(self, task_id: str, task: str, options: dict):
+    async def _execute_task_async(self, task_id: str, task: str, options: dict) -> Any:
         """Execute task asynchronously via ModeRouter."""
         try:
             router = self._get_mode_router()
@@ -270,7 +270,7 @@ class JottyAPIServer:
                 "error": str(e),
             }
 
-    def run(self):
+    def run(self) -> Any:
         """Start the API server."""
         if not FASTAPI_AVAILABLE:
             raise ImportError("FastAPI not installed. Run: pip install fastapi uvicorn")
@@ -279,7 +279,7 @@ class JottyAPIServer:
         logger.info(f"Starting Jotty API server on {self.host}:{self.port}")
         uvicorn.run(app, host=self.host, port=self.port)
 
-    async def run_async(self):
+    async def run_async(self) -> Any:
         """Start the API server asynchronously."""
         if not FASTAPI_AVAILABLE:
             raise ImportError("FastAPI not installed")
@@ -290,7 +290,7 @@ class JottyAPIServer:
         await server.serve()
 
 
-def start_api_server(host: str = "0.0.0.0", port: int = 8765):
+def start_api_server(host: str = '0.0.0.0', port: int = 8765) -> Any:
     """Start the Jotty API server."""
     server = JottyAPIServer(host, port)
     server.run()

@@ -87,14 +87,7 @@ class EvaluationProtocol:
         print(f"Pass rate: {report.mean_pass_rate:.2%} ± {report.std_pass_rate:.2%}")
     """
     
-    def __init__(
-        self,
-        benchmark: Benchmark,
-        n_runs: int = 5,
-        random_seed: int = 42,
-        reproducibility_config: Optional[ReproducibilityConfig] = None,
-        task_ids: Optional[List[str]] = None
-    ):
+    def __init__(self, benchmark: Benchmark, n_runs: int = 5, random_seed: int = 42, reproducibility_config: Optional[ReproducibilityConfig] = None, task_ids: Optional[List[str]] = None) -> None:
         """
         Initialize evaluation protocol.
         
@@ -200,7 +193,7 @@ class EvaluationProtocol:
             runs=runs
         )
     
-    def _save_results(self, report: EvaluationReport, output_dir: Optional[str]):
+    def _save_results(self, report: EvaluationReport, output_dir: Optional[str]) -> Any:
         """Save evaluation results to file."""
         if output_dir is None:
             output_dir = "./evaluation_results"

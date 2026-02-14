@@ -66,7 +66,7 @@ class ResearchSwarm(DomainSwarm):
     # Declarative agent team - defined after agent classes at end of file
     AGENT_TEAM = None  # Set after agent class definitions
 
-    def __init__(self, config: Optional[ResearchConfig] = None):
+    def __init__(self, config: Optional[ResearchConfig] = None) -> None:
         """Initialize research swarm."""
         super().__init__(config or ResearchConfig())
 
@@ -130,11 +130,7 @@ class ResearchSwarm(DomainSwarm):
 
         self._initialized = True
 
-    async def _execute_domain(
-        self,
-        query: str,
-        **kwargs
-    ) -> ResearchResult:
+    async def _execute_domain(self, query: str, **kwargs: Any) -> ResearchResult:
         """Execute research (called by DomainSwarm.execute())."""
         return await self.research(query, **kwargs)
 
@@ -345,7 +341,7 @@ class ResearchSwarm(DomainSwarm):
         # PHASE 2: PARALLEL ANALYSIS
         # =================================================================
         # Helper for creating async results (Python 3.11+ compatible)
-        async def async_result(value):
+        async def async_result(value: Any) -> Any:
             return value
 
         # Build analysis task list
@@ -752,7 +748,7 @@ class ResearchSwarm(DomainSwarm):
             'reasoning': f"Score-based rating: {score}/100"
         }
 
-    async def _store_learning(self, result: ResearchResult):
+    async def _store_learning(self, result: ResearchResult) -> Any:
         """Store research results in memory for learning."""
         try:
             from ..foundation.data_structures import MemoryLevel
@@ -785,7 +781,7 @@ Success: {result.success}"""
 
 
 
-async def research(query: str, **kwargs) -> ResearchResult:
+async def research(query: str, **kwargs: Any) -> ResearchResult:
     """
     One-liner research function.
 
@@ -797,7 +793,7 @@ async def research(query: str, **kwargs) -> ResearchResult:
     return await swarm.research(query, **kwargs)
 
 
-def research_sync(query: str, **kwargs) -> ResearchResult:
+def research_sync(query: str, **kwargs: Any) -> ResearchResult:
     """
     Synchronous research function.
 

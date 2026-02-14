@@ -7,7 +7,7 @@ Command history management with persistence.
 
 import logging
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Any
 
 logger = logging.getLogger(__name__)
 
@@ -19,11 +19,7 @@ class HistoryManager:
     Integrates with prompt_toolkit's history system.
     """
 
-    def __init__(
-        self,
-        history_file: Optional[str] = None,
-        max_entries: int = 1000
-    ):
+    def __init__(self, history_file: Optional[str] = None, max_entries: int = 1000) -> None:
         """
         Initialize history manager.
 
@@ -41,7 +37,7 @@ class HistoryManager:
         # Load existing history
         self._load()
 
-    def _load(self):
+    def _load(self) -> Any:
         """Load history from file."""
         if not self.history_file.exists():
             return
@@ -54,7 +50,7 @@ class HistoryManager:
         except Exception as e:
             logger.error(f"Failed to load history: {e}")
 
-    def _save(self):
+    def _save(self) -> Any:
         """Save history to file."""
         try:
             # Trim to max entries
@@ -67,7 +63,7 @@ class HistoryManager:
         except Exception as e:
             logger.error(f"Failed to save history: {e}")
 
-    def add(self, entry: str):
+    def add(self, entry: str) -> Any:
         """
         Add entry to history.
 
@@ -112,12 +108,12 @@ class HistoryManager:
         """
         return [e for e in self._history if e.startswith(prefix)]
 
-    def clear(self):
+    def clear(self) -> Any:
         """Clear history."""
         self._history.clear()
         self._save()
 
-    def get_prompt_toolkit_history(self):
+    def get_prompt_toolkit_history(self) -> Any:
         """
         Get history object for prompt_toolkit.
 
@@ -133,5 +129,5 @@ class HistoryManager:
     def __len__(self) -> int:
         return len(self._history)
 
-    def __iter__(self):
+    def __iter__(self) -> Any:
         return iter(self._history)

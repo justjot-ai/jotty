@@ -28,7 +28,7 @@ class ConfigLoader:
     3. Default configuration
     """
 
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, config_path: Optional[str] = None) -> None:
         """
         Initialize config loader.
 
@@ -105,7 +105,7 @@ class ConfigLoader:
             logger.error(f"Error loading config from {path}: {e}")
             return CLIConfig.default()
 
-    def save(self, config: Optional[CLIConfig] = None, path: Optional[Path] = None):
+    def save(self, config: Optional[CLIConfig] = None, path: Optional[Path] = None) -> Any:
         """
         Save configuration to file.
 
@@ -126,11 +126,11 @@ class ConfigLoader:
         except Exception as e:
             logger.error(f"Error saving config to {path}: {e}")
 
-    def ensure_config_dir(self):
+    def ensure_config_dir(self) -> Any:
         """Ensure config directory exists."""
         self.config_dir.mkdir(parents=True, exist_ok=True)
 
-    def create_default_config(self, force: bool = False):
+    def create_default_config(self, force: bool = False) -> Any:
         """
         Create default config file if it doesn't exist.
 
@@ -173,7 +173,7 @@ class ConfigLoader:
 
         return value
 
-    def set(self, key: str, value: Any):
+    def set(self, key: str, value: Any) -> Any:
         """
         Set configuration value by key path.
 

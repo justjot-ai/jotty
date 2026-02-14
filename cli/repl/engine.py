@@ -7,7 +7,7 @@ Main REPL (Read-Eval-Print Loop) engine using prompt_toolkit.
 
 import sys
 import logging
-from typing import TYPE_CHECKING, Optional, Callable, Awaitable
+from typing import TYPE_CHECKING, Optional, Callable, Awaitable, Any
 
 try:
     from prompt_toolkit import PromptSession
@@ -41,14 +41,7 @@ class REPLEngine:
     - Vi/Emacs key bindings
     """
 
-    def __init__(
-        self,
-        command_registry: "CommandRegistry",
-        history_file: Optional[str] = None,
-        prompt_text: str = "jotty> ",
-        multiline: bool = False,
-        vi_mode: bool = False,
-    ):
+    def __init__(self, command_registry: 'CommandRegistry', history_file: Optional[str] = None, prompt_text: str = 'jotty> ', multiline: bool = False, vi_mode: bool = False) -> None:
         """
         Initialize REPL engine.
 
@@ -96,7 +89,7 @@ class REPLEngine:
         })
 
         # Bottom toolbar callback
-        def _bottom_toolbar():
+        def _bottom_toolbar() -> Any:
             return HTML(self._footer_hints.get_toolbar_text())
 
         # Create session
@@ -113,11 +106,7 @@ class REPLEngine:
 
         return session
 
-    async def run(
-        self,
-        handler: Callable[[str], Awaitable[bool]],
-        welcome_callback: Optional[Callable[[], None]] = None
-    ):
+    async def run(self, handler: Callable[[str], Awaitable[bool]], welcome_callback: Optional[Callable[[], None]] = None) -> Any:
         """
         Run the REPL loop.
 
@@ -205,15 +194,15 @@ class REPLEngine:
             except EOFError:
                 return None
 
-    def stop(self):
+    def stop(self) -> Any:
         """Stop the REPL loop."""
         self._running = False
 
-    def set_prompt(self, text: str):
+    def set_prompt(self, text: str) -> Any:
         """Set prompt text."""
         self.prompt_text = text
 
-    def set_repl_state(self, state: REPLState):
+    def set_repl_state(self, state: REPLState) -> Any:
         """
         Set the REPL state to update footer hints.
 
@@ -246,20 +235,12 @@ class SimpleREPL:
     Fallback for environments without prompt_toolkit.
     """
 
-    def __init__(
-        self,
-        command_registry: "CommandRegistry",
-        prompt_text: str = "jotty> "
-    ):
+    def __init__(self, command_registry: 'CommandRegistry', prompt_text: str = 'jotty> ') -> None:
         self.command_registry = command_registry
         self.prompt_text = prompt_text
         self._running = False
 
-    async def run(
-        self,
-        handler: Callable[[str], Awaitable[bool]],
-        welcome_callback: Optional[Callable[[], None]] = None
-    ):
+    async def run(self, handler: Callable[[str], Awaitable[bool]], welcome_callback: Optional[Callable[[], None]] = None) -> Any:
         """Run simple REPL loop."""
         self._running = True
 
@@ -288,6 +269,6 @@ class SimpleREPL:
 
         self._running = False
 
-    def stop(self):
+    def stop(self) -> Any:
         """Stop REPL."""
         self._running = False

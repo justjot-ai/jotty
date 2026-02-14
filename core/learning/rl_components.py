@@ -35,7 +35,7 @@ class RLComponents:
     - Counterfactual credit assignment
     """
     
-    def __init__(self, config):
+    def __init__(self, config: Any) -> None:
         self.config = config
         self.compression_agent = None  # Lazy init
     

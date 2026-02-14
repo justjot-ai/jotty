@@ -144,7 +144,7 @@ class ProxyRotator:
         ("https://www.proxy-list.download/api/v1/get?type=http", "proxy-list"),
     ]
 
-    def __init__(self, cache_duration: int = 3600):
+    def __init__(self, cache_duration: int = 3600) -> None:
         self._proxies: List[str] = []
         self._index = 0
         self._failed: Set[str] = set()
@@ -239,8 +239,7 @@ class FetchResult:
     __slots__ = ('success', 'response', 'content', 'status_code',
                  'used_proxy', 'error', 'skipped', 'source')
 
-    def __init__(self, success=False, response=None, content='', status_code=0,
-                 used_proxy=False, error='', skipped=False, source='direct'):
+    def __init__(self, success: Any = False, response: Any = None, content: Any = '', status_code: Any = 0, used_proxy: Any = False, error: Any = '', skipped: Any = False, source: Any = 'direct') -> None:
         self.success = success
         self.response = response
         self.content = content

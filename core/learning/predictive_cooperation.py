@@ -120,7 +120,7 @@ class NashBargainingSolver:
     Our approach: LLM reasons about fairness using Nash principles
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         self.bargainer = dspy.ChainOfThought(NashBargainingSignature)
     
     def distribute_rewards(
@@ -272,7 +272,7 @@ class CooperationReasoner:
     Key innovation: Agents reason about SYSTEM reward, not individual reward!
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         self.reasoner = dspy.ChainOfThought(CooperationReasoningSignature)
         self.principles = CooperationPrinciples.get_principles()
     
@@ -406,7 +406,7 @@ class PredictiveCooperativeAgent:
     - Shapley Value (credit assignment)
     """
     
-    def __init__(self, agent_name: str, dqn_predictor=None, shapley_estimator=None):
+    def __init__(self, agent_name: str, dqn_predictor: Any = None, shapley_estimator: Any = None) -> None:
         self.agent_name = agent_name
         self.dqn = dqn_predictor  # From predictive_marl.py
         self.shapley = shapley_estimator  # From algorithmic_credit.py
@@ -473,13 +473,7 @@ class PredictiveCooperativeAgent:
         
         return decision
     
-    def record_cooperation_event(
-        self,
-        event_type: str,
-        other_agent: str,
-        description: str,
-        impact: float
-    ):
+    def record_cooperation_event(self, event_type: str, other_agent: str, description: str, impact: float) -> Any:
         """Record a cooperation event."""
         event = {
             'type': event_type,

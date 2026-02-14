@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from Jotty.core.learning.shaped_rewards import ShapedRewardManager
 
 
-def _resolve_learning_config(config) -> 'SwarmConfig':
+def _resolve_learning_config(config: Any) -> 'SwarmConfig':
     """Convert LearningConfig or SwarmConfig to SwarmConfig for internal use.
 
     Accepts:

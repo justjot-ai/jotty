@@ -41,7 +41,7 @@ class ContentGenerators:
     Provides methods to create PDFs, HTML, and Markdown files from documents
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.output_dir = Path("./outputs/research")
         self.output_dir.mkdir(parents=True, exist_ok=True)
 

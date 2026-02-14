@@ -49,8 +49,7 @@ logger = logging.getLogger(__name__)
 class BaseOlympiadAgent(BaseSwarmAgent):
     """Base class for all olympiad learning agents. Extends BaseSwarmAgent with LLM model selection."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = "",
-                 model: str = "haiku", use_fast_predict: bool = True, llm_timeout: int = 90):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '', model: str = 'haiku', use_fast_predict: bool = True, llm_timeout: int = 90) -> None:
         super().__init__(memory=memory, context=context, bus=bus,
                          learned_context=learned_context, signature=None)
         self.model = model
@@ -58,7 +57,7 @@ class BaseOlympiadAgent(BaseSwarmAgent):
         self.llm_timeout = llm_timeout
         self._lm = None
 
-    def _get_lm(self):
+    def _get_lm(self) -> Any:
         """Get or create LLM instance. Tries Direct API first, then CLI fallback."""
         if self._lm is None:
             # If already configured globally, reuse it
@@ -85,7 +84,7 @@ class BaseOlympiadAgent(BaseSwarmAgent):
                 logger.warning(f"Could not init LLM: {e}")
         return self._lm
 
-    def _create_module(self, signature):
+    def _create_module(self, signature: Any) -> Any:
         """Create dspy module - Predict (fast) or ChainOfThought (reasoning)."""
         if self._lm is None:
             self._get_lm()
@@ -94,7 +93,7 @@ class BaseOlympiadAgent(BaseSwarmAgent):
         else:
             return dspy.ChainOfThought(signature)
 
-    def _call_with_own_lm(self, module, **kwargs):
+    def _call_with_own_lm(self, module: Any, **kwargs: Any) -> Any:
         """Call a DSPy module using this agent's LM via dspy.context().
 
         Uses dspy.context() (not dspy.configure()) to avoid async task conflicts.
@@ -221,7 +220,7 @@ class CurriculumArchitectAgent(BaseOlympiadAgent):
     all downstream content depth and running example quality.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._ensure_sonnet_lm()
         self._architect = self._create_module(CurriculumArchitectSignature)
@@ -300,7 +299,7 @@ class CurriculumArchitectAgent(BaseOlympiadAgent):
 class ConceptDecomposerAgent(BaseOlympiadAgent):
     """Breaks down concepts into the simplest possible building blocks."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._decomposer = self._create_module(ConceptDecomposerSignature)
 
@@ -348,7 +347,7 @@ class ConceptDecomposerAgent(BaseOlympiadAgent):
 class IntuitionBuilderAgent(BaseOlympiadAgent):
     """Builds deep intuition through real-world analogies and progressive examples."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._builder = self._create_module(IntuitionBuilderSignature)
 
@@ -393,7 +392,7 @@ class IntuitionBuilderAgent(BaseOlympiadAgent):
 class PatternHunterAgent(BaseOlympiadAgent):
     """Identifies problem-solving patterns that appear across olympiad problems."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._hunter = self._create_module(PatternHunterSignature)
 
@@ -445,7 +444,7 @@ class PatternHunterAgent(BaseOlympiadAgent):
 class ProblemCrafterAgent(BaseOlympiadAgent):
     """Creates progressive problem sets from foundation to olympiad level."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._crafter = self._create_module(ProblemCrafterSignature)
 
@@ -514,7 +513,7 @@ class ProblemCrafterAgent(BaseOlympiadAgent):
 class SolutionStrategistAgent(BaseOlympiadAgent):
     """Teaches problem-solving strategies specific to competition settings."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._strategist = self._create_module(SolutionStrategistSignature)
 
@@ -578,7 +577,7 @@ class SolutionStrategistAgent(BaseOlympiadAgent):
 class MistakeAnalyzerAgent(BaseOlympiadAgent):
     """Identifies common mistakes and how to avoid them."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._analyzer = self._create_module(MistakeAnalyzerSignature)
 
@@ -635,7 +634,7 @@ class MistakeAnalyzerAgent(BaseOlympiadAgent):
 class ConnectionMapperAgent(BaseOlympiadAgent):
     """Maps connections between topics for deeper understanding."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._mapper = self._create_module(ConnectionMapperSignature)
 
@@ -680,7 +679,7 @@ class ConnectionMapperAgent(BaseOlympiadAgent):
 class ContentAssemblerAgent(BaseOlympiadAgent):
     """Assembles all components into a beautifully flowing lesson."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._assembler = self._create_module(ContentAssemblerSignature)
 
@@ -746,7 +745,7 @@ class UnifiedTopicAgent(BaseOlympiadAgent):
 
     _content_cache: Dict[str, Dict] = {}
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._deep_generator = self._create_module(SingleTopicDeepSignature)
 
@@ -847,7 +846,7 @@ class NarrativeEditorAgent(BaseOlympiadAgent):
     - Curiosity gaps and mini-mysteries
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._ensure_sonnet_lm()
         # Use Predict (not ChainOfThought) to maximize output token budget for edited content
@@ -939,7 +938,7 @@ class NarrativeEditorAgent(BaseOlympiadAgent):
 class RankTipsAgent(BaseOlympiadAgent):
     """Generates 20-30 actionable tips to help secure the #1 rank for a topic."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._ensure_direct_api_lm()
         self._generator = self._create_module(RankTipsSignature)

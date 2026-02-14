@@ -5,17 +5,13 @@ Extracted from __init__.py to keep the lazy-import init clean.
 """
 
 import asyncio
-from typing import List
+from typing import List, Any
 
 from .agent_runner import AgentRunner
 from Jotty.core.foundation.data_structures import EpisodeResult
 
 
-async def sequential_pipeline(
-    runners: List[AgentRunner],
-    goal: str,
-    **kwargs,
-) -> EpisodeResult:
+async def sequential_pipeline(runners: List[AgentRunner], goal: str, **kwargs: Any) -> EpisodeResult:
     """
     Run agents sequentially, chaining output.
 
@@ -35,11 +31,7 @@ async def sequential_pipeline(
     return result
 
 
-async def fanout_pipeline(
-    runners: List[AgentRunner],
-    goal: str,
-    **kwargs,
-) -> List[EpisodeResult]:
+async def fanout_pipeline(runners: List[AgentRunner], goal: str, **kwargs: Any) -> List[EpisodeResult]:
     """
     Run agents in parallel on the same input.
 

@@ -61,11 +61,11 @@ class ParameterResolver:
 
     _MAX_RESOLVE_DEPTH = 10
 
-    def __init__(self, outputs: Dict[str, Any]):
+    def __init__(self, outputs: Dict[str, Any]) -> None:
         self._outputs = outputs
 
     @staticmethod
-    def _is_template(value) -> bool:
+    def _is_template(value: Any) -> bool:
         """Check if a value contains unresolved template references."""
         if not isinstance(value, str):
             return False
@@ -160,7 +160,7 @@ class ParameterResolver:
 
     def _substitute_templates(self, param_name: str, value: str) -> str:
         """Replace ${ref} and {ref} template variables."""
-        def replacer(match, _param_name=param_name):
+        def replacer(match: Any, _param_name: Any = param_name) -> Any:
             ref_path = match.group(1)
             raw = self.resolve_path(ref_path)
             if raw.startswith('{'):
@@ -176,7 +176,7 @@ class ParameterResolver:
         if _is_code:
             # In code: only substitute ${ref} patterns that look like real template refs
             # (step_N, output keys) — skip f-string patterns like ${var:,.2f}
-            def _code_safe_replacer(match, _param_name=param_name):
+            def _code_safe_replacer(match: Any, _param_name: Any = param_name) -> Any:
                 ref_path = match.group(1)
                 # F-string format specifiers contain : or ! — not template refs
                 if ':' in ref_path or '!' in ref_path:
@@ -499,7 +499,7 @@ class ParameterResolver:
         combined = '\n\n'.join(block.strip() for block in blocks if block.strip())
         return combined if combined else value
 
-    def _schema_coerce_param(self, key: str, value: str, tool_schema, step) -> str:
+    def _schema_coerce_param(self, key: str, value: str, tool_schema: Any, step: Any) -> str:
         """Schema-driven parameter coercion using ToolParam type hints.
 
         Delegates to TypeCoercer for type-aware coercion when a matching
@@ -547,7 +547,7 @@ class ParameterResolver:
 
         return value
 
-    def _find_path_from_outputs(self, step=None) -> Optional[str]:
+    def _find_path_from_outputs(self, step: Any = None) -> Optional[str]:
         """Find the most recent valid file path from previous step outputs.
 
         Searches outputs in reverse order for 'path' keys containing
@@ -865,10 +865,10 @@ class SemanticParamResolver:
     _CONFIDENCE_THRESHOLD = 0.7
     _HIGH_STAKES_PARAMS = ('content', 'text', 'body', 'message')
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._matcher = None
 
-    def _ensure_matcher(self):
+    def _ensure_matcher(self) -> Any:
         """Lazily initialize DSPy matcher to avoid import-time cost."""
         if self._matcher is None and _DSPY_AVAILABLE and ParameterMatchSignature is not None:
             self._matcher = dspy.Predict(ParameterMatchSignature)

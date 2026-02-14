@@ -30,7 +30,7 @@ class LLMContextManager:
     MEDIUM = 2     # Can compress (memories, examples)
     LOW = 3        # Remove first (verbose logs)
     
-    def __init__(self, max_tokens: int = 28000, safety_margin: int = 2000, compress_fn=None):
+    def __init__(self, max_tokens: int = 28000, safety_margin: int = 2000, compress_fn: Any = None) -> None:
         self.max_tokens = max_tokens
         self.safety_margin = safety_margin
         self.usable_tokens = max_tokens - safety_margin

@@ -32,13 +32,7 @@ class SwarmRouter:
     - Task complexity estimation for mode selection (single vs multi)
     """
 
-    def __init__(
-        self,
-        get_swarm_intelligence: Callable = None,
-        get_agents: Callable = None,
-        get_model_tier_router: Callable = None,
-        get_learning: Callable = None,
-    ):
+    def __init__(self, get_swarm_intelligence: Callable = None, get_agents: Callable = None, get_model_tier_router: Callable = None, get_learning: Callable = None) -> None:
         """
         Args:
             get_swarm_intelligence: Callable returning SwarmIntelligence instance

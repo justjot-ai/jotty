@@ -77,7 +77,7 @@ class VisualizationGoal:
     raw_goal: Any = None
 
     @classmethod
-    def from_lida(cls, lida_goal, index: int = 0) -> 'VisualizationGoal':
+    def from_lida(cls, lida_goal: Any, index: int = 0) -> 'VisualizationGoal':
         """Create from LIDA Goal object."""
         return cls(
             question=getattr(lida_goal, 'question', str(lida_goal)),
@@ -147,14 +147,7 @@ class VisualizationLayer:
     Uses Claude CLI by default (no API keys required).
     """
 
-    def __init__(
-        self,
-        data_source: DataSource,
-        llm_provider: str = "claude-cli",
-        llm_model: str = "",
-        default_library: ChartLibrary = ChartLibrary.MATPLOTLIB,
-        **llm_kwargs
-    ):
+    def __init__(self, data_source: DataSource, llm_provider: str = 'claude-cli', llm_model: str = '', default_library: ChartLibrary = ChartLibrary.MATPLOTLIB, **llm_kwargs: Any) -> None:
         """
         Initialize visualization layer.
 
@@ -176,13 +169,7 @@ class VisualizationLayer:
         self._summary_cache: Dict[str, DataSummary] = {}
 
     @classmethod
-    def from_semantic_layer(
-        cls,
-        semantic_layer,
-        llm_provider: str = "claude-cli",
-        llm_model: str = "",
-        **kwargs
-    ) -> 'VisualizationLayer':
+    def from_semantic_layer(cls, semantic_layer: Any, llm_provider: str = 'claude-cli', llm_model: str = '', **kwargs: Any) -> 'VisualizationLayer':
         """
         Create VisualizationLayer from SemanticLayer.
 
@@ -199,14 +186,7 @@ class VisualizationLayer:
         return cls(data_source, llm_provider=llm_provider, llm_model=llm_model, **kwargs)
 
     @classmethod
-    def from_dataframe(
-        cls,
-        dataframe,
-        name: str = "data",
-        llm_provider: str = "claude-cli",
-        llm_model: str = "",
-        **kwargs
-    ) -> 'VisualizationLayer':
+    def from_dataframe(cls, dataframe: Any, name: str = 'data', llm_provider: str = 'claude-cli', llm_model: str = '', **kwargs: Any) -> 'VisualizationLayer':
         """
         Create VisualizationLayer from DataFrame.
 
@@ -224,13 +204,7 @@ class VisualizationLayer:
         return cls(data_source, llm_provider=llm_provider, llm_model=llm_model, **kwargs)
 
     @classmethod
-    def from_csv(
-        cls,
-        path: str,
-        llm_provider: str = "claude-cli",
-        llm_model: str = "",
-        **kwargs
-    ) -> 'VisualizationLayer':
+    def from_csv(cls, path: str, llm_provider: str = 'claude-cli', llm_model: str = '', **kwargs: Any) -> 'VisualizationLayer':
         """
         Create VisualizationLayer from CSV file.
 
@@ -247,7 +221,7 @@ class VisualizationLayer:
         return cls(data_source, llm_provider=llm_provider, llm_model=llm_model, **kwargs)
 
     @property
-    def manager(self):
+    def manager(self) -> Any:
         """Get or create LIDA Manager."""
         if self._manager is None:
             from lida import Manager
@@ -264,12 +238,7 @@ class VisualizationLayer:
 
         return self._manager
 
-    def summarize(
-        self,
-        data: Any = None,
-        question: str = None,
-        **kwargs
-    ) -> DataSummary:
+    def summarize(self, data: Any = None, question: str = None, **kwargs: Any) -> DataSummary:
         """
         Summarize data for visualization context.
 
@@ -307,14 +276,7 @@ class VisualizationLayer:
             logger.error(f"Summarization failed: {e}")
             raise
 
-    def goals(
-        self,
-        summary: DataSummary = None,
-        n: int = 5,
-        question: str = None,
-        persona: str = None,
-        **kwargs
-    ) -> List[VisualizationGoal]:
+    def goals(self, summary: DataSummary = None, n: int = 5, question: str = None, persona: str = None, **kwargs: Any) -> List[VisualizationGoal]:
         """
         Generate visualization goals for data exploration.
 
@@ -343,16 +305,7 @@ class VisualizationLayer:
             logger.error(f"Goal generation failed: {e}")
             raise
 
-    def visualize(
-        self,
-        question: str = None,
-        goal: Union[VisualizationGoal, str] = None,
-        summary: DataSummary = None,
-        library: Union[ChartLibrary, str] = None,
-        n: int = 1,
-        return_code: bool = True,
-        **kwargs
-    ) -> List[ChartResult]:
+    def visualize(self, question: str = None, goal: Union[VisualizationGoal, str] = None, summary: DataSummary = None, library: Union[ChartLibrary, str] = None, n: int = 1, return_code: bool = True, **kwargs: Any) -> List[ChartResult]:
         """
         Generate visualizations from NL question or goal.
 
@@ -473,7 +426,7 @@ class VisualizationLayer:
                 library=library
             )]
 
-    def explain(self, chart: ChartResult, **kwargs) -> str:
+    def explain(self, chart: ChartResult, **kwargs: Any) -> str:
         """
         Get explanation for a chart.
 
@@ -497,12 +450,7 @@ class VisualizationLayer:
             logger.error(f"Explanation failed: {e}")
             return f"Explanation failed: {e}"
 
-    def edit(
-        self,
-        chart: ChartResult,
-        instructions: str,
-        **kwargs
-    ) -> ChartResult:
+    def edit(self, chart: ChartResult, instructions: str, **kwargs: Any) -> ChartResult:
         """
         Edit a chart based on instructions.
 
@@ -540,13 +488,7 @@ class VisualizationLayer:
             logger.error(f"Edit failed: {e}")
             return ChartResult(success=False, error=str(e))
 
-    def dashboard(
-        self,
-        questions: List[str] = None,
-        n_goals: int = 4,
-        library: Union[ChartLibrary, str] = None,
-        **kwargs
-    ) -> List[ChartResult]:
+    def dashboard(self, questions: List[str] = None, n_goals: int = 4, library: Union[ChartLibrary, str] = None, **kwargs: Any) -> List[ChartResult]:
         """
         Generate a multi-chart dashboard.
 
@@ -581,13 +523,7 @@ class VisualizationLayer:
 
         return charts
 
-    def query_and_visualize(
-        self,
-        question: str,
-        library: Union[ChartLibrary, str] = None,
-        n: int = 1,
-        **kwargs
-    ) -> Dict[str, Any]:
+    def query_and_visualize(self, question: str, library: Union[ChartLibrary, str] = None, n: int = 1, **kwargs: Any) -> Dict[str, Any]:
         """
         Complete pipeline: Query data and visualize in one call.
 

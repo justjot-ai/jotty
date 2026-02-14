@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 
 _dspy_module = None
 
-def _get_dspy():
+def _get_dspy() -> Any:
     global _dspy_module
     if _dspy_module is None:
         import dspy
@@ -50,7 +50,7 @@ _PlannerSignature = None
 _ReviewerSignature = None
 _RefinementSignature = None
 
-def _get_planner_signature():
+def _get_planner_signature() -> Any:
     global _PlannerSignature
     if _PlannerSignature is None:
         dspy = _get_dspy()
@@ -68,7 +68,7 @@ def _get_planner_signature():
         _PlannerSignature = PlannerSignature
     return _PlannerSignature
 
-def _get_reviewer_signature():
+def _get_reviewer_signature() -> Any:
     global _ReviewerSignature
     if _ReviewerSignature is None:
         dspy = _get_dspy()
@@ -87,7 +87,7 @@ def _get_reviewer_signature():
         _ReviewerSignature = ReviewerSignature
     return _ReviewerSignature
 
-def _get_refinement_signature():
+def _get_refinement_signature() -> Any:
     global _RefinementSignature
     if _RefinementSignature is None:
         dspy = _get_dspy()
@@ -118,7 +118,7 @@ class InternalReasoningTool:
     - Reason about causal relationships
     """
     
-    def __init__(self, memory: SwarmMemory, config: SwarmConfig):
+    def __init__(self, memory: SwarmMemory, config: SwarmConfig) -> None:
         self.memory = memory
         self.config = config
         self.name = "reason_about"
@@ -179,14 +179,14 @@ class CachingToolWrapper:
     Prevents redundant tool calls across agents.
     """
     
-    def __init__(self, tool: Any, scratchpad: SharedScratchpad, agent_name: str):
+    def __init__(self, tool: Any, scratchpad: SharedScratchpad, agent_name: str) -> None:
         self.tool = tool
         self.scratchpad = scratchpad
         self.agent_name = agent_name
         self.name = getattr(tool, 'name', str(tool))
         self.description = getattr(tool, 'description', '')
     
-    def __call__(self, **kwargs) -> Any:
+    def __call__(self, **kwargs: Any) -> Any:
         """Call tool with caching."""
         # Check cache first
         cached = self.scratchpad.get_cached_result(self.name, kwargs)
@@ -236,12 +236,7 @@ class ValidatorAgent:
     - Dynamic context allocation
     """
     
-    def __init__(self,
-                 md_path: Path,
-                 is_architect: bool,
-                 tools: List[Any],
-                 config: SwarmConfig,
-                 scratchpad: SharedScratchpad = None):
+    def __init__(self, md_path: Path, is_architect: bool, tools: List[Any], config: SwarmConfig, scratchpad: SharedScratchpad = None) -> None:
         """
         Initialize ValidatorAgent.
         
@@ -1124,7 +1119,7 @@ Auditor Required Outputs:
                 reasoning_quality=min(1.0, len(reasoning) / 500)
             )
     
-    def _store_experience(self, goal: str, inputs: Dict, result: ValidationResult):
+    def _store_experience(self, goal: str, inputs: Dict, result: ValidationResult) -> Any:
         """
         Store experience in memory.
         
@@ -1193,7 +1188,7 @@ class MultiRoundValidator:
     4. Final decision based on all rounds
     """
     
-    def __init__(self, agents: List[ValidatorAgent], config: SwarmConfig):
+    def __init__(self, agents: List[ValidatorAgent], config: SwarmConfig) -> None:
         self.agents = agents
         self.config = config
     
@@ -1365,7 +1360,7 @@ class MultiRoundValidator:
 
 _CompletionReviewSignature = None
 
-def _get_completion_review_signature():
+def _get_completion_review_signature() -> Any:
     global _CompletionReviewSignature
     if _CompletionReviewSignature is None:
         dspy = _get_dspy()
@@ -1404,21 +1399,15 @@ class CompletionReviewer:
         # result = {"completion_state": "complete", "confidence": 0.95, ...}
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._predictor = None
 
-    def _ensure_predictor(self):
+    def _ensure_predictor(self) -> Any:
         if self._predictor is None:
             dspy = _get_dspy()
             self._predictor = dspy.ChainOfThought(_get_completion_review_signature())
 
-    async def review_completion(
-        self,
-        instruction: str,
-        result: Any,
-        tool_calls: List[dict],
-        dspy_lm=None,
-    ) -> dict:
+    async def review_completion(self, instruction: str, result: Any, tool_calls: List[dict], dspy_lm: Any = None) -> dict:
         """Assess task completion after execution.
 
         Args:
@@ -1449,7 +1438,7 @@ class CompletionReviewer:
         try:
             dspy = _get_dspy()
 
-            async def _run():
+            async def _run() -> Any:
                 if dspy_lm is not None:
                     with dspy.context(lm=dspy_lm):
                         return self._predictor(**inputs)
@@ -1543,7 +1532,7 @@ class FailureRouter:
         'ssl': {'action': 'use_env_bypass', 'reason': 'SSL error — apply environment overrides'},
     }
 
-    def __init__(self, agent_directory: Optional[Dict[str, Any]] = None):
+    def __init__(self, agent_directory: Optional[Dict[str, Any]] = None) -> None:
         self._agents = agent_directory or {}
 
     def route(self, error_msg: str, failed_skill: str = "") -> Dict[str, Any]:

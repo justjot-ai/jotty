@@ -47,17 +47,7 @@ class MongoDBExtractor(BaseExtractor):
         'Binary': ColumnType.BINARY,
     }
 
-    def __init__(
-        self,
-        uri: str = None,
-        host: str = "localhost",
-        port: int = 27017,
-        database: str = "",
-        username: str = None,
-        password: str = None,
-        sample_size: int = 100,
-        **kwargs
-    ):
+    def __init__(self, uri: str = None, host: str = 'localhost', port: int = 27017, database: str = '', username: str = None, password: str = None, sample_size: int = 100, **kwargs: Any) -> None:
         """
         Initialize MongoDB extractor.
 
@@ -98,7 +88,7 @@ class MongoDBExtractor(BaseExtractor):
         self._collection_schemas: Dict[str, Dict] = {}
 
     @property
-    def client(self):
+    def client(self) -> Any:
         """Get or create MongoDB client."""
         if self._client is None:
             from pymongo import MongoClient
@@ -106,7 +96,7 @@ class MongoDBExtractor(BaseExtractor):
         return self._client
 
     @property
-    def db(self):
+    def db(self) -> Any:
         """Get database instance."""
         if self._db is None:
             self._db = self.client[self.database_name]
@@ -221,13 +211,7 @@ class MongoDBExtractor(BaseExtractor):
 
         return result
 
-    def _extract_fields_recursive(
-        self,
-        doc: Dict,
-        prefix: str,
-        field_info: Dict,
-        max_depth: int = 3
-    ):
+    def _extract_fields_recursive(self, doc: Dict, prefix: str, field_info: Dict, max_depth: int = 3) -> Any:
         """Recursively extract fields from nested documents."""
         if max_depth <= 0:
             return

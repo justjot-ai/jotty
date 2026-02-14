@@ -97,7 +97,7 @@ class SharedScratchpad:
     - Coordinate validation decisions
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.messages: List[AgentMessage] = []
         self._tool_cache: Dict[str, Any] = {}
 
@@ -152,12 +152,7 @@ class ValidationAgent(MetaAgent):
                 return result
     """
 
-    def __init__(
-        self,
-        config: ValidationConfig = None,
-        scratchpad: SharedScratchpad = None,
-        is_pre_validation: bool = True,
-    ):
+    def __init__(self, config: ValidationConfig = None, scratchpad: SharedScratchpad = None, is_pre_validation: bool = True) -> None:
         """
         Initialize ValidationAgent.
 
@@ -185,7 +180,7 @@ class ValidationAgent(MetaAgent):
         # Cached tools
         self._cached_tools: List[Any] = []
 
-    def _ensure_initialized(self):
+    def _ensure_initialized(self) -> Any:
         """Initialize validation-specific resources."""
         super()._ensure_initialized()
 
@@ -240,7 +235,7 @@ class ValidationAgent(MetaAgent):
         """Wrap a tool with caching logic."""
         tool_name = getattr(tool, 'name', str(tool))
 
-        def cached_tool(**kwargs) -> Any:
+        def cached_tool(**kwargs: Any) -> Any:
             # Check cache
             cached = self.scratchpad.get_cached_result(tool_name, kwargs)
             if cached is not None:
@@ -336,7 +331,7 @@ Reasoning: {result.reasoning[:500]}
         except Exception as e:
             logger.warning(f"Failed to store validation result: {e}")
 
-    def _update_validation_metrics(self, result: ValidationResult):
+    def _update_validation_metrics(self, result: ValidationResult) -> Any:
         """Update validation-specific metrics."""
         self._validation_metrics["total_validations"] += 1
 
@@ -407,7 +402,7 @@ Reasoning: {result.reasoning[:500]}
     # DEFAULT IMPLEMENTATION
     # =========================================================================
 
-    async def _execute_impl(self, **kwargs) -> Dict[str, Any]:
+    async def _execute_impl(self, **kwargs: Any) -> Dict[str, Any]:
         """
         Default validation execution.
 

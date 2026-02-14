@@ -42,7 +42,7 @@ class LearningHealthMonitor:
     - Goal drift
     """
     
-    def __init__(self, config: SwarmConfig):
+    def __init__(self, config: SwarmConfig) -> None:
         self.config = config
         self.metrics = LearningMetrics()
         
@@ -173,7 +173,7 @@ class DynamicBudgetManager:
     - Available relevant memories
     """
     
-    def __init__(self, config: SwarmConfig):
+    def __init__(self, config: SwarmConfig) -> None:
         self.config = config
         self.total_budget = config.max_context_tokens
         

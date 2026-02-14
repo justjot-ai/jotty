@@ -42,7 +42,7 @@ class ScratchpadPersistence:
         {"timestamp": "...", "sender": "...", "receiver": "...", "type": "...", "content": {...}}
     """
 
-    def __init__(self, workspace_dir: str = "workspace/scratchpads"):
+    def __init__(self, workspace_dir: str = 'workspace/scratchpads') -> None:
         """
         Initialize scratchpad persistence.
 

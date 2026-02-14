@@ -102,7 +102,7 @@ class ProgressTracker:
         'EXPLANATION': 1,
     }
 
-    def __init__(self, total_stages: int = 9):
+    def __init__(self, total_stages: int = 9) -> None:
         self.total_stages = total_stages
         self.current_stage = 0
         self.current_stage_name = ""
@@ -125,7 +125,7 @@ class ProgressTracker:
         elapsed = time.time() - self.stage_start_time
         self._print_completion(stage_name, elapsed, metrics)
 
-    def _print_progress(self):
+    def _print_progress(self) -> Any:
         """Log progress bar."""
         pct = (self.completed_weight / self.total_weight) * 100
         bar_len = 30
@@ -135,7 +135,7 @@ class ProgressTracker:
 
         logger.info(f'[{bar}] {pct:5.1f}% | Stage {self.current_stage}/{self.total_stages}: {self.current_stage_name:<25} | {elapsed:.0f}s')
 
-    def _print_completion(self, stage_name: str, elapsed: float, metrics: Dict = None):
+    def _print_completion(self, stage_name: str, elapsed: float, metrics: Dict = None) -> Any:
         """Print stage completion."""
         pct = (self.completed_weight / self.total_weight) * 100
         bar_len = 30
@@ -170,7 +170,7 @@ class SkillAdapter:
     Converts skill tools to fit/transform/predict pattern.
     """
 
-    def __init__(self, skill_name: str, skill_def, tools_registry: Any):
+    def __init__(self, skill_name: str, skill_def: Any, tools_registry: Any) -> None:
         self.skill_name = skill_name
         self.skill_def = skill_def
         self.tools_registry = tools_registry

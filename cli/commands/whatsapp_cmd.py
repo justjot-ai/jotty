@@ -9,7 +9,7 @@ import asyncio
 import logging
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from .base import BaseCommand, CommandResult, ParsedArgs
 
@@ -75,7 +75,7 @@ class WhatsAppCommand(BaseCommand):
             else:
                 return await self._status(cli)
 
-    async def _get_client(self):
+    async def _get_client(self) -> Any:
         """Get or create WhatsApp client."""
         if WhatsAppCommand._client is None:
             from ..channels.whatsapp_web import WhatsAppWebClient, set_global_whatsapp_client
@@ -99,7 +99,7 @@ class WhatsAppCommand(BaseCommand):
                 return CommandResult.ok()
 
             # Register message handler to route to gateway
-            async def handle_message(msg):
+            async def handle_message(msg: Any) -> Any:
                 cli.renderer.print(f"[green]WhatsApp[/green] {msg.sender_name}: {msg.body[:100]}")
                 # Route to gateway if available
                 if hasattr(cli, '_gateway_router'):

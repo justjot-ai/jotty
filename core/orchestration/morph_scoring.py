@@ -84,7 +84,7 @@ class MorphScorer:
     - TRAS: alpha*LLM_ALIGNMENT + (1-alpha)*CAPABILITY_MATCH
     """
 
-    def __init__(self, config=None):
+    def __init__(self, config: Any = None) -> None:
         self.config = config
 
         # Weights for RCS (Role Clarity Score)

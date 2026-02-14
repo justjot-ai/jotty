@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from ..memory.cortex import SwarmMemory
 
 
-def _ensure_swarm_config(config):
+def _ensure_swarm_config(config: Any) -> Any:
     """Accept LearningConfig or SwarmConfig, return SwarmConfig."""
     if isinstance(config, FocusedLearningConfig):
         return SwarmConfig.from_configs(learning=config)
@@ -50,7 +50,7 @@ class AdaptiveLearningRate:
     - TD error variance analysis
     """
     
-    def __init__(self, config):
+    def __init__(self, config: Any) -> None:
         self.config = _ensure_swarm_config(config)
         self.alpha = self.config.alpha
         self.min_alpha = self.config.alpha_min
@@ -145,7 +145,7 @@ class IntermediateRewardCalculator:
     - Good reasoning steps
     """
     
-    def __init__(self, config):
+    def __init__(self, config: Any) -> None:
         self.config = _ensure_swarm_config(config)
         self.step_rewards: List[float] = []
     
@@ -214,7 +214,7 @@ class AdaptiveExploration:
     - Goal-specific exploration rates
     """
     
-    def __init__(self, config):
+    def __init__(self, config: Any) -> None:
         self.config = _ensure_swarm_config(config)
         self.epsilon = self.config.epsilon_start
         self.ucb_c = self.config.ucb_coefficient

@@ -31,7 +31,7 @@ class SwarmConfigurator:
     DRY Principle: Reuses existing credential storage and validation.
     """
     
-    def __init__(self, config=None):
+    def __init__(self, config: Any = None) -> None:
         """
         Initialize SwarmConfigurator.
         
@@ -43,7 +43,7 @@ class SwarmConfigurator:
         self._config_path = Path.home() / ".jotty" / "configs.json"
         self._load_configs()
     
-    def _load_configs(self):
+    def _load_configs(self) -> Any:
         """Load saved configurations (DRY: reuse existing storage)."""
         if self._config_path.exists():
             try:
@@ -56,7 +56,7 @@ class SwarmConfigurator:
         else:
             self._config_store = {}
     
-    def _save_configs(self):
+    def _save_configs(self) -> Any:
         """Save configurations to disk."""
         try:
             self._config_path.parent.mkdir(parents=True, exist_ok=True)

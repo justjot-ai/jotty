@@ -192,13 +192,7 @@ class MongoDBQueryEngine:
     using LLM with LookML semantic context.
     """
 
-    def __init__(
-        self,
-        schema: Schema = None,
-        lookml_model: LookMLModel = None,
-        uri: str = None,
-        database: str = None
-    ):
+    def __init__(self, schema: Schema = None, lookml_model: LookMLModel = None, uri: str = None, database: str = None) -> None:
         """
         Initialize MongoDB query engine.
 
@@ -226,7 +220,7 @@ class MongoDBQueryEngine:
         self._date_preprocessor = DatePreprocessor()
 
     @property
-    def client(self):
+    def client(self) -> Any:
         """Get MongoDB client."""
         if self._client is None and self.uri:
             from pymongo import MongoClient
@@ -234,7 +228,7 @@ class MongoDBQueryEngine:
         return self._client
 
     @property
-    def db(self):
+    def db(self) -> Any:
         """Get database instance."""
         if self._db is None and self.client and self.database:
             self._db = self.client[self.database]
@@ -377,16 +371,7 @@ class MongoDBQueryEngine:
 
         return result
 
-    def _retry_with_error(
-        self,
-        question: str,
-        original_pipeline: List[Dict],
-        error: str,
-        context: str,
-        llm_generate,
-        execute: bool,
-        retries_left: int
-    ) -> Optional[Dict[str, Any]]:
+    def _retry_with_error(self, question: str, original_pipeline: List[Dict], error: str, context: str, llm_generate: Any, execute: bool, retries_left: int) -> Optional[Dict[str, Any]]:
         """Retry pipeline generation with error feedback."""
         if retries_left <= 0:
             return None
@@ -595,7 +580,7 @@ JSON:"""
         if not pipeline:
             return pipeline
 
-        def convert_dates(obj):
+        def convert_dates(obj: Any) -> Any:
             """Recursively convert date strings to datetime objects."""
             if isinstance(obj, dict):
                 # Handle {"$date": "..."} format

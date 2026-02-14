@@ -1,3 +1,4 @@
+from typing import Any
 """
 Idea Writer Swarm - World-Class Content Generation with Section Registry
 =========================================================================
@@ -112,7 +113,7 @@ class WriterConfig(SwarmBaseConfig):
     language: str = "english"
     audience: str = "general"
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.name = "IdeaWriterSwarm"
         self.domain = "content_writing"
 
@@ -171,7 +172,7 @@ class SectionWriter(ABC):
     section_type: str = "generic"
     description: str = "Generic section writer"
 
-    def __init__(self, memory=None, context=None, bus=None):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None) -> None:
         self.memory = memory
         self.context = context
         self.bus = bus
@@ -198,9 +199,9 @@ class SectionRegistry:
     _writers: Dict[str, Type[SectionWriter]] = {}
 
     @classmethod
-    def register(cls, section_type: str):
+    def register(cls, section_type: str) -> Any:
         """Decorator to register a section writer."""
-        def decorator(writer_class: Type[SectionWriter]):
+        def decorator(writer_class: Type[SectionWriter]) -> Any:
             cls._writers[section_type] = writer_class
             writer_class.section_type = section_type
             return writer_class
@@ -217,13 +218,7 @@ class SectionRegistry:
         return list(cls._writers.keys())
 
     @classmethod
-    def create(
-        cls,
-        section_type: str,
-        memory=None,
-        context=None,
-        bus=None
-    ) -> Optional[SectionWriter]:
+    def create(cls, section_type: str, memory: Any = None, context: Any = None, bus: Any = None) -> Optional[SectionWriter]:
         """Create a section writer instance."""
         writer_class = cls.get(section_type)
         if writer_class:
@@ -379,7 +374,7 @@ class IntroductionWriter(SectionWriter):
     section_type = "introduction"
     description = "Writes compelling introductions with hooks"
 
-    def __init__(self, memory=None, context=None, bus=None):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None) -> None:
         super().__init__(memory, context, bus)
         self._writer = dspy.ChainOfThought(IntroductionSignature)
 
@@ -421,7 +416,7 @@ class BodySectionWriter(SectionWriter):
     section_type = "body"
     description = "Writes detailed body sections"
 
-    def __init__(self, memory=None, context=None, bus=None):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None) -> None:
         super().__init__(memory, context, bus)
         self._writer = dspy.ChainOfThought(BodySectionSignature)
 
@@ -465,7 +460,7 @@ class ConclusionWriter(SectionWriter):
     section_type = "conclusion"
     description = "Writes memorable conclusions"
 
-    def __init__(self, memory=None, context=None, bus=None):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None) -> None:
         super().__init__(memory, context, bus)
         self._writer = dspy.ChainOfThought(ConclusionSignature)
 
@@ -508,7 +503,7 @@ class MarketAnalysisWriter(SectionWriter):
     section_type = "market_analysis"
     description = "Writes market analysis with data and trends"
 
-    def __init__(self, memory=None, context=None, bus=None):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None) -> None:
         super().__init__(memory, context, bus)
         self._writer = dspy.ChainOfThought(BodySectionSignature)
 
@@ -555,7 +550,7 @@ class CaseStudiesWriter(SectionWriter):
     section_type = "case_studies"
     description = "Writes case studies with examples"
 
-    def __init__(self, memory=None, context=None, bus=None):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None) -> None:
         super().__init__(memory, context, bus)
         self._writer = dspy.ChainOfThought(BodySectionSignature)
 
@@ -602,7 +597,7 @@ class TechnicalDeepDiveWriter(SectionWriter):
     section_type = "technical_deep_dive"
     description = "Writes detailed technical explanations"
 
-    def __init__(self, memory=None, context=None, bus=None):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None) -> None:
         super().__init__(memory, context, bus)
         self._writer = dspy.ChainOfThought(BodySectionSignature)
 
@@ -649,7 +644,7 @@ class ResearchFindingsWriter(SectionWriter):
     section_type = "research_findings"
     description = "Integrates with ResearchSwarm for data-backed sections"
 
-    def __init__(self, memory=None, context=None, bus=None):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None) -> None:
         super().__init__(memory, context, bus)
         self._writer = dspy.ChainOfThought(BodySectionSignature)
 
@@ -702,7 +697,7 @@ class ResearchFindingsWriter(SectionWriter):
 class OutlineAgent(BaseSwarmAgent):
     """Generates content outlines."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, signature=OutlineGenerationSignature)
         self._generator = dspy.ChainOfThought(OutlineGenerationSignature)
         self.learned_context = learned_context
@@ -758,7 +753,7 @@ class OutlineAgent(BaseSwarmAgent):
 class ResearchAgent(BaseSwarmAgent):
     """Researches topics."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, signature=ResearchSignature)
         self._researcher = dspy.ChainOfThought(ResearchSignature)
         self.learned_context = learned_context
@@ -807,7 +802,7 @@ class ResearchAgent(BaseSwarmAgent):
 class PolishAgent(BaseSwarmAgent):
     """Polishes and refines content."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, signature=ContentPolishSignature)
         self.learned_context = learned_context
         self._polisher = dspy.ChainOfThought(ContentPolishSignature)
@@ -870,7 +865,7 @@ class IdeaWriterSwarm(DomainSwarm):
     )
     SWARM_SIGNATURE = IdeaWriterSwarmSignature
 
-    def __init__(self, config: WriterConfig = None):
+    def __init__(self, config: WriterConfig = None) -> None:
         super().__init__(config or WriterConfig())
 
     async def write(
@@ -892,13 +887,7 @@ class IdeaWriterSwarm(DomainSwarm):
         """
         return await self.execute(topic, sections=sections, custom_outline=custom_outline)
 
-    async def _execute_domain(
-        self,
-        topic: str,
-        sections: List[str] = None,
-        custom_outline: Outline = None,
-        **kwargs
-    ) -> WriterResult:
+    async def _execute_domain(self, topic: str, sections: List[str] = None, custom_outline: Outline = None, **kwargs: Any) -> WriterResult:
         """
         Domain-specific content writing logic.
 
@@ -935,13 +924,7 @@ class IdeaWriterSwarm(DomainSwarm):
             },
         )
 
-    async def _execute_phases(
-        self,
-        executor,
-        topic: str,
-        sections: List[str],
-        custom_outline: Outline = None
-    ) -> WriterResult:
+    async def _execute_phases(self, executor: Any, topic: str, sections: List[str], custom_outline: Outline = None) -> WriterResult:
         """
         Domain-specific phase logic using PhaseExecutor.
 
@@ -1111,7 +1094,7 @@ class IdeaWriterSwarm(DomainSwarm):
 # CONVENIENCE FUNCTIONS
 # =============================================================================
 
-async def write(topic: str, **kwargs) -> WriterResult:
+async def write(topic: str, **kwargs: Any) -> WriterResult:
     """
     One-liner content writing.
 
@@ -1123,7 +1106,7 @@ async def write(topic: str, **kwargs) -> WriterResult:
     return await swarm.execute(topic, **kwargs)
 
 
-def write_sync(topic: str, **kwargs) -> WriterResult:
+def write_sync(topic: str, **kwargs: Any) -> WriterResult:
     """Synchronous content writing."""
     return asyncio.run(write(topic, **kwargs))
 

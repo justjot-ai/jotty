@@ -27,12 +27,7 @@ import dspy
 # MERMAID EXPERT
 # =============================================================================
 
-def create_mermaid_expert(
-    config: SwarmConfig = None,
-    gold_standards: Optional[List[Dict[str, Any]]] = None,
-    memory=None,
-    improvements: Optional[List[Dict[str, Any]]] = None
-):
+def create_mermaid_expert(config: SwarmConfig = None, gold_standards: Optional[List[Dict[str, Any]]] = None, memory: Any = None, improvements: Optional[List[Dict[str, Any]]] = None) -> Any:
     """
     Create Mermaid diagram generation expert.
 
@@ -73,12 +68,7 @@ def create_mermaid_expert(
 # PLANTUML EXPERT
 # =============================================================================
 
-def create_plantuml_expert(
-    config: SwarmConfig = None,
-    gold_standards: Optional[List[Dict[str, Any]]] = None,
-    memory=None,
-    improvements: Optional[List[Dict[str, Any]]] = None
-):
+def create_plantuml_expert(config: SwarmConfig = None, gold_standards: Optional[List[Dict[str, Any]]] = None, memory: Any = None, improvements: Optional[List[Dict[str, Any]]] = None) -> Any:
     """
     Create PlantUML diagram generation expert.
 
@@ -119,13 +109,7 @@ def create_plantuml_expert(
 # SQL EXPERT
 # =============================================================================
 
-def create_sql_expert(
-    config: SwarmConfig = None,
-    gold_standards: Optional[List[Dict[str, Any]]] = None,
-    dialect: str = "postgresql",
-    memory=None,
-    improvements: Optional[List[Dict[str, Any]]] = None
-):
+def create_sql_expert(config: SwarmConfig = None, gold_standards: Optional[List[Dict[str, Any]]] = None, dialect: str = 'postgresql', memory: Any = None, improvements: Optional[List[Dict[str, Any]]] = None) -> Any:
     """
     Create SQL query generation expert.
 
@@ -155,10 +139,10 @@ def create_sql_expert(
         learned_improvements: str = dspy.InputField(desc="Previously learned patterns", default="")
         sql_query: str = dspy.OutputField(desc="Valid SQL query")
 
-    def create_sql_agent(improvements=None):
+    def create_sql_agent(improvements: Any = None) -> Any:
         return dspy.ChainOfThought(SQLGenerationSignature)
 
-    def create_sql_teacher():
+    def create_sql_teacher() -> Any:
         class SQLTeacherSignature(dspy.Signature):
             """Provide the correct SQL query."""
             task: str = dspy.InputField(desc="Task description")
@@ -189,12 +173,7 @@ def create_sql_expert(
 # LATEX MATH EXPERT
 # =============================================================================
 
-def create_latex_math_expert(
-    config: SwarmConfig = None,
-    gold_standards: Optional[List[Dict[str, Any]]] = None,
-    memory=None,
-    improvements: Optional[List[Dict[str, Any]]] = None
-):
+def create_latex_math_expert(config: SwarmConfig = None, gold_standards: Optional[List[Dict[str, Any]]] = None, memory: Any = None, improvements: Optional[List[Dict[str, Any]]] = None) -> Any:
     """
     Create LaTeX mathematical notation expert.
 
@@ -235,15 +214,7 @@ def create_latex_math_expert(
 # CUSTOM EXPERT FACTORY
 # =============================================================================
 
-def create_custom_expert(
-    domain: str,
-    agent=None,
-    gold_standards: Optional[List[Dict[str, Any]]] = None,
-    description: str = "",
-    memory=None,
-    improvements: Optional[List[Dict[str, Any]]] = None,
-    **kwargs
-):
+def create_custom_expert(domain: str, agent: Any = None, gold_standards: Optional[List[Dict[str, Any]]] = None, description: str = '', memory: Any = None, improvements: Optional[List[Dict[str, Any]]] = None, **kwargs: Any) -> Any:
     """
     Create a custom expert for any domain.
 

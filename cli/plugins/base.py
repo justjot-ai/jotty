@@ -41,7 +41,7 @@ class PluginBase(ABC):
         """Get plugin information."""
         pass
 
-    def on_load(self, cli: "JottyCLI"):
+    def on_load(self, cli: 'JottyCLI') -> Any:
         """
         Called when plugin is loaded.
 
@@ -50,7 +50,7 @@ class PluginBase(ABC):
         """
         pass
 
-    def on_unload(self, cli: "JottyCLI"):
+    def on_unload(self, cli: 'JottyCLI') -> Any:
         """
         Called when plugin is unloaded.
 
@@ -102,7 +102,7 @@ class SkillPlugin(PluginBase):
     Auto-exposes skill as CLI tool.
     """
 
-    def __init__(self, skill_definition: Any):
+    def __init__(self, skill_definition: Any) -> None:
         """
         Initialize from skill definition.
 

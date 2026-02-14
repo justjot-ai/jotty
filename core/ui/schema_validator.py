@@ -32,7 +32,7 @@ class SectionSchemaRegistry:
     Provides validation and transformation for all section types.
     """
 
-    def __init__(self, api_url: str = None, lazy_load: bool = True):
+    def __init__(self, api_url: str = None, lazy_load: bool = True) -> None:
         if api_url is None:
             import os
             try:
@@ -50,7 +50,7 @@ class SectionSchemaRegistry:
         if not lazy_load:
             self._load_schemas()
 
-    def _load_schemas(self):
+    def _load_schemas(self) -> Any:
         """Fetch schemas from JustJot.ai API or load from cache."""
         try:
             # Try to fetch from API
@@ -82,7 +82,7 @@ class SectionSchemaRegistry:
             logger.warning(f"Failed to fetch schemas from API: {e}")
             self._load_cache()
 
-    def _save_cache(self):
+    def _save_cache(self) -> Any:
         """Save schemas to local cache."""
         try:
             with open(self.cache_file, 'w') as f:
@@ -90,7 +90,7 @@ class SectionSchemaRegistry:
         except Exception as e:
             logger.error(f"Failed to save schema cache: {e}")
 
-    def _load_cache(self):
+    def _load_cache(self) -> Any:
         """Load schemas from local cache."""
         try:
             if self.cache_file.exists():
@@ -150,7 +150,7 @@ class SectionSchemaRegistry:
             self._apply_transform(content, field_path, transform_def)
         return content
 
-    def _apply_transform(self, content: Dict, field_path: str, transform_def: Dict):
+    def _apply_transform(self, content: Dict, field_path: str, transform_def: Dict) -> Any:
         """
         Apply a single transform.
 

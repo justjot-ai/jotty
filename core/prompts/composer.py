@@ -74,7 +74,7 @@ class PromptComposer:
     Model-family aware: adjusts formatting and verbosity per LLM provider.
     """
 
-    def __init__(self, model: str = ""):
+    def __init__(self, model: str = '') -> None:
         self.family = detect_model_family(model) if model else ModelFamily.GENERIC
         self.max_chars = _MAX_PROMPT_CHARS[self.family]
 

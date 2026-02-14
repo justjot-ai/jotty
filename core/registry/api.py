@@ -22,7 +22,7 @@ class RegistryAPI:
     This can be integrated into FastAPI, Flask, or any web framework.
     """
     
-    def __init__(self, registry: Optional[UnifiedRegistry] = None):
+    def __init__(self, registry: Optional[UnifiedRegistry] = None) -> None:
         self.registry = registry or get_unified_registry()
     
     def get_all(self) -> Dict[str, Any]:

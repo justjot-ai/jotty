@@ -111,15 +111,7 @@ class MASLearning:
     - TransferableLearningStore for pattern transfer
     """
 
-    def __init__(
-        self,
-        config: Any = None,
-        workspace_path: Optional[Path] = None,
-        learning_dir: Optional[Path] = None,
-        swarm_intelligence: Any = None,  # SwarmIntelligence instance
-        learning_manager: Any = None,    # LearningManager instance
-        transfer_learning: Any = None    # TransferableLearningStore instance
-    ):
+    def __init__(self, config: Any = None, workspace_path: Optional[Path] = None, learning_dir: Optional[Path] = None, swarm_intelligence: Any = None, learning_manager: Any = None, transfer_learning: Any = None) -> None:
         """
         Initialize MAS Learning.
 
@@ -199,15 +191,7 @@ class MASLearning:
 
         return None
 
-    def record_fix(
-        self,
-        error: str,
-        solution_commands: List[str],
-        solution_description: str,
-        source: str,
-        success: bool,
-        context: Dict[str, Any] = None
-    ):
+    def record_fix(self, error: str, solution_commands: List[str], solution_description: str, source: str, success: bool, context: Dict[str, Any] = None) -> Any:
         """Record a fix attempt (success or failure)."""
         error_hash = self._error_hash(error)
 
@@ -257,15 +241,7 @@ class MASLearning:
         self._topic_cache[text] = top_topics
         return top_topics
 
-    def record_session(
-        self,
-        task_description: str,
-        agents_used: List[str],
-        total_time: float,
-        success: bool,
-        stigmergy_signals: int = 0,
-        output_quality: float = 0.0
-    ):
+    def record_session(self, task_description: str, agents_used: List[str], total_time: float, success: bool, stigmergy_signals: int = 0, output_quality: float = 0.0) -> Any:
         """Record learning from a completed session."""
         session = SessionLearning(
             session_id=self.current_session_id,
@@ -429,7 +405,7 @@ class MASLearning:
     def _get_sessions_path(self) -> Path:
         return self.learning_dir / 'session_learnings.json'
 
-    def _save_fix_database(self):
+    def _save_fix_database(self) -> Any:
         """Save fix database to disk."""
         try:
             data = {
@@ -481,7 +457,7 @@ class MASLearning:
         except Exception as e:
             logger.warning(f"Could not load fix database: {e}")
 
-    def _save_sessions(self):
+    def _save_sessions(self) -> Any:
         """Save session learnings to disk."""
         try:
             data = [asdict(s) for s in self.session_learnings]
@@ -521,7 +497,7 @@ class MASLearning:
         except Exception as e:
             logger.warning(f"Could not load sessions: {e}")
 
-    def _load_all(self):
+    def _load_all(self) -> Any:
         """Load all learning data from disk."""
         self._load_fix_database()
         self._load_sessions()
@@ -536,7 +512,7 @@ class MASLearning:
     # Integration with SwarmTerminal (UNIQUE - fix persistence)
     # =========================================================================
 
-    def integrate_with_terminal(self, swarm_terminal) -> None:
+    def integrate_with_terminal(self, swarm_terminal: Any) -> None:
         """Integrate with SwarmTerminal to persist fix learnings."""
         if not swarm_terminal:
             return
@@ -556,7 +532,7 @@ class MASLearning:
 
         logger.info(f"Integrated {len(self.fix_database)} fixes with SwarmTerminal")
 
-    def sync_from_terminal(self, swarm_terminal) -> int:
+    def sync_from_terminal(self, swarm_terminal: Any) -> int:
         """Sync fix learnings from SwarmTerminal to database."""
         if not swarm_terminal:
             return 0
@@ -609,6 +585,6 @@ class MASLearning:
 
 
 # Convenience function
-def get_mas_learning(config=None, workspace_path=None, **delegates) -> MASLearning:
+def get_mas_learning(config: Any = None, workspace_path: Any = None, **delegates: Any) -> MASLearning:
     """Get or create MAS Learning instance."""
     return MASLearning(config=config, workspace_path=workspace_path, **delegates)

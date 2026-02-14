@@ -147,12 +147,7 @@ class CompositeAgent(BaseAgent):
     delegation — no multiple inheritance, no diamond problems.
     """
 
-    def __init__(
-        self,
-        config: CompositeAgentConfig = None,
-        signature: Optional[Type] = None,
-        sub_agents: Optional[Dict[str, BaseAgent]] = None,
-    ):
+    def __init__(self, config: CompositeAgentConfig = None, signature: Optional[Type] = None, sub_agents: Optional[Dict[str, BaseAgent]] = None) -> None:
         config = config or CompositeAgentConfig(name="CompositeAgent")
         super().__init__(config)
         self.signature = signature
@@ -242,7 +237,7 @@ class CompositeAgent(BaseAgent):
     # I/O SCHEMA
     # =========================================================================
 
-    def get_io_schema(self):
+    def get_io_schema(self) -> Any:
         """Get I/O schema from signature or wrapped swarm.
 
         Priority: explicit signature > wrapped swarm's schema > None.
@@ -265,7 +260,7 @@ class CompositeAgent(BaseAgent):
     # EXECUTION
     # =========================================================================
 
-    async def _execute_impl(self, **kwargs) -> Any:
+    async def _execute_impl(self, **kwargs: Any) -> Any:
         """Delegate to wrapped swarm or orchestrate sub-agents."""
         if self._wrapped_swarm:
             logger.info("Delegating to wrapped swarm: %s", self._wrapped_swarm.__class__.__name__)
@@ -273,7 +268,7 @@ class CompositeAgent(BaseAgent):
             return UnifiedResult.from_swarm_result(result)
         return await self._orchestrate(**kwargs)
 
-    async def _orchestrate(self, **kwargs) -> UnifiedResult:
+    async def _orchestrate(self, **kwargs: Any) -> UnifiedResult:
         """Route to coordination-specific execution method."""
         if not self._sub_agents:
             return UnifiedResult(
@@ -297,7 +292,7 @@ class CompositeAgent(BaseAgent):
     # COORDINATION PATTERNS
     # =========================================================================
 
-    async def _execute_pipeline(self, **kwargs) -> UnifiedResult:
+    async def _execute_pipeline(self, **kwargs: Any) -> UnifiedResult:
         """Execute sub-agents sequentially, chaining output forward.
 
         Dict outputs merge as keyword args. Non-dict outputs replace
@@ -347,7 +342,7 @@ class CompositeAgent(BaseAgent):
             metadata={'pipeline_stages': list(self._sub_agents.keys()), **all_metadata},
         )
 
-    async def _execute_parallel(self, **kwargs) -> UnifiedResult:
+    async def _execute_parallel(self, **kwargs: Any) -> UnifiedResult:
         """Execute all sub-agents concurrently, merge results."""
         start_time = time.time()
         results, errors = await self._gather_results(**kwargs)
@@ -368,7 +363,7 @@ class CompositeAgent(BaseAgent):
             metadata={'parallel_agents': list(self._sub_agents.keys()), 'errors': errors},
         )
 
-    async def _execute_consensus(self, **kwargs) -> UnifiedResult:
+    async def _execute_consensus(self, **kwargs: Any) -> UnifiedResult:
         """Execute all sub-agents, majority vote on success."""
         start_time = time.time()
         results, errors = await self._gather_results(**kwargs)
@@ -398,9 +393,7 @@ class CompositeAgent(BaseAgent):
     # SHARED HELPERS
     # =========================================================================
 
-    async def _gather_results(
-        self, **kwargs
-    ) -> Tuple[Dict[str, AgentResult], Dict[str, str]]:
+    async def _gather_results(self, **kwargs: Any) -> Tuple[Dict[str, AgentResult], Dict[str, str]]:
         """Run all sub-agents concurrently.
 
         Returns:
@@ -465,7 +458,7 @@ class CompositeAgent(BaseAgent):
     # EXECUTE OVERRIDE — unwrap UnifiedResult into AgentResult
     # =========================================================================
 
-    async def execute(self, **kwargs) -> AgentResult:
+    async def execute(self, **kwargs: Any) -> AgentResult:
         """Execute and unwrap UnifiedResult if present.
 
         BaseAgent.execute() wraps _execute_impl output in AgentResult.

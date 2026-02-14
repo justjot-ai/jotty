@@ -31,7 +31,7 @@ _lock = threading.Lock()
 _singletons: Dict[str, object] = {}
 
 
-def get_swarm_intelligence(config=None) -> 'SwarmIntelligence':
+def get_swarm_intelligence(config: Any = None) -> 'SwarmIntelligence':
     """
     Return a SwarmIntelligence singleton for multi-agent coordination.
 
@@ -56,7 +56,7 @@ def get_swarm_intelligence(config=None) -> 'SwarmIntelligence':
     return _singletons[key]
 
 
-def get_paradigm_executor(manager=None) -> Union['ParadigmExecutor', Type['ParadigmExecutor']]:
+def get_paradigm_executor(manager: Any = None) -> Union['ParadigmExecutor', Type['ParadigmExecutor']]:
     """
     Return a ParadigmExecutor for discussion paradigms (relay, debate, refinement).
 
@@ -72,7 +72,7 @@ def get_paradigm_executor(manager=None) -> Union['ParadigmExecutor', Type['Parad
     return ParadigmExecutor
 
 
-def get_training_daemon(manager=None) -> Union['TrainingDaemon', Type['TrainingDaemon']]:
+def get_training_daemon(manager: Any = None) -> Union['TrainingDaemon', Type['TrainingDaemon']]:
     """
     Return a TrainingDaemon for background self-improvement.
 

@@ -1,6 +1,7 @@
 """Validation configuration — multi-round validation and confidence thresholds."""
 
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass
@@ -25,7 +26,7 @@ class ValidationConfig:
     refinement_on_disagreement: bool = True
     max_refinement_rounds: int = 2
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         # Confidence/threshold fields: [0, 1]
         _unit_fields = {
             'swarm_validation_confidence_threshold': self.swarm_validation_confidence_threshold,

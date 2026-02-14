@@ -78,7 +78,7 @@ class ReportContext(Protocol):
     def _record_internal_warning(self, component: str, message: str, error: Exception = None) -> None: ...
     def _store_section_data(self, section_type: str, title: str, data: Dict, chart_configs: List[Dict] = None) -> None: ...
     def _maybe_add_narrative(self, section_name: str, data_context: str, section_type: str = 'general') -> str: ...
-    def _validate_inputs(self, **kwargs) -> None: ...
+    def _validate_inputs(self, **kwargs: Any) -> None: ...
 
 
 # =============================================================================
@@ -99,7 +99,7 @@ class PredictionResult:
     y_pred: np.ndarray
     y_prob: Optional[np.ndarray] = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.y_true = np.asarray(self.y_true)
         self.y_pred = np.asarray(self.y_pred)
         if self.y_prob is not None:
@@ -114,7 +114,7 @@ class PredictionResult:
             )
 
     @classmethod
-    def from_predictions(cls, y_true, y_pred, y_prob=None):
+    def from_predictions(cls, y_true: Any, y_pred: Any, y_prob: Any = None) -> Any:
         """Factory method accepting any array-like inputs."""
         return cls(y_true, y_pred, y_prob)
 
@@ -283,9 +283,7 @@ class ProfessionalMLReport(VisualizationMixin, InterpretabilityMixin, DriftMixin
         'min_group_size_fairness': 5,
     }
 
-    def __init__(self, output_dir: str = "professional_reports", theme: str = "professional",
-                 llm_narrative: bool = False, html_enabled: bool = False,
-                 config: Dict = None):
+    def __init__(self, output_dir: str = 'professional_reports', theme: str = 'professional', llm_narrative: bool = False, html_enabled: bool = False, config: Dict = None) -> None:
         self.output_dir = Path(output_dir).resolve()
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.figures_dir = self.output_dir / "figures"
@@ -330,7 +328,7 @@ class ProfessionalMLReport(VisualizationMixin, InterpretabilityMixin, DriftMixin
         plt.close()
         return self._fig_path_for_markdown(filename)
 
-    def _setup_plot_style(self):
+    def _setup_plot_style(self) -> Any:
         """Configure matplotlib for theme-matched professional visualizations.
 
         Warning — Thread Safety:
@@ -428,7 +426,7 @@ class ProfessionalMLReport(VisualizationMixin, InterpretabilityMixin, DriftMixin
             if hasattr(self, '_warnings'):
                 self._record_internal_warning('RestorePlotStyle', 'failed to restore rcParams', e)
 
-    def _record_section_failure(self, section_name: str, error: Exception):
+    def _record_section_failure(self, section_name: str, error: Exception) -> Any:
         """Record a section generation failure for health tracking.
 
         Logs a warning, appends to _failed_sections, and adds a visible
@@ -444,7 +442,7 @@ class ProfessionalMLReport(VisualizationMixin, InterpretabilityMixin, DriftMixin
             f"\n> **{section_name}:** Section generation failed — {type(error).__name__}: {error}\n\n---\n"
         )
 
-    def _validate_inputs(self, **kwargs):
+    def _validate_inputs(self, **kwargs: Any) -> Any:
         """Validate common ML inputs before processing.
 
         Checks for None/empty data, length mismatches, probability ranges,
@@ -510,7 +508,7 @@ class ProfessionalMLReport(VisualizationMixin, InterpretabilityMixin, DriftMixin
                 )
 
     @staticmethod
-    def _make_predictions(y_true, y_pred, y_prob=None) -> 'PredictionResult':
+    def _make_predictions(y_true: Any, y_pred: Any, y_prob: Any = None) -> 'PredictionResult':
         """Create a validated PredictionResult from raw arrays.
 
         Convenience wrapper used at the start of internal ``_impl`` methods
@@ -518,7 +516,7 @@ class ProfessionalMLReport(VisualizationMixin, InterpretabilityMixin, DriftMixin
         """
         return PredictionResult.from_predictions(y_true, y_pred, y_prob)
 
-    def _record_chart_failure(self, chart_name: str, error: Exception):
+    def _record_chart_failure(self, chart_name: str, error: Exception) -> Any:
         """Record a chart generation failure for health tracking.
 
         Logs a warning and appends to _failed_charts so chart failures
@@ -531,7 +529,7 @@ class ProfessionalMLReport(VisualizationMixin, InterpretabilityMixin, DriftMixin
         })
         logger.warning(f"Chart '{chart_name}' failed: {error}")
 
-    def _record_internal_warning(self, component: str, message: str, error: Exception = None):
+    def _record_internal_warning(self, component: str, message: str, error: Exception = None) -> Any:
         """Record a non-fatal internal warning for health tracking.
 
         Used to replace silent ``except: pass`` blocks so that suppressed
@@ -610,8 +608,7 @@ class ProfessionalMLReport(VisualizationMixin, InterpretabilityMixin, DriftMixin
             'healthy': len(self._failed_sections) == 0,
         }
 
-    def _store_section_data(self, section_type: str, title: str, data: Dict,
-                            chart_configs: List[Dict] = None):
+    def _store_section_data(self, section_type: str, title: str, data: Dict, chart_configs: List[Dict] = None) -> Any:
         """Store structured section data for HTML generation."""
         self._section_data.append({
             'type': section_type,
@@ -807,8 +804,7 @@ class ProfessionalMLReport(VisualizationMixin, InterpretabilityMixin, DriftMixin
 
         return ""
 
-    def set_metadata(self, title: str, subtitle: str = "", author: str = "Jotty ML",
-                    dataset: str = "", problem_type: str = "Classification"):
+    def set_metadata(self, title: str, subtitle: str = '', author: str = 'Jotty ML', dataset: str = '', problem_type: str = 'Classification') -> Any:
         """Set report metadata."""
         self._metadata = {
             'title': title,
@@ -895,7 +891,7 @@ class ProfessionalMLReport(VisualizationMixin, InterpretabilityMixin, DriftMixin
             'traffic_light': traffic_light,
         }
 
-    def _add_executive_summary_impl(self, metrics, best_model, n_features, context):
+    def _add_executive_summary_impl(self, metrics: Any, best_model: Any, n_features: Any, context: Any) -> Any:
         # Compute risk score
         risk_data = self._compute_risk_score(metrics)
 
@@ -974,7 +970,7 @@ class ProfessionalMLReport(VisualizationMixin, InterpretabilityMixin, DriftMixin
             'risk_score': risk_data,
         })
 
-    def _add_data_profile_impl(self, shape, dtypes, missing, recommendations):
+    def _add_data_profile_impl(self, shape: Any, dtypes: Any, missing: Any, recommendations: Any) -> Any:
         dtype_md = "| Data Type | Count |\n|-----------|-------|\n"
         for dtype, count in dtypes.items():
             dtype_md += f"| {dtype} | {count} |\n"
@@ -1014,7 +1010,7 @@ class ProfessionalMLReport(VisualizationMixin, InterpretabilityMixin, DriftMixin
     # PIPELINE DAG VISUALIZATION
     # =========================================================================
 
-    def _add_feature_importance_impl(self, importance, top_n):
+    def _add_feature_importance_impl(self, importance: Any, top_n: Any) -> Any:
         self._validate_inputs(feature_names=list(importance.keys()))
         sorted_imp = sorted(importance.items(), key=lambda x: x[1], reverse=True)[:top_n]
 
@@ -1053,7 +1049,7 @@ Higher values indicate more influential features.
                                 {'importance': dict(sorted_imp[:10])},
                                 [{'type': 'importance_bar'}])
 
-    def _add_model_benchmarking_impl(self, model_scores):
+    def _add_model_benchmarking_impl(self, model_scores: Any) -> Any:
         # Create comparison table
         table_md = "| Model | CV Score | Std Dev | Test Score | Time (s) |\n"
         table_md += "|-------|----------|---------|------------|----------|\n"
@@ -1103,7 +1099,7 @@ The table below shows the performance of each model.
     # MODEL COMPARISON (Phase 3 — Round 4)
     # =========================================================================
 
-    def _add_model_comparison_impl(self, models, X_test, y_true, class_labels=None):
+    def _add_model_comparison_impl(self, models: Any, X_test: Any, y_true: Any, class_labels: Any = None) -> Any:
         """Implementation for side-by-side model comparison."""
         from sklearn.metrics import (accuracy_score, precision_score, recall_score,
                                      f1_score, roc_auc_score, roc_curve)
@@ -1260,7 +1256,7 @@ Side-by-side evaluation of {len(models)} trained models on the test set.
     # MULTI-DATASET VALIDATION
     # =========================================================================
 
-    def _add_confusion_matrix_impl(self, y_true, y_pred, labels):
+    def _add_confusion_matrix_impl(self, y_true: Any, y_pred: Any, labels: Any) -> Any:
         preds = self._make_predictions(y_true, y_pred)
         from sklearn.metrics import confusion_matrix, classification_report
 
@@ -1308,7 +1304,7 @@ Side-by-side evaluation of {len(models)} trained models on the test set.
             'labels': labels or [str(i) for i in range(len(cm))],
         }, [{'type': 'confusion_heatmap'}])
 
-    def _add_roc_analysis_impl(self, y_true, y_prob, pos_label):
+    def _add_roc_analysis_impl(self, y_true: Any, y_prob: Any, pos_label: Any) -> Any:
         preds = self._make_predictions(y_true, y_true, y_prob)  # y_pred not used, pass y_true
         from sklearn.metrics import roc_curve, auc, roc_auc_score
         from sklearn.preprocessing import label_binarize
@@ -1401,7 +1397,7 @@ Multiclass ROC analysis using One-vs-Rest strategy for {n_classes} classes.
         self._content.append(content)
         self._store_section_data('roc_analysis', 'ROC Curve Analysis', {'auc': roc_auc})
 
-    def _add_precision_recall_impl(self, y_true, y_prob, pos_label):
+    def _add_precision_recall_impl(self, y_true: Any, y_prob: Any, pos_label: Any) -> Any:
         preds = self._make_predictions(y_true, y_true, y_prob)  # y_pred not used
         from sklearn.metrics import precision_recall_curve, average_precision_score
         from sklearn.preprocessing import label_binarize
@@ -1475,7 +1471,7 @@ Multiclass precision-recall analysis for {n_classes} classes.
         self._content.append(content)
         self._store_section_data('precision_recall', 'Precision-Recall Analysis', {'avg_precision': avg_precision})
 
-    def _add_baseline_comparison_impl(self, baseline_score, final_score, baseline_model):
+    def _add_baseline_comparison_impl(self, baseline_score: Any, final_score: Any, baseline_model: Any) -> Any:
         improvement = final_score - baseline_score
         improvement_pct = (improvement / baseline_score * 100) if baseline_score > 0 else 0
 
@@ -1496,7 +1492,7 @@ The final model achieves a **{improvement_pct:.1f}%** improvement over the basel
         self._content.append(content)
         self._store_section_data('baseline_comparison', 'Baseline Comparison', {'improvement_pct': improvement_pct})
 
-    def _add_recommendations_impl(self, recommendations):
+    def _add_recommendations_impl(self, recommendations: Any) -> Any:
         recs_md = "\n".join([f"{i}. {rec}" for i, rec in enumerate(recommendations, 1)])
 
         content = f"""
@@ -1515,7 +1511,7 @@ The final model achieves a **{improvement_pct:.1f}%** improvement over the basel
     # ADVANCED DATA QUALITY ANALYSIS
     # =========================================================================
 
-    def _add_data_quality_analysis_impl(self, X, y):
+    def _add_data_quality_analysis_impl(self, X: Any, y: Any) -> Any:
         self._validate_inputs(X=X, require_X=True)
         self._raw_data['X'] = X
         self._raw_data['y'] = y
@@ -1707,7 +1703,7 @@ A comprehensive analysis of data quality, identifying potential issues before mo
     # CORRELATION & MULTICOLLINEARITY ANALYSIS
     # =========================================================================
 
-    def _add_correlation_analysis_impl(self, X, threshold):
+    def _add_correlation_analysis_impl(self, X: Any, threshold: Any) -> Any:
         self._validate_inputs(X=X, require_X=True)
         numeric_cols = X.select_dtypes(include=[np.number]).columns
         if len(numeric_cols) < 2:
@@ -1829,7 +1825,7 @@ VIF measures multicollinearity. VIF > 5 indicates moderate, VIF > 10 indicates s
     # LEARNING CURVES & BIAS-VARIANCE ANALYSIS
     # =========================================================================
 
-    def _compute_ece(self, y_true, y_prob, n_bins: int = 10) -> Dict:
+    def _compute_ece(self, y_true: Any, y_prob: Any, n_bins: int = 10) -> Dict:
         """Compute Expected Calibration Error with per-bin breakdown."""
         bin_edges = np.linspace(0, 1, n_bins + 1)
         bin_data = []
@@ -1864,7 +1860,7 @@ VIF measures multicollinearity. VIF > 5 indicates moderate, VIF > 10 indicates s
     # LIFT & GAIN ANALYSIS
     # =========================================================================
 
-    def _add_reproducibility_section_impl(self, model, params, random_state, environment):
+    def _add_reproducibility_section_impl(self, model: Any, params: Any, random_state: Any, environment: Any) -> Any:
         import sys
         import platform
 
@@ -1957,7 +1953,7 @@ Full information for reproducing this analysis.
     # HYPERPARAMETER SEARCH VISUALIZATION
     # =========================================================================
 
-    def _normalize_trials(self, study_or_trials) -> List[Dict]:
+    def _normalize_trials(self, study_or_trials: Any) -> List[Dict]:
         """Normalize Optuna study or list of dicts into uniform trial format."""
         trials = []
 
@@ -1983,7 +1979,7 @@ Full information for reproducing this analysis.
     # EXECUTIVE DASHBOARD (Phase 1)
     # =========================================================================
 
-    def _bootstrap_auc_ci(self, y_true, y_prob, n_boot: int = 1000) -> Dict:
+    def _bootstrap_auc_ci(self, y_true: Any, y_prob: Any, n_boot: int = 1000) -> Dict:
         """Compute bootstrap confidence interval for AUC."""
         from sklearn.metrics import roc_auc_score
 
@@ -2014,7 +2010,7 @@ Full information for reproducing this analysis.
     # SCORE DISTRIBUTION BY CLASS (Phase 6)
     # =========================================================================
 
-    def _is_neural_network(self, model) -> bool:
+    def _is_neural_network(self, model: Any) -> bool:
         """Check if model is a neural network using string-based type check (no framework imports)."""
         model_type = str(type(model))
         nn_indicators = [
@@ -2024,7 +2020,7 @@ Full information for reproducing this analysis.
         ]
         return any(indicator in model_type for indicator in nn_indicators)
 
-    def _get_nn_architecture_info(self, model) -> Dict:
+    def _get_nn_architecture_info(self, model: Any) -> Dict:
         """Extract neural network architecture information."""
         info = {}
         model_type = str(type(model))
@@ -2058,7 +2054,7 @@ Full information for reproducing this analysis.
 
         return info
 
-    def _compute_gradient_attribution(self, model, X_sample) -> Dict:
+    def _compute_gradient_attribution(self, model: Any, X_sample: Any) -> Dict:
         """Attempt simple gradient×input attribution. Returns empty dict on failure."""
         try:
             model_type = str(type(model))
@@ -2093,7 +2089,7 @@ Full information for reproducing this analysis.
     # MODEL CARD (Phase 8)
     # =========================================================================
 
-    def _add_model_card_impl(self, model, results, intended_use, limitations, ethical):
+    def _add_model_card_impl(self, model: Any, results: Any, intended_use: Any, limitations: Any, ethical: Any) -> Any:
         import platform
 
         model_type = type(model).__name__ if model else 'Unknown'
@@ -2202,7 +2198,7 @@ transparent model documentation.
     # REGRESSION ANALYSIS (Phase 9)
     # =========================================================================
 
-    def _detect_heteroscedasticity(self, y_pred, residuals) -> Dict:
+    def _detect_heteroscedasticity(self, y_pred: Any, residuals: Any) -> Dict:
         """Perform Breusch-Pagan test for heteroscedasticity."""
         try:
             from scipy import stats as scipy_stats

@@ -106,7 +106,7 @@ class SwarmIntelligence:
 
     DEFAULT_COLLECTIVE_MEMORY_LIMIT = 200
 
-    def __init__(self, config=None, collective_memory_limit: int = None):
+    def __init__(self, config: Any = None, collective_memory_limit: int = None) -> None:
         self.config = config
         self.collective_memory_limit = (
             collective_memory_limit
@@ -231,7 +231,7 @@ class SwarmIntelligence:
 
         logger.info("SwarmIntelligence initialized (DrZero + MorphAgent + arXiv Swarm patterns)")
 
-    def __getattr__(self, name: str):
+    def __getattr__(self, name: str) -> Any:
         """Forward attribute lookups to protocol mixin methods.
 
         Methods are bound to self (SwarmIntelligence instance) so they
@@ -248,7 +248,7 @@ class SwarmIntelligence:
 
         raise AttributeError(f"'{type(self).__name__}' has no attribute '{name}'")
 
-    def connect_td_learner(self, td_learner) -> None:
+    def connect_td_learner(self, td_learner: Any) -> None:
         """
         Connect a TD-Lambda learner for RL-informed routing.
 
@@ -261,7 +261,7 @@ class SwarmIntelligence:
         self._td_learner = td_learner
         logger.debug("TD-Lambda learner connected for RL-informed routing")
 
-    def enable_training_mode(self, enabled: bool = True, memory_system=None) -> None:
+    def enable_training_mode(self, enabled: bool = True, memory_system: Any = None) -> None:
         """
         Enable/disable curriculum-based training mode.
 
@@ -307,15 +307,7 @@ class SwarmIntelligence:
                 target_agent=target_agent
             )
 
-    def receive_executor_feedback(
-        self,
-        task_id: str,
-        success: bool,
-        tools_used: List[str],
-        execution_time: float = 0.0,
-        error_type: str = None,
-        task_type: str = None
-    ):
+    def receive_executor_feedback(self, task_id: str, success: bool, tools_used: List[str], execution_time: float = 0.0, error_type: str = None, task_type: str = None) -> Any:
         """
         Receive feedback from executor after task completion.
 
@@ -361,16 +353,7 @@ class SwarmIntelligence:
         if agent_name not in self.agent_profiles:
             self.agent_profiles[agent_name] = AgentProfile(agent_name=agent_name)
 
-    def record_task_result(
-        self,
-        agent_name: str,
-        task_type: str,
-        success: bool,
-        execution_time: float,
-        context: Dict = None,
-        is_multi_agent: bool = False,
-        agents_count: int = 1
-    ):
+    def record_task_result(self, agent_name: str, task_type: str, success: bool, execution_time: float, context: Dict = None, is_multi_agent: bool = False, agents_count: int = 1) -> Any:
         """Record task result for specialization learning. Thread-safe."""
         with self._state_lock:
             self.register_agent(agent_name)

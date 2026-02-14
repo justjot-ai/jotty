@@ -101,10 +101,7 @@ class Document:
 
         return "\n".join(parts)
 
-    def add_section(self, section_type: SectionType, content: str,
-                    title: Optional[str] = None,
-                    language: Optional[str] = None,
-                    **metadata) -> 'Document':
+    def add_section(self, section_type: SectionType, content: str, title: Optional[str] = None, language: Optional[str] = None, **metadata: Any) -> 'Document':
         """Add a section to the document"""
         section = Section(
             type=section_type,

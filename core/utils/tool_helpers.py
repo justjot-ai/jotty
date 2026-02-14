@@ -68,10 +68,7 @@ def _normalize_param_aliases(params: Dict[str, Any], required_params: List[str])
                     break
 
 
-def tool_response(
-    data: Optional[Dict[str, Any]] = None,
-    **kwargs
-) -> Dict[str, Any]:
+def tool_response(data: Optional[Dict[str, Any]] = None, **kwargs: Any) -> Dict[str, Any]:
     """
     Create a successful tool response.
 
@@ -89,11 +86,7 @@ def tool_response(
     return result
 
 
-def tool_error(
-    error: str,
-    code: Optional[str] = None,
-    **kwargs
-) -> Dict[str, Any]:
+def tool_error(error: str, code: Optional[str] = None, **kwargs: Any) -> Dict[str, Any]:
     """
     Create an error tool response.
 

@@ -27,14 +27,7 @@ from .exceptions import (
 class HelpfulError(JottyError):
     """Base for errors with helpful suggestions."""
 
-    def __init__(
-        self,
-        message: str,
-        suggestion: Optional[str] = None,
-        doc_link: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None,
-        **kwargs
-    ):
+    def __init__(self, message: str, suggestion: Optional[str] = None, doc_link: Optional[str] = None, context: Optional[Dict[str, Any]] = None, **kwargs: Any) -> None:
         self.suggestion = suggestion
         self.doc_link = doc_link
 
@@ -58,7 +51,7 @@ class HelpfulError(JottyError):
 class SwarmConfigImportError(HelpfulError):
     """Raised when trying to import deprecated SwarmConfig."""
 
-    def __init__(self, attempted_import: str = "SwarmConfig"):
+    def __init__(self, attempted_import: str = 'SwarmConfig') -> None:
         super().__init__(
             message=f"Cannot import '{attempted_import}' - this class has been renamed",
             suggestion="Use 'SwarmBaseConfig' instead:\n"
@@ -68,12 +61,7 @@ class SwarmConfigImportError(HelpfulError):
         )
 
 
-def raise_import_error(
-    module: str,
-    name: str,
-    suggestion: Optional[str] = None,
-    **kwargs
-) -> None:
+def raise_import_error(module: str, name: str, suggestion: Optional[str] = None, **kwargs: Any) -> None:
     """Raise a helpful import error."""
 
     # Check for common mistakes
@@ -98,7 +86,7 @@ def raise_import_error(
 class MissingEnvVarError(HelpfulError):
     """Raised when required environment variable is missing."""
 
-    def __init__(self, var_name: str, purpose: Optional[str] = None):
+    def __init__(self, var_name: str, purpose: Optional[str] = None) -> None:
         message = f"Required environment variable '{var_name}' is not set"
 
         suggestion = f"Set {var_name} in your environment:\n" \
@@ -119,13 +107,7 @@ class MissingEnvVarError(HelpfulError):
 class InvalidConfigValueError(HelpfulError):
     """Raised when config value is invalid."""
 
-    def __init__(
-        self,
-        field: str,
-        value: Any,
-        expected: str,
-        valid_values: Optional[List[str]] = None
-    ):
+    def __init__(self, field: str, value: Any, expected: str, valid_values: Optional[List[str]] = None) -> None:
         message = f"Invalid value for '{field}': {value}"
 
         suggestion = f"Expected: {expected}"
@@ -139,12 +121,7 @@ class InvalidConfigValueError(HelpfulError):
         )
 
 
-def raise_config_error(
-    field: str,
-    issue: str,
-    suggestion: Optional[str] = None,
-    **kwargs
-) -> None:
+def raise_config_error(field: str, issue: str, suggestion: Optional[str] = None, **kwargs: Any) -> None:
     """Raise a helpful configuration error."""
 
     message = f"Configuration error in '{field}': {issue}"
@@ -162,12 +139,7 @@ def raise_config_error(
 class TimeoutErrorWithSuggestion(HelpfulError):
     """Timeout with suggestions for fixing."""
 
-    def __init__(
-        self,
-        operation: str,
-        timeout: int,
-        actual_time: Optional[float] = None
-    ):
+    def __init__(self, operation: str, timeout: int, actual_time: Optional[float] = None) -> None:
         if actual_time:
             message = f"{operation} timed out after {actual_time:.1f}s (limit: {timeout}s)"
         else:
@@ -188,12 +160,7 @@ class TimeoutErrorWithSuggestion(HelpfulError):
 class LLMError(HelpfulError):
     """LLM call failed with suggestions."""
 
-    def __init__(
-        self,
-        provider: str,
-        error: str,
-        retry_count: int = 0
-    ):
+    def __init__(self, provider: str, error: str, retry_count: int = 0) -> None:
         message = f"LLM call to {provider} failed: {error}"
 
         suggestion = "Common fixes:\n"
@@ -228,12 +195,7 @@ class LLMError(HelpfulError):
 class JSONParseError(HelpfulError):
     """JSON parsing failed with helpful context."""
 
-    def __init__(
-        self,
-        source: str,
-        preview: str,
-        original_error: Optional[Exception] = None
-    ):
+    def __init__(self, source: str, preview: str, original_error: Optional[Exception] = None) -> None:
         message = f"Failed to parse JSON from {source}"
 
         suggestion = f"Response preview: {preview[:200]}...\n\n" \
@@ -258,7 +220,7 @@ class JSONParseError(HelpfulError):
 class SwarmNotFoundError(HelpfulError):
     """Swarm not found with suggestions."""
 
-    def __init__(self, swarm_name: str, available_swarms: Optional[List[str]] = None):
+    def __init__(self, swarm_name: str, available_swarms: Optional[List[str]] = None) -> None:
         message = f"Swarm '{swarm_name}' not found"
 
         suggestion = "Available swarms:\n"
@@ -276,13 +238,7 @@ class SwarmNotFoundError(HelpfulError):
 class AgentFailedError(HelpfulError):
     """Agent execution failed with debugging tips."""
 
-    def __init__(
-        self,
-        agent_name: str,
-        task: str,
-        error: str,
-        trace: Optional[str] = None
-    ):
+    def __init__(self, agent_name: str, task: str, error: str, trace: Optional[str] = None) -> None:
         message = f"Agent '{agent_name}' failed: {error}"
 
         suggestion = f"Debugging steps:\n" \
@@ -325,11 +281,7 @@ def suggest_fix(error: Exception, default_suggestion: str = "") -> str:
     return default_suggestion or "Check the error message and logs for more details"
 
 
-def format_error_with_context(
-    error: Exception,
-    operation: str,
-    **context
-) -> str:
+def format_error_with_context(error: Exception, operation: str, **context: Any) -> str:
     """Format error with helpful context."""
 
     lines = [

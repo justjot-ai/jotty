@@ -97,7 +97,7 @@ class SemanticEmbedder:
     Falls back to enhanced keyword matching if sentence-transformers unavailable.
     """
 
-    def __init__(self, model_name: str = 'all-MiniLM-L6-v2', use_embeddings: bool = True):
+    def __init__(self, model_name: str = 'all-MiniLM-L6-v2', use_embeddings: bool = True) -> None:
         self.model = None
         self._model_name = model_name
         self._use_embeddings = use_embeddings
@@ -418,7 +418,7 @@ class TransferableLearningStore:
     - Level 3: Meta patterns (learning strategies)
     """
 
-    def __init__(self, config=None):
+    def __init__(self, config: Any = None) -> None:
         self.config = config
         self.embedder = SemanticEmbedder()
         self.extractor = PatternExtractor()
@@ -440,16 +440,7 @@ class TransferableLearningStore:
 
         logger.info("TransferableLearningStore initialized")
 
-    def record_experience(
-        self,
-        query: str,
-        agent: str,
-        action: str,
-        reward: float,
-        success: bool,
-        error: str = None,
-        context: Dict = None
-    ):
+    def record_experience(self, query: str, agent: str, action: str, reward: float, success: bool, error: str = None, context: Dict = None) -> Any:
         """Record an experience and extract transferable patterns."""
         # Create experience record
         exp_id = hashlib.md5(f"{query}:{agent}:{time.time()}".encode()).hexdigest()[:12]
@@ -482,7 +473,7 @@ class TransferableLearningStore:
         # Check for meta-patterns
         self._check_meta_patterns(experience)
 
-    def _update_task_pattern(self, query: str, success: bool, reward: float):
+    def _update_task_pattern(self, query: str, success: bool, reward: float) -> Any:
         """Update task-type pattern from experience."""
         task_type = self.extractor.extract_task_type(query)
 
@@ -502,7 +493,7 @@ class TransferableLearningStore:
         pattern.total_reward += reward
         pattern.last_used = time.time()
 
-    def _update_error_pattern(self, error: str, recovery_action: str, success: bool, reward: float):
+    def _update_error_pattern(self, error: str, recovery_action: str, success: bool, reward: float) -> Any:
         """Update error recovery pattern."""
         error_type = self.extractor.extract_error_type(error)
 
@@ -532,7 +523,7 @@ class TransferableLearningStore:
         if len(pattern.contexts) > 20:
             pattern.contexts = pattern.contexts[-20:]
 
-    def _update_role_profile(self, agent: str, query: str, success: bool, reward: float):
+    def _update_role_profile(self, agent: str, query: str, success: bool, reward: float) -> Any:
         """Update role profile based on agent performance."""
         role = self.extractor.extract_role(agent)
         task_type = self.extractor.extract_task_type(query)
@@ -552,7 +543,7 @@ class TransferableLearningStore:
         # Update strengths/weaknesses
         self._update_role_strengths_weaknesses(profile)
 
-    def _update_role_strengths_weaknesses(self, profile: RoleProfile):
+    def _update_role_strengths_weaknesses(self, profile: RoleProfile) -> Any:
         """Determine role strengths and weaknesses from history."""
         strengths = []
         weaknesses = []
@@ -568,7 +559,7 @@ class TransferableLearningStore:
         profile.strengths = strengths
         profile.weaknesses = weaknesses
 
-    def _check_meta_patterns(self, experience: Dict):
+    def _check_meta_patterns(self, experience: Dict) -> Any:
         """Check if experience triggers or creates meta-patterns."""
         # Meta-pattern: Repeated failures suggest strategy change
         recent_failures = sum(1 for exp in self.experiences[-5:] if not exp.get('success'))
@@ -730,15 +721,7 @@ class TransferableLearningStore:
     # Session History & Task Scoring (consolidated from MASLearning)
     # =========================================================================
 
-    def record_session(
-        self,
-        task_description: str,
-        agents_used: List[str],
-        total_time: float,
-        success: bool,
-        stigmergy_signals: int = 0,
-        output_quality: float = 0.0
-    ):
+    def record_session(self, task_description: str, agents_used: List[str], total_time: float, success: bool, stigmergy_signals: int = 0, output_quality: float = 0.0) -> Any:
         """Record a session for task relevance matching."""
         if not hasattr(self, 'sessions'):
             self.sessions = []

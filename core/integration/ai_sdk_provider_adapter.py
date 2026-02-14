@@ -44,14 +44,7 @@ class AISDKProviderLM(BaseLM):
         dspy.configure(lm=AISDKProviderLM(provider='anthropic', model='claude-3-5-sonnet'))
     """
     
-    def __init__(
-        self,
-        provider: str,
-        model: str = 'sonnet',
-        base_url: str = None,
-        api_key: str = None,
-        **kwargs
-    ):
+    def __init__(self, provider: str, model: str = 'sonnet', base_url: str = None, api_key: str = None, **kwargs: Any) -> None:
         """
         Initialize AI SDK provider adapter
         
@@ -143,7 +136,7 @@ class AISDKProviderLM(BaseLM):
         except requests.exceptions.RequestException as e:
             raise RuntimeError(f"AI SDK provider error ({self.provider}): {e}")
     
-    def _handle_streaming_response(self, response) -> Dict[str, Any]:
+    def _handle_streaming_response(self, response: Any) -> Dict[str, Any]:
         """Handle SSE streaming response"""
         text_parts = []
         
@@ -169,7 +162,7 @@ class AISDKProviderLM(BaseLM):
             'usage': {}
         }
     
-    def __call__(self, prompt=None, messages=None, **kwargs):
+    def __call__(self, prompt: Any = None, messages: Any = None, **kwargs: Any) -> Any:
         """
         DSPy-compatible call interface
         
@@ -214,13 +207,7 @@ class AISDKProviderLM(BaseLM):
         # Return in DSPy format (list of strings)
         return [result['text']]
     
-    def generate(
-        self,
-        messages: List[Dict[str, str]],
-        temperature: float = LLM_TEMPERATURE,
-        max_tokens: Optional[int] = None,
-        **kwargs
-    ) -> Dict[str, Any]:
+    def generate(self, messages: List[Dict[str, str]], temperature: float = LLM_TEMPERATURE, max_tokens: Optional[int] = None, **kwargs: Any) -> Dict[str, Any]:
         """
         Generate response (compatible with DSPy's expected interface)
         
@@ -248,18 +235,13 @@ class AISDKProviderLM(BaseLM):
             })
         }
     
-    def inspect_history(self, n=1):
+    def inspect_history(self, n: Any = 1) -> Any:
         """DSPy-compatible history inspection"""
         return self.history[-n:] if self.history else []
 
 
 # Convenience function for easy configuration
-def configure_dspy_with_ai_sdk_provider(
-    provider: str,
-    model: str = 'sonnet',
-    base_url: str = None,
-    api_key: str = None
-):
+def configure_dspy_with_ai_sdk_provider(provider: str, model: str = 'sonnet', base_url: str = None, api_key: str = None) -> Any:
     """
     Configure DSPy with an AI SDK provider
     

@@ -356,7 +356,7 @@ class StreamlitProvider(SkillProvider):
     version = "1.0.0"
     description = "Build apps with Streamlit - fully open source, no cloud required"
 
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: Dict[str, Any] = None) -> None:
         """
         Initialize StreamlitProvider.
 
@@ -1002,7 +1002,7 @@ st.dataframe(df, use_container_width=True)'''
         """List all known apps."""
         return list(self._apps.keys())
 
-    async def cleanup(self):
+    async def cleanup(self) -> Any:
         """Clean up resources."""
         for app in self._apps.values():
             if app.is_running():

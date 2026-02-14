@@ -14,7 +14,7 @@ Usage:
 import asyncio
 import logging
 import threading
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Any
 
 from .base import BaseCommand, CommandResult, ParsedArgs
 
@@ -33,7 +33,7 @@ class WebServerCommand(BaseCommand):
     usage = "/web [start|stop|status] [--port PORT] [--host HOST]"
     category = "integrations"
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._server_thread: Optional[threading.Thread] = None
         self._server_running = False
         self._port = 8080
@@ -88,7 +88,7 @@ class WebServerCommand(BaseCommand):
             server = uvicorn.Server(config)
 
             # Run in background thread
-            def run_server():
+            def run_server() -> Any:
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
                 try:

@@ -36,14 +36,7 @@ class BudgetScope(Enum):
 class BudgetExceededError(Exception):
     """Raised when a budget limit is exceeded."""
 
-    def __init__(
-        self,
-        message: str,
-        scope: BudgetScope,
-        current: int,
-        limit: int,
-        resource: str = "calls"
-    ):
+    def __init__(self, message: str, scope: BudgetScope, current: int, limit: int, resource: str = 'calls') -> None:
         super().__init__(message)
         self.scope = scope
         self.current = current
@@ -104,7 +97,7 @@ class BudgetConfig:
     soft_limit_mode: bool = False  # If True, warn but don't block
 
     @classmethod
-    def from_swarm_config(cls, config) -> 'BudgetConfig':
+    def from_swarm_config(cls, config: Any) -> 'BudgetConfig':
         """Create BudgetConfig from SwarmConfig budget fields.
 
         Bridges SwarmConfig budget fields to BudgetConfig so users
@@ -176,12 +169,7 @@ class BudgetTracker:
     _instances: Dict[str, 'BudgetTracker'] = {}
     _instances_lock = threading.Lock()
 
-    def __init__(
-        self,
-        config: Optional[BudgetConfig] = None,
-        cost_per_1k_input: float = DEFAULT_COST_PER_1K_INPUT,
-        cost_per_1k_output: float = DEFAULT_COST_PER_1K_OUTPUT
-    ):
+    def __init__(self, config: Optional[BudgetConfig] = None, cost_per_1k_input: float = DEFAULT_COST_PER_1K_INPUT, cost_per_1k_output: float = DEFAULT_COST_PER_1K_OUTPUT) -> None:
         """
         Initialize budget tracker.
 
@@ -215,7 +203,7 @@ class BudgetTracker:
         )
 
     @classmethod
-    def get_instance(cls, name: str = "default", **kwargs) -> 'BudgetTracker':
+    def get_instance(cls, name: str = 'default', **kwargs: Any) -> 'BudgetTracker':
         """Get a singleton instance by name (thread-safe, double-checked locking)."""
         if name not in cls._instances:
             with cls._instances_lock:
@@ -567,7 +555,7 @@ class BudgetTracker:
 # CONVENIENCE FUNCTIONS
 # =============================================================================
 
-def get_budget_tracker(name: str = "default", **kwargs) -> BudgetTracker:
+def get_budget_tracker(name: str = 'default', **kwargs: Any) -> BudgetTracker:
     """Get a named budget tracker instance."""
     return BudgetTracker.get_instance(name, **kwargs)
 

@@ -174,7 +174,7 @@ class ChartTransformer:
     not structured chart data.
     """
 
-    def __init__(self, colors: List[str] = None):
+    def __init__(self, colors: List[str] = None) -> None:
         self.colors = colors or DEFAULT_COLORS
 
     def transform(
@@ -389,12 +389,7 @@ class ChartTransformer:
 # Convenience Function
 # ============================================
 
-def transform_to_section(
-    section_type: str,
-    content: Any,
-    title: str = None,
-    **kwargs
-) -> JustJotSection:
+def transform_to_section(section_type: str, content: Any, title: str = None, **kwargs: Any) -> JustJotSection:
     """
     Transform any content to a JustJot section.
 

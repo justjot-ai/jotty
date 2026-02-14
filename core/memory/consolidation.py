@@ -129,12 +129,7 @@ class ConsolidationValidator:
             validator.quarantine_suspicious(pattern)
     """
 
-    def __init__(
-        self,
-        confidence_threshold: float = 0.7,
-        use_llm_validation: bool = True,
-        quarantine_enabled: bool = True
-    ):
+    def __init__(self, confidence_threshold: float = 0.7, use_llm_validation: bool = True, quarantine_enabled: bool = True) -> None:
         """
         Initialize validator.
 
@@ -402,7 +397,7 @@ class MemoryLevelClassifier:
             memory.store(content=experience, level=level, ...)
     """
     
-    def __init__(self, use_cot: bool = True):
+    def __init__(self, use_cot: bool = True) -> None:
         self.use_cot = use_cot
         if use_cot:
             self.classifier = dspy.ChainOfThought(MemoryLevelClassificationSignature)
@@ -462,7 +457,7 @@ class MemoryLevelClassifier:
         from Jotty.core.foundation.config_defaults import MAX_RETRIES
         retry_handler = UniversalRetryHandler(max_retries=MAX_RETRIES)
         
-        async def classify_attempt(**kwargs):
+        async def classify_attempt(**kwargs: Any) -> Any:
             exp = kwargs.get('experience', '')
             ctx = kwargs.get('context', {})
             
@@ -475,7 +470,7 @@ class MemoryLevelClassifier:
             return self.level_map.get(level_str, MemoryLevel.EPISODIC)
 
         # Fallback agent (specialized for difficult cases)
-        async def fallback_classifier(**kwargs):
+        async def fallback_classifier(**kwargs: Any) -> Any:
             """
             Specialized agent for difficult classification cases.
             

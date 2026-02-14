@@ -313,7 +313,7 @@ class SmartDataTransformer:
     This is fundamentally different from prompt-only transformation!
     """
     
-    def __init__(self, lm=None):
+    def __init__(self, lm: Any = None) -> None:
         """
         Initialize with format tools.
         

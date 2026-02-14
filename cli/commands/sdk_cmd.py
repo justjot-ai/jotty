@@ -38,7 +38,7 @@ class SDKCommand(BaseCommand):
     usage = "/sdk <mode> <message>\n  Modes: chat, workflow, stream, events"
     category = "development"
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self._show_events = True
         self._event_icons = {
@@ -92,7 +92,7 @@ class SDKCommand(BaseCommand):
             cli.renderer.warning(f"Unknown mode: {mode}")
             return self._show_help(cli)
 
-    def _show_help(self, cli) -> CommandResult:
+    def _show_help(self, cli: Any) -> CommandResult:
         """Show SDK command help."""
         cli.renderer.panel("""
 [bold cyan]SDK Test Command[/bold cyan]
@@ -121,7 +121,7 @@ Test the SDK client with real-time event visualization.
 """, title="SDK Help", style="cyan")
         return CommandResult.ok()
 
-    def _toggle_events(self, cli, setting: str) -> CommandResult:
+    def _toggle_events(self, cli: Any, setting: str) -> CommandResult:
         """Toggle event display."""
         if setting.lower() in ("on", "true", "1"):
             self._show_events = True
@@ -133,9 +133,9 @@ Test the SDK client with real-time event visualization.
             cli.renderer.info(f"Event display: {'ON' if self._show_events else 'OFF'}")
         return CommandResult.ok()
 
-    def _create_event_callback(self, cli) -> callable:
+    def _create_event_callback(self, cli: Any) -> callable:
         """Create event callback for displaying events."""
-        def event_callback(event):
+        def event_callback(event: Any) -> Any:
             if not self._show_events:
                 return
 
@@ -175,7 +175,7 @@ Test the SDK client with real-time event visualization.
 
         return event_callback
 
-    async def _test_chat(self, cli, message: str) -> CommandResult:
+    async def _test_chat(self, cli: Any, message: str) -> CommandResult:
         """World-class interactive chat with arrow keys, history, and rich UI."""
         try:
             from prompt_toolkit import PromptSession
@@ -225,7 +225,7 @@ Test the SDK client with real-time event visualization.
             _last_print_time = [0]
 
             # Event callback for status updates
-            def chat_event_callback(event):
+            def chat_event_callback(event: Any) -> Any:
                 import time
                 import sys
                 event_type = event.type.value if hasattr(event.type, 'value') else str(event.type)
@@ -298,12 +298,12 @@ Test the SDK client with real-time event visualization.
             kb = KeyBindings()
 
             @kb.add('c-l')
-            def clear_screen(event):
+            def clear_screen(event: Any) -> Any:
                 """Clear screen with Ctrl+L."""
                 event.app.renderer.clear()
 
             @kb.add('c-c')
-            def interrupt(event):
+            def interrupt(event: Any) -> Any:
                 """Handle Ctrl+C gracefully."""
                 event.app.exit(result=None)
 
@@ -400,7 +400,7 @@ Test the SDK client with real-time event visualization.
             logger.debug("SDK chat error details", exc_info=True)
             return CommandResult.fail(str(e))
 
-    async def _test_chat_basic(self, cli, message: str) -> CommandResult:
+    async def _test_chat_basic(self, cli: Any, message: str) -> CommandResult:
         """Basic chat fallback when prompt_toolkit is not available."""
         try:
             from ...sdk.client import Jotty
@@ -420,7 +420,7 @@ Test the SDK client with real-time event visualization.
             _hidden = {'Decision', 'Generated', 'Preparing', 'step'}
             _last_status = [None]
 
-            def chat_event_callback(event):
+            def chat_event_callback(event: Any) -> Any:
                 event_type = event.type.value if hasattr(event.type, 'value') else str(event.type)
 
                 if event_type == 'thinking' and event.data and isinstance(event.data, dict):
@@ -467,7 +467,7 @@ Test the SDK client with real-time event visualization.
         except Exception as e:
             return CommandResult.fail(str(e))
 
-    def _format_research_result(self, cli, result: dict) -> str:
+    def _format_research_result(self, cli: Any, result: dict) -> str:
         """Format research/skill result as a nice user-friendly message."""
         import os
         lines = []
@@ -571,7 +571,7 @@ Test the SDK client with real-time event visualization.
 
         return str(result)
 
-    async def _process_chat_message(self, cli, client, message: str, history: list):
+    async def _process_chat_message(self, cli: Any, client: Any, message: str, history: list) -> Any:
         """Process a single chat message with status updates."""
         import sys
 
@@ -629,7 +629,7 @@ Test the SDK client with real-time event visualization.
             logger.debug("Chat message processing error", exc_info=True)
             print(f"\n\033[91mError: {e}\033[0m\n")
 
-    async def _test_workflow(self, cli, goal: str) -> CommandResult:
+    async def _test_workflow(self, cli: Any, goal: str) -> CommandResult:
         """Test workflow mode."""
         if not goal:
             cli.renderer.warning("Please provide a goal: /sdk workflow <goal>")
@@ -678,7 +678,7 @@ Test the SDK client with real-time event visualization.
             logger.debug("SDK workflow error details", exc_info=True)
             return CommandResult.fail(str(e))
 
-    async def _test_stream(self, cli, message: str) -> CommandResult:
+    async def _test_stream(self, cli: Any, message: str) -> CommandResult:
         """Test streaming mode."""
         if not message:
             cli.renderer.warning("Please provide a message: /sdk stream <message>")
@@ -755,7 +755,7 @@ Test the SDK client with real-time event visualization.
             logger.debug("SDK stream error details", exc_info=True)
             return CommandResult.fail(str(e))
 
-    async def _test_skill(self, cli, args: str) -> CommandResult:
+    async def _test_skill(self, cli: Any, args: str) -> CommandResult:
         """Test direct skill execution."""
         parts = args.split(maxsplit=1)
         if len(parts) < 1:
@@ -808,7 +808,7 @@ Test the SDK client with real-time event visualization.
             logger.debug("SDK skill error details", exc_info=True)
             return CommandResult.fail(str(e))
 
-    async def _test_health(self, cli) -> CommandResult:
+    async def _test_health(self, cli: Any) -> CommandResult:
         """Test SDK health."""
         cli.renderer.print("\n[bold]SDK Health Check[/bold]")
 
@@ -829,7 +829,7 @@ Test the SDK client with real-time event visualization.
             cli.renderer.error(f"Health check failed: {e}")
             return CommandResult.fail(str(e))
 
-    async def _list_skills(self, cli) -> CommandResult:
+    async def _list_skills(self, cli: Any) -> CommandResult:
         """List available skills."""
         cli.renderer.print("\n[bold]Available Skills[/bold]")
 

@@ -42,7 +42,7 @@ class CurriculumDesignerAgent(BaseOlympiadAgent):
     all downstream content depth and running example quality.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._ensure_sonnet_lm()
         self._designer = self._create_module(CurriculumDesignerSignature)
@@ -111,7 +111,7 @@ class CurriculumDesignerAgent(BaseOlympiadAgent):
 class IntuitiveExplainerAgent(BaseOlympiadAgent):
     """Explains concepts through visual/step-by-step discovery."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._explainer = self._create_module(IntuitiveExplainerSignature)
 
@@ -160,7 +160,7 @@ class IntuitiveExplainerAgent(BaseOlympiadAgent):
 class FrameworkBuilderAgent(BaseOlympiadAgent):
     """Builds mental models and structured thinking frameworks."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._builder = self._create_module(FrameworkBuilderSignature)
 
@@ -210,7 +210,7 @@ class FrameworkBuilderAgent(BaseOlympiadAgent):
 class StorytellerAgent(BaseOlympiadAgent):
     """Creates narrative-based learning content."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._storyteller = self._create_module(StorytellerSignature)
 
@@ -259,7 +259,7 @@ class StorytellerAgent(BaseOlympiadAgent):
 class DebateArchitectAgent(BaseOlympiadAgent):
     """Builds critical thinking and debate content."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._architect = self._create_module(DebateArchitectSignature)
 
@@ -311,7 +311,7 @@ class DebateArchitectAgent(BaseOlympiadAgent):
 class ProjectDesignerAgent(BaseOlympiadAgent):
     """Designs hands-on project activities."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._designer = self._create_module(ProjectDesignerSignature)
 
@@ -360,7 +360,7 @@ class ProjectDesignerAgent(BaseOlympiadAgent):
 class RealWorldConnectorAgent(BaseOlympiadAgent):
     """Connects topics to real-world applications."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._connector = self._create_module(RealWorldConnectorSignature)
 
@@ -411,7 +411,7 @@ class RealWorldConnectorAgent(BaseOlympiadAgent):
 class MultilingualAgent(BaseOlympiadAgent):
     """Generates content in Hindi, Kannada, and French."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._translator = self._create_module(MultilingualContentSignature)
 
@@ -463,7 +463,7 @@ class MultilingualAgent(BaseOlympiadAgent):
 class ContentAssemblerAgent(BaseOlympiadAgent):
     """Assembles all perspectives and languages into one cohesive document."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._assembler = self._create_module(ContentAssemblerSignature)
 
@@ -526,7 +526,7 @@ class NarrativeEditorAgent(BaseOlympiadAgent):
     Uses Haiku for fast generation — no full-content rewrite needed.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._editor = dspy.Predict(NarrativeEditorSignature)
 

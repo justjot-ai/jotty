@@ -38,8 +38,7 @@ logger = logging.getLogger(__name__)
 class BaseSwarmAgent(BaseSwarmAgent):
     """Base class for arxiv learning agents. Extends BaseSwarmAgent with LLM model selection."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = "",
-                 model: str = "haiku", use_fast_predict: bool = True, llm_timeout: int = 90):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '', model: str = 'haiku', use_fast_predict: bool = True, llm_timeout: int = 90) -> None:
         super().__init__(memory=memory, context=context, bus=bus,
                          learned_context=learned_context, signature=None)
         self.model = model
@@ -47,7 +46,7 @@ class BaseSwarmAgent(BaseSwarmAgent):
         self.llm_timeout = llm_timeout
         self._lm = None
 
-    def _get_lm(self):
+    def _get_lm(self) -> Any:
         """Get or create LLM instance. Tries Direct API first, then CLI fallback."""
         if self._lm is None:
             # If already configured globally, reuse it
@@ -74,7 +73,7 @@ class BaseSwarmAgent(BaseSwarmAgent):
                 logger.warning(f"Could not init LLM: {e}")
         return self._lm
 
-    def _create_module(self, signature):
+    def _create_module(self, signature: Any) -> Any:
         """Create dspy module - Predict (fast) or ChainOfThought (reasoning)."""
         self._get_lm()
         if self.use_fast_predict:
@@ -93,7 +92,7 @@ class PaperFetcherAgent(BaseSwarmAgent):
 
     # ---- helpers to call skill ----
 
-    def _get_skill_tools(self):
+    def _get_skill_tools(self) -> Any:
         """Lazy-load the arxiv-downloader skill tools."""
         if not hasattr(self, '_skill_tools'):
             try:
@@ -235,8 +234,7 @@ class PaperFetcherAgent(BaseSwarmAgent):
 class ConceptExtractorAgent(BaseSwarmAgent):
     """Extracts concepts from papers."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = "",
-                 model: str = "haiku", use_fast_predict: bool = True, llm_timeout: int = 60):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '', model: str = 'haiku', use_fast_predict: bool = True, llm_timeout: int = 60) -> None:
         super().__init__(memory, context, bus, learned_context, model, use_fast_predict, llm_timeout)
         self._extractor = self._create_module(ConceptExtractionSignature)
 
@@ -294,8 +292,7 @@ class ConceptExtractorAgent(BaseSwarmAgent):
 class IntuitionBuilderAgent(BaseSwarmAgent):
     """Builds intuition for concepts."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = "",
-                 model: str = "haiku", use_fast_predict: bool = True, llm_timeout: int = 60):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '', model: str = 'haiku', use_fast_predict: bool = True, llm_timeout: int = 60) -> None:
         super().__init__(memory, context, bus, learned_context, model, use_fast_predict, llm_timeout)
         self._builder = self._create_module(IntuitionBuilderSignature)
 
@@ -332,8 +329,7 @@ class IntuitionBuilderAgent(BaseSwarmAgent):
 class MathSimplifierAgent(BaseSwarmAgent):
     """Simplifies math to be accessible."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = "",
-                 model: str = "haiku", use_fast_predict: bool = True, llm_timeout: int = 60):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '', model: str = 'haiku', use_fast_predict: bool = True, llm_timeout: int = 60) -> None:
         super().__init__(memory, context, bus, learned_context, model, use_fast_predict, llm_timeout)
         self._simplifier = self._create_module(MathSimplifierSignature)
 
@@ -371,8 +367,7 @@ class MathSimplifierAgent(BaseSwarmAgent):
 class ExampleGeneratorAgent(BaseSwarmAgent):
     """Generates examples to reinforce learning."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = "",
-                 model: str = "haiku", use_fast_predict: bool = True, llm_timeout: int = 60):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '', model: str = 'haiku', use_fast_predict: bool = True, llm_timeout: int = 60) -> None:
         super().__init__(memory, context, bus, learned_context, model, use_fast_predict, llm_timeout)
         self._generator = self._create_module(ExampleGeneratorSignature)
 
@@ -411,8 +406,7 @@ class ExampleGeneratorAgent(BaseSwarmAgent):
 class ProgressiveBuilderAgent(BaseSwarmAgent):
     """Builds progressive learning content."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = "",
-                 model: str = "haiku", use_fast_predict: bool = True, llm_timeout: int = 60):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '', model: str = 'haiku', use_fast_predict: bool = True, llm_timeout: int = 60) -> None:
         super().__init__(memory, context, bus, learned_context, model, use_fast_predict, llm_timeout)
         self._builder = self._create_module(ProgressiveBuilderSignature)
 
@@ -461,8 +455,7 @@ class ProgressiveBuilderAgent(BaseSwarmAgent):
 class ContentPolisherAgent(BaseSwarmAgent):
     """Polishes content to be engaging."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = "",
-                 model: str = "haiku", use_fast_predict: bool = True, llm_timeout: int = 60):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '', model: str = 'haiku', use_fast_predict: bool = True, llm_timeout: int = 60) -> None:
         super().__init__(memory, context, bus, learned_context, model, use_fast_predict, llm_timeout)
         self._polisher = self._create_module(ContentPolisherSignature)
 
@@ -514,8 +507,7 @@ class UnifiedLearningAgent(BaseSwarmAgent):
     # Cache for generated content (paper_id → content)
     _content_cache: Dict[str, Dict] = {}
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = "",
-                 model: str = "haiku", use_fast_predict: bool = True, llm_timeout: int = 60):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '', model: str = 'haiku', use_fast_predict: bool = True, llm_timeout: int = 60) -> None:
         super().__init__(memory, context, bus, learned_context, model, use_fast_predict, llm_timeout)
         self._generator = self._create_module(UnifiedConceptLearningSignature)
         self._deep_generator = self._create_module(SingleConceptDeepSignature)

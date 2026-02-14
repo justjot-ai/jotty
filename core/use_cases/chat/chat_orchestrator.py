@@ -15,12 +15,7 @@ class ChatOrchestrator:
     Orchestrates chat interactions by selecting and routing to appropriate agents.
     """
     
-    def __init__(
-        self,
-        conductor: Any,  # Conductor instance
-        agent_id: Optional[str] = None,
-        mode: str = "dynamic"
-    ):
+    def __init__(self, conductor: Any, agent_id: Optional[str] = None, mode: str = 'dynamic') -> None:
         """
         Initialize chat orchestrator.
         

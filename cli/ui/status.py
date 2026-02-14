@@ -8,7 +8,7 @@ Provides beautiful real-time status output during task execution.
 
 import re
 import sys
-from typing import Optional, Callable
+from typing import Optional, Callable, Any
 
 
 # Agent activity icons
@@ -34,7 +34,7 @@ def get_agent_icon(stage: str) -> str:
     return '\u2192'
 
 
-def create_status_callback(renderer) -> Callable[[str, str], None]:
+def create_status_callback(renderer: Any) -> Callable[[str, str], None]:
     """
     Create a status callback for real-time CLI output.
 
@@ -45,7 +45,7 @@ def create_status_callback(renderer) -> Callable[[str, str], None]:
         Callback function(stage, detail)
     """
 
-    def status_callback(stage: str, detail: str = ""):
+    def status_callback(stage: str, detail: str = '') -> Any:
         stage_lower = stage.lower()
         icon = get_agent_icon(stage)
 

@@ -29,14 +29,7 @@ class ChatAPI:
             print(event)
     """
     
-    def __init__(
-        self,
-        conductor: Orchestrator,
-        agent_id: Optional[str] = None,
-        mode: str = "dynamic",
-        auto_register_chat_assistant: bool = True,
-        state_manager: Optional[Any] = None
-    ):
+    def __init__(self, conductor: Orchestrator, agent_id: Optional[str] = None, mode: str = 'dynamic', auto_register_chat_assistant: bool = True, state_manager: Optional[Any] = None) -> None:
         """
         Initialize Chat API.
 
@@ -108,7 +101,7 @@ class ChatAPI:
                         # Fallback to empty object with memories attribute
                         logger.debug(f" SwarmMemory import failed ({e}), using empty fallback")
                         class EmptyMemory:
-                            def __init__(self):
+                            def __init__(self) -> None:
                                 self.memories = {}
                         self.conductor.local_memories["ChatAssistant"] = EmptyMemory()
                         logger.debug(" ChatAssistant local_memories initialized with empty fallback")
@@ -122,12 +115,7 @@ class ChatAPI:
             # Don't fail - just log the error
             pass
     
-    async def send(
-        self,
-        message: str,
-        history: Optional[List[ChatMessage]] = None,
-        **kwargs
-    ) -> Dict[str, Any]:
+    async def send(self, message: str, history: Optional[List[ChatMessage]] = None, **kwargs: Any) -> Dict[str, Any]:
         """
         Send a chat message.
         
@@ -146,12 +134,7 @@ class ChatAPI:
         )
         return result.to_dict()
     
-    async def stream(
-        self,
-        message: str,
-        history: Optional[List[ChatMessage]] = None,
-        **kwargs
-    ) -> AsyncIterator[Dict[str, Any]]:
+    async def stream(self, message: str, history: Optional[List[ChatMessage]] = None, **kwargs: Any) -> AsyncIterator[Dict[str, Any]]:
         """
         Stream chat response.
         

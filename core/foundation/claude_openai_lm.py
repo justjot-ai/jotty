@@ -23,7 +23,7 @@ import subprocess
 import time
 import requests
 import dspy
-from typing import Optional
+from typing import Optional, Any
 from Jotty.core.foundation.exceptions import LLMError
 
 logger = logging.getLogger(__name__)
@@ -86,12 +86,7 @@ uvicorn.run(app, host='127.0.0.1', port={port}, log_level='warning')
         return False
 
 
-def create_claude_openai_lm(
-    model: str = DEFAULT_MODEL,
-    base_url: str = DEFAULT_WRAPPER_URL,
-    auto_start: bool = True,
-    **kwargs
-) -> dspy.LM:
+def create_claude_openai_lm(model: str = DEFAULT_MODEL, base_url: str = DEFAULT_WRAPPER_URL, auto_start: bool = True, **kwargs: Any) -> dspy.LM:
     """
     Create a DSPy LM using the local OpenAI-compatible Claude wrapper.
 
@@ -129,12 +124,7 @@ def create_claude_openai_lm(
     return lm
 
 
-def configure_claude_openai(
-    model: str = DEFAULT_MODEL,
-    base_url: str = DEFAULT_WRAPPER_URL,
-    auto_start: bool = True,
-    **kwargs
-) -> dspy.LM:
+def configure_claude_openai(model: str = DEFAULT_MODEL, base_url: str = DEFAULT_WRAPPER_URL, auto_start: bool = True, **kwargs: Any) -> dspy.LM:
     """
     Configure DSPy with Claude via OpenAI-compatible wrapper.
 

@@ -36,12 +36,7 @@ class BaseExpert(ABC):
     - domain property - Return domain name (e.g., "mermaid", "latex")
     """
 
-    def __init__(
-        self,
-        config=None,
-        memory=None,
-        improvements: Optional[List[Dict[str, Any]]] = None
-    ):
+    def __init__(self, config: Any = None, memory: Any = None, improvements: Optional[List[Dict[str, Any]]] = None) -> None:
         """
         Initialize base expert with domain-specific configuration.
 
@@ -230,7 +225,7 @@ class BaseExpert(ABC):
         except ImportError:
             return False
 
-    def _inject_improvements(self, base_signature, improvements: List[Dict[str, Any]]):
+    def _inject_improvements(self, base_signature: Any, improvements: List[Dict[str, Any]]) -> Any:
         """
         Inject learned improvements into DSPy signature.
 

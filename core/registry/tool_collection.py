@@ -54,7 +54,7 @@ class ToolCollection:
         registry.load_collection(collection)
     """
     
-    def __init__(self, tools: List[Any], source: str = "local", metadata: Optional[Dict[str, Any]] = None):
+    def __init__(self, tools: List[Any], source: str = 'local', metadata: Optional[Dict[str, Any]] = None) -> None:
         """
         Initialize tool collection.
         
@@ -72,11 +72,11 @@ class ToolCollection:
         """Return number of tools in collection."""
         return len(self.tools)
     
-    def __iter__(self):
+    def __iter__(self) -> Any:
         """Iterate over tools."""
         return iter(self.tools)
     
-    def __getitem__(self, index: int):
+    def __getitem__(self, index: int) -> Any:
         """Get tool by index."""
         return self.tools[index]
     
@@ -391,7 +391,7 @@ class ToolCollection:
                 tools = []
                 event_loop = None
                 
-                async def load_mcp_tools():
+                async def load_mcp_tools() -> Any:
                     """Load tools from MCP server."""
                     async with ClientSession(server_parameters) as session:
                         # List available tools

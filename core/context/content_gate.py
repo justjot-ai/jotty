@@ -92,7 +92,7 @@ class RelevanceEstimator:
     - Chunk position (start/end often more important)
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         if DSPY_AVAILABLE:
             self.estimator = dspy.ChainOfThought(RelevanceSignature)
         else:
@@ -209,12 +209,7 @@ class ContentGate:
         processed = await gate.process(large_document, query, future_tasks)
     """
     
-    def __init__(
-        self,
-        max_tokens: int = 28000,
-        chunk_overlap: int = 200,
-        relevance_threshold: float = 0.3
-    ):
+    def __init__(self, max_tokens: int = 28000, chunk_overlap: int = 200, relevance_threshold: float = 0.3) -> None:
         self.max_tokens = max_tokens
         # Reserve 40% of tokens for this content (rest for system, output, etc.)
         self.usable_tokens = int(max_tokens * 0.4)
@@ -380,7 +375,7 @@ class ContentGate:
 # DECORATOR FOR AUTOMATIC GATING
 # =============================================================================
 
-def with_content_gate(max_tokens: int = 28000):
+def with_content_gate(max_tokens: int = 28000) -> Any:
     """
     Decorator to automatically process large content arguments.
     
@@ -394,7 +389,7 @@ def with_content_gate(max_tokens: int = 28000):
     
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
-        async def wrapper(*args, **kwargs):
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
             # Find and process large string arguments
             new_kwargs = {}
             for key, value in kwargs.items():

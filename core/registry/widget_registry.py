@@ -48,22 +48,12 @@ class WidgetRegistry:
     Generic registry that can be populated by any project using Jotty.
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         self._widgets: Dict[str, WidgetSchema] = {}
         self._by_category: Dict[str, List[str]] = {}
         logger.info(" WidgetRegistry initialized")
     
-    def register(
-        self,
-        value: str,
-        label: str,
-        icon: str,
-        description: str,
-        category: str,
-        hasOwnUI: bool = False,
-        contentType: str = 'text',
-        contentSchema: str = ''
-    ):
+    def register(self, value: str, label: str, icon: str, description: str, category: str, hasOwnUI: bool = False, contentType: str = 'text', contentSchema: str = '') -> Any:
         """Register a widget."""
         widget = WidgetSchema(
             value=value,

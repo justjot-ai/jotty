@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 _cost_tracker = None
 
 
-def get_cost_tracker():
+def get_cost_tracker() -> Any:
     """Get or create the singleton CostTracker instance."""
     global _cost_tracker
     if _cost_tracker is None:
@@ -68,16 +68,7 @@ class DirectAnthropicLM(dspy.BaseLM):
     No subprocess overhead, direct HTTP calls to Anthropic API.
     """
 
-    def __init__(
-        self,
-        model: str = "haiku",
-        max_tokens: Optional[int] = None,
-        temperature: float = LLM_TEMPERATURE,
-        timeout: int = LLM_TIMEOUT_SECONDS,
-        api_key: Optional[str] = None,
-        base_url: Optional[str] = None,
-        **kwargs
-    ):
+    def __init__(self, model: str = 'haiku', max_tokens: Optional[int] = None, temperature: float = LLM_TEMPERATURE, timeout: int = LLM_TIMEOUT_SECONDS, api_key: Optional[str] = None, base_url: Optional[str] = None, **kwargs: Any) -> None:
         """
         Initialize Direct Anthropic LM.
 
@@ -131,12 +122,7 @@ class DirectAnthropicLM(dspy.BaseLM):
         except ImportError as e:
             raise LLMError("anthropic package not installed. Install with: pip install anthropic", original_error=e)
 
-    def __call__(
-        self,
-        prompt: str = None,
-        messages: List[Dict] = None,
-        **kwargs
-    ) -> List[str]:
+    def __call__(self, prompt: str = None, messages: List[Dict] = None, **kwargs: Any) -> List[str]:
         """Synchronous call interface (required by DSPy)."""
         try:
             loop = asyncio.get_running_loop()
@@ -151,12 +137,7 @@ class DirectAnthropicLM(dspy.BaseLM):
             # Not in async context - use sync client directly
             return self._sync_call(prompt, messages, **kwargs)
 
-    def _sync_call(
-        self,
-        prompt: str = None,
-        messages: List[Dict] = None,
-        **kwargs
-    ) -> List[str]:
+    def _sync_call(self, prompt: str = None, messages: List[Dict] = None, **kwargs: Any) -> List[str]:
         """Synchronous API call using sync client."""
         # Build messages and extract system prompt
         system_prompt = None
@@ -234,12 +215,7 @@ class DirectAnthropicLM(dspy.BaseLM):
             logger.error(f"DirectAnthropicLM error: {e}")
             raise
 
-    async def _async_call(
-        self,
-        prompt: str = None,
-        messages: List[Dict] = None,
-        **kwargs
-    ) -> List[str]:
+    async def _async_call(self, prompt: str = None, messages: List[Dict] = None, **kwargs: Any) -> List[str]:
         """Async API call."""
         # Build messages and extract system prompt
         system_prompt = None
@@ -372,7 +348,7 @@ def is_api_key_available() -> bool:
     return bool(os.environ.get("ANTHROPIC_API_KEY"))
 
 
-def configure_direct_anthropic(model: str = "haiku", **kwargs) -> DirectAnthropicLM:
+def configure_direct_anthropic(model: str = 'haiku', **kwargs: Any) -> DirectAnthropicLM:
     """
     Configure DSPy with DirectAnthropicLM.
 

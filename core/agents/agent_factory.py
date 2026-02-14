@@ -89,7 +89,7 @@ class UniversalRetryHandler:
     4. Never fall back to hardcoded rules
     """
     
-    def __init__(self, max_retries: int = 0):
+    def __init__(self, max_retries: int = 0) -> None:
         from Jotty.core.foundation.config_defaults import MAX_RETRIES
         self.max_retries = max_retries or MAX_RETRIES
         if DSPY_AVAILABLE:
@@ -99,13 +99,7 @@ class UniversalRetryHandler:
         
         logger.info(" UniversalRetryHandler initialized (NO heuristic fallbacks)")
     
-    async def execute_with_retry(
-        self,
-        agent_func,
-        task_description: str,
-        initial_input: Dict[str, Any],
-        specialist_agent=None
-    ) -> AgentResult:
+    async def execute_with_retry(self, agent_func: Any, task_description: str, initial_input: Dict[str, Any], specialist_agent: Any = None) -> AgentResult:
         """
         Execute an agent function with intelligent retry.
         
@@ -171,7 +165,7 @@ class UniversalRetryHandler:
             error_history=[a['error'] for a in attempts]
         )
     
-    async def _call_agent(self, agent_func, input_dict: Dict) -> Any:
+    async def _call_agent(self, agent_func: Any, input_dict: Dict) -> Any:
         """Call agent function (async or sync)."""
         if asyncio.iscoroutinefunction(agent_func):
             return await agent_func(**input_dict)
@@ -204,13 +198,7 @@ class UniversalRetryHandler:
             logger.warning(f"Failure analysis failed: {e}")
             return {}
     
-    async def _call_specialist(
-        self,
-        specialist,
-        task: str,
-        original_input: Dict,
-        error_history: List[Dict]
-    ) -> AgentResult:
+    async def _call_specialist(self, specialist: Any, task: str, original_input: Dict, error_history: List[Dict]) -> AgentResult:
         """Call specialist agent with full context."""
         specialist_input = {
             'task': task,
@@ -286,7 +274,7 @@ class PatternDetector:
         "expresses_uncertainty"      # hedging, doubt
     ]
     
-    def __init__(self):
+    def __init__(self) -> None:
         if DSPY_AVAILABLE:
             self.detector = dspy.ChainOfThought(PatternDetectionSignature)
         else:
@@ -386,7 +374,7 @@ class LLMCounterfactualCritic:
     - No training required
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         if DSPY_AVAILABLE:
             self.critic = dspy.ChainOfThought(CounterfactualCriticSignature)
         else:
@@ -511,7 +499,7 @@ class SelfRAGMemoryRetriever:
     No embedding models required.
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         if DSPY_AVAILABLE:
             self.retrieval_decider = dspy.ChainOfThought(SelfReflectiveRetrievalSignature)
             self.relevance_judge = dspy.ChainOfThought(MemoryRelevanceSignature)
@@ -655,7 +643,7 @@ class LLMSurpriseEstimator:
     - The LLM understands what's "normal"
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         if DSPY_AVAILABLE:
             self.estimator = dspy.ChainOfThought(SurpriseEstimationSignature)
         else:

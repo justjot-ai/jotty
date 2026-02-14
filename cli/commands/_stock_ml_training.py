@@ -162,7 +162,7 @@ class StockMLTrainingMixin:
             'best': best,
         })
 
-    async def _quick_train(self, X, y, feature_names, target_config, cli) -> Dict[str, Any]:
+    async def _quick_train(self, X: Any, y: Any, feature_names: Any, target_config: Any, cli: Any) -> Dict[str, Any]:
         """Quick training with fewer models for comparison mode."""
         import numpy as np
         from sklearn.metrics import accuracy_score, f1_score, roc_auc_score

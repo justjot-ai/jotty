@@ -20,14 +20,14 @@ logger = logging.getLogger(__name__)
 class ResearchDataFetcher:
     """Fetch research data from multiple sources including web search."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._screener_available = False
         self._yfinance_available = False
         self._web_search_available = False
         self._web_search_tool = None
         self._init_sources()
 
-    def _init_sources(self):
+    def _init_sources(self) -> Any:
         """Initialize data sources including web search."""
         try:
             # Check if screener skill is available

@@ -61,7 +61,7 @@ class JottyIntegration:
     _instance: Optional['JottyIntegration'] = None
     _initialized: bool = False
     
-    def __init__(self, config: SwarmConfig = None):
+    def __init__(self, config: SwarmConfig = None) -> None:
         self.config = config or SwarmConfig()
         
         # Context management

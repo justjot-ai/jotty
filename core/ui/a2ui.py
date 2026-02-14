@@ -35,7 +35,7 @@ class A2UIWidget:
 class A2UIText(A2UIWidget):
     """Text block widget."""
 
-    def __init__(self, text: str, style: Optional[str] = None):
+    def __init__(self, text: str, style: Optional[str] = None) -> None:
         """
         Create text block.
 
@@ -56,13 +56,7 @@ class A2UIText(A2UIWidget):
 class A2UICard(A2UIWidget):
     """Card widget with header, body, and footer."""
 
-    def __init__(
-        self,
-        title: Optional[str] = None,
-        subtitle: Optional[str] = None,
-        body: Optional[Union[A2UIWidget, List[A2UIWidget], str]] = None,
-        footer: Optional[Union[A2UIWidget, List[A2UIWidget]]] = None
-    ):
+    def __init__(self, title: Optional[str] = None, subtitle: Optional[str] = None, body: Optional[Union[A2UIWidget, List[A2UIWidget], str]] = None, footer: Optional[Union[A2UIWidget, List[A2UIWidget]]] = None) -> None:
         """
         Create card widget.
 
@@ -111,7 +105,7 @@ class A2UICard(A2UIWidget):
 class A2UIList(A2UIWidget):
     """List widget with items."""
 
-    def __init__(self, items: List[Dict[str, Any]]):
+    def __init__(self, items: List[Dict[str, Any]]) -> None:
         """
         Create list widget.
 
@@ -135,7 +129,7 @@ class A2UIList(A2UIWidget):
 class A2UIImage(A2UIWidget):
     """Image widget."""
 
-    def __init__(self, url: str, alt: Optional[str] = None, caption: Optional[str] = None):
+    def __init__(self, url: str, alt: Optional[str] = None, caption: Optional[str] = None) -> None:
         """
         Create image widget.
 
@@ -160,12 +154,7 @@ class A2UIImage(A2UIWidget):
 class A2UIButton(A2UIWidget):
     """Button widget."""
 
-    def __init__(
-        self,
-        label: str,
-        action: Optional[Dict[str, Any]] = None,
-        variant: str = "secondary"
-    ):
+    def __init__(self, label: str, action: Optional[Dict[str, Any]] = None, variant: str = 'secondary') -> None:
         """
         Create button widget.
 
@@ -218,13 +207,7 @@ class A2UISection(A2UIWidget):
         # Any of 70+ section types work!
     """
 
-    def __init__(
-        self,
-        section_type: str,
-        content: Union[Dict[str, Any], str],
-        title: Optional[str] = None,
-        props: Optional[Dict[str, Any]] = None
-    ):
+    def __init__(self, section_type: str, content: Union[Dict[str, Any], str], title: Optional[str] = None, props: Optional[Dict[str, Any]] = None) -> None:
         """
         Create section widget.
 
@@ -258,7 +241,7 @@ class A2UISection(A2UIWidget):
 class A2UIBuilder:
     """Builder for complex A2UI responses with multiple widgets."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize builder."""
         self.widgets: List[A2UIWidget] = []
 

@@ -30,13 +30,7 @@ class ClaudeSDKLM(dspy.BaseLM):
     Uses existing `claude auth login` credentials.
     """
 
-    def __init__(
-        self,
-        model: str = "",
-        max_turns: int = 1,
-        timeout: int = 0,
-        **kwargs
-    ):
+    def __init__(self, model: str = '', max_turns: int = 1, timeout: int = 0, **kwargs: Any) -> None:
         """
         Initialize Claude SDK LM.
 
@@ -70,12 +64,7 @@ class ClaudeSDKLM(dspy.BaseLM):
                 original_error=e
             )
 
-    def __call__(
-        self,
-        prompt: str = None,
-        messages: List[Dict] = None,
-        **kwargs
-    ) -> List[str]:
+    def __call__(self, prompt: str = None, messages: List[Dict] = None, **kwargs: Any) -> List[str]:
         """
         Synchronous call interface (required by DSPy).
 
@@ -96,12 +85,7 @@ class ClaudeSDKLM(dspy.BaseLM):
             # Not in async context - safe to use asyncio.run
             return asyncio.run(self._async_call(prompt, messages, **kwargs))
 
-    async def _async_call(
-        self,
-        prompt: str = None,
-        messages: List[Dict] = None,
-        **kwargs
-    ) -> List[str]:
+    async def _async_call(self, prompt: str = None, messages: List[Dict] = None, **kwargs: Any) -> List[str]:
         """
         Async implementation using Claude Agent SDK.
         """
@@ -202,7 +186,7 @@ def is_sdk_available() -> bool:
 
 
 # Convenience function
-def configure_claude_sdk(model: str = "", **kwargs) -> ClaudeSDKLM:
+def configure_claude_sdk(model: str = '', **kwargs: Any) -> ClaudeSDKLM:
     """
     Configure DSPy with ClaudeSDKLM.
 

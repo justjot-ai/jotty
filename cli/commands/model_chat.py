@@ -11,7 +11,7 @@ Usage:
     /model-chat --interactive
 """
 
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, List, Any
 
 from .base import BaseCommand, CommandResult, ParsedArgs
 
@@ -64,7 +64,7 @@ class ModelChatCommand(BaseCommand):
 
         return CommandResult.ok(data=result)
 
-    async def _interactive_mode(self, agent, cli) -> CommandResult:
+    async def _interactive_mode(self, agent: Any, cli: Any) -> CommandResult:
         """Interactive chat session."""
         cli.renderer.header("Model Chat")
         cli.renderer.info("Chat with your ML models (type 'exit' to quit)")
@@ -109,7 +109,7 @@ class ModelChatCommand(BaseCommand):
 
         return CommandResult.ok()
 
-    def _show_inline_help(self, cli) -> None:
+    def _show_inline_help(self, cli: Any) -> None:
         """Show help within interactive mode."""
         cli.renderer.info("")
         cli.renderer.info("Commands:")
@@ -122,7 +122,7 @@ class ModelChatCommand(BaseCommand):
             cli.renderer.info(f"  - {q}")
         cli.renderer.info("")
 
-    def _show_help(self, cli) -> CommandResult:
+    def _show_help(self, cli: Any) -> CommandResult:
         """Show command help."""
         cli.renderer.header("Model Chat - Talk to Your ML Models")
         cli.renderer.info("")

@@ -31,18 +31,7 @@ class InterfaceType:
 class Message:
     """A message in the conversation with interface tracking and branching support."""
 
-    def __init__(
-        self,
-        role: str,
-        content: str,
-        timestamp: Optional[datetime] = None,
-        metadata: Optional[Dict[str, Any]] = None,
-        interface: str = InterfaceType.CLI,
-        message_id: Optional[str] = None,
-        user_id: Optional[str] = None,
-        parent_id: Optional[str] = None,
-        branch_id: str = "main"
-    ):
+    def __init__(self, role: str, content: str, timestamp: Optional[datetime] = None, metadata: Optional[Dict[str, Any]] = None, interface: str = InterfaceType.CLI, message_id: Optional[str] = None, user_id: Optional[str] = None, parent_id: Optional[str] = None, branch_id: str = 'main') -> None:
         self.role = role
         self.content = content
         self.timestamp = timestamp or datetime.now()
@@ -85,17 +74,7 @@ class Message:
 class ShareLink:
     """Represents a shareable link for a conversation session."""
 
-    def __init__(
-        self,
-        session_id: str,
-        token: Optional[str] = None,
-        title: Optional[str] = None,
-        expires_at: Optional[datetime] = None,
-        created_at: Optional[datetime] = None,
-        access_count: int = 0,
-        is_active: bool = True,
-        branch_id: str = "main"
-    ):
+    def __init__(self, session_id: str, token: Optional[str] = None, title: Optional[str] = None, expires_at: Optional[datetime] = None, created_at: Optional[datetime] = None, access_count: int = 0, is_active: bool = True, branch_id: str = 'main') -> None:
         self.session_id = session_id
         self.token = token or secrets.token_urlsafe(16)
         self.title = title
@@ -152,7 +131,7 @@ class ShareLinkRegistry:
     _instance = None
     _lock = threading.Lock()
 
-    def __new__(cls):
+    def __new__(cls) -> Any:
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
@@ -164,7 +143,7 @@ class ShareLinkRegistry:
                     cls._instance._load_links()
         return cls._instance
 
-    def _load_links(self):
+    def _load_links(self) -> Any:
         """Load share links from disk."""
         index_file = self._share_dir / "index.json"
         if index_file.exists():
@@ -180,7 +159,7 @@ class ShareLinkRegistry:
             except Exception as e:
                 logger.error(f"Failed to load share links: {e}")
 
-    def _save_links(self):
+    def _save_links(self) -> Any:
         """Save share links to disk."""
         index_file = self._share_dir / "index.json"
         try:
@@ -267,14 +246,14 @@ class ShareLinkRegistry:
             logger.info(f"Refreshed share link {token} -> {new_link.token}")
             return new_link
 
-    def record_access(self, token: str):
+    def record_access(self, token: str) -> Any:
         """Record an access to a share link."""
         with self._lock:
             if token in self._links:
                 self._links[token].access_count += 1
                 self._save_links()
 
-    def delete_session_links(self, session_id: str):
+    def delete_session_links(self, session_id: str) -> Any:
         """Delete all share links for a session."""
         with self._lock:
             tokens = self._session_links.get(session_id, [])
@@ -302,7 +281,7 @@ class SessionRegistry:
     _instance = None
     _lock = threading.Lock()
 
-    def __new__(cls):
+    def __new__(cls) -> Any:
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
@@ -357,7 +336,7 @@ class SessionRegistry:
         """Get list of active session IDs."""
         return list(self._sessions.keys())
 
-    def remove_session(self, session_id: str):
+    def remove_session(self, session_id: str) -> Any:
         """Remove session from registry (doesn't delete from disk)."""
         with self._lock:
             self._sessions.pop(session_id, None)
@@ -383,15 +362,7 @@ class SessionManager:
     # Constants for temporary chat
     TEMP_CHAT_EXPIRY_DAYS = 30
 
-    def __init__(
-        self,
-        session_id: Optional[str] = None,
-        session_dir: Optional[str] = None,
-        context_window: int = 20,
-        auto_save: bool = True,
-        interface: str = InterfaceType.CLI,
-        is_temporary: bool = False
-    ):
+    def __init__(self, session_id: Optional[str] = None, session_dir: Optional[str] = None, context_window: int = 20, auto_save: bool = True, interface: str = InterfaceType.CLI, is_temporary: bool = False) -> None:
         """
         Initialize session manager.
 
@@ -429,14 +400,7 @@ class SessionManager:
         """Get session file path."""
         return self.session_dir / f"{self.session_id}.json"
 
-    def add_message(
-        self,
-        role: str,
-        content: str,
-        metadata: Optional[Dict[str, Any]] = None,
-        interface: Optional[str] = None,
-        user_id: Optional[str] = None
-    ):
+    def add_message(self, role: str, content: str, metadata: Optional[Dict[str, Any]] = None, interface: Optional[str] = None, user_id: Optional[str] = None) -> Any:
         """
         Add message to history.
 
@@ -484,11 +448,11 @@ class SessionManager:
             messages = messages[-limit:]
         return [m.to_dict() for m in messages]
 
-    def clear_history(self):
+    def clear_history(self) -> Any:
         """Clear conversation history."""
         self.conversation_history.clear()
 
-    def save(self, path: Optional[Path] = None, force: bool = False):
+    def save(self, path: Optional[Path] = None, force: bool = False) -> Any:
         """
         Save session to file.
 
@@ -524,7 +488,7 @@ class SessionManager:
         except Exception as e:
             logger.error(f"Failed to save session: {e}")
 
-    def load(self, session_id: Optional[str] = None, path: Optional[Path] = None):
+    def load(self, session_id: Optional[str] = None, path: Optional[Path] = None) -> Any:
         """
         Load session from file.
 
@@ -606,7 +570,7 @@ class SessionManager:
 
         return sorted(sessions, key=lambda x: x.get("created_at", ""), reverse=True)
 
-    def delete_session(self, session_id: str):
+    def delete_session(self, session_id: str) -> Any:
         """
         Delete a session.
 
@@ -668,7 +632,7 @@ class SessionManager:
             return False
         return datetime.now() > self.expires_at
 
-    def set_temporary(self, is_temp: bool, expiry_days: int = None):
+    def set_temporary(self, is_temp: bool, expiry_days: int = None) -> Any:
         """
         Set or unset temporary mode for this session.
 

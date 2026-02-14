@@ -58,13 +58,13 @@ class AutoMLSkill(MLSkill):
     DEFAULT_AUTOGLUON_TIME = 120
     DEFAULT_FLAML_TIME = 60
 
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: Dict[str, Any] = None) -> None:
         super().__init__(config)
         self._autogluon_available = False
         self._flaml_available = False
         self._imblearn_available = False
 
-    async def init(self):
+    async def init(self) -> Any:
         """Check available frameworks."""
         try:
             from autogluon.tabular import TabularPredictor
@@ -88,10 +88,7 @@ class AutoMLSkill(MLSkill):
         logger.info(f"AutoML initialized: AutoGluon={self._autogluon_available}, "
                     f"FLAML={self._flaml_available}, imblearn={self._imblearn_available}")
 
-    async def execute(self,
-                      X: pd.DataFrame,
-                      y: Optional[pd.Series] = None,
-                      **context) -> SkillResult:
+    async def execute(self, X: pd.DataFrame, y: Optional[pd.Series] = None, **context: Any) -> SkillResult:
         """
         Execute AutoML with multiple frameworks.
 

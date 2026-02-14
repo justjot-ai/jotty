@@ -50,7 +50,7 @@ class TodoCreatorAgent(DAGAgentMixin):
     - DAGAgentMixin: For BaseAgent infrastructure (metrics, hooks)
     """
 
-    def __init__(self, config: Optional[SwarmConfig] = None, lm: Optional[dspy.LM] = None):
+    def __init__(self, config: Optional[SwarmConfig] = None, lm: Optional[dspy.LM] = None) -> None:
         self.jotty_config = config or SwarmConfig()
         self.lm = lm or getattr(dspy.settings, 'lm', None)
 
@@ -80,16 +80,11 @@ class TodoCreatorAgent(DAGAgentMixin):
 
         logger.info(" TodoCreatorAgent initialized with SHARED swarm resources")
 
-    def _handle_message(self, message):
+    def _handle_message(self, message: Any) -> Any:
         """Handle incoming messages from other agents."""
         logger.info(f"TodoCreatorAgent received from {message.from_agent}: {message.data}")
 
-    async def execute(
-        self,
-        markovian_todo: SwarmTaskBoard,
-        available_actors: List[Dict[str, Any]],
-        **kwargs
-    ) -> AgentResult:
+    async def execute(self, markovian_todo: SwarmTaskBoard, available_actors: List[Dict[str, Any]], **kwargs: Any) -> AgentResult:
         """
         Execute DAG creation with BaseAgent-compatible interface.
 
@@ -394,14 +389,7 @@ class TodoCreatorAgent(DAGAgentMixin):
 
         return todo, new_assignments
 
-    def _merge_task_group(
-        self,
-        todo: SwarmTaskBoard,
-        task_ids: List[str],
-        actor: Actor,
-        new_assignments: Dict[str, Actor],
-        tasks_to_remove: set
-    ):
+    def _merge_task_group(self, todo: SwarmTaskBoard, task_ids: List[str], actor: Actor, new_assignments: Dict[str, Actor], tasks_to_remove: set) -> Any:
         """Merge a group of tasks into a single combined task."""
         combined_id = "_".join(task_ids)
         tasks = [todo.subtasks[tid] for tid in task_ids if tid in todo.subtasks]
@@ -543,11 +531,7 @@ class TodoCreatorAgent(DAGAgentMixin):
 
         return (len(issues) == 0 and is_valid), issues
 
-    def update_from_execution(
-        self,
-        executable_dag: ExecutableDAG,
-        outcomes: Dict[str, bool]
-    ):
+    def update_from_execution(self, executable_dag: ExecutableDAG, outcomes: Dict[str, bool]) -> Any:
         """
         Learn from execution outcomes using TD learning.
 

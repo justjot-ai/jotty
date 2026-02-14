@@ -68,7 +68,7 @@ class CommandService:
     to ensure consistent behavior.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._registry = None
         self._cli = None
         self._initialized = False
@@ -84,7 +84,7 @@ class CommandService:
         register_all_commands(self._registry)
         self._initialized = True
 
-    def _get_cli(self):
+    def _get_cli(self) -> Any:
         """Get or create CLI instance for command execution."""
         if self._cli is None:
             from Jotty.cli.app import JottyCLI
@@ -217,7 +217,7 @@ class CommandService:
             # Capture output
             captured_output = []
 
-            def clean_text(text):
+            def clean_text(text: Any) -> Any:
                 """Remove ANSI and Rich markup."""
                 clean = re.sub(r'\x1b\[[0-9;]*m', '', str(text))
                 clean = re.sub(r'\[/?[^\]]*\]', '', clean)
@@ -245,7 +245,7 @@ class CommandService:
 
             # Capture tree output
             original_tree = getattr(cli.renderer, 'tree', None)
-            def capture_tree(data, **kwargs) -> None:
+            def capture_tree(data: Any, **kwargs: Any) -> None:
                 title = kwargs.get('title', 'Data')
                 if isinstance(data, dict):
                     lines = [f" {title}:"]
@@ -258,7 +258,7 @@ class CommandService:
 
             # Capture table output
             original_print_table = cli.renderer.tables.print_table
-            def capture_table(table) -> None:
+            def capture_table(table: Any) -> None:
                 try:
                     from rich.console import Console
                     string_io = io.StringIO()

@@ -34,7 +34,7 @@ def _load_workflow_registry() -> Dict[str, Any]:
     return {"workflows": {}, "aliases": {}}
 
 
-def _save_workflow_registry(registry: Dict[str, Any]):
+def _save_workflow_registry(registry: Dict[str, Any]) -> Any:
     """Save workflow registry."""
     WORKFLOW_REGISTRY_FILE.parent.mkdir(parents=True, exist_ok=True)
     WORKFLOW_REGISTRY_FILE.write_text(json.dumps(registry, indent=2))

@@ -26,7 +26,7 @@ from .swarm_types import (
     ImprovementSuggestion, ImprovementType, _split_field,
 )
 # Signatures loaded lazily to avoid DSPy import at module level
-def _lazy_sig(name):
+def _lazy_sig(name: Any) -> Any:
     from .swarm_signatures import (
         ExpertEvaluationSignature, ReviewerAnalysisSignature,
         PlannerOptimizationSignature, ActorExecutionSignature,
@@ -69,7 +69,7 @@ class ExpertAgent(MetaAgent):
     - Retry logic and error handling
     """
 
-    def __init__(self, config: SwarmAgentConfig, gold_db: GoldStandardDB):
+    def __init__(self, config: SwarmAgentConfig, gold_db: GoldStandardDB) -> None:
         """
         Initialize ExpertAgent.
 
@@ -141,7 +141,7 @@ class ReviewerAgent(MetaAgent):
     Inherits from MetaAgent for unified infrastructure.
     """
 
-    def __init__(self, config: SwarmAgentConfig, history: ImprovementHistory):
+    def __init__(self, config: SwarmAgentConfig, history: ImprovementHistory) -> None:
         """
         Initialize ReviewerAgent.
 
@@ -210,7 +210,7 @@ class PlannerAgent(MetaAgent):
     Inherits from MetaAgent for unified infrastructure.
     """
 
-    def __init__(self, config: SwarmAgentConfig, history: ImprovementHistory):
+    def __init__(self, config: SwarmAgentConfig, history: ImprovementHistory) -> None:
         """
         Initialize PlannerAgent.
 
@@ -296,7 +296,7 @@ class ActorAgent(MetaAgent):
     Inherits from MetaAgent for unified infrastructure.
     """
 
-    def __init__(self, config: SwarmAgentConfig, history: ImprovementHistory):
+    def __init__(self, config: SwarmAgentConfig, history: ImprovementHistory) -> None:
         """
         Initialize ActorAgent.
 
@@ -377,7 +377,7 @@ class AuditorAgent(MetaAgent):
     Inherits from MetaAgent for unified infrastructure.
     """
 
-    def __init__(self, config: SwarmAgentConfig):
+    def __init__(self, config: SwarmAgentConfig) -> None:
         """
         Initialize AuditorAgent.
 
@@ -451,7 +451,7 @@ class LearnerAgent(MetaAgent):
     Inherits from MetaAgent for unified infrastructure.
     """
 
-    def __init__(self, config: SwarmAgentConfig):
+    def __init__(self, config: SwarmAgentConfig) -> None:
         """
         Initialize LearnerAgent.
 
@@ -507,8 +507,7 @@ class CollapsedEvaluator(MetaAgent):
     Saves 2 LLM calls (~60-70% cost reduction on evaluation side).
     """
 
-    def __init__(self, config: SwarmAgentConfig, gold_db: GoldStandardDB,
-                 history: ImprovementHistory):
+    def __init__(self, config: SwarmAgentConfig, gold_db: GoldStandardDB, history: ImprovementHistory) -> None:
         meta_config = MetaAgentConfig(
             name=config.name or "CollapsedEvaluator",
             model=config.model,
@@ -628,7 +627,7 @@ class CollapsedExecutor(MetaAgent):
     Saves 2 LLM calls (~60-70% cost reduction on execution side).
     """
 
-    def __init__(self, config: SwarmAgentConfig, history: ImprovementHistory):
+    def __init__(self, config: SwarmAgentConfig, history: ImprovementHistory) -> None:
         meta_config = MetaAgentConfig(
             name=config.name or "CollapsedExecutor",
             model=config.model,

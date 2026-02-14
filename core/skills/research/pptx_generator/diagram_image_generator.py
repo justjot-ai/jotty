@@ -36,7 +36,7 @@ COLORS = {
 class MermaidDiagramGenerator:
     """Generate diagram images using Mermaid.ink (FREE, reliable)."""
 
-    def __init__(self, cache_dir: str = "/tmp/diagram_cache"):
+    def __init__(self, cache_dir: str = '/tmp/diagram_cache') -> None:
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
@@ -109,7 +109,7 @@ class DiagramImageGenerator:
     100% FREE, reliable, no API key needed.
     """
 
-    def __init__(self, api_key: str = None, cache_dir: str = "/tmp/diagram_cache"):
+    def __init__(self, api_key: str = None, cache_dir: str = '/tmp/diagram_cache') -> None:
         self.mermaid = MermaidDiagramGenerator(cache_dir)
 
     def _create_architecture_mermaid(self, spec: Dict[str, Any], paper_title: str = "") -> str:
@@ -372,7 +372,7 @@ class DiagramImageGenerator:
 
 
 # Convenience functions for testing
-async def test_mermaid_diagram():
+async def test_mermaid_diagram() -> Any:
     """Test Mermaid.ink diagram generation."""
     generator = MermaidDiagramGenerator()
 
@@ -391,7 +391,7 @@ async def test_mermaid_diagram():
     return result
 
 
-async def test_architecture_diagram():
+async def test_architecture_diagram() -> Any:
     """Test full architecture diagram generation."""
     generator = DiagramImageGenerator()
 
@@ -416,7 +416,7 @@ async def test_architecture_diagram():
     return result
 
 
-async def test_all_diagrams():
+async def test_all_diagrams() -> Any:
     """Test all diagram types."""
     generator = DiagramImageGenerator()
 

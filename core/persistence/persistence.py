@@ -53,7 +53,7 @@ class Vault:
             └── consolidated_memories.json
     """
     
-    def __init__(self, base_output_dir: str, auto_save_interval: int = 10):
+    def __init__(self, base_output_dir: str, auto_save_interval: int = 10) -> None:
         """
         Initialize persistence manager.
         
@@ -68,7 +68,7 @@ class Vault:
         
         logger.info(f" JOTTY Vault initialized: {self.jotty_dir}")
     
-    def _ensure_directories(self):
+    def _ensure_directories(self) -> Any:
         """Create all necessary directories (NO HARDCODED LIST - extensible)."""
         dirs = [
             self.jotty_dir,
@@ -108,7 +108,7 @@ class Vault:
         logger.info(f" Saved Markovian TODO: {len(todo.subtasks)} tasks, "
                    f"{len(todo.completed_tasks)} completed")
     
-    def _serialize_todo(self, todo) -> Dict:
+    def _serialize_todo(self, todo: Any) -> Dict:
         """
         Serialize TODO to JSON-compatible dict.
         
@@ -130,7 +130,7 @@ class Vault:
             'timestamp': time.time()
         }
     
-    def _serialize_task(self, task) -> Dict:
+    def _serialize_task(self, task: Any) -> Dict:
         """
         Serialize a single task.
         
@@ -161,7 +161,7 @@ class Vault:
             'error': task.error
         }
     
-    def _format_todo_markdown(self, todo) -> str:
+    def _format_todo_markdown(self, todo: Any) -> str:
         """
         Format TODO as rich markdown display.
         
@@ -342,8 +342,7 @@ class Vault:
     # MEMORY PERSISTENCE (NO HARDCODING)
     # =========================================================================
     
-    def save_memory(self, memory: 'SwarmMemory', name: str = "shared",
-                   max_per_level: int = 100):
+    def save_memory(self, memory: 'SwarmMemory', name: str = 'shared', max_per_level: int = 100) -> Any:
         """
         Save hierarchical memory.
         
@@ -465,7 +464,7 @@ class Vault:
     # COMPLETE STATE SAVE (NO HARDCODING)
     # =========================================================================
     
-    def save_all(self, conductor) -> None:
+    def save_all(self, conductor: Any) -> None:
         """
         Save complete JOTTY Orchestrator state.
         

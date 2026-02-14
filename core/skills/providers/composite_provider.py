@@ -43,7 +43,7 @@ class ResearchAndAnalyzeProvider(SkillProvider):
     version = "1.0.0"
     description = "Composite provider for research and analysis tasks"
 
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: Dict[str, Any] = None) -> None:
         super().__init__(config)
 
         self.capabilities = [
@@ -64,7 +64,7 @@ class ResearchAndAnalyzeProvider(SkillProvider):
         self._code_provider = None
         self._registry = None
 
-    def set_registry(self, registry) -> None:
+    def set_registry(self, registry: Any) -> None:
         """Set the provider registry for accessing other providers."""
         self._registry = registry
 
@@ -158,7 +158,7 @@ class AutomateWorkflowProvider(SkillProvider):
     version = "1.0.0"
     description = "Composite provider for multi-step automation"
 
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: Dict[str, Any] = None) -> None:
         super().__init__(config)
 
         self.capabilities = [
@@ -176,7 +176,7 @@ class AutomateWorkflowProvider(SkillProvider):
 
         self._registry = None
 
-    def set_registry(self, registry) -> None:
+    def set_registry(self, registry: Any) -> None:
         self._registry = registry
 
     async def initialize(self) -> bool:
@@ -319,7 +319,7 @@ class FullStackAgentProvider(SkillProvider):
     version = "1.0.0"
     description = "Full-stack agent using all available providers"
 
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: Dict[str, Any] = None) -> None:
         super().__init__(config)
 
         self.capabilities = [
@@ -334,10 +334,10 @@ class FullStackAgentProvider(SkillProvider):
         self._registry = None
         self._swarm_intelligence = None
 
-    def set_registry(self, registry) -> None:
+    def set_registry(self, registry: Any) -> None:
         self._registry = registry
 
-    def set_swarm_intelligence(self, si) -> None:
+    def set_swarm_intelligence(self, si: Any) -> None:
         self._swarm_intelligence = si
 
     async def initialize(self) -> bool:

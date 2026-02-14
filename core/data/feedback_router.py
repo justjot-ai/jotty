@@ -19,7 +19,7 @@ The swarm ITSELF decides feedback routing based on:
 """
 
 import dspy
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Any
 from dataclasses import dataclass
 import json
 from ..agents.feedback_channel import FeedbackMessage, FeedbackType
@@ -59,7 +59,7 @@ class AgenticFeedbackRouter:
     NO hardcoding! Agents decide among themselves who should help.
     """
     
-    def __init__(self, lm):
+    def __init__(self, lm: Any) -> None:
         self.lm = lm
         self.router = dspy.ChainOfThought(AgenticFeedbackSignature)
         self.routing_history = []  # Learn from past routing decisions

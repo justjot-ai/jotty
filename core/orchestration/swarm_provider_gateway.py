@@ -31,7 +31,7 @@ class SwarmProviderGateway:
     All providers accessible through single unified interface.
     """
     
-    def __init__(self, config=None, provider: Optional[str] = None):
+    def __init__(self, config: Any = None, provider: Optional[str] = None) -> None:
         """
         Initialize SwarmProviderGateway.
         
@@ -59,7 +59,7 @@ class SwarmProviderGateway:
             # Not in async context - safe to auto-configure
             self._auto_configure()
     
-    def _auto_configure(self):
+    def _auto_configure(self) -> Any:
         """Auto-configure DSPy with best available provider (DRY: reuse configure_dspy_lm)."""
         try:
             import asyncio
@@ -218,7 +218,7 @@ class SwarmProviderGateway:
         
         return None
     
-    def configure_provider(self, provider: str, model: Optional[str] = None, **kwargs) -> BaseLM:
+    def configure_provider(self, provider: str, model: Optional[str] = None, **kwargs: Any) -> BaseLM:
         """
         Configure a specific provider.
         

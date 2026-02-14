@@ -41,7 +41,7 @@ class JSONMemory:
     }
     """
 
-    def __init__(self, base_path: Path = None):
+    def __init__(self, base_path: Path = None) -> None:
         """Initialize JSON memory backend."""
         if base_path is None:
             base_path = Path.home() / "jotty" / "memory"
@@ -51,15 +51,7 @@ class JSONMemory:
 
         logger.info(f"JSONMemory initialized at {self.base_path}")
 
-    async def store(
-        self,
-        goal: str,
-        result: str,
-        success: bool = True,
-        confidence: float = 1.0,
-        ttl_hours: int = 24,
-        **kwargs
-    ):
+    async def store(self, goal: str, result: str, success: bool = True, confidence: float = 1.0, ttl_hours: int = 24, **kwargs: Any) -> Any:
         """
         Store memory entry.
 
@@ -147,7 +139,7 @@ class JSONMemory:
             logger.error(f"Failed to retrieve memory: {e}", exc_info=True)
             return []
 
-    async def clear(self):
+    async def clear(self) -> Any:
         """Clear all memory files."""
         try:
             for file_path in self.base_path.glob("*.json"):
@@ -172,7 +164,7 @@ class JSONMemory:
         else:
             return {'entries': []}
 
-    def _save_file(self, file_path: Path, data: Dict):
+    def _save_file(self, file_path: Path, data: Dict) -> Any:
         """Save file atomically."""
         temp_path = file_path.with_suffix('.tmp')
 

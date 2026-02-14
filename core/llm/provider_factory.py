@@ -8,7 +8,7 @@ Routes to local or cloud providers based on local_mode setting.
 
 import os
 import logging
-from typing import Optional, Union
+from typing import Optional, Union, Any
 
 from .providers import (
     ClaudeCLIProvider,
@@ -33,11 +33,7 @@ class ProviderFactory:
     """
 
     @staticmethod
-    def get_provider(
-        provider: str = "auto",
-        config=None,
-        local_mode: Optional[bool] = None
-    ):
+    def get_provider(provider: str = 'auto', config: Any = None, local_mode: Optional[bool] = None) -> Any:
         """
         Get an LLM provider instance.
 
@@ -100,12 +96,7 @@ class ProviderFactory:
         raise ValueError(f"Unknown provider: {provider}")
 
     @staticmethod
-    def generate(
-        prompt: str,
-        provider: str = "auto",
-        config=None,
-        **kwargs
-    ) -> Union[LLMResponse, LocalLLMResponse]:
+    def generate(prompt: str, provider: str = 'auto', config: Any = None, **kwargs: Any) -> Union[LLMResponse, LocalLLMResponse]:
         """
         Generate text using the appropriate provider.
 
@@ -155,6 +146,6 @@ class ProviderFactory:
 
 
 # Convenience function
-def get_provider(provider: str = "auto", config=None, local_mode: Optional[bool] = None):
+def get_provider(provider: str = 'auto', config: Any = None, local_mode: Optional[bool] = None) -> Any:
     """Get an LLM provider. See ProviderFactory.get_provider for details."""
     return ProviderFactory.get_provider(provider, config, local_mode)

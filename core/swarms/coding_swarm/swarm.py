@@ -74,7 +74,7 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Domai
     )
     SWARM_SIGNATURE = CodingSwarmSignature
 
-    def __init__(self, config: CodingConfig = None):
+    def __init__(self, config: CodingConfig = None) -> None:
         super().__init__(config or CodingConfig())
 
         # Team configuration
@@ -236,14 +236,7 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Domai
         self._integration_agent = IntegrationAgent(
             self._memory, self._context, self._bus, self._agent_context("Integration"))
 
-    async def _generate_fullstack(
-        self,
-        requirements: str,
-        config,
-        research_context,
-        review_criteria: str,
-        workspace
-    ) -> tuple:
+    async def _generate_fullstack(self, requirements: str, config: Any, research_context: Any, review_criteria: str, workspace: Any) -> tuple:
         """Full-stack pipeline: SystemDesign -> DB -> Backend -> Frontend -> Integration.
 
         Returns:
@@ -378,26 +371,11 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Domai
 
         return files, 'app.py', architecture
 
-    async def _execute_domain(
-        self,
-        requirements: str,
-        language: CodeLanguage = None,
-        style: CodeStyle = None,
-        **kwargs
-    ) -> CodingResult:
+    async def _execute_domain(self, requirements: str, language: CodeLanguage = None, style: CodeStyle = None, **kwargs: Any) -> CodingResult:
         """Execute code generation (called by DomainSwarm.execute())."""
         return await self.generate(requirements, language, style, **kwargs)
 
-    async def generate(
-        self,
-        requirements: str,
-        language: CodeLanguage = None,
-        style: CodeStyle = None,
-        include_tests: bool = None,
-        include_docs: bool = None,
-        progress_callback=None,
-        trace_callback=None,
-    ) -> CodingResult:
+    async def generate(self, requirements: str, language: CodeLanguage = None, style: CodeStyle = None, include_tests: bool = None, include_docs: bool = None, progress_callback: Any = None, trace_callback: Any = None) -> CodingResult:
         """
         Generate complete code from requirements.
 
@@ -472,17 +450,7 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Domai
             if workspace:
                 workspace.cleanup()
 
-    async def _execute_phases(
-        self,
-        executor,
-        requirements: str,
-        lang: CodeLanguage,
-        code_style: CodeStyle,
-        config,
-        gen_tests: bool,
-        gen_docs: bool,
-        workspace,
-    ) -> CodingResult:
+    async def _execute_phases(self, executor: Any, requirements: str, lang: CodeLanguage, code_style: CodeStyle, config: Any, gen_tests: bool, gen_docs: bool, workspace: Any) -> CodingResult:
         """Domain-specific phase logic using PhaseExecutor for tracing.
 
         This method contains all coding swarm phases (design, generation,
@@ -685,16 +653,7 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Domai
     # PHASE HELPER METHODS
     # -----------------------------------------------------------------
 
-    async def _phase_single_tier_codegen(
-        self,
-        executor,
-        requirements: str,
-        arch_result: Dict[str, Any],
-        planning_result: Optional[Dict[str, Any]],
-        review_criteria: str,
-        lang: CodeLanguage,
-        config,
-    ) -> tuple:
+    async def _phase_single_tier_codegen(self, executor: Any, requirements: str, arch_result: Dict[str, Any], planning_result: Optional[Dict[str, Any]], review_criteria: str, lang: CodeLanguage, config: Any) -> tuple:
         """Phase 3: Single-tier code generation (parallel for each component).
 
         Returns:
@@ -718,7 +677,7 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Domai
         total_components = len(components)
         completed_count = 0
 
-        async def _generate_component(comp):
+        async def _generate_component(comp: Any) -> Any:
             nonlocal completed_count
             comp_name = comp.get('name', 'component') if isinstance(comp, dict) else str(comp)
             _progress("Phase 3", "Developer", f"  Writing {comp_name}...")
@@ -764,12 +723,7 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Domai
 
         return files, main_file
 
-    async def _phase_optimize(
-        self,
-        executor,
-        files: Dict[str, str],
-        requirements: str,
-    ) -> Dict[str, str]:
+    async def _phase_optimize(self, executor: Any, files: Dict[str, str], requirements: str) -> Dict[str, str]:
         """Phase 4: Optimization (parallel, skip config files).
 
         Returns:
@@ -809,7 +763,7 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Domai
         total_files = len(files_to_optimize)
         optimized_count = 0
 
-        async def _optimize_one(fname: str, code_str: str):
+        async def _optimize_one(fname: str, code_str: str) -> Any:
             nonlocal optimized_count
             _progress("Phase 4", "Optimizer", f"  Optimizing {fname}...")
             opt_result = await self._optimizer.optimize(
@@ -823,7 +777,7 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Domai
             _progress("Phase 4", "Optimizer", f"  [{optimized_count}/{total_files}] {fname} optimized")
             return fname, _strip_code_fences(opt_result.get('optimized_code', code_str)), improvements
 
-        async def _run_optimization():
+        async def _run_optimization() -> Any:
             """Wrap parallel optimization for executor.run_phase."""
             opt_tasks = [_optimize_one(fn, c) for fn, c in files_to_optimize.items()]
             return await asyncio.gather(*opt_tasks, return_exceptions=True)
@@ -859,14 +813,7 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Domai
 
         return optimized_files
 
-    async def _phase_validate(
-        self,
-        executor,
-        files: Dict[str, str],
-        main_file: Optional[str],
-        workspace,
-        config,
-    ) -> Dict[str, Any]:
+    async def _phase_validate(self, executor: Any, files: Dict[str, str], main_file: Optional[str], workspace: Any, config: Any) -> Dict[str, Any]:
         """Phase 4.5: Validation and fix loop.
 
         Returns:
@@ -882,7 +829,7 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Domai
 
         FIXABLE_ERRORS = ('SyntaxError', 'ImportError', 'NameError', 'TypeError', 'IndentationError')
 
-        async def _run_validation():
+        async def _run_validation() -> Any:
             """Wrap entire validation loop for tracing."""
             for attempt in range(max_fix):
                 syntax_ok = True
@@ -960,14 +907,7 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Domai
 
         return validation_metadata
 
-    async def _phase_verify(
-        self,
-        executor,
-        files: Dict[str, str],
-        main_file: Optional[str],
-        requirements: str,
-        arch_result: Dict[str, Any],
-    ) -> Optional[Dict[str, Any]]:
+    async def _phase_verify(self, executor: Any, files: Dict[str, str], main_file: Optional[str], requirements: str, arch_result: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Phase 5: Verification + debugger feedback.
 
         Returns:
@@ -975,7 +915,7 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Domai
         """
         verification_result = None
 
-        async def _run_verification():
+        async def _run_verification() -> Any:
             nonlocal verification_result
             _progress("Phase 5", "Verifier", "Verifying code against requirements...")
 
@@ -1034,13 +974,7 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Domai
 
         return verification_result
 
-    async def _phase_simplicity_judge(
-        self,
-        executor,
-        files: Dict[str, str],
-        main_file: Optional[str],
-        requirements: str,
-    ) -> Dict[str, Any]:
+    async def _phase_simplicity_judge(self, executor: Any, files: Dict[str, str], main_file: Optional[str], requirements: str) -> Dict[str, Any]:
         """Phase 5.5: Simplicity judge (anti-over-engineering gate).
 
         Returns:
@@ -1048,7 +982,7 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Domai
         """
         simplicity_result = None
 
-        async def _run_simplicity_judge():
+        async def _run_simplicity_judge() -> Any:
             nonlocal simplicity_result
             all_code_str = "\n\n".join(files.values())
             file_count = len(files)
@@ -1117,14 +1051,7 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Domai
 
         return simplicity_result or {'simplicity_score': 1.0, 'verdict': 'ACCEPT', 'issues': []}
 
-    async def _phase_test_generation(
-        self,
-        executor,
-        files: Dict[str, str],
-        main_file: Optional[str],
-        lang: CodeLanguage,
-        gen_tests: bool,
-    ) -> tuple:
+    async def _phase_test_generation(self, executor: Any, files: Dict[str, str], main_file: Optional[str], lang: CodeLanguage, gen_tests: bool) -> tuple:
         """Phase 7: Test generation.
 
         Returns:
@@ -1163,13 +1090,7 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Domai
 
         return tests, test_coverage
 
-    async def _phase_documentation(
-        self,
-        executor,
-        files: Dict[str, str],
-        arch_result: Dict[str, Any],
-        gen_docs: bool,
-    ) -> str:
+    async def _phase_documentation(self, executor: Any, files: Dict[str, str], arch_result: Dict[str, Any], gen_docs: bool) -> str:
         """Phase 8: Documentation generation.
 
         Returns:
@@ -1202,24 +1123,7 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Domai
 
         return documentation
 
-    def _build_coding_result(
-        self,
-        executor,
-        files: Dict[str, str],
-        main_file: Optional[str],
-        lang: CodeLanguage,
-        config,
-        arch_result: Dict[str, Any],
-        tests: Dict[str, str],
-        test_coverage: float,
-        documentation: str,
-        verification_result: Optional[Dict[str, Any]],
-        simplicity_result: Dict[str, Any],
-        validation_metadata: Dict[str, Any],
-        team_review_result: Optional[Dict[str, Any]],
-        planning_result: Optional[Dict[str, Any]],
-        requirements: str,
-    ) -> CodingResult:
+    def _build_coding_result(self, executor: Any, files: Dict[str, str], main_file: Optional[str], lang: CodeLanguage, config: Any, arch_result: Dict[str, Any], tests: Dict[str, str], test_coverage: float, documentation: str, verification_result: Optional[Dict[str, Any]], simplicity_result: Dict[str, Any], validation_metadata: Dict[str, Any], team_review_result: Optional[Dict[str, Any]], planning_result: Optional[Dict[str, Any]], requirements: str) -> CodingResult:
         """Build the final CodingResult from all phase outputs."""
         exec_time = executor.elapsed()
 
@@ -1337,7 +1241,7 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Domai
 # CONVENIENCE FUNCTIONS
 # =============================================================================
 
-async def code(requirements: str, **kwargs) -> CodingResult:
+async def code(requirements: str, **kwargs: Any) -> CodingResult:
     """
     One-liner code generation.
 
@@ -1349,7 +1253,7 @@ async def code(requirements: str, **kwargs) -> CodingResult:
     return await swarm.generate(requirements, **kwargs)
 
 
-def code_sync(requirements: str, **kwargs) -> CodingResult:
+def code_sync(requirements: str, **kwargs: Any) -> CodingResult:
     """Synchronous code generation."""
     return asyncio.run(code(requirements, **kwargs))
 

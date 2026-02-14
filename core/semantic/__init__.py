@@ -62,11 +62,7 @@ class SemanticLayer:
     - Querying with natural language
     """
 
-    def __init__(
-        self,
-        schema: Schema,
-        connection_params: Dict[str, Any] = None
-    ):
+    def __init__(self, schema: Schema, connection_params: Dict[str, Any] = None) -> None:
         """
         Initialize semantic layer.
 
@@ -83,18 +79,7 @@ class SemanticLayer:
         self._mongodb_query_engine: Optional[MongoDBQueryEngine] = None
 
     @classmethod
-    def from_database(
-        cls,
-        db_type: str = None,
-        host: str = "localhost",
-        port: int = None,
-        database: str = "",
-        user: str = "",
-        password: str = "",
-        connection_string: str = None,
-        schema_name: str = "default",
-        **kwargs
-    ) -> "SemanticLayer":
+    def from_database(cls, db_type: str = None, host: str = 'localhost', port: int = None, database: str = '', user: str = '', password: str = '', connection_string: str = None, schema_name: str = 'default', **kwargs: Any) -> 'SemanticLayer':
         """
         Create semantic layer from live database connection.
 
@@ -185,18 +170,7 @@ class SemanticLayer:
         return cls(schema, {"db_type": dialect})
 
     @classmethod
-    def from_mongodb(
-        cls,
-        uri: str = None,
-        host: str = "localhost",
-        port: int = 27017,
-        database: str = "",
-        username: str = None,
-        password: str = None,
-        schema_name: str = None,
-        sample_size: int = 100,
-        **kwargs
-    ) -> "SemanticLayer":
+    def from_mongodb(cls, uri: str = None, host: str = 'localhost', port: int = 27017, database: str = '', username: str = None, password: str = None, schema_name: str = None, sample_size: int = 100, **kwargs: Any) -> 'SemanticLayer':
         """
         Create semantic layer from MongoDB connection.
 
@@ -243,7 +217,7 @@ class SemanticLayer:
         return self._lookml_generator
 
     @property
-    def lookml_model(self):
+    def lookml_model(self) -> Any:
         """Get generated LookML model."""
         if self._lookml_model is None:
             self._lookml_model = self.lookml_generator.generate()
@@ -380,13 +354,7 @@ class SemanticLayer:
 
 
 # Convenience functions
-def create_semantic_layer(
-    db_type: str = None,
-    connection_string: str = None,
-    ddl: str = None,
-    mongodb_uri: str = None,
-    **kwargs
-) -> SemanticLayer:
+def create_semantic_layer(db_type: str = None, connection_string: str = None, ddl: str = None, mongodb_uri: str = None, **kwargs: Any) -> SemanticLayer:
     """
     Create semantic layer from various sources.
 

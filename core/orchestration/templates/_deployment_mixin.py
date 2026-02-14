@@ -28,10 +28,7 @@ class DeploymentMixin:
     helper methods like self._maybe_add_narrative and self._store_section_data.
     """
 
-    def add_deployment_readiness(self, model, X_sample,
-                                  batch_sizes: List[int] = None,
-                                  latency_threshold_ms: float = 10.0,
-                                  size_threshold_mb: float = 100.0):
+    def add_deployment_readiness(self, model: Any, X_sample: Any, batch_sizes: List[int] = None, latency_threshold_ms: float = 10.0, size_threshold_mb: float = 100.0) -> Any:
         """
         Add deployment readiness assessment:
         - Prediction latency at various batch sizes (configurable threshold)
@@ -266,7 +263,7 @@ Evaluating model readiness for production deployment.
         except Exception as e:
             self._record_section_failure('Deployment Readiness', e)
 
-    def _create_latency_chart(self, latency_results) -> str:
+    def _create_latency_chart(self, latency_results: Any) -> str:
         """Create 2-panel latency and throughput chart."""
         try:
             if not latency_results:

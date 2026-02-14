@@ -1,3 +1,4 @@
+from typing import Any
 """
 Jotty Exception Hierarchy
 ==========================
@@ -78,12 +79,7 @@ class JottyError(Exception):
         original_error: Original exception if this wraps another error
     """
 
-    def __init__(
-        self,
-        message: str,
-        context: Optional[Dict[str, Any]] = None,
-        original_error: Optional[Exception] = None
-    ):
+    def __init__(self, message: str, context: Optional[Dict[str, Any]] = None, original_error: Optional[Exception] = None) -> None:
         self.message = message
         self.context = context or {}
         self.original_error = original_error
@@ -168,13 +164,7 @@ class ContextOverflowError(ContextError):
     and retry before failing.
     """
 
-    def __init__(
-        self,
-        message: str,
-        detected_tokens: Optional[int] = None,
-        max_tokens: Optional[int] = None,
-        **kwargs
-    ):
+    def __init__(self, message: str, detected_tokens: Optional[int] = None, max_tokens: Optional[int] = None, **kwargs: Any) -> None:
         self.detected_tokens = detected_tokens
         self.max_tokens = max_tokens
 
@@ -276,9 +266,7 @@ class ValidationError(JottyError):
     and structured error responses via to_dict().
     """
 
-    def __init__(self, message: str, param: str = None, value: Any = None,
-                 context: Optional[Dict[str, Any]] = None,
-                 original_error: Optional[Exception] = None):
+    def __init__(self, message: str, param: str = None, value: Any = None, context: Optional[Dict[str, Any]] = None, original_error: Optional[Exception] = None) -> None:
         super().__init__(message, context=context, original_error=original_error)
         self.param = param
         self.value = value
@@ -353,12 +341,7 @@ class ExternalToolError(IntegrationError):
 # UTILITY FUNCTIONS
 # =============================================================================
 
-def wrap_exception(
-    original: Exception,
-    jotty_exception_class: type[JottyError],
-    message: str,
-    **kwargs
-) -> JottyError:
+def wrap_exception(original: Exception, jotty_exception_class: type[JottyError], message: str, **kwargs: Any) -> JottyError:
     """
     Wrap a generic exception in a Jotty-specific exception.
 

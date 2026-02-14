@@ -35,7 +35,7 @@ import json
 logger = logging.getLogger(__name__)
 
 _dspy_module = None
-def _get_dspy():
+def _get_dspy() -> Any:
     global _dspy_module
     if _dspy_module is None:
         import dspy
@@ -49,7 +49,7 @@ from ..foundation.data_structures import (
 from ..foundation.configs.memory import MemoryConfig as FocusedMemoryConfig
 
 
-def _ensure_swarm_config(config):
+def _ensure_swarm_config(config: Any) -> Any:
     """Accept MemoryConfig or SwarmConfig, return SwarmConfig."""
     if isinstance(config, FocusedMemoryConfig):
         return SwarmConfig.from_configs(memory=config)
@@ -88,7 +88,7 @@ class SlidingWindowChunker:
     - Enables parallel processing
     """
     
-    def __init__(self, chunk_size: int = 500, overlap: int = 50):
+    def __init__(self, chunk_size: int = 500, overlap: int = 50) -> None:
         """
         Parameters:
             chunk_size: Target tokens per chunk (approximate)
@@ -182,7 +182,7 @@ class RecencyValueRanker:
     - Let LLM do ALL semantic matching
     """
 
-    def __init__(self, config):
+    def __init__(self, config: Any) -> None:
         self.config = _ensure_swarm_config(config)
     
     def prerank(self, 
@@ -263,7 +263,7 @@ class EmbeddingPreFilter:
     _model = None
     _model_name = None
 
-    def __init__(self, model_name: str = "all-MiniLM-L6-v2", top_k: int = 50):
+    def __init__(self, model_name: str = 'all-MiniLM-L6-v2', top_k: int = 50) -> None:
         """
         Args:
             model_name: Sentence-transformers model name
@@ -274,7 +274,7 @@ class EmbeddingPreFilter:
         self._available = None  # Lazy check
 
     @classmethod
-    def _get_model(cls, model_name: str):
+    def _get_model(cls, model_name: str) -> Any:
         """Lazy-load sentence-transformers model (shared across instances)."""
         if cls._model is None or cls._model_name != model_name:
             try:
@@ -355,7 +355,7 @@ class EmbeddingPreFilter:
 # =============================================================================
 
 _RelevanceSignature = None
-def _get_relevance_signature():
+def _get_relevance_signature() -> Any:
     global _RelevanceSignature
     if _RelevanceSignature is None:
         dspy = _get_dspy()
@@ -371,7 +371,7 @@ def _get_relevance_signature():
 
 
 _MemorySynthesisSignature = None
-def _get_memory_synthesis_signature():
+def _get_memory_synthesis_signature() -> Any:
     global _MemorySynthesisSignature
     if _MemorySynthesisSignature is None:
         dspy = _get_dspy()
@@ -428,7 +428,7 @@ class LLMRelevanceScorer:
        LLM: 0.80 (understands missing filters cause slowness)
     """
     
-    def __init__(self, config):
+    def __init__(self, config: Any) -> None:
         self.config = _ensure_swarm_config(config)
         self.window_size = self.config.rag_window_size
         self.use_cot = self.config.rag_use_cot
@@ -554,7 +554,7 @@ class MemorySynthesizer:
     The synthesis creates NEW knowledge that doesn't exist in any single memory!
     """
 
-    def __init__(self, config):
+    def __init__(self, config: Any) -> None:
         self.config = _ensure_swarm_config(config)
         self.synthesizer = _get_dspy().ChainOfThought(_get_memory_synthesis_signature())
 
@@ -640,7 +640,7 @@ class MemorySynthesizer:
 # =============================================================================
 
 _DeduplicationSignature = None
-def _get_dedup_signature():
+def _get_dedup_signature() -> Any:
     global _DeduplicationSignature
     if _DeduplicationSignature is None:
         dspy = _get_dspy()
@@ -670,7 +670,7 @@ class DeduplicationEngine:
     # Set to True to skip expensive LLM deduplication calls (use hash-only)
     SKIP_LLM_DEDUP = True
 
-    def __init__(self, config):
+    def __init__(self, config: Any) -> None:
         self.config = _ensure_swarm_config(config)
         self.threshold = self.config.similarity_threshold
         self.checker = _get_dspy().ChainOfThought(_get_dedup_signature()) if not self.SKIP_LLM_DEDUP else None
@@ -787,7 +787,7 @@ class DeduplicationEngine:
 # =============================================================================
 
 _CausalExtractionSignature = None
-def _get_causal_signature():
+def _get_causal_signature() -> Any:
     global _CausalExtractionSignature
     if _CausalExtractionSignature is None:
         dspy = _get_dspy()
@@ -811,7 +811,7 @@ class CausalExtractor:
     - "Trino parser requires type annotation for date columns" (causation)
     """
     
-    def __init__(self, config):
+    def __init__(self, config: Any) -> None:
         self.config = _ensure_swarm_config(config)
         self.extractor = _get_dspy().ChainOfThought(_get_causal_signature())
         self.min_evidence = self.config.causal_min_support
@@ -896,7 +896,7 @@ class LLMRAGRetriever:
     - Domain-specific jargon
     """
     
-    def __init__(self, config, use_embedding_prefilter: bool = True):
+    def __init__(self, config: Any, use_embedding_prefilter: bool = True) -> None:
         self.config = _ensure_swarm_config(config)
 
         self.chunker = SlidingWindowChunker(

@@ -46,7 +46,7 @@ class ToolInterceptor:
         all_calls = interceptor.get_all_calls()
     """
     
-    def __init__(self, actor_name: str):
+    def __init__(self, actor_name: str) -> None:
         """
         Initialize tool interceptor for an actor.
         
@@ -90,7 +90,7 @@ class ToolInterceptor:
         Returns:
             Wrapped function with interception
         """
-        def wrapped_tool(**kwargs):
+        def wrapped_tool(**kwargs: Any) -> Any:
             """Wrapper that logs call and delegates to original."""
             with self._lock:
                 # Increment attempt counter
@@ -270,7 +270,7 @@ class ToolCallRegistry:
     This allows us to track tool calls across all actors and aggregate results.
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         self._interceptors: Dict[str, ToolInterceptor] = {}
         self._lock = Lock()
         logger.info(" [REGISTRY] ToolCallRegistry initialized")

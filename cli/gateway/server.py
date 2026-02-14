@@ -53,7 +53,7 @@ class UnifiedGateway:
     - Response delivery back to channels
     """
 
-    def __init__(self, host: str = "0.0.0.0", port: int = 8766, enable_trust: bool = True):
+    def __init__(self, host: str = '0.0.0.0', port: int = 8766, enable_trust: bool = True) -> None:
         self.host = host
         self.port = port
         self.router = ChannelRouter()
@@ -71,19 +71,19 @@ class UnifiedGateway:
         if self.trust:
             self.router.set_trust_manager(self.trust)
 
-    def set_cli(self, cli):
+    def set_cli(self, cli: Any) -> Any:
         """Set JottyCLI instance."""
         self._cli = cli
         self.router.set_cli(cli)
         self._setup_responders()
 
-    def _setup_responders(self):
+    def _setup_responders(self) -> Any:
         """Setup response handlers for each channel using the responder registry."""
         # Get the responder registry (uses registry-based skill discovery)
         responder_registry = get_responder_registry()
 
         # WebSocket responder needs access to _websocket_clients, so we keep it custom
-        async def websocket_responder(response: ResponseEvent):
+        async def websocket_responder(response: ResponseEvent) -> Any:
             message = json.dumps({
                 "type": "response",
                 "channel_id": response.channel_id,
@@ -97,7 +97,7 @@ class UnifiedGateway:
                     self._websocket_clients.discard(ws)
 
         # Create wrapper responders that use the registry
-        async def telegram_responder(response: ResponseEvent):
+        async def telegram_responder(response: ResponseEvent) -> Any:
             resp_event = ResponderResponseEvent(
                 channel=ChannelType.TELEGRAM,
                 channel_id=response.channel_id,
@@ -106,7 +106,7 @@ class UnifiedGateway:
             )
             await responder_registry.send(resp_event)
 
-        async def slack_responder(response: ResponseEvent):
+        async def slack_responder(response: ResponseEvent) -> Any:
             resp_event = ResponderResponseEvent(
                 channel=ChannelType.SLACK,
                 channel_id=response.channel_id,
@@ -115,7 +115,7 @@ class UnifiedGateway:
             )
             await responder_registry.send(resp_event)
 
-        async def discord_responder(response: ResponseEvent):
+        async def discord_responder(response: ResponseEvent) -> Any:
             resp_event = ResponderResponseEvent(
                 channel=ChannelType.DISCORD,
                 channel_id=response.channel_id,
@@ -124,7 +124,7 @@ class UnifiedGateway:
             )
             await responder_registry.send(resp_event)
 
-        async def whatsapp_responder(response: ResponseEvent):
+        async def whatsapp_responder(response: ResponseEvent) -> Any:
             resp_event = ResponderResponseEvent(
                 channel=ChannelType.WHATSAPP,
                 channel_id=response.channel_id,
@@ -167,17 +167,17 @@ class UnifiedGateway:
 
         # Root redirect to PWA
         @app.get("/")
-        async def root():
+        async def root() -> Any:
             return RedirectResponse(url="/static/index.html")
 
         # PWA app route
         @app.get("/app")
-        async def pwa_app():
+        async def pwa_app() -> Any:
             return FileResponse(static_dir / "index.html")
 
         # ============ HEALTH CHECK (enriched) ============
         @app.get("/health")
-        async def health():
+        async def health() -> Any:
             result = {
                 "status": "healthy",
                 "service": "jotty-gateway",
@@ -207,7 +207,7 @@ class UnifiedGateway:
             return result
 
         @app.get("/stats")
-        async def stats():
+        async def stats() -> Any:
             return {
                 **self.router.stats,
                 "websocket_clients": len(self._websocket_clients)
@@ -216,7 +216,7 @@ class UnifiedGateway:
         # ============ REST API (for SDKs) ============
 
         @app.post("/api/chat")
-        async def api_chat(request: Request):
+        async def api_chat(request: Request) -> Any:
             """Execute chat via ModeRouter."""
             try:
                 data = await request.json()
@@ -253,7 +253,7 @@ class UnifiedGateway:
                 return {"success": False, "error": str(e)}
 
         @app.post("/api/workflow")
-        async def api_workflow(request: Request):
+        async def api_workflow(request: Request) -> Any:
             """Execute workflow via ModeRouter."""
             try:
                 data = await request.json()
@@ -280,14 +280,14 @@ class UnifiedGateway:
                 return {"success": False, "error": str(e)}
 
         @app.post("/api/chat/stream")
-        async def api_chat_stream(request: Request):
+        async def api_chat_stream(request: Request) -> Any:
             """Stream chat response via SSE."""
             from starlette.responses import StreamingResponse
 
             data = await request.json()
             message = data.get("message", "")
 
-            async def event_generator():
+            async def event_generator() -> Any:
                 try:
                     from Jotty.core.api.mode_router import get_mode_router
                     from Jotty.core.foundation.types.sdk_types import (
@@ -310,7 +310,7 @@ class UnifiedGateway:
             return StreamingResponse(event_generator(), media_type="text/event-stream")
 
         @app.get("/api/skills")
-        async def api_list_skills():
+        async def api_list_skills() -> Any:
             """List available skills."""
             try:
                 from Jotty.core.registry import get_unified_registry
@@ -321,7 +321,7 @@ class UnifiedGateway:
                 return {"success": False, "error": str(e), "skills": [], "count": 0}
 
         @app.post("/api/skill/{name}")
-        async def api_execute_skill(name: str, request: Request):
+        async def api_execute_skill(name: str, request: Request) -> Any:
             """Execute a skill."""
             try:
                 params = await request.json()
@@ -334,7 +334,7 @@ class UnifiedGateway:
                 return {"success": False, "error": str(e)}
 
         @app.get("/api/skill/{name}")
-        async def api_skill_info(name: str):
+        async def api_skill_info(name: str) -> Any:
             """Get skill info."""
             try:
                 from Jotty.core.registry import get_unified_registry
@@ -352,7 +352,7 @@ class UnifiedGateway:
                 return {"error": str(e)}
 
         @app.post("/api/agent/{name}")
-        async def api_execute_agent(name: str, request: Request):
+        async def api_execute_agent(name: str, request: Request) -> Any:
             """Execute with a specific agent."""
             try:
                 data = await request.json()
@@ -374,7 +374,7 @@ class UnifiedGateway:
         _rate_limits: Dict[str, List[float]] = {}
 
         @app.middleware("http")
-        async def rate_limit_middleware(request: Request, call_next):
+        async def rate_limit_middleware(request: Request, call_next: Any) -> Any:
             """Simple rate limiting: 60 req/min per IP for API endpoints."""
             import time
 
@@ -403,7 +403,7 @@ class UnifiedGateway:
 
         # ============ TELEGRAM WEBHOOK ============
         @app.post("/webhook/telegram")
-        async def telegram_webhook(request: Request):
+        async def telegram_webhook(request: Request) -> Any:
             """Handle Telegram webhook updates."""
             try:
                 data = await request.json()
@@ -442,7 +442,7 @@ class UnifiedGateway:
 
         # ============ SLACK EVENTS API ============
         @app.post("/webhook/slack")
-        async def slack_webhook(request: Request):
+        async def slack_webhook(request: Request) -> Any:
             """Handle Slack Events API."""
             try:
                 data = await request.json()
@@ -495,7 +495,7 @@ class UnifiedGateway:
 
         # ============ DISCORD INTERACTIONS ============
         @app.post("/webhook/discord")
-        async def discord_webhook(request: Request):
+        async def discord_webhook(request: Request) -> Any:
             """Handle Discord interactions/webhooks."""
             try:
                 data = await request.json()
@@ -543,7 +543,7 @@ class UnifiedGateway:
 
         # ============ WHATSAPP WEBHOOK ============
         @app.post("/webhook/whatsapp")
-        async def whatsapp_webhook(request: Request):
+        async def whatsapp_webhook(request: Request) -> Any:
             """Handle WhatsApp Business API webhooks."""
             try:
                 data = await request.json()
@@ -579,7 +579,7 @@ class UnifiedGateway:
 
         # WhatsApp verification
         @app.get("/webhook/whatsapp")
-        async def whatsapp_verify(request: Request):
+        async def whatsapp_verify(request: Request) -> Any:
             """WhatsApp webhook verification."""
             mode = request.query_params.get("hub.mode")
             token = request.query_params.get("hub.verify_token")
@@ -594,7 +594,7 @@ class UnifiedGateway:
 
         # ============ WEBSOCKET ============
         @app.websocket("/ws")
-        async def websocket_endpoint(websocket: WebSocket):
+        async def websocket_endpoint(websocket: WebSocket) -> Any:
             """WebSocket for real-time bidirectional communication."""
             await websocket.accept()
             self._websocket_clients.add(websocket)
@@ -631,7 +631,7 @@ class UnifiedGateway:
 
         # ============ GENERIC HTTP ============
         @app.post("/message")
-        async def http_message(request: Request):
+        async def http_message(request: Request) -> Any:
             """Generic HTTP endpoint for sending messages."""
             try:
                 data = await request.json()
@@ -659,7 +659,7 @@ class UnifiedGateway:
         self._app = app
         return app
 
-    async def run_async(self):
+    async def run_async(self) -> Any:
         """Run gateway server asynchronously."""
         if not FASTAPI_AVAILABLE:
             raise ImportError("FastAPI not installed")
@@ -669,7 +669,7 @@ class UnifiedGateway:
         server = uvicorn.Server(config)
         await server.serve()
 
-    def run(self):
+    def run(self) -> Any:
         """Run gateway server (blocking)."""
         if not FASTAPI_AVAILABLE:
             raise ImportError("FastAPI not installed")
@@ -678,7 +678,7 @@ class UnifiedGateway:
         uvicorn.run(app, host=self.host, port=self.port)
 
 
-def start_gateway(host: str = "0.0.0.0", port: int = 8766, cli=None):
+def start_gateway(host: str = '0.0.0.0', port: int = 8766, cli: Any = None) -> Any:
     """Start the unified gateway server."""
     gateway = UnifiedGateway(host, port)
     if cli:

@@ -41,7 +41,7 @@ class ContextAwareLM(BaseLM):
     preventing issues where the LLM thinks it's in its training cutoff year.
     """
 
-    def __init__(self, wrapped_lm: BaseLM, **kwargs):
+    def __init__(self, wrapped_lm: BaseLM, **kwargs: Any) -> None:
         """
         Wrap an existing LM with context injection.
 
@@ -93,7 +93,7 @@ class ContextAwareLM(BaseLM):
 
         return prompt, messages
 
-    def __call__(self, prompt: str = None, messages: List[Dict] = None, **kwargs):
+    def __call__(self, prompt: str = None, messages: List[Dict] = None, **kwargs: Any) -> Any:
         """Call the wrapped LM with injected context."""
         prompt, messages = self._inject_context(prompt, messages)
         return self._wrapped(prompt=prompt, messages=messages, **kwargs)
@@ -104,7 +104,7 @@ class ContextAwareLM(BaseLM):
             return self._wrapped.inspect_history(n)
         return {'history': self.history[-n:] if self.history else []}
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: Any) -> Any:
         """Delegate unknown attributes to wrapped LM."""
         return getattr(self._wrapped, name)
 
@@ -116,12 +116,7 @@ class UnifiedLMProvider:
     """
     
     @staticmethod
-    def create_lm(
-        provider: str,
-        model: Optional[str] = None,
-        inject_context: bool = True,
-        **kwargs
-    ) -> BaseLM:
+    def create_lm(provider: str, model: Optional[str] = None, inject_context: bool = True, **kwargs: Any) -> BaseLM:
         """
         Create DSPy LM instance for any provider.
 
@@ -187,11 +182,7 @@ class UnifiedLMProvider:
             raise InvalidConfigError(f"Provider '{provider}' not available")
     
     @staticmethod
-    def _create_direct_lm(
-        provider: str,
-        model: Optional[str] = None,
-        **kwargs
-    ) -> BaseLM:
+    def _create_direct_lm(provider: str, model: Optional[str] = None, **kwargs: Any) -> BaseLM:
         """
         Create direct DSPy LM (fallback when AISDKProviderLM unavailable).
         Uses DSPy's native provider support for faster, more reliable API access.
@@ -323,10 +314,7 @@ class UnifiedLMProvider:
     ZEN_BASE_URL = 'https://opencode.ai/zen/v1'
 
     @staticmethod
-    def _create_zen_lm(
-        model: Optional[str] = None,
-        **kwargs
-    ) -> BaseLM:
+    def _create_zen_lm(model: Optional[str] = None, **kwargs: Any) -> BaseLM:
         """
         Create DSPy LM for OpenCode Zen provider.
 
@@ -457,7 +445,7 @@ class UnifiedLMProvider:
         return result
 
     @staticmethod
-    def configure_default_lm(provider: Optional[str] = None, **kwargs) -> BaseLM:
+    def configure_default_lm(provider: Optional[str] = None, **kwargs: Any) -> BaseLM:
         """
         Configure DSPy with default LM provider.
         Auto-detects available providers in priority order:
@@ -696,7 +684,7 @@ class UnifiedLMProvider:
 
 
 # Convenience function
-def configure_dspy_lm(provider: Optional[str] = None, **kwargs) -> BaseLM:
+def configure_dspy_lm(provider: Optional[str] = None, **kwargs: Any) -> BaseLM:
     """
     Configure DSPy with unified LM provider and JSONAdapter for structured output.
 

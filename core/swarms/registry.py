@@ -11,7 +11,7 @@ Extracted from base_swarm.py for modularity.
 
 from __future__ import annotations
 
-from typing import Dict, Optional, List, Type, TYPE_CHECKING
+from typing import Dict, Optional, List, Type, TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from .base_swarm import BaseSwarm
@@ -53,9 +53,9 @@ class SwarmRegistry:
         return swarm_class()
 
 
-def register_swarm(name: str):
+def register_swarm(name: str) -> Any:
     """Decorator to register a swarm class."""
-    def decorator(cls):
+    def decorator(cls) -> Any:
         SwarmRegistry.register(name, cls)
         return cls
     return decorator

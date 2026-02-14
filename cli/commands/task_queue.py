@@ -6,7 +6,7 @@ Manage coding tasks via Supervisor API.
 """
 
 import aiohttp
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, List, Any
 
 from .base import BaseCommand, CommandResult, ParsedArgs
 
@@ -378,7 +378,7 @@ Options:
             cli.renderer.error(f"API error: {e}")
             return CommandResult.fail(str(e))
 
-    def _render_task_table(self, data: List[dict], cli: "JottyCLI"):
+    def _render_task_table(self, data: List[dict], cli: 'JottyCLI') -> Any:
         """Render task table."""
         if not data:
             return

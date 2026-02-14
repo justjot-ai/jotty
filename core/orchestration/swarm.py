@@ -54,16 +54,7 @@ class TemplateSwarmResult:
     Contains all outputs from the template execution.
     """
 
-    def __init__(self,
-                 success: bool,
-                 score: float = 0.0,
-                 model: Any = None,
-                 data: Any = None,
-                 feature_count: int = 0,
-                 execution_time: float = 0.0,
-                 template_name: str = "",
-                 stage_results: Dict[str, Any] = None,
-                 metadata: Dict[str, Any] = None):
+    def __init__(self, success: bool, score: float = 0.0, model: Any = None, data: Any = None, feature_count: int = 0, execution_time: float = 0.0, template_name: str = '', stage_results: Dict[str, Any] = None, metadata: Dict[str, Any] = None) -> None:
         self.success = success
         self.score = score
         self.model = model
@@ -74,7 +65,7 @@ class TemplateSwarmResult:
         self.stage_results = stage_results or {}
         self.metadata = metadata or {}
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"TemplateSwarmResult(success={self.success}, score={self.score:.4f}, template={self.template_name})"
 
     def to_dict(self) -> Dict[str, Any]:
@@ -122,7 +113,7 @@ class Swarm:
     _mas_learning = None
 
     @classmethod
-    def _get_swarm_manager(cls):
+    def _get_swarm_manager(cls) -> Any:
         """Get or create Orchestrator for learning integration."""
         if cls._swarm_manager is None:
             try:
@@ -132,7 +123,7 @@ class Swarm:
         return cls._swarm_manager
 
     @classmethod
-    def _get_learning(cls):
+    def _get_learning(cls) -> Any:
         """Get learning system, with or without full Orchestrator."""
         manager = cls._get_swarm_manager()
         if manager:
@@ -147,17 +138,7 @@ class Swarm:
         return cls._mas_learning
 
     @classmethod
-    async def solve(cls,
-                    template: Union[str, SwarmTemplate] = "ml",
-                    data: pd.DataFrame = None,
-                    target: str = None,
-                    X: pd.DataFrame = None,
-                    y: pd.Series = None,
-                    time_budget: int = 300,
-                    context: str = "",
-                    feedback_iterations: int = 2,
-                    show_progress: bool = True,
-                    **kwargs) -> TemplateSwarmResult:
+    async def solve(cls, template: Union[str, SwarmTemplate] = 'ml', data: pd.DataFrame = None, target: str = None, X: pd.DataFrame = None, y: pd.Series = None, time_budget: int = 300, context: str = '', feedback_iterations: int = 2, show_progress: bool = True, **kwargs: Any) -> TemplateSwarmResult:
         """
         Solve a problem using a swarm template.
 
@@ -265,14 +246,7 @@ class Swarm:
             )
 
     @classmethod
-    async def _solve_ml(cls,
-                        X: pd.DataFrame,
-                        y: pd.Series,
-                        time_budget: int,
-                        context: str,
-                        feedback_iterations: int,
-                        show_progress: bool,
-                        **kwargs) -> TemplateSwarmResult:
+    async def _solve_ml(cls, X: pd.DataFrame, y: pd.Series, time_budget: int, context: str, feedback_iterations: int, show_progress: bool, **kwargs: Any) -> TemplateSwarmResult:
         """
         Solve ML problem using the existing SkillOrchestrator.
 
@@ -347,7 +321,7 @@ class Swarm:
         return swarm_result
 
     @classmethod
-    def _generate_report(cls, swarm_result: 'TemplateSwarmResult', context: str, _manager=None, **kwargs) -> 'TemplateSwarmResult':
+    def _generate_report(cls, swarm_result: 'TemplateSwarmResult', context: str, _manager: Any = None, **kwargs: Any) -> 'TemplateSwarmResult':
         """Generate world-class PDF report and optionally send to Telegram."""
         try:
             from .templates.swarm_ml_comprehensive import SwarmMLComprehensive
@@ -426,7 +400,7 @@ class Swarm:
         return swarm_result
 
     @classmethod
-    async def auto_solve(cls, X, y=None, **kwargs) -> TemplateSwarmResult:
+    async def auto_solve(cls, X: Any, y: Any = None, **kwargs: Any) -> TemplateSwarmResult:
         """
         Auto-detect problem type and solve using best template.
 
@@ -447,7 +421,7 @@ class Swarm:
         return await cls.solve(template=template, X=X, y=y, **kwargs)
 
     @classmethod
-    def _progress_callback(cls, stage_name: str, status: str, result: Dict = None):
+    def _progress_callback(cls, stage_name: str, status: str, result: Dict = None) -> Any:
         """Progress callback for visual feedback."""
         if status == 'start':
             logger.info(f"  Stage starting: {stage_name}...")
@@ -469,12 +443,12 @@ class Swarm:
 
 
 # Convenience functions for module-level access
-async def solve(template: str = "ml", **kwargs) -> TemplateSwarmResult:
+async def solve(template: str = 'ml', **kwargs: Any) -> TemplateSwarmResult:
     """Solve using specified template."""
     return await Swarm.solve(template=template, **kwargs)
 
 
-async def auto_solve(X, y=None, **kwargs) -> TemplateSwarmResult:
+async def auto_solve(X: Any, y: Any = None, **kwargs: Any) -> TemplateSwarmResult:
     """Auto-detect and solve."""
     return await Swarm.auto_solve(X=X, y=y, **kwargs)
 

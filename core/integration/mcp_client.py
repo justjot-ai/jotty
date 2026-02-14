@@ -22,12 +22,7 @@ class MCPClient:
     via JSON-RPC over stdin/stdout.
     """
     
-    def __init__(
-        self,
-        server_path: Optional[str] = None,
-        env: Optional[Dict[str, str]] = None,
-        mongodb_uri: Optional[str] = None
-    ):
+    def __init__(self, server_path: Optional[str] = None, env: Optional[Dict[str, str]] = None, mongodb_uri: Optional[str] = None) -> None:
         """
         Initialize MCP client.
         
@@ -95,7 +90,7 @@ class MCPClient:
             "Set server_path or ensure server.js exists."
         )
     
-    async def connect(self):
+    async def connect(self) -> Any:
         """Start MCP server process and initialize connection."""
         if self.process:
             return  # Already connected
@@ -130,7 +125,7 @@ class MCPClient:
         
         logger.info("MCP client connected")
     
-    async def _read_responses(self):
+    async def _read_responses(self) -> Any:
         """Read responses from MCP server."""
         if not self.process:
             return
@@ -194,7 +189,7 @@ class MCPClient:
         })
         return result
     
-    async def disconnect(self):
+    async def disconnect(self) -> Any:
         """Disconnect from MCP server."""
         if self.process:
             self.process.terminate()
@@ -205,12 +200,12 @@ class MCPClient:
             self.process = None
             logger.info("MCP client disconnected")
     
-    async def __aenter__(self):
+    async def __aenter__(self) -> Any:
         """Async context manager entry."""
         await self.connect()
         return self
     
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> bool:
         """Async context manager exit."""
         await self.disconnect()
 

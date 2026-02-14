@@ -31,7 +31,7 @@ class ChartRenderer(ABC):
     """
 
     @abstractmethod
-    def render(self, chart, **kwargs) -> RenderResult:
+    def render(self, chart: Any, **kwargs: Any) -> RenderResult:
         """
         Render a chart to the target format.
 
@@ -45,7 +45,7 @@ class ChartRenderer(ABC):
         pass
 
     @abstractmethod
-    def render_multiple(self, charts: List, **kwargs) -> RenderResult:
+    def render_multiple(self, charts: List, **kwargs: Any) -> RenderResult:
         """
         Render multiple charts (for dashboards).
 
@@ -70,12 +70,7 @@ class HTMLRenderer(ChartRenderer):
     - Interactive charts (Altair, Plotly)
     """
 
-    def __init__(
-        self,
-        title: str = "Visualization",
-        theme: str = "light",
-        include_code: bool = False
-    ):
+    def __init__(self, title: str = 'Visualization', theme: str = 'light', include_code: bool = False) -> None:
         """
         Initialize HTML renderer.
 
@@ -88,7 +83,7 @@ class HTMLRenderer(ChartRenderer):
         self.theme = theme
         self.include_code = include_code
 
-    def render(self, chart, **kwargs) -> RenderResult:
+    def render(self, chart: Any, **kwargs: Any) -> RenderResult:
         """Render single chart to HTML."""
         try:
             html = self._chart_to_html(chart)
@@ -101,7 +96,7 @@ class HTMLRenderer(ChartRenderer):
             logger.error(f"HTML render failed: {e}")
             return RenderResult(success=False, error=str(e))
 
-    def render_multiple(self, charts: List, columns: int = 2, **kwargs) -> RenderResult:
+    def render_multiple(self, charts: List, columns: int = 2, **kwargs: Any) -> RenderResult:
         """
         Render multiple charts as HTML dashboard.
 
@@ -191,7 +186,7 @@ class HTMLRenderer(ChartRenderer):
             logger.error(f"Dashboard render failed: {e}")
             return RenderResult(success=False, error=str(e))
 
-    def _chart_to_html(self, chart) -> str:
+    def _chart_to_html(self, chart: Any) -> str:
         """Convert single chart to HTML snippet."""
         parts = []
 
@@ -227,7 +222,7 @@ class MatplotlibRenderer(ChartRenderer):
     Renders charts using matplotlib for static images.
     """
 
-    def __init__(self, figsize: tuple = (10, 6), dpi: int = 100):
+    def __init__(self, figsize: tuple = (10, 6), dpi: int = 100) -> None:
         """
         Initialize matplotlib renderer.
 
@@ -238,7 +233,7 @@ class MatplotlibRenderer(ChartRenderer):
         self.figsize = figsize
         self.dpi = dpi
 
-    def render(self, chart, format: str = 'png', **kwargs) -> RenderResult:
+    def render(self, chart: Any, format: str = 'png', **kwargs: Any) -> RenderResult:
         """
         Render chart to image format.
 
@@ -279,7 +274,7 @@ class MatplotlibRenderer(ChartRenderer):
 
         return RenderResult(success=False, error="No chart data to render")
 
-    def render_multiple(self, charts: List, format: str = 'png', **kwargs) -> RenderResult:
+    def render_multiple(self, charts: List, format: str = 'png', **kwargs: Any) -> RenderResult:
         """Render multiple charts as subplot grid."""
         try:
             import matplotlib.pyplot as plt
@@ -328,7 +323,7 @@ class AltairRenderer(ChartRenderer):
     Renders Altair/Vega-Lite charts for interactive web display.
     """
 
-    def render(self, chart, **kwargs) -> RenderResult:
+    def render(self, chart: Any, **kwargs: Any) -> RenderResult:
         """Render chart to Vega-Lite spec or HTML."""
         if chart.spec:
             return RenderResult(success=True, output=chart.spec, format='vega-lite')
@@ -355,7 +350,7 @@ class AltairRenderer(ChartRenderer):
 
         return RenderResult(success=False, error="No Altair chart data")
 
-    def render_multiple(self, charts: List, **kwargs) -> RenderResult:
+    def render_multiple(self, charts: List, **kwargs: Any) -> RenderResult:
         """Render multiple charts as concatenated Vega-Lite."""
         specs = []
         for chart in charts:
@@ -385,7 +380,7 @@ class PlotlyRenderer(ChartRenderer):
     Renders Plotly charts for interactive web display.
     """
 
-    def render(self, chart, **kwargs) -> RenderResult:
+    def render(self, chart: Any, **kwargs: Any) -> RenderResult:
         """Render chart to Plotly JSON or HTML."""
         if chart.code and 'plotly' in chart.code.lower():
             try:
@@ -410,7 +405,7 @@ class PlotlyRenderer(ChartRenderer):
 
         return RenderResult(success=False, error="No Plotly chart data")
 
-    def render_multiple(self, charts: List, **kwargs) -> RenderResult:
+    def render_multiple(self, charts: List, **kwargs: Any) -> RenderResult:
         """Render multiple Plotly charts."""
         figures = []
         for chart in charts:
@@ -439,7 +434,7 @@ class RendererFactory:
     }
 
     @classmethod
-    def create(cls, renderer_type: str = 'html', **kwargs) -> ChartRenderer:
+    def create(cls, renderer_type: str = 'html', **kwargs: Any) -> ChartRenderer:
         """
         Create a renderer instance.
 

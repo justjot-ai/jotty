@@ -75,7 +75,7 @@ class N8nProvider(SkillProvider):
     version = "1.0.0"
     description = "n8n workflows as skills (one per workflow)"
 
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: Dict[str, Any] = None) -> None:
         super().__init__(config or {})
         self._base_url = self.config.get("base_url") or os.getenv("N8N_BASE_URL", DEFAULT_N8N_URL)
         self._skills_cache: List[ContributedSkill] = []

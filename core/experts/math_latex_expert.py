@@ -339,12 +339,7 @@ class MathLaTeXExpertAgent(BaseExpert):
     # PUBLIC API
     # =========================================================================
 
-    async def generate_math_latex(
-        self,
-        description: str,
-        expression_type: str = "display",
-        **kwargs
-    ) -> str:
+    async def generate_math_latex(self, description: str, expression_type: str = 'display', **kwargs: Any) -> str:
         """
         Generate a Math LaTeX expression using the trained expert agent.
 

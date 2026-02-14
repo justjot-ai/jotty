@@ -313,12 +313,7 @@ class MermaidExpertAgent(BaseExpert):
     # PUBLIC API
     # =========================================================================
 
-    async def generate_mermaid(
-        self,
-        description: str,
-        diagram_type: str = "flowchart",
-        **kwargs
-    ) -> str:
+    async def generate_mermaid(self, description: str, diagram_type: str = 'flowchart', **kwargs: Any) -> str:
         """
         Generate a Mermaid diagram using the trained expert agent.
 

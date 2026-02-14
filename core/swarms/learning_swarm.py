@@ -1,3 +1,4 @@
+from typing import Any
 """
 Learning Swarm - World-Class Self-Improving Meta-Learning
 ==========================================================
@@ -99,7 +100,7 @@ class LearningConfig(SwarmBaseConfig):
     gold_standard_path: str = None
     history_path: str = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.name = "LearningSwarm"
         self.domain = "meta_learning"
 
@@ -284,7 +285,7 @@ class MetaLearningSignature(dspy.Signature):
 class PerformanceEvaluator(BaseSwarmAgent):
     """Evaluates swarm performance."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, learned_context)
         self._analyzer = dspy.ChainOfThought(PerformanceAnalysisSignature)
 
@@ -349,7 +350,7 @@ class PerformanceEvaluator(BaseSwarmAgent):
 class GoldCurator(BaseSwarmAgent):
     """Curates gold standards."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, learned_context)
         self._curator = dspy.ChainOfThought(GoldStandardCreationSignature)
 
@@ -403,7 +404,7 @@ class GoldCurator(BaseSwarmAgent):
 class PromptOptimizer(BaseSwarmAgent):
     """Optimizes agent prompts."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, learned_context)
         self._optimizer = dspy.ChainOfThought(PromptOptimizationSignature)
 
@@ -453,7 +454,7 @@ class PromptOptimizer(BaseSwarmAgent):
 class WorkflowOptimizer(BaseSwarmAgent):
     """Optimizes swarm workflows."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, learned_context)
         self._optimizer = dspy.ChainOfThought(WorkflowOptimizationSignature)
 
@@ -500,7 +501,7 @@ class WorkflowOptimizer(BaseSwarmAgent):
 class ParameterTuner(BaseSwarmAgent):
     """Tunes agent parameters."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, learned_context)
         self._tuner = dspy.ChainOfThought(ParameterTuningSignature)
 
@@ -552,7 +553,7 @@ class ParameterTuner(BaseSwarmAgent):
 class MetaLearner(BaseSwarmAgent):
     """Extracts cross-domain meta-learnings."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, learned_context)
         self._learner = dspy.ChainOfThought(MetaLearningSignature)
 
@@ -638,18 +639,14 @@ class LearningSwarm(DomainSwarm):
     )
     SWARM_SIGNATURE = LearningSwarmSignature
 
-    def __init__(self, config: LearningConfig = None):
+    def __init__(self, config: LearningConfig = None) -> None:
         super().__init__(config or LearningConfig())
 
         # Data stores
         self._all_gold_dbs: Dict[str, GoldStandardDB] = {}
         self._all_histories: Dict[str, ImprovementHistory] = {}
 
-    async def _execute_domain(
-        self,
-        swarm_name: str,
-        **kwargs
-    ) -> LearningResult:
+    async def _execute_domain(self, swarm_name: str, **kwargs: Any) -> LearningResult:
         """
         Execute learning cycle.
 
@@ -719,13 +716,7 @@ class LearningSwarm(DomainSwarm):
             input_data_fn=lambda: {'swarm_name': swarm_name},
         )
 
-    async def _execute_phases(
-        self,
-        executor,
-        swarm_name: str,
-        evaluations: List[Evaluation],
-        traces: List[ExecutionTrace],
-    ) -> LearningResult:
+    async def _execute_phases(self, executor: Any, swarm_name: str, evaluations: List[Evaluation], traces: List[ExecutionTrace]) -> LearningResult:
         """
         Domain-specific phase logic using PhaseExecutor.
 
@@ -911,7 +902,7 @@ class LearningSwarm(DomainSwarm):
 # CONVENIENCE FUNCTIONS
 # =============================================================================
 
-async def improve_swarm(swarm_name: str, **kwargs) -> LearningResult:
+async def improve_swarm(swarm_name: str, **kwargs: Any) -> LearningResult:
     """
     One-liner swarm improvement.
 
@@ -923,7 +914,7 @@ async def improve_swarm(swarm_name: str, **kwargs) -> LearningResult:
     return await swarm.evaluate_and_improve(swarm_name, **kwargs)
 
 
-def improve_swarm_sync(swarm_name: str, **kwargs) -> LearningResult:
+def improve_swarm_sync(swarm_name: str, **kwargs: Any) -> LearningResult:
     """Synchronous swarm improvement."""
     return asyncio.run(improve_swarm(swarm_name, **kwargs))
 

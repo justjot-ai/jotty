@@ -73,11 +73,7 @@ class ModelCascade:
     DRY: Reuses LotusConfig for thresholds, model selection.
     """
 
-    def __init__(
-        self,
-        config: Optional[LotusConfig] = None,
-        lm_provider: Optional[Any] = None,  # DSPy LM or similar
-    ):
+    def __init__(self, config: Optional[LotusConfig] = None, lm_provider: Optional[Any] = None) -> None:
         """
         Initialize model cascade.
 

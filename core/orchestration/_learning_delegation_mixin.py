@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class LearningDelegationMixin:
     """Mixin for learning system delegation."""
 
-    def _auto_load_learnings(self):
+    def _auto_load_learnings(self) -> Any:
         """Delegate to SwarmLearningPipeline."""
         self.learning.auto_load()
         # Sync credit_weights reference after load (may have been replaced)
@@ -29,7 +29,7 @@ class LearningDelegationMixin:
             except Exception:
                 pass
 
-    def _auto_save_learnings(self):
+    def _auto_save_learnings(self) -> Any:
         """Delegate to SwarmLearningPipeline."""
         self.learning.auto_save(
             mas_learning=getattr(self, 'mas_learning', None),
@@ -52,8 +52,7 @@ class LearningDelegationMixin:
             agent_types=agent_types or [a.name for a in self.agents],
         )
 
-    def record_agent_result(self, agent_name: str, task_type: str, success: bool,
-                            time_taken: float, output_quality: float = 0.0):
+    def record_agent_result(self, agent_name: str, task_type: str, success: bool, time_taken: float, output_quality: float = 0.0) -> Any:
         """Record an agent's task result for learning."""
         if hasattr(self, 'mas_learning') and self.mas_learning:
             self.mas_learning.record_agent_task(
@@ -61,11 +60,7 @@ class LearningDelegationMixin:
                 success=success, time_taken=time_taken, output_quality=output_quality,
             )
 
-    def record_session_result(self, task_description: str,
-                              agent_performances: Dict[str, Dict[str, Any]],
-                              total_time: float, success: bool,
-                              fixes_applied: List[Dict[str, Any]] = None,
-                              stigmergy_signals: int = 0):
+    def record_session_result(self, task_description: str, agent_performances: Dict[str, Dict[str, Any]], total_time: float, success: bool, fixes_applied: List[Dict[str, Any]] = None, stigmergy_signals: int = 0) -> Any:
         """Record session results for future learning."""
         if hasattr(self, 'mas_learning') and self.mas_learning:
             self.mas_learning.record_session(

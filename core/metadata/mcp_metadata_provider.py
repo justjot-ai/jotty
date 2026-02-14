@@ -1,3 +1,4 @@
+from typing import Any
 """
 MCP Metadata Provider for Jotty
 ================================
@@ -109,14 +110,7 @@ class MCPMetadataProvider(BaseMetadataProvider):
         HTTP API calls, or any other MCP client implementation).
     """
 
-    def __init__(
-        self,
-        list_resources_fn: Optional[Callable] = None,
-        read_resource_fn: Optional[Callable] = None,
-        server: Optional[str] = None,
-        token_budget: int = 100000,
-        enable_caching: bool = True
-    ):
+    def __init__(self, list_resources_fn: Optional[Callable] = None, read_resource_fn: Optional[Callable] = None, server: Optional[str] = None, token_budget: int = 100000, enable_caching: bool = True) -> None:
         """
         Initialize MCP metadata provider with injected MCP tool functions.
 
@@ -310,13 +304,7 @@ class MCPMetadataProvider(BaseMetadataProvider):
     # Protocol Methods (Required by BaseMetadataProvider)
     # =========================================================================
 
-    def get_context_for_actor(
-        self,
-        actor_name: str,
-        query: str,
-        previous_outputs: Optional[Dict[str, Any]] = None,
-        **kwargs
-    ) -> Dict[str, Any]:
+    def get_context_for_actor(self, actor_name: str, query: str, previous_outputs: Optional[Dict[str, Any]] = None, **kwargs: Any) -> Dict[str, Any]:
         """
         Return MCP resources relevant to the actor's query.
 
@@ -386,7 +374,7 @@ class MCPMetadataProvider(BaseMetadataProvider):
 
         return context
 
-    def get_swarm_context(self, **kwargs) -> Dict[str, Any]:
+    def get_swarm_context(self, **kwargs: Any) -> Dict[str, Any]:
         """
         Return global MCP context for the entire swarm.
 
@@ -406,12 +394,7 @@ class MCPMetadataProvider(BaseMetadataProvider):
 # Helper Function: Create MCP Provider from Python Functions
 # =============================================================================
 
-def create_mcp_provider_from_functions(
-    list_fn: Callable,
-    read_fn: Callable,
-    server: Optional[str] = None,
-    **kwargs
-) -> MCPMetadataProvider:
+def create_mcp_provider_from_functions(list_fn: Callable, read_fn: Callable, server: Optional[str] = None, **kwargs: Any) -> MCPMetadataProvider:
     """
     Create MCP provider from Python functions (SIMPLE INTERFACE).
 

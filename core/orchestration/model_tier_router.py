@@ -103,7 +103,7 @@ class ModelTierRouter:
     and SwarmProviderGateway for LM creation.
     """
 
-    def __init__(self, default_provider: Optional[str] = None):
+    def __init__(self, default_provider: Optional[str] = None) -> None:
         """
         Args:
             default_provider: Preferred provider (auto-detect if None)

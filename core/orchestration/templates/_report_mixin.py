@@ -143,7 +143,7 @@ class ReportMixin:
         }
         self._report_data['sections'].append(section)
 
-    def add_confusion_matrix_report(self, y_true, y_pred, labels=None) -> None:
+    def add_confusion_matrix_report(self, y_true: Any, y_pred: Any, labels: Any = None) -> None:
         """Add confusion matrix to report."""
         if not self._report_available or not self._report_config.include_confusion_matrix:
             return
@@ -171,7 +171,7 @@ class ReportMixin:
         except Exception as e:
             logger.debug(f"Failed to add confusion matrix: {e}")
 
-    def add_roc_analysis(self, y_true, y_prob, pos_label=1) -> None:
+    def add_roc_analysis(self, y_true: Any, y_prob: Any, pos_label: Any = 1) -> None:
         """Add ROC curve analysis to report."""
         if not self._report_available or not self._report_config.include_roc_curves:
             return
@@ -200,7 +200,7 @@ class ReportMixin:
         except Exception as e:
             logger.debug(f"Failed to add ROC analysis: {e}")
 
-    def add_precision_recall_analysis(self, y_true, y_prob, pos_label=1) -> None:
+    def add_precision_recall_analysis(self, y_true: Any, y_prob: Any, pos_label: Any = 1) -> None:
         """Add precision-recall curve analysis to report."""
         if not self._report_available or not self._report_config.include_precision_recall:
             return
@@ -228,7 +228,7 @@ class ReportMixin:
         except Exception as e:
             logger.debug(f"Failed to add precision-recall analysis: {e}")
 
-    def add_shap_analysis(self, shap_values, feature_names: List[str], X_sample=None) -> None:
+    def add_shap_analysis(self, shap_values: Any, feature_names: List[str], X_sample: Any = None) -> None:
         """Add SHAP analysis to report."""
         if not self._report_available or not self._report_config.include_shap_analysis:
             return
@@ -261,8 +261,7 @@ class ReportMixin:
         except Exception as e:
             logger.debug(f"Failed to add SHAP analysis: {e}")
 
-    def add_baseline_comparison(self, baseline_score: float, final_score: float,
-                               baseline_model: str = "DummyClassifier"):
+    def add_baseline_comparison(self, baseline_score: float, final_score: float, baseline_model: str = 'DummyClassifier') -> Any:
         """Add baseline vs final model comparison."""
         if not self._report_available or not self._report_config.include_baseline_comparison:
             return
@@ -381,7 +380,7 @@ class ReportMixin:
 
         return story
 
-    def _render_section(self, section: Dict, styles) -> List:
+    def _render_section(self, section: Dict, styles: Any) -> List:
         """Render a report section to reportlab elements."""
         elements = []
 
@@ -416,7 +415,7 @@ class ReportMixin:
 
         return elements
 
-    def _render_executive_summary(self, content: Dict, styles) -> List:
+    def _render_executive_summary(self, content: Dict, styles: Any) -> List:
         """Render executive summary section."""
         elements = []
 
@@ -451,7 +450,7 @@ class ReportMixin:
 
         return elements
 
-    def _render_data_profile(self, content: Dict, styles) -> List:
+    def _render_data_profile(self, content: Dict, styles: Any) -> List:
         """Render data profile section."""
         elements = []
 
@@ -477,7 +476,7 @@ class ReportMixin:
 
         return elements
 
-    def _render_feature_importance(self, content: Dict, styles) -> List:
+    def _render_feature_importance(self, content: Dict, styles: Any) -> List:
         """Render feature importance section."""
         elements = []
 
@@ -509,7 +508,7 @@ class ReportMixin:
 
         return elements
 
-    def _render_model_benchmarking(self, content: Dict, styles) -> List:
+    def _render_model_benchmarking(self, content: Dict, styles: Any) -> List:
         """Render model benchmarking section."""
         elements = []
 
@@ -544,7 +543,7 @@ class ReportMixin:
 
         return elements
 
-    def _render_confusion_matrix(self, content: Dict, styles) -> List:
+    def _render_confusion_matrix(self, content: Dict, styles: Any) -> List:
         """Render confusion matrix section."""
         elements = []
 
@@ -562,7 +561,7 @@ class ReportMixin:
 
         return elements
 
-    def _render_roc_analysis(self, content: Dict, styles) -> List:
+    def _render_roc_analysis(self, content: Dict, styles: Any) -> List:
         """Render ROC analysis section."""
         elements = []
 
@@ -579,7 +578,7 @@ class ReportMixin:
 
         return elements
 
-    def _render_precision_recall(self, content: Dict, styles) -> List:
+    def _render_precision_recall(self, content: Dict, styles: Any) -> List:
         """Render precision-recall analysis section."""
         elements = []
 
@@ -590,7 +589,7 @@ class ReportMixin:
 
         return elements
 
-    def _render_baseline_comparison(self, content: Dict, styles) -> List:
+    def _render_baseline_comparison(self, content: Dict, styles: Any) -> List:
         """Render baseline comparison section."""
         elements = []
 
@@ -614,7 +613,7 @@ class ReportMixin:
 
         return elements
 
-    def _render_recommendations(self, content: Dict, styles) -> List:
+    def _render_recommendations(self, content: Dict, styles: Any) -> List:
         """Render recommendations section."""
         elements = []
 
@@ -623,7 +622,7 @@ class ReportMixin:
 
         return elements
 
-    def _create_importance_figure(self, sorted_importance: List[Tuple[str, float]]):
+    def _create_importance_figure(self, sorted_importance: List[Tuple[str, float]]) -> Any:
         """Create and save feature importance figure."""
         try:
             import matplotlib.pyplot as plt
@@ -648,7 +647,7 @@ class ReportMixin:
         except Exception as e:
             logger.debug(f"Failed to create importance figure: {e}")
 
-    def _create_confusion_matrix_figure(self, cm, labels):
+    def _create_confusion_matrix_figure(self, cm: Any, labels: Any) -> Any:
         """Create and save confusion matrix figure."""
         try:
             import matplotlib.pyplot as plt
@@ -670,7 +669,7 @@ class ReportMixin:
         except Exception as e:
             logger.debug(f"Failed to create confusion matrix figure: {e}")
 
-    def _create_roc_figure(self, fpr, tpr, roc_auc):
+    def _create_roc_figure(self, fpr: Any, tpr: Any, roc_auc: Any) -> Any:
         """Create and save ROC curve figure."""
         try:
             import matplotlib.pyplot as plt
@@ -696,7 +695,7 @@ class ReportMixin:
         except Exception as e:
             logger.debug(f"Failed to create ROC figure: {e}")
 
-    def _create_pr_figure(self, precision, recall, avg_precision):
+    def _create_pr_figure(self, precision: Any, recall: Any, avg_precision: Any) -> Any:
         """Create and save precision-recall curve figure."""
         try:
             import matplotlib.pyplot as plt
@@ -720,7 +719,7 @@ class ReportMixin:
         except Exception as e:
             logger.debug(f"Failed to create PR figure: {e}")
 
-    def _create_shap_figures(self, shap_values, feature_names, X_sample):
+    def _create_shap_figures(self, shap_values: Any, feature_names: Any, X_sample: Any) -> Any:
         """Create and save SHAP analysis figures."""
         try:
             import shap
@@ -789,7 +788,7 @@ class ReportMixin:
 
         return findings
 
-    def _find_optimal_threshold(self, fpr, tpr, thresholds) -> float:
+    def _find_optimal_threshold(self, fpr: Any, tpr: Any, thresholds: Any) -> float:
         """Find optimal classification threshold using Youden's J statistic."""
         j_scores = tpr - fpr
         optimal_idx = np.argmax(j_scores)

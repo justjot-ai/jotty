@@ -34,12 +34,12 @@ class ToolManager:
     FAILURE_THRESHOLD = 0.6   # Below 60% success = failing tool
     MIN_SAMPLES = 3           # Need 3+ uses before judging
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._tool_assignments: Dict[str, List[str]] = {}    # swarm_name -> [added tools]
         self._deactivated_tools: Dict[str, List[str]] = {}   # swarm_name -> [removed tools]
         self._tool_registry: Dict[str, Any] = {}             # name -> ToolSchema
 
-    def register_tool_schema(self, schema) -> None:
+    def register_tool_schema(self, schema: Any) -> None:
         """Register a tool schema for capability-based replacement."""
         self._tool_registry[schema.name] = schema
 

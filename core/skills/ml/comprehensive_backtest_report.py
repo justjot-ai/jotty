@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 class ComprehensiveBacktestChartGenerator:
     """Generate advanced charts for comprehensive backtest reports."""
 
-    def __init__(self, output_dir: Path):
+    def __init__(self, output_dir: Path) -> None:
         self.output_dir = output_dir
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -496,7 +496,7 @@ Min Track Record: {st.min_track_record} days
 class ComprehensiveBacktestReportGenerator:
     """Generate world-class PDF reports from ComprehensiveBacktestResult."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.report_dir = Path.home() / "jotty" / "comprehensive_backtest_reports"
         self.report_dir.mkdir(parents=True, exist_ok=True)
 

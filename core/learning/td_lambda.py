@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 from .adaptive_components import AdaptiveLearningRate, IntermediateRewardCalculator
 
 
-def _ensure_swarm_config(config):
+def _ensure_swarm_config(config: Any) -> Any:
     """Accept LearningConfig or SwarmConfig, return SwarmConfig."""
     if isinstance(config, FocusedLearningConfig):
         return SwarmConfig.from_configs(learning=config)
@@ -58,7 +58,7 @@ class GroupedValueBaseline:
     TD Error with baseline: δ = R - baseline + γV(s') - V(s)
     """
 
-    def __init__(self, config=None, ema_alpha: float = 0.1):
+    def __init__(self, config: Any = None, ema_alpha: float = 0.1) -> None:
         """
         Initialize grouped baseline tracker.
 
@@ -128,8 +128,7 @@ class GroupedValueBaseline:
         # Default baseline
         return 0.5
 
-    def update_group(self, task_type: str, reward: float, domain: str = None,
-                     action_type: str = None):
+    def update_group(self, task_type: str, reward: float, domain: str = None, action_type: str = None) -> Any:
         """
         Update group baseline from new sample.
 
@@ -234,7 +233,7 @@ class GroupedValueBaseline:
 
         return None
 
-    def _update_transfer_weights(self, task_type: str, reward: float):
+    def _update_transfer_weights(self, task_type: str, reward: float) -> Any:
         """
         Update transfer weights based on reward similarity.
 
@@ -327,7 +326,7 @@ class GroupedValueBaseline:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict, config=None) -> 'GroupedValueBaseline':
+    def from_dict(cls, data: Dict, config: Any = None) -> 'GroupedValueBaseline':
         """Deserialize from persistence."""
         instance = cls(config, ema_alpha=data.get('ema_alpha', 0.1))
         instance.group_baselines = dict(data.get('group_baselines', {}))
@@ -355,7 +354,7 @@ class TDLambdaLearner:
     4. Terminal state has V(s') = 0
     """
     
-    def __init__(self, config, adaptive_lr: AdaptiveLearningRate = None):
+    def __init__(self, config: Any, adaptive_lr: AdaptiveLearningRate = None) -> None:
         self.config = _ensure_swarm_config(config)
         self.gamma = self.config.gamma
         self.lambda_trace = self.config.lambda_trace
@@ -784,10 +783,7 @@ class TDLambdaLearner:
         """Get statistics about HRPO grouped learning."""
         return self.grouped_baseline.get_statistics()
     
-    def _transfer_values(self, 
-                          memories: Dict[str, MemoryEntry],
-                          goal_hierarchy: GoalHierarchy,
-                          updates: List[Tuple[str, float, float]]):
+    def _transfer_values(self, memories: Dict[str, MemoryEntry], goal_hierarchy: GoalHierarchy, updates: List[Tuple[str, float, float]]) -> Any:
         """Transfer value updates to related goals with discounting."""
         transfer_weight = self.config.goal_transfer_weight * self.config.goal_transfer_discount # STANFORD FIX
         
@@ -844,7 +840,7 @@ class SkillQTable:
         q.update("research", "web-search", reward=0.9)
     """
 
-    def __init__(self, alpha: float = 0.1, gamma: float = 0.9, epsilon: float = 0.15):
+    def __init__(self, alpha: float = 0.1, gamma: float = 0.9, epsilon: float = 0.15) -> None:
         self.alpha = alpha      # Learning rate
         self.gamma = gamma      # Discount factor
         self.epsilon = epsilon  # Exploration rate (epsilon-greedy)
@@ -930,7 +926,7 @@ class COMACredit:
         credits = coma.get_credits("researcher")  # ~0.15 (team with - team without)
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Per-agent history of (team_reward, agent_contribution)
         self._history: Dict[str, List[Tuple[float, float]]] = {}
         # Team reward history when agent was NOT present

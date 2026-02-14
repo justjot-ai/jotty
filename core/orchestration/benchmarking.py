@@ -45,7 +45,7 @@ class SwarmBenchmarks:
     - Cooperation effectiveness
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Single-agent baselines: task_type -> [(time, success)]
         self.single_agent_runs: Dict[str, List[Tuple[float, bool]]] = defaultdict(list)
 
@@ -61,8 +61,7 @@ class SwarmBenchmarks:
         # Iteration history for self-improvement tracking
         self.iteration_history: List[Dict] = []
 
-    def record_iteration(self, iteration_id: str, task_type: str,
-                         score: float, execution_time: float, success: bool):
+    def record_iteration(self, iteration_id: str, task_type: str, score: float, execution_time: float, success: bool) -> Any:
         """Record a self-improvement iteration."""
         self.iteration_history.append({
             'iteration_id': iteration_id, 'task_type': task_type,
@@ -105,8 +104,7 @@ class SwarmBenchmarks:
         if len(self.single_agent_runs[task_type]) > 100:
             self.single_agent_runs[task_type] = self.single_agent_runs[task_type][-100:]
 
-    def record_multi_agent_run(self, task_type: str, execution_time: float,
-                               agents_count: int, success: bool = True):
+    def record_multi_agent_run(self, task_type: str, execution_time: float, agents_count: int, success: bool = True) -> Any:
         """Record multi-agent run."""
         self.multi_agent_runs[task_type].append((execution_time, agents_count, success))
 
@@ -348,13 +346,11 @@ class MASBenchRunner:
         'pmi-strategies', 'pmi-broker', 'shell-exec', 'database-tools',
     })
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.tasks: List[Dict[str, Any]] = []
         self.results: List[MASBenchResult] = []
 
-    def add_task(self, task_id: str, description: str,
-                 app: str = "", optimal_steps: int = 1,
-                 difficulty: int = 1, cross_app: bool = False):
+    def add_task(self, task_id: str, description: str, app: str = '', optimal_steps: int = 1, difficulty: int = 1, cross_app: bool = False) -> Any:
         """Register a task for evaluation.
 
         Args:

@@ -16,11 +16,7 @@ from .agui_component_registry import get_agui_registry, AGUIComponentAdapter
 logger = logging.getLogger(__name__)
 
 
-def register_agui_adapter_from_registry(
-    adapter_registry: Dict[str, Any],
-    client_id: str = 'unknown',
-    version: str = '1.0.0'
-):
+def register_agui_adapter_from_registry(adapter_registry: Dict[str, Any], client_id: str = 'unknown', version: str = '1.0.0') -> Any:
     """
     Register adapters from a client's adapter registry dict.
 
@@ -86,12 +82,7 @@ def register_agui_adapter_from_registry(
     return count
 
 
-def register_agui_adapters_from_module(
-    adapter_module: Any,
-    section_types: List[str],
-    client_id: str = 'unknown',
-    version: str = '1.0.0'
-):
+def register_agui_adapters_from_module(adapter_module: Any, section_types: List[str], client_id: str = 'unknown', version: str = '1.0.0') -> Any:
     """
     Register adapters from a module containing adapter functions.
 
@@ -158,13 +149,7 @@ def register_agui_adapters_from_module(
     return count
 
 
-def register_generic_agui_adapter(
-    section_type: str,
-    to_a2ui_func: Callable,
-    to_agui_func: Optional[Callable] = None,
-    client_id: str = 'unknown',
-    **kwargs
-):
+def register_generic_agui_adapter(section_type: str, to_a2ui_func: Callable, to_agui_func: Optional[Callable] = None, client_id: str = 'unknown', **kwargs: Any) -> Any:
     """
     Register a single AGUI adapter.
 

@@ -21,7 +21,7 @@ from .llm_rag import LLMRAGRetriever, DeduplicationEngine, CausalExtractor
 _consolidation_loaded = False
 _consolidation_cache = {}
 
-def _get_consolidation():
+def _get_consolidation() -> Any:
     global _consolidation_loaded, _consolidation_cache
     if not _consolidation_loaded:
         from .consolidation import (
@@ -50,7 +50,7 @@ class ConsolidationMixin:
     # CONSOLIDATION
     # =========================================================================
     
-    async def consolidate(self, episodes: List[StoredEpisode] = None):
+    async def consolidate(self, episodes: List[StoredEpisode] = None) -> Any:
         """
         Run consolidation to extract higher-level knowledge.
         
@@ -113,7 +113,7 @@ class ConsolidationMixin:
         
         return clusters
     
-    async def _extract_semantic_pattern(self, cluster):
+    async def _extract_semantic_pattern(self, cluster: Any) -> Any:
         """Extract semantic pattern from episodic cluster."""
         # Format memories for LLM
         memory_data = []
@@ -168,7 +168,7 @@ CONFIDENCE: {confidence:.2f}
         except Exception as e:
             pass  # Consolidation failure is non-fatal
     
-    async def _extract_procedural(self, episodes: List[StoredEpisode]):
+    async def _extract_procedural(self, episodes: List[StoredEpisode]) -> Any:
         """Extract procedural knowledge from episode trajectories."""
         # Separate success and failure
         successes = [ep for ep in episodes if ep.success]
@@ -227,7 +227,7 @@ ANALYSIS:
             except Exception:
                 pass
     
-    async def _extract_meta_wisdom(self):
+    async def _extract_meta_wisdom(self) -> Any:
         """Extract meta-level wisdom about learning."""
         # Analyze patterns across all levels
         all_high_value = []
@@ -274,7 +274,7 @@ WHEN TO APPLY:
         except Exception:
             pass
     
-    async def _extract_causal(self, episodes: List[StoredEpisode]):
+    async def _extract_causal(self, episodes: List[StoredEpisode]) -> Any:
         """Extract causal knowledge from contrasting episodes."""
         successes = [{'id': ep.episode_id, 'query': ep.goal, 'result': str(ep.actor_output)}
                      for ep in episodes if ep.success]
@@ -340,7 +340,7 @@ CONDITIONS: {', '.join(causal_link.conditions) if causal_link.conditions else 'N
             traces.append(trace)
         return "\n".join(traces)
     
-    def _prune_episodic(self):
+    def _prune_episodic(self) -> Any:
         """Prune old low-value episodic memories."""
         episodic = self.memories[MemoryLevel.EPISODIC]
         

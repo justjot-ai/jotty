@@ -39,7 +39,7 @@ class SharedContext:
         schemas = context.get('table_schemas')  # For ColumnFilterSelector
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize empty shared context."""
         self.data: Dict[str, Any] = {}
         self._lock = Lock()

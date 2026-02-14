@@ -29,7 +29,7 @@ class BenchmarkResult:
     cache_hits: int = 0
     validations_skipped: int = 0
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             f"{self.name}:\n"
             f"  Items: {self.total_items}\n"
@@ -63,7 +63,7 @@ class MockLLM:
         "opus": 500,    # Slow
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.calls = []
         self.total_cost = 0.0
         self.total_latency = 0.0
@@ -366,7 +366,7 @@ async def benchmark_full_lotus(
     )
 
 
-async def run_benchmarks():
+async def run_benchmarks() -> Any:
     """Run all benchmarks and display comparison."""
     print("=" * 70)
     print("LOTUS OPTIMIZATION BENCHMARK")
@@ -447,7 +447,7 @@ async def run_benchmarks():
     return results
 
 
-def run_sync():
+def run_sync() -> Any:
     """Synchronous entry point."""
     return asyncio.run(run_benchmarks())
 

@@ -173,7 +173,7 @@ class MorphProvider(SkillProvider):
     version = "1.0.0"
     description = "Build AI apps with Morph (requires cloud credentials)"
 
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: Dict[str, Any] = None) -> None:
         """
         Initialize MorphProvider.
 
@@ -1110,7 +1110,7 @@ class MorphProvider(SkillProvider):
         """List all known projects."""
         return list(self._projects.keys())
 
-    async def cleanup(self):
+    async def cleanup(self) -> Any:
         """Clean up resources (stop servers, etc.)."""
         for project in self._projects.values():
             if project.is_running():

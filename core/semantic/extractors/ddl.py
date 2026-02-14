@@ -46,7 +46,7 @@ class DDLExtractor(BaseExtractor):
         "duckdb": "duckdb",
     }
 
-    def __init__(self, ddl: str, dialect: str = "postgres"):
+    def __init__(self, ddl: str, dialect: str = 'postgres') -> None:
         """
         Initialize DDL extractor.
 
@@ -84,7 +84,7 @@ class DDLExtractor(BaseExtractor):
         except Exception as e:
             logger.error(f"All DDL parsers failed: {e}")
 
-    def _parse_with_simple_ddl_parser(self):
+    def _parse_with_simple_ddl_parser(self) -> Any:
         """Parse DDL using simple-ddl-parser."""
         from simple_ddl_parser import DDLParser
 
@@ -138,7 +138,7 @@ class DDLExtractor(BaseExtractor):
                 'schema': table_def.get('schema'),
             }
 
-    def _parse_with_sqlglot(self):
+    def _parse_with_sqlglot(self) -> Any:
         """Parse DDL using sqlglot."""
         import sqlglot
         from sqlglot import exp

@@ -49,7 +49,7 @@ class DAGAgentMixin:
     for the forward() method, but we still want BaseAgent's infrastructure.
     """
 
-    def _init_agent_infrastructure(self, name: str):
+    def _init_agent_infrastructure(self, name: str) -> Any:
         """Initialize BaseAgent-compatible infrastructure."""
         # Use BaseAgent's config structure
         self._agent_config = AgentConfig(
@@ -69,15 +69,15 @@ class DAGAgentMixin:
         self._post_hooks = []
         self._initialized = False
 
-    def add_pre_hook(self, hook) -> None:
+    def add_pre_hook(self, hook: Any) -> None:
         """Add a pre-execution hook (BaseAgent-compatible)."""
         self._pre_hooks.append(hook)
 
-    def add_post_hook(self, hook) -> None:
+    def add_post_hook(self, hook: Any) -> None:
         """Add a post-execution hook (BaseAgent-compatible)."""
         self._post_hooks.append(hook)
 
-    def _run_pre_hooks(self, **kwargs):
+    def _run_pre_hooks(self, **kwargs: Any) -> Any:
         """Run all pre-execution hooks (sync version for DSPy forward())."""
         for hook in self._pre_hooks:
             try:
@@ -85,7 +85,7 @@ class DAGAgentMixin:
             except Exception as e:
                 logger.warning(f"Pre-hook failed: {e}")
 
-    def _run_post_hooks(self, result, **kwargs):
+    def _run_post_hooks(self, result: Any, **kwargs: Any) -> Any:
         """Run all post-execution hooks (sync version for DSPy forward())."""
         for hook in self._post_hooks:
             try:
@@ -118,7 +118,7 @@ class DAGAgentMixin:
             "total_execution_time": 0.0,
         }
 
-    def _track_execution(self, success: bool, execution_time: float):
+    def _track_execution(self, success: bool, execution_time: float) -> Any:
         """Track execution metrics."""
         self._metrics["total_executions"] += 1
         if success:
@@ -153,13 +153,13 @@ class SwarmResources:
     """
     _instance = None
 
-    def __new__(cls, config: SwarmConfig = None):
+    def __new__(cls, config: SwarmConfig = None) -> Any:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self, config: SwarmConfig = None):
+    def __init__(self, config: SwarmConfig = None) -> None:
         if self._initialized:
             return
 
@@ -459,14 +459,7 @@ class ExecutableDAG:
 
         return stages
 
-    def add_trajectory_step(
-        self,
-        task_id: str,
-        action_type: str,
-        action_content: str,
-        observation: str,
-        reward: float
-    ):
+    def add_trajectory_step(self, task_id: str, action_type: str, action_content: str, observation: str, reward: float) -> Any:
         """Record an execution step."""
         step = TrajectoryStep(
             step_idx=len(self.trajectory),

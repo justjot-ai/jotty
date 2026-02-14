@@ -302,7 +302,7 @@ class LIDAStylePlanner:
     detailed, specific visualization specifications.
     """
 
-    def __init__(self, lm=None):
+    def __init__(self, lm: Any = None) -> None:
         """Initialize with optional language model."""
         self.lm = lm
         if self.lm is None and CLAUDE_CLI_AVAILABLE and DirectClaudeCLI:

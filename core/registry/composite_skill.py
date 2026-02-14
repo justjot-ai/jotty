@@ -28,13 +28,7 @@ class CompositeSkill:
     Follows DRY principles - reuses existing skills without duplication.
     """
     
-    def __init__(
-        self,
-        name: str,
-        description: str,
-        steps: List[Dict[str, Any]],
-        execution_mode: ExecutionMode = ExecutionMode.SEQUENTIAL
-    ):
+    def __init__(self, name: str, description: str, steps: List[Dict[str, Any]], execution_mode: ExecutionMode = ExecutionMode.SEQUENTIAL) -> None:
         """
         Initialize composite skill.
         
@@ -54,7 +48,7 @@ class CompositeSkill:
         self.steps = steps
         self.execution_mode = execution_mode
     
-    async def execute(self, initial_params: Dict[str, Any], registry) -> Dict[str, Any]:
+    async def execute(self, initial_params: Dict[str, Any], registry: Any) -> Dict[str, Any]:
         """
         Execute composite skill workflow.
         
@@ -75,12 +69,7 @@ class CompositeSkill:
         else:  # MIXED
             return await self._execute_mixed(initial_params, registry, results)
     
-    async def _execute_sequential(
-        self,
-        initial_params: Dict[str, Any],
-        registry,
-        results: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def _execute_sequential(self, initial_params: Dict[str, Any], registry: Any, results: Dict[str, Any]) -> Dict[str, Any]:
         """Execute steps sequentially."""
         current_params = initial_params.copy()
         
@@ -103,12 +92,7 @@ class CompositeSkill:
         results['_success'] = True
         return results
     
-    async def _execute_parallel(
-        self,
-        initial_params: Dict[str, Any],
-        registry,
-        results: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def _execute_parallel(self, initial_params: Dict[str, Any], registry: Any, results: Dict[str, Any]) -> Dict[str, Any]:
         """Execute steps in parallel."""
         tasks = []
         for i, step in enumerate(self.steps):
@@ -133,12 +117,7 @@ class CompositeSkill:
         
         return results
     
-    async def _execute_mixed(
-        self,
-        initial_params: Dict[str, Any],
-        registry,
-        results: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def _execute_mixed(self, initial_params: Dict[str, Any], registry: Any, results: Dict[str, Any]) -> Dict[str, Any]:
         """Execute steps with dependencies (mixed sequential/parallel)."""
         # Build dependency graph
         executed = set()
@@ -191,13 +170,7 @@ class CompositeSkill:
         results['_success'] = True
         return results
     
-    async def _execute_step(
-        self,
-        step: Dict[str, Any],
-        params: Dict[str, Any],
-        registry,
-        results: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def _execute_step(self, step: Dict[str, Any], params: Dict[str, Any], registry: Any, results: Dict[str, Any]) -> Dict[str, Any]:
         """Execute a single step."""
         skill_name = step.get('skill_name')
         tool_name = step.get('tool_name')

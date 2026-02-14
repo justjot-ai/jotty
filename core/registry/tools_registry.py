@@ -45,22 +45,13 @@ class ToolsRegistry:
     Integrates with MCP tools when available.
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         self._tools: Dict[str, RegistryToolSchema] = {}
         self._by_category: Dict[str, List[str]] = {}
         self._implementations: Dict[str, Callable] = {}  # Optional: store actual implementations
         logger.info(" ToolsRegistry initialized")
     
-    def register(
-        self,
-        name: str,
-        description: str,
-        category: str,
-        mcp_enabled: bool = False,
-        parameters: Optional[Dict[str, Any]] = None,
-        returns: Optional[str] = None,
-        implementation: Optional[Callable] = None,
-    ):
+    def register(self, name: str, description: str, category: str, mcp_enabled: bool = False, parameters: Optional[Dict[str, Any]] = None, returns: Optional[str] = None, implementation: Optional[Callable] = None) -> Any:
         """Register a tool."""
         tool = RegistryToolSchema(
             name=name,

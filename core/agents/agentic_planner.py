@@ -19,7 +19,7 @@ from Jotty.core.foundation.exceptions import AgentExecutionError
 DSPY_AVAILABLE = True  # Assumed; checked on first use
 _dspy_module = None
 
-def _get_dspy():
+def _get_dspy() -> Any:
     """Lazy-load DSPy on first use."""
     global _dspy_module, DSPY_AVAILABLE
     if _dspy_module is None:
@@ -129,7 +129,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
         cls._llm_semaphore = None  # Reset to recreate with new limit
 
     @classmethod
-    def _get_semaphore(cls):
+    def _get_semaphore(cls) -> Any:
         """Get or create the global LLM semaphore (thread-safe)."""
         if cls._llm_semaphore is not None:
             return cls._llm_semaphore
@@ -142,7 +142,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
                 cls._llm_semaphore = threading.Semaphore(cls._max_concurrent_llm_calls)
         return cls._llm_semaphore
 
-    def __init__(self, fast_model: str = "haiku"):
+    def __init__(self, fast_model: str = 'haiku') -> None:
         """Initialize agentic planner.
 
         Args:
@@ -232,14 +232,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
         self._fast_lm = None
         logger.info(f"Fast LM: using default DSPy LM (no dedicated routing model)")
 
-    def _call_with_retry(
-        self,
-        module,
-        kwargs: Dict[str, Any],
-        compressible_fields: Optional[List[str]] = None,
-        max_retries: int = 5,
-        lm: Optional[Any] = None
-    ):
+    def _call_with_retry(self, module: Any, kwargs: Dict[str, Any], compressible_fields: Optional[List[str]] = None, max_retries: int = 5, lm: Optional[Any] = None) -> Any:
         """
         Call a DSPy module with automatic retry and context compression.
 
@@ -347,14 +340,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
             raise last_error
         raise AgentExecutionError("Unexpected state in retry logic")
 
-    async def _acall_with_retry(
-        self,
-        module,
-        kwargs: Dict[str, Any],
-        compressible_fields: Optional[List[str]] = None,
-        max_retries: int = 5,
-        lm: Optional[Any] = None
-    ):
+    async def _acall_with_retry(self, module: Any, kwargs: Dict[str, Any], compressible_fields: Optional[List[str]] = None, max_retries: int = 5, lm: Optional[Any] = None) -> Any:
         """
         Async version of _call_with_retry using DSPy's native .acall().
 
@@ -450,14 +436,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
             raise last_error
         raise AgentExecutionError("Unexpected state in async retry logic")
 
-    def plan_execution(
-        self,
-        task: str,
-        task_type,
-        skills: List[Dict[str, Any]],
-        previous_outputs: Optional[Dict[str, Any]] = None,
-        max_steps: int = 10
-    ):
+    def plan_execution(self, task: str, task_type: Any, skills: List[Dict[str, Any]], previous_outputs: Optional[Dict[str, Any]] = None, max_steps: int = 10) -> Any:
         """
         Plan execution steps using LLM reasoning.
 
@@ -583,14 +562,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
 
             return [], f"Planning failed: {e}"
 
-    async def aplan_execution(
-        self,
-        task: str,
-        task_type,
-        skills: List[Dict[str, Any]],
-        previous_outputs: Optional[Dict[str, Any]] = None,
-        max_steps: int = 10
-    ):
+    async def aplan_execution(self, task: str, task_type: Any, skills: List[Dict[str, Any]], previous_outputs: Optional[Dict[str, Any]] = None, max_steps: int = 10) -> Any:
         """
         Async version of plan_execution using DSPy .acall().
 
@@ -681,16 +653,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
                 logger.error(f"Async fallback plan also failed: {fallback_e}")
             return [], f"Planning failed: {e}"
 
-    async def areplan_with_reflection(
-        self,
-        task: str,
-        task_type,
-        skills: List[Dict[str, Any]],
-        failed_steps: List[Dict[str, Any]],
-        completed_outputs: Optional[Dict[str, Any]] = None,
-        excluded_skills: Optional[List[str]] = None,
-        max_steps: int = 5,
-    ):
+    async def areplan_with_reflection(self, task: str, task_type: Any, skills: List[Dict[str, Any]], failed_steps: List[Dict[str, Any]], completed_outputs: Optional[Dict[str, Any]] = None, excluded_skills: Optional[List[str]] = None, max_steps: int = 5) -> Any:
         """
         Async version of replan_with_reflection using DSPy .acall().
 
@@ -823,16 +786,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
 
     # _normalize_raw_plan, _parse_plan_to_steps → moved to PlanUtilsMixin
 
-    def replan_with_reflection(
-        self,
-        task: str,
-        task_type,
-        skills: List[Dict[str, Any]],
-        failed_steps: List[Dict[str, Any]],
-        completed_outputs: Optional[Dict[str, Any]] = None,
-        excluded_skills: Optional[List[str]] = None,
-        max_steps: int = 10,
-    ) -> tuple:
+    def replan_with_reflection(self, task: str, task_type: Any, skills: List[Dict[str, Any]], failed_steps: List[Dict[str, Any]], completed_outputs: Optional[Dict[str, Any]] = None, excluded_skills: Optional[List[str]] = None, max_steps: int = 10) -> tuple:
         """
         Replan after failure using Reflexion-style analysis.
 
@@ -926,14 +880,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
     # POLICY EXPLORER — Alternative plan generation when stuck
     # =========================================================================
 
-    def explore_alternative_plans(
-        self,
-        task: str,
-        task_type,
-        skills: List[Dict[str, Any]],
-        failed_approaches: List[str],
-        max_alternatives: int = 3,
-    ) -> List[tuple]:
+    def explore_alternative_plans(self, task: str, task_type: Any, skills: List[Dict[str, Any]], failed_approaches: List[str], max_alternatives: int = 3) -> List[tuple]:
         """Generate alternative approaches when the current plan is stuck.
 
         Uses LLM to brainstorm fundamentally different strategies, not just

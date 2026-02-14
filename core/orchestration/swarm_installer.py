@@ -31,7 +31,7 @@ class SwarmInstaller:
     DRY Principle: Reuses existing package managers and skill registry.
     """
     
-    def __init__(self, config=None):
+    def __init__(self, config: Any = None) -> None:
         """
         Initialize SwarmInstaller.
         
@@ -42,7 +42,7 @@ class SwarmInstaller:
         self._skills_registry = None
         self._installed_packages: Dict[str, InstallationResult] = {}
     
-    def _init_dependencies(self):
+    def _init_dependencies(self) -> Any:
         """Lazy load dependencies (DRY: avoid circular imports)."""
         if self._skills_registry is None:
             from Jotty.core.registry.skills_registry import get_skills_registry

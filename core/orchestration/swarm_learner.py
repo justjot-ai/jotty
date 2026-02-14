@@ -14,7 +14,7 @@ SOTA: Treats prompt updates as weight updates.
 import json
 import logging
 import time
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Any
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +54,7 @@ class SwarmLearner:
     - Like fine-tuning but at prompt level
     """
 
-    def __init__(self, config):
+    def __init__(self, config: Any) -> None:
         """
         Initialize SwarmLearner.
 
@@ -70,12 +70,7 @@ class SwarmLearner:
         self.update_threshold = getattr(config, 'policy_update_threshold', 3)
         self.episode_buffer: List[Dict] = []
 
-    def record_episode(
-        self,
-        trajectory: List[Dict],
-        outcome: bool,
-        insights: List[str]
-    ):
+    def record_episode(self, trajectory: List[Dict], outcome: bool, insights: List[str]) -> Any:
         """
         Record episode for learning.
 

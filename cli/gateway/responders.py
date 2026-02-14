@@ -35,7 +35,7 @@ class ResponseEvent:
     attachments: list = None
     context: Optional[ExecutionContext] = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.attachments is None:
             self.attachments = []
 
@@ -56,7 +56,7 @@ class ChannelResponderRegistry:
         ))
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._responders: Dict[ChannelType, Callable] = {}
         self._skill_cache: Dict[str, Any] = {}
         self._initialized = False
@@ -115,13 +115,13 @@ class ChannelResponderRegistry:
 
         return None
 
-    def _initialize_responders(self):
+    def _initialize_responders(self) -> Any:
         """Initialize responders for all channels."""
         if self._initialized:
             return
 
         # Telegram responder
-        async def telegram_responder(response: ResponseEvent):
+        async def telegram_responder(response: ResponseEvent) -> Any:
             tool = self._discover_skill("telegram-sender")
             if tool:
                 result = tool({
@@ -135,7 +135,7 @@ class ChannelResponderRegistry:
                 logger.warning("Telegram sender skill not available")
 
         # Slack responder
-        async def slack_responder(response: ResponseEvent):
+        async def slack_responder(response: ResponseEvent) -> Any:
             tool = self._discover_skill("slack")
             if tool:
                 params = {
@@ -152,7 +152,7 @@ class ChannelResponderRegistry:
                 logger.warning("Slack sender skill not available")
 
         # Discord responder
-        async def discord_responder(response: ResponseEvent):
+        async def discord_responder(response: ResponseEvent) -> Any:
             tool = self._discover_skill("discord")
             if tool:
                 result = tool({
@@ -165,7 +165,7 @@ class ChannelResponderRegistry:
                 logger.warning("Discord sender skill not available")
 
         # WhatsApp responder
-        async def whatsapp_responder(response: ResponseEvent):
+        async def whatsapp_responder(response: ResponseEvent) -> Any:
             tool = self._discover_skill("whatsapp")
             if tool:
                 result = tool({
@@ -178,12 +178,12 @@ class ChannelResponderRegistry:
                 logger.warning("WhatsApp sender skill not available")
 
         # HTTP responder (no-op, response returned directly)
-        async def http_responder(response: ResponseEvent):
+        async def http_responder(response: ResponseEvent) -> Any:
             # HTTP responses are returned directly, not sent via skill
             pass
 
         # WebSocket responder (handled by gateway server)
-        async def websocket_responder(response: ResponseEvent):
+        async def websocket_responder(response: ResponseEvent) -> Any:
             # WebSocket responses are handled by the gateway server directly
             pass
 
@@ -198,7 +198,7 @@ class ChannelResponderRegistry:
 
         self._initialized = True
 
-    def register_responder(self, channel: ChannelType, responder: Callable):
+    def register_responder(self, channel: ChannelType, responder: Callable) -> Any:
         """Register a custom responder for a channel."""
         self._responders[channel] = responder
         logger.info(f"Registered custom responder for {channel.value}")
@@ -208,7 +208,7 @@ class ChannelResponderRegistry:
         self._initialize_responders()
         return self._responders.get(channel)
 
-    async def send(self, response: ResponseEvent):
+    async def send(self, response: ResponseEvent) -> Any:
         """
         Send a response through the appropriate channel.
 

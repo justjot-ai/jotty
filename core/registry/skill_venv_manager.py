@@ -28,7 +28,7 @@ class SkillVenvManager:
     Allows agents to install packages dynamically for skills.
     """
     
-    def __init__(self, venv_base_dir: Optional[str] = None, shared_venv: bool = True):
+    def __init__(self, venv_base_dir: Optional[str] = None, shared_venv: bool = True) -> None:
         """
         Initialize venv manager.
         

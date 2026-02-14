@@ -55,7 +55,7 @@ class StigmergyLayer:
     This enables emergent coordination without direct communication.
     """
 
-    def __init__(self, decay_rate: float = 0.1, max_signals: int = 500):
+    def __init__(self, decay_rate: float = 0.1, max_signals: int = 500) -> None:
         self.signals: Dict[str, StigmergySignal] = {}
         self.decay_rate = decay_rate
         self.max_signals = max_signals
@@ -411,12 +411,12 @@ class StigmergyLayer:
             logger.debug(f"Stigmergy evaporation: pruned {pruned} signals ({len(self.signals)} remaining)")
         return pruned
 
-    def _apply_decay(self):
+    def _apply_decay(self) -> Any:
         """Apply time-based decay to all signals."""
         for signal in self.signals.values():
             signal.decay(self.decay_rate)
 
-    def _prune_weak_signals(self):
+    def _prune_weak_signals(self) -> Any:
         """Remove weak signals and keep under limit."""
         # Remove signals below threshold
         to_remove = [sid for sid, s in self.signals.items() if s.strength < 0.01]
@@ -505,7 +505,7 @@ class CrossSwarmStigmergy:
     _shared_instance: 'CrossSwarmStigmergy' = None
     _lock = None
 
-    def __init__(self, decay_rate: float = 0.05, max_signals: int = 1000):
+    def __init__(self, decay_rate: float = 0.05, max_signals: int = 1000) -> None:
         self._layer = StigmergyLayer(decay_rate=decay_rate, max_signals=max_signals)
         self._swarm_registry: Dict[str, Dict[str, Any]] = {}  # swarm_name -> info
 
@@ -516,8 +516,7 @@ class CrossSwarmStigmergy:
             cls._shared_instance = cls()
         return cls._shared_instance
 
-    def register_swarm(self, swarm_name: str, domain: str = "general",
-                       capabilities: List[str] = None):
+    def register_swarm(self, swarm_name: str, domain: str = 'general', capabilities: List[str] = None) -> Any:
         """Register a swarm for cross-swarm coordination."""
         self._swarm_registry[swarm_name] = {
             'domain': domain,

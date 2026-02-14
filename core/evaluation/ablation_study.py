@@ -92,15 +92,7 @@ class AblationStudy:
         print(f"Learning contribution: {result.component_contributions[0].contribution:.2%}")
     """
     
-    def __init__(
-        self,
-        benchmark: Benchmark,
-        agent_factory: Callable[[Any], Any],
-        components: List[Dict[str, Any]],
-        n_runs: int = 5,
-        random_seed: int = 42,
-        baseline_config: Optional[Any] = None
-    ):
+    def __init__(self, benchmark: Benchmark, agent_factory: Callable[[Any], Any], components: List[Dict[str, Any]], n_runs: int = 5, random_seed: int = 42, baseline_config: Optional[Any] = None) -> None:
         """
         Initialize ablation study.
         
@@ -443,18 +435,7 @@ class ConfigTuner:
         "speed": 0.15,
     }
 
-    def __init__(
-        self,
-        benchmark: Benchmark,
-        agent_factory: Callable[[Any], Any],
-        search_groups: Optional[List[ConfigSearchGroup]] = None,
-        n_runs: int = 3,
-        strategy: str = "random",
-        max_trials: int = 50,
-        objective_weights: Optional[Dict[str, float]] = None,
-        baseline_config: Optional[Any] = None,
-        random_seed: int = 42,
-    ):
+    def __init__(self, benchmark: Benchmark, agent_factory: Callable[[Any], Any], search_groups: Optional[List[ConfigSearchGroup]] = None, n_runs: int = 3, strategy: str = 'random', max_trials: int = 50, objective_weights: Optional[Dict[str, float]] = None, baseline_config: Optional[Any] = None, random_seed: int = 42) -> None:
         """
         Initialize ConfigTuner.
 

@@ -50,7 +50,7 @@ class SwarmResearcher:
     Falls back to LLM-based research when skills unavailable.
     """
     
-    def __init__(self, config=None):
+    def __init__(self, config: Any = None) -> None:
         """
         Initialize SwarmResearcher.
         
@@ -62,7 +62,7 @@ class SwarmResearcher:
         self._tools_registry = None
         self._planner = None
     
-    def _init_dependencies(self):
+    def _init_dependencies(self) -> Any:
         """Lazy load dependencies (DRY: avoid circular imports)."""
         if self._skills_registry is None:
             from Jotty.core.registry.skills_registry import get_skills_registry
@@ -175,7 +175,7 @@ class SwarmResearcher:
             confidence=confidence
         )
     
-    async def _search_with_skill(self, skill, query: str) -> Dict[str, Any]:
+    async def _search_with_skill(self, skill: Any, query: str) -> Dict[str, Any]:
         """Use existing web-search skill (DRY: reuse)."""
         try:
             # Execute skill's search tool
@@ -281,7 +281,7 @@ Format your response clearly with sections for tools, APIs, and documentation.
         
         return []
     
-    def _parse_llm_response(self, response) -> List[Dict[str, Any]]:
+    def _parse_llm_response(self, response: Any) -> List[Dict[str, Any]]:
         """Parse LLM response into structured findings."""
         findings = []
         

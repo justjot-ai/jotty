@@ -9,7 +9,7 @@ progress callbacks, and DSPy streaming wrapper.
 import asyncio
 import re
 import logging
-from typing import Dict, List
+from typing import Dict, List, Any
 
 import dspy
 
@@ -105,8 +105,7 @@ def _progress(phase: str, agent: str, message: str) -> None:
             pass  # Never let callback errors break the pipeline
 
 
-async def _stream_call(module, phase: str, agent: str, listener_field: str = "reasoning",
-                       timeout: float = 90.0, max_retries: int = 0, **kwargs):
+async def _stream_call(module: Any, phase: str, agent: str, listener_field: str = 'reasoning', timeout: float = 90.0, max_retries: int = 0, **kwargs: Any) -> Any:
     """Call a DSPy module with streaming, forwarding reasoning tokens to _progress().
 
     Args:
@@ -123,7 +122,7 @@ async def _stream_call(module, phase: str, agent: str, listener_field: str = "re
     """
     from dspy.streaming import streamify, StreamListener
 
-    async def _do_call():
+    async def _do_call() -> Any:
         listener = StreamListener(listener_field)
         streaming_module = streamify(module, stream_listeners=[listener])
 

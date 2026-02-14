@@ -50,7 +50,7 @@ class ContextCompressor:
     3. Keep critical keywords/entities
     """
 
-    def __init__(self, max_compression_retries: int = 3):
+    def __init__(self, max_compression_retries: int = 3) -> None:
         self.max_compression_retries = max_compression_retries
         self._compression_ratio = 0.7  # Start at 70%
 

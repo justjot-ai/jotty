@@ -51,7 +51,7 @@ class MetadataToolRegistry:
         result = registry.call_tool("get_business_terms")
     """
     
-    def __init__(self, metadata_instance: Any):
+    def __init__(self, metadata_instance: Any) -> None:
         """
         Initialize tool registry with metadata instance.
         
@@ -70,7 +70,7 @@ class MetadataToolRegistry:
         self._discover_tools()
         logger.info(f" Discovered {len(self.tools)} ReVal tools")
     
-    def _discover_tools(self):
+    def _discover_tools(self) -> Any:
         """
         Discover all @jotty_method decorated methods via introspection.
         
@@ -223,7 +223,7 @@ class MetadataToolRegistry:
         
         return catalog
     
-    def call_tool(self, tool_name: str, **kwargs) -> Any:
+    def call_tool(self, tool_name: str, **kwargs: Any) -> Any:
         """
         Call a tool by name with parameters.
         
@@ -293,7 +293,7 @@ class MetadataToolRegistry:
         params_str = "_".join(f"{k}={v}" for k, v in sorted(kwargs.items()))
         return f"{tool_name}_{params_str}" if params_str else tool_name
     
-    def _validate_parameters(self, tool: Dict[str, Any], kwargs: Dict[str, Any]):
+    def _validate_parameters(self, tool: Dict[str, Any], kwargs: Dict[str, Any]) -> Any:
         """
         Validate that required parameters are provided.
         

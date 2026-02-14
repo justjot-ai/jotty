@@ -121,7 +121,7 @@ class MonitoringFramework:
         print(f"Success rate: {perf_metrics.success_rate:.2%}")
     """
     
-    def __init__(self, enable_monitoring: bool = True):
+    def __init__(self, enable_monitoring: bool = True) -> None:
         """
         Initialize monitoring framework.
         
@@ -164,15 +164,7 @@ class MonitoringFramework:
         
         return exec_metrics
     
-    def finish_execution(
-        self,
-        exec_metrics: ExecutionMetrics,
-        status: ExecutionStatus = ExecutionStatus.SUCCESS,
-        error: Optional[str] = None,
-        input_tokens: int = 0,
-        output_tokens: int = 0,
-        cost: float = 0.0
-    ):
+    def finish_execution(self, exec_metrics: ExecutionMetrics, status: ExecutionStatus = ExecutionStatus.SUCCESS, error: Optional[str] = None, input_tokens: int = 0, output_tokens: int = 0, cost: float = 0.0) -> Any:
         """
         Finish tracking an execution.
         

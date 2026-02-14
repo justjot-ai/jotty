@@ -1,3 +1,4 @@
+from typing import Any
 """
 Jotty v7.6 - Algorithmic Foundations
 =====================================
@@ -65,7 +66,7 @@ class AlgorithmicReVal:
         processed = await algo.process_content(large_doc, query)
     """
     
-    def __init__(self, max_tokens: int = 28000, config=None):
+    def __init__(self, max_tokens: int = 28000, config: Any = None) -> None:
         self.max_tokens = max_tokens
         
         # Initialize all components
@@ -93,25 +94,15 @@ class AlgorithmicReVal:
             trajectory, task, global_reward
         )
     
-    async def store_with_info_weighting(
-        self,
-        event: dict,
-        context: dict,
-        raw_content: str
-    ):
+    async def store_with_info_weighting(self, event: dict, context: dict, raw_content: str) -> Any:
         """Store with Shannon information weighting."""
         return await self.info_storage.store(event, context, raw_content)
     
-    async def process_content(
-        self,
-        content: str,
-        query: str,
-        future_tasks: list = None
-    ):
+    async def process_content(self, content: str, query: str, future_tasks: list = None) -> Any:
         """Process content through ContentGate (auto-chunk if needed)."""
         return await self.content_gate.process(content, query, future_tasks)
     
-    def wrap_function(self, func):
+    def wrap_function(self, func: Any) -> Any:
         """Wrap a function with context guard."""
         return self.context_guard.wrap_function(func)
     
@@ -135,7 +126,7 @@ class SortingAlgorithms:
     """
 
     @staticmethod
-    def bubble_sort(arr: list, key=None, reverse=False) -> list:
+    def bubble_sort(arr: list, key: Any = None, reverse: Any = False) -> list:
         """
         Bubble Sort - Simple comparison-based sorting algorithm.
 
@@ -181,7 +172,7 @@ class SortingAlgorithms:
         n = len(result)
 
         # Extract comparison key if provided
-        def compare_key(item):
+        def compare_key(item: Any) -> Any:
             return key(item) if key else item
 
         # Bubble sort with optimization (early exit if no swaps)
@@ -267,7 +258,7 @@ class MutualInformationRetriever:
     This is Maximum Marginal Relevance (MMR) with information-theoretic foundation.
     """
     
-    def __init__(self, diversity_weight: float = 0.3):
+    def __init__(self, diversity_weight: float = 0.3) -> None:
         self.diversity_weight = diversity_weight  # β in the formula
     
     async def retrieve(

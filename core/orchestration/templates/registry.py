@@ -86,7 +86,7 @@ class TemplateRegistry:
         return cls._templates[name_lower]()
 
     @classmethod
-    def auto_detect(cls, X, y=None, **kwargs) -> SwarmTemplate:
+    def auto_detect(cls, X: Any, y: Any = None, **kwargs: Any) -> SwarmTemplate:
         """
         Auto-detect the best template for the given data.
 
@@ -202,7 +202,7 @@ class TemplateRegistry:
         cls._initialized = True
 
     @classmethod
-    def _detect_data_type(cls, X) -> str:
+    def _detect_data_type(cls, X: Any) -> str:
         """Detect the type of input data."""
         if X is None:
             return "unknown"
@@ -239,7 +239,7 @@ class TemplateRegistry:
         return "unknown"
 
     @classmethod
-    def _detect_problem_type(cls, y) -> str:
+    def _detect_problem_type(cls, y: Any) -> str:
         """Detect the type of ML problem from target variable."""
         if y is None:
             return "unsupervised"
@@ -262,7 +262,7 @@ class TemplateRegistry:
         return "regression"
 
     @classmethod
-    def _detect_temporal(cls, X) -> bool:
+    def _detect_temporal(cls, X: Any) -> bool:
         """Detect if data has temporal patterns."""
         if isinstance(X, pd.DataFrame):
             # Check for datetime columns

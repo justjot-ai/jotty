@@ -87,7 +87,7 @@ class CodingConfig(SwarmBaseConfig):
     test_command: Optional[str] = None  # Custom test command (auto-detect if None)
     test_timeout: int = 120  # Timeout for test execution in seconds
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.name = "CodingSwarm"
         self.domain = "coding"
 

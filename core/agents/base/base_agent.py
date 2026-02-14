@@ -65,7 +65,7 @@ class AgentRuntimeConfig:
     system_prompt: str = ""
     parameters: Dict[str, Any] = field(default_factory=dict)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         from Jotty.core.foundation.config_defaults import DEFAULTS
         if not self.name:
             self.name = self.__class__.__name__
@@ -149,7 +149,7 @@ class BaseAgent(ABC):
     # Error patterns that are never worth LLM-analyzing (just retry)
     _BLIND_RETRY_PATTERNS = ('rate limit', '429', 'overloaded', 'capacity')
 
-    def __init__(self, config: AgentRuntimeConfig = None):
+    def __init__(self, config: AgentRuntimeConfig = None) -> None:
         """
         Initialize BaseAgent with optional configuration.
 
@@ -187,7 +187,7 @@ class BaseAgent(ABC):
 
         self._initialized = False
 
-    def set_jotty_config(self, config) -> 'BaseAgent':
+    def set_jotty_config(self, config: Any) -> 'BaseAgent':
         """Inject a shared SwarmConfig so lazy-loaded components (memory, etc.)
         use the same configuration as the rest of the system.
 
@@ -213,7 +213,7 @@ class BaseAgent(ABC):
         self._initialized = True
         logger.debug(f"BaseAgent '{self.config.name}' initialized")
 
-    def _load_api_keys(self):
+    def _load_api_keys(self) -> Any:
         """Load API keys from .env.anthropic file if not in environment."""
         import os
         from pathlib import Path
@@ -287,7 +287,7 @@ class BaseAgent(ABC):
                 logger.warning(f"Could not auto-configure DSPy LM: {e}")
 
     @property
-    def memory(self):
+    def memory(self) -> Any:
         """Lazy-load SwarmMemory."""
         if self._memory is None and self.config.enable_memory:
             try:
@@ -307,7 +307,7 @@ class BaseAgent(ABC):
         return self._memory
 
     @property
-    def context(self):
+    def context(self) -> Any:
         """Lazy-load SharedContext."""
         if self._context_manager is None and self.config.enable_context:
             try:
@@ -319,7 +319,7 @@ class BaseAgent(ABC):
         return self._context_manager
 
     @property
-    def skills_registry(self):
+    def skills_registry(self) -> Any:
         """Lazy-load SkillsRegistry."""
         if self._skills_registry is None and self.config.enable_skills:
             try:
@@ -336,7 +336,7 @@ class BaseAgent(ABC):
     # EXECUTION WITH RETRY LOGIC
     # =========================================================================
 
-    async def execute(self, **kwargs) -> AgentResult:
+    async def execute(self, **kwargs: Any) -> AgentResult:
         """
         Execute the agent with intelligent retry and trajectory preservation.
 
@@ -498,7 +498,7 @@ class BaseAgent(ABC):
             return ""
 
     @abstractmethod
-    async def _execute_impl(self, **kwargs) -> Any:
+    async def _execute_impl(self, **kwargs: Any) -> Any:
         """
         Implement the agent's core execution logic.
 
@@ -524,7 +524,7 @@ class BaseAgent(ABC):
         """Add a post-execution hook."""
         self._post_hooks.append(hook)
 
-    async def _run_pre_hooks(self, **kwargs):
+    async def _run_pre_hooks(self, **kwargs: Any) -> Any:
         """Run all pre-execution hooks."""
         for hook in self._pre_hooks:
             if asyncio.iscoroutinefunction(hook):
@@ -532,7 +532,7 @@ class BaseAgent(ABC):
             else:
                 hook(self, **kwargs)
 
-    async def _run_post_hooks(self, result: AgentResult, **kwargs):
+    async def _run_post_hooks(self, result: AgentResult, **kwargs: Any) -> Any:
         """Run all post-execution hooks."""
         for hook in self._post_hooks:
             if asyncio.iscoroutinefunction(hook):
@@ -544,13 +544,7 @@ class BaseAgent(ABC):
     # MEMORY HELPERS
     # =========================================================================
 
-    def store_memory(
-        self,
-        content: str,
-        level: str = "episodic",
-        context: Dict[str, Any] = None,
-        goal: str = ""
-    ):
+    def store_memory(self, content: str, level: str = 'episodic', context: Dict[str, Any] = None, goal: str = '') -> Any:
         """
         Store content in hierarchical memory.
 
@@ -651,7 +645,7 @@ class BaseAgent(ABC):
     # I/O SCHEMA
     # =========================================================================
 
-    def get_io_schema(self):
+    def get_io_schema(self) -> Any:
         """Get typed AgentIOSchema describing this agent's inputs and outputs.
 
         Base implementation returns a generic schema accepting 'task' input
@@ -835,7 +829,7 @@ class BaseAgent(ABC):
     # I/O SCHEMA
     # =========================================================================
 
-    def get_io_schema(self):
+    def get_io_schema(self) -> Any:
         """Get typed AgentIOSchema for this agent.
 
         Returns a generic schema with ``task`` input and ``output``/``success``

@@ -47,7 +47,7 @@ class PolicyExplorer:
     4. Tracks exploration history to avoid loops
     """
     
-    def __init__(self, config: SwarmConfig):
+    def __init__(self, config: SwarmConfig) -> None:
         self.config = config
         self.explorer = dspy.ChainOfThought(PolicyExplorerSignature) if DSPY_AVAILABLE else None
         

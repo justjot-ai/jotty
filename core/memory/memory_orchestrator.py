@@ -200,12 +200,7 @@ class SimpleBrain:
         # Auto-consolidates when session exits
     """
     
-    def __init__(
-        self,
-        preset: BrainPreset = BrainPreset.BALANCED,
-        model_name: str = "gpt-4.1",
-        consolidate_on: ConsolidationTrigger = ConsolidationTrigger.EPISODE_COUNT
-    ):
+    def __init__(self, preset: BrainPreset = BrainPreset.BALANCED, model_name: str = 'gpt-4.1', consolidate_on: ConsolidationTrigger = ConsolidationTrigger.EPISODE_COUNT) -> None:
         self.preset = preset
         self.model_name = model_name
         self.consolidate_on = consolidate_on
@@ -354,7 +349,7 @@ class SimpleBrain:
         self.total_pruned += pruned
         logger.debug(f"Pruned {pruned} experiences from buffer")
     
-    async def _async_consolidate(self):
+    async def _async_consolidate(self) -> Any:
         """Async consolidation (internal)."""
         await self.consolidate(ConsolidationTrigger.EPISODE_COUNT)
     
@@ -362,10 +357,7 @@ class SimpleBrain:
     # PUBLIC API (A-Team Decision: Users should be able to control this)
     # =========================================================================
     
-    async def consolidate(
-        self, 
-        trigger: ConsolidationTrigger = ConsolidationTrigger.EXPLICIT
-    ):
+    async def consolidate(self, trigger: ConsolidationTrigger = ConsolidationTrigger.EXPLICIT) -> Any:
         """
         PUBLIC API: Consolidate memories.
         
@@ -440,7 +432,7 @@ class SimpleBrain:
         return patterns
     
     @asynccontextmanager
-    async def session(self):
+    async def session(self) -> Any:
         """
         Context manager for automatic on-exit consolidation.
         
@@ -597,14 +589,7 @@ class BrainInspiredMemoryManager:
      SCIENTIFICALLY ACCURATE per Dr. Rivera
     """
     
-    def __init__(self, 
-                 sleep_interval: int = 10,
-                 max_hippocampus_size: int = 100,
-                 max_neocortex_size: int = 200,
-                 replay_threshold: float = 0.7,
-                 novelty_weight: float = 0.4,
-                 reward_weight: float = 0.3,
-                 frequency_weight: float = 0.3):
+    def __init__(self, sleep_interval: int = 10, max_hippocampus_size: int = 100, max_neocortex_size: int = 200, replay_threshold: float = 0.7, novelty_weight: float = 0.4, reward_weight: float = 0.3, frequency_weight: float = 0.3) -> None:
         """
         Initialize brain-inspired memory.
         

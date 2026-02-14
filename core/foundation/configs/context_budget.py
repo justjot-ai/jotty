@@ -1,7 +1,7 @@
 """Context budget configuration — token allocation and dynamic budgeting."""
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Any
 
 
 @dataclass
@@ -17,7 +17,7 @@ class ContextBudgetConfig:
     max_memory_budget: int = 60000
     token_model_name: Optional[str] = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         # All token budgets must be positive
         _pos_fields = {
             'max_context_tokens': self.max_context_tokens,

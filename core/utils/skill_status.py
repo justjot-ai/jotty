@@ -23,7 +23,7 @@ Usage in a skill's tools.py:
 """
 
 import logging
-from typing import Callable, Optional
+from typing import Callable, Optional, Any
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ class SkillStatus:
     to report progress during execution.
     """
 
-    def __init__(self, skill_name: str):
+    def __init__(self, skill_name: str) -> None:
         """
         Initialize status emitter for a skill.
 

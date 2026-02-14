@@ -24,7 +24,7 @@ from datetime import datetime, timedelta
 from collections import defaultdict
 logger = logging.getLogger(__name__)
 
-def _get_dspy():
+def _get_dspy() -> Any:
     import dspy
     return dspy
 
@@ -36,7 +36,7 @@ from ..foundation.configs.memory import MemoryConfig as FocusedMemoryConfig
 from .llm_rag import LLMRAGRetriever, DeduplicationEngine, CausalExtractor
 
 
-def _ensure_swarm_config(config):
+def _ensure_swarm_config(config: Any) -> Any:
     """Accept MemoryConfig or SwarmConfig, return SwarmConfig."""
     if isinstance(config, FocusedMemoryConfig):
         return SwarmConfig.from_configs(memory=config)
@@ -46,7 +46,7 @@ def _ensure_swarm_config(config):
 _consolidation_loaded = False
 _consolidation_cache = {}
 
-def _get_consolidation():
+def _get_consolidation() -> Any:
     global _consolidation_loaded, _consolidation_cache
     if not _consolidation_loaded:
         from .consolidation import (
@@ -90,7 +90,7 @@ class SwarmMemory(RetrievalMixin, ConsolidationMixin):
     - Protection against forgetting
     """
     
-    def __init__(self, agent_name: str, config):
+    def __init__(self, agent_name: str, config: Any) -> None:
         self.agent_name = agent_name
         self.config = _ensure_swarm_config(config)
         
@@ -471,7 +471,7 @@ Store full trace to prevent similar failures.
             task_type=task_type,
         )
 
-    def _enforce_capacity(self, level: MemoryLevel):
+    def _enforce_capacity(self, level: MemoryLevel) -> Any:
         """Ensure level doesn't exceed capacity."""
         capacity = self.capacities[level]
         memories = self.memories[level]

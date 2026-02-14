@@ -57,7 +57,7 @@ class ProgressManager:
     - Status messages
     """
 
-    def __init__(self, console: Optional[Any] = None, no_color: bool = False):
+    def __init__(self, console: Optional[Any] = None, no_color: bool = False) -> None:
         """
         Initialize progress manager.
 
@@ -150,12 +150,12 @@ class ProgressManager:
             finally:
                 self._active_progress = None
 
-    def update_status(self, message: str):
+    def update_status(self, message: str) -> Any:
         """Update active spinner message."""
         if self._active_spinner is not None and RICH_AVAILABLE:
             self._active_spinner.update(message)
 
-    async def spinner_async(self, message: str = "Working...", style: str = "cyan"):
+    async def spinner_async(self, message: str = 'Working...', style: str = 'cyan') -> Any:
         """
         Async context manager for spinner.
 
@@ -172,11 +172,11 @@ class ProgressManager:
 class ProgressTask:
     """Wrapper for Rich progress task."""
 
-    def __init__(self, progress: Any, task_id: int):
+    def __init__(self, progress: Any, task_id: int) -> None:
         self.progress = progress
         self.task_id = task_id
 
-    def update(self, advance: int = 1, description: Optional[str] = None):
+    def update(self, advance: int = 1, description: Optional[str] = None) -> Any:
         """
         Update progress.
 
@@ -189,7 +189,7 @@ class ProgressTask:
             kwargs["description"] = description
         self.progress.update(self.task_id, **kwargs)
 
-    def complete(self):
+    def complete(self) -> Any:
         """Mark task as complete."""
         self.progress.update(self.task_id, completed=True)
 
@@ -197,13 +197,13 @@ class ProgressTask:
 class AsyncSpinnerContext:
     """Async context manager for spinner."""
 
-    def __init__(self, manager: ProgressManager, message: str, style: str):
+    def __init__(self, manager: ProgressManager, message: str, style: str) -> None:
         self.manager = manager
         self.message = message
         self.style = style
         self._status = None
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> Any:
         if RICH_AVAILABLE:
             self._status = self.manager.console.status(
                 f"[{self.style}]{self.message}[/{self.style}]"
@@ -214,12 +214,12 @@ class AsyncSpinnerContext:
             print(f"  {self.message}")
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> bool:
         if self._status is not None:
             self._status.__exit__(exc_type, exc_val, exc_tb)
             self.manager._active_spinner = None
 
-    def update(self, message: str):
+    def update(self, message: str) -> Any:
         """Update spinner message."""
         if self._status is not None:
             self._status.update(f"[{self.style}]{message}[/{self.style}]")
@@ -308,7 +308,7 @@ class SwarmState:
     reviewer_verdicts: List[Dict[str, str]] = field(default_factory=list)
     current_review_phase: str = ""
 
-    def add_log(self, entry: str):
+    def add_log(self, entry: str) -> Any:
         """Add log entry, maintaining max size."""
         self.log_entries.append(entry)
         if len(self.log_entries) > self.max_log_entries:
@@ -323,7 +323,7 @@ class SwarmState:
         secs = int(elapsed % 60)
         return f"{mins}:{secs:02d}"
 
-    def add_agent_message(self, from_agent: str, to_agent: str, event: str):
+    def add_agent_message(self, from_agent: str, to_agent: str, event: str) -> Any:
         """Track inter-agent communication."""
         self.agent_messages.append({
             "from": from_agent,
@@ -334,12 +334,12 @@ class SwarmState:
         if len(self.agent_messages) > self.max_agent_messages:
             self.agent_messages = self.agent_messages[-self.max_agent_messages:]
 
-    def add_trace(self, trace_dict: Dict[str, Any]):
+    def add_trace(self, trace_dict: Dict[str, Any]) -> Any:
         """Add execution trace entry."""
         trace_dict["elapsed"] = self.elapsed_str()
         self.traces.append(trace_dict)
 
-    def expand_phases_fullstack(self):
+    def expand_phases_fullstack(self) -> Any:
         """Replace single-tier phases with full-stack sub-phases."""
         for p in self.phases:
             if p["id"] == "Phase 1":
@@ -356,7 +356,7 @@ class SwarmState:
             ]):
                 self.phases.insert(idx + i, sub)
 
-    def expand_phases_teamreview(self):
+    def expand_phases_teamreview(self) -> Any:
         """Expand Phase 6 to show team review sub-steps."""
         idx = next((i for i, p in enumerate(self.phases) if p["id"] == "Phase 6"), None)
         if idx is not None:
@@ -369,7 +369,7 @@ class SwarmState:
             ]):
                 self.phases.insert(idx + i, sub)
 
-    def update_from_progress(self, phase: str, agent: str, message: str):
+    def update_from_progress(self, phase: str, agent: str, message: str) -> Any:
         """Update state from a _progress() callback."""
         self.current_phase = phase
         self.current_agent = agent
@@ -546,7 +546,7 @@ class SwarmState:
 class SwarmDashboard:
     """Real-time TUI dashboard for CodingSwarm execution."""
 
-    def __init__(self, console: "Console", requirements: str = ""):
+    def __init__(self, console: 'Console', requirements: str = '') -> None:
         self.console = console
         self.state = SwarmState(requirements=requirements)
         self._live = None
@@ -554,19 +554,19 @@ class SwarmDashboard:
         self._key_running = False
         self._old_term_settings = None
 
-    def on_progress(self, phase: str, agent: str, message: str):
+    def on_progress(self, phase: str, agent: str, message: str) -> Any:
         """Callback for _progress() -- updates state and refreshes dashboard."""
         self.state.update_from_progress(phase, agent, message)
         if self._live:
             self._live.update(self._build_layout())
 
-    def on_trace(self, trace_dict: Dict[str, Any]):
+    def on_trace(self, trace_dict: Dict[str, Any]) -> Any:
         """Callback for _record_trace() -- adds execution trace to state."""
         self.state.add_trace(trace_dict)
         if self._live:
             self._live.update(self._build_layout())
 
-    def _start_key_listener(self):
+    def _start_key_listener(self) -> Any:
         """Start background thread that listens for 1/2 key presses."""
         if not TERMIOS_AVAILABLE:
             return
@@ -577,7 +577,7 @@ class SwarmDashboard:
 
         self._key_running = True
 
-        def _listener():
+        def _listener() -> Any:
             try:
                 tty.setcbreak(sys.stdin.fileno())
                 while self._key_running:
@@ -654,7 +654,7 @@ class SwarmDashboard:
         self._key_thread = threading.Thread(target=_listener, daemon=True)
         self._key_thread.start()
 
-    def _stop_key_listener(self):
+    def _stop_key_listener(self) -> Any:
         """Stop keyboard listener and restore terminal."""
         self._key_running = False
         if self._old_term_settings:
@@ -685,7 +685,7 @@ class SwarmDashboard:
 
         return layout
 
-    def _build_page1(self, body: "Layout"):
+    def _build_page1(self, body: 'Layout') -> Any:
         """Page 1: Pipeline + Details + Log (existing layout)."""
         body.split_column(
             Layout(name="main", ratio=1),
@@ -699,7 +699,7 @@ class SwarmDashboard:
         body["main"]["details"].update(self._render_details())
         body["log"].update(self._render_log())
 
-    def _build_page2(self, body: "Layout"):
+    def _build_page2(self, body: 'Layout') -> Any:
         """Page 2: Task Board + Agent Comms + Traces."""
         body.split_column(
             Layout(name="top", ratio=1),
@@ -713,7 +713,7 @@ class SwarmDashboard:
         body["top"]["taskboard"].update(self._render_taskboard())
         body["top"]["comms"].update(self._render_comms())
 
-    def _build_page3(self, body: "Layout"):
+    def _build_page3(self, body: 'Layout') -> Any:
         """Page 3: File Explorer + Content Preview."""
         body.split_row(
             Layout(name="file_tree", ratio=1, minimum_size=25),
@@ -1085,7 +1085,7 @@ class SwarmDashboard:
             border_style="blue",
         )
 
-    def start(self):
+    def start(self) -> Any:
         """Start the Live display."""
         self.state.start_time = time.time()
         self._live = Live(
@@ -1097,14 +1097,14 @@ class SwarmDashboard:
         self._live.start()
         self._start_key_listener()
 
-    def stop(self):
+    def stop(self) -> Any:
         """Stop the Live display."""
         self._stop_key_listener()
         if self._live:
             self._live.stop()
             self._live = None
 
-    def show_final_summary(self):
+    def show_final_summary(self) -> Any:
         """Print final summary after dashboard closes."""
         s = self.state
         completed = sum(1 for p in s.phases if p["status"] == "completed")
@@ -1121,7 +1121,7 @@ class SwarmDashboard:
         if s.output_path:
             self.console.print(f"  [bold green]Output saved to:[/bold green] {s.output_path}")
 
-    def load_file_contents(self, result):
+    def load_file_contents(self, result: Any) -> Any:
         """Populate file_contents from a result object for preview."""
         if not result or not hasattr(result, 'code') or not result.code:
             return
@@ -1145,7 +1145,7 @@ class SwarmDashboard:
         if hasattr(result, 'metadata') and result.metadata.get('output_path'):
             self.state.output_path = result.metadata['output_path']
 
-    def show_export_menu(self, result, output_path: str = ""):
+    def show_export_menu(self, result: Any, output_path: str = '') -> Any:
         """Interactive post-run export menu."""
         # Load file contents for preview
         self.load_file_contents(result)
@@ -1182,7 +1182,7 @@ class SwarmDashboard:
             self._export_code_files(result)
             self._auto_commit_files(result)
 
-    def _export_code_files(self, result):
+    def _export_code_files(self, result: Any) -> Any:
         """Write code files to current directory."""
         from pathlib import Path
         for fname, content in result.code.files.items():
@@ -1198,7 +1198,7 @@ class SwarmDashboard:
                 path.write_text(content, encoding="utf-8")
                 self.console.print(f"  [green]Wrote:[/green] {path}")
 
-    def _copy_to_clipboard(self, result):
+    def _copy_to_clipboard(self, result: Any) -> Any:
         """Copy main file content to clipboard."""
         import subprocess
         main = result.code.files.get(result.code.main_file, "")
@@ -1214,7 +1214,7 @@ class SwarmDashboard:
                 continue
         self.console.print("  [yellow]No clipboard tool found (xclip/xsel/pbcopy)[/yellow]")
 
-    def _auto_commit_files(self, result):
+    def _auto_commit_files(self, result: Any) -> Any:
         """Auto-commit exported code files to git with [AI] prefix."""
         import subprocess
 
@@ -1251,7 +1251,7 @@ class SwarmDashboard:
         except Exception as e:
             self.console.print(f"  [red]Git commit failed: {e}[/red]")
 
-    def _export_markdown_report(self, result, state):
+    def _export_markdown_report(self, result: Any, state: Any) -> Any:
         """Export full markdown report."""
         from pathlib import Path
         lines = [f"# Swarm Generation Report\n"]

@@ -7,7 +7,7 @@ Supports optional LLM fallback for ambiguous cases.
 """
 
 import logging
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Any
 from .types import ExecutionTier
 
 logger = logging.getLogger(__name__)
@@ -53,7 +53,7 @@ class TierDetector:
         'compile and', 'gather and', 'process and',
     ]
 
-    def __init__(self, enable_llm_fallback: bool = False):
+    def __init__(self, enable_llm_fallback: bool = False) -> None:
         self.detection_cache = {}  # Simple cache for repeated queries
         self._enable_llm_fallback = enable_llm_fallback
         self._llm_classifier = None
@@ -269,10 +269,10 @@ class _TierClassifierLLM:
         5: ExecutionTier.AUTONOMOUS,
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._client = None
 
-    def _get_client(self):
+    def _get_client(self) -> Any:
         if self._client is None:
             import anthropic
             self._client = anthropic.AsyncAnthropic()

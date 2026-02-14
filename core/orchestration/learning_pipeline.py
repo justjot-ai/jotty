@@ -47,7 +47,7 @@ class EffectivenessTracker:
         # → {'analysis': {'recent_rate': 0.75, 'historical_rate': 0.5, 'trend': +0.25}}
     """
 
-    def __init__(self, recent_window: int = 20, historical_window: int = 100):
+    def __init__(self, recent_window: int = 20, historical_window: int = 100) -> None:
         """
         Args:
             recent_window: Number of recent episodes to consider "current"
@@ -64,8 +64,7 @@ class EffectivenessTracker:
         # Global (all task types combined)
         self._global: deque = deque(maxlen=recent_window + historical_window)
 
-    def record(self, task_type: str, success: bool, quality: float = 0.0,
-               agent: str = ""):
+    def record(self, task_type: str, success: bool, quality: float = 0.0, agent: str = '') -> Any:
         """Record a task outcome. Call after every execution."""
         entry = (_time.time(), success, max(0.0, min(1.0, quality)), agent)
         self._records[task_type].append(entry)
@@ -166,12 +165,12 @@ class SwarmLearningPipeline:
     Extracted from Orchestrator to reduce god-object coupling.
     """
 
-    def __init__(self, config: SwarmConfig):
+    def __init__(self, config: SwarmConfig) -> None:
         self.config = config
         self.episode_count = 0
         self._init_components()
 
-    def _init_components(self):
+    def _init_components(self) -> Any:
         """Initialize all learning components."""
         from Jotty.core.learning.learning_coordinator import LearningManager as LearningManager
         from Jotty.core.learning.predictive_marl import (
@@ -541,7 +540,7 @@ class SwarmLearningPipeline:
             except Exception as e:
                 logger.warning(f"Could not auto-load stigmergy: {e}")
 
-    def auto_save(self, mas_learning=None, swarm_terminal=None, provider_registry=None) -> None:
+    def auto_save(self, mas_learning: Any = None, swarm_terminal: Any = None, provider_registry: Any = None) -> None:
         """Save learnings after execution."""
         # Q-learner state
         learning_path = self._get_learning_path()
@@ -616,7 +615,7 @@ class SwarmLearningPipeline:
     # =========================================================================
 
     @staticmethod
-    def _compute_episode_reward(result, goal: str) -> float:
+    def _compute_episode_reward(result: Any, goal: str) -> float:
         """
         Compute a continuous reward in [0, 1] from the execution result.
 
@@ -774,7 +773,7 @@ class SwarmLearningPipeline:
         'credit_pruning', 'curriculum',
     )
 
-    def _record_stigmergy(self, agent_name, task_type, result, episode_reward, goal):
+    def _record_stigmergy(self, agent_name: Any, task_type: Any, result: Any, episode_reward: Any, goal: Any) -> Any:
         """Consolidated stigmergy: outcome + approach in one call (was 3 blocks)."""
         # 1. Record outcome (already creates route/warning signals internally)
         self.stigmergy.record_outcome(
@@ -811,7 +810,7 @@ class SwarmLearningPipeline:
             quality=episode_reward, agent=agent_name,
         )
 
-    def _run_learning_steps(self, ctx: dict):
+    def _run_learning_steps(self, ctx: dict) -> Any:
         """Run all enabled learning steps with uniform error handling."""
         enabled = getattr(self.config, 'learning_components', None)
         steps = enabled if enabled else self._DEFAULT_LEARNING_STEPS
@@ -824,15 +823,7 @@ class SwarmLearningPipeline:
             except Exception as e:
                 logger.debug(f"Learning step '{step_name}' failed: {e}")
 
-    def post_episode(
-        self,
-        result: EpisodeResult,
-        goal: str,
-        agents: list,
-        architect_prompts: list,
-        mas_learning=None,
-        swarm_terminal=None,
-    ):
+    def post_episode(self, result: EpisodeResult, goal: str, agents: list, architect_prompts: list, mas_learning: Any = None, swarm_terminal: Any = None) -> Any:
         """Post-episode learning: run all enabled learning steps."""
         self.episode_count += 1
         episode_reward = self._compute_episode_reward(result, goal)
@@ -853,7 +844,7 @@ class SwarmLearningPipeline:
 
     # -- Individual learning steps (each receives ctx dict) --
 
-    def _step_td_lambda(self, ctx):
+    def _step_td_lambda(self, ctx: Any) -> Any:
         """TD-Lambda: update grouped value baselines via TD(0)."""
         self.td_learner.start_episode(ctx['goal'], task_type=ctx['task_type'])
         self.td_learner.update(
@@ -864,7 +855,7 @@ class SwarmLearningPipeline:
         )
         self._adaptive_lr.record_success(ctx['result'].success)
 
-    def _step_swarm_learner(self, ctx):
+    def _step_swarm_learner(self, ctx: Any) -> Any:
         """SwarmLearner: record episode, conditionally update prompts."""
         result = ctx['result']
         trajectory = result.trajectory or []
@@ -884,7 +875,7 @@ class SwarmLearningPipeline:
                 except Exception as e:
                     logger.debug(f"Prompt update skipped for {prompt_path}: {e}")
 
-    def _step_brain_consolidation(self, ctx):
+    def _step_brain_consolidation(self, ctx: Any) -> Any:
         """Brain consolidation (fire-and-forget in running loop)."""
         experience = {
             'content': str(ctx['result'].output)[:500] if ctx['result'].output else '',
@@ -898,12 +889,12 @@ class SwarmLearningPipeline:
         except RuntimeError:
             pass  # No running loop — skip async consolidation
 
-    def _step_neurochunk_tiering(self, ctx):
+    def _step_neurochunk_tiering(self, ctx: Any) -> Any:
         """NeuroChunk tiering: promote/demote/prune memories."""
         self.learning_manager.promote_demote_memories(ctx['episode_reward'])
         self.learning_manager.prune_tier3()
 
-    def _step_agent_abstractor(self, ctx):
+    def _step_agent_abstractor(self, ctx: Any) -> Any:
         """Agent abstractor: update agent role profiles."""
         result = ctx['result']
         if hasattr(result, 'agent_contributions') and result.agent_contributions:
@@ -913,7 +904,7 @@ class SwarmLearningPipeline:
         else:
             self.agent_abstractor.update_agent(ctx['agent_name'], result.success)
 
-    def _step_transfer_learning(self, ctx):
+    def _step_transfer_learning(self, ctx: Any) -> Any:
         """Transferable learning store: record experience."""
         query = ctx['goal'][:200] if ctx['goal'] else ''
         self.transfer_learning.record_experience(
@@ -926,7 +917,7 @@ class SwarmLearningPipeline:
             context={'episode': self.episode_count},
         )
 
-    def _step_swarm_intelligence(self, ctx):
+    def _step_swarm_intelligence(self, ctx: Any) -> Any:
         """Swarm intelligence: record task result for specialization."""
         execution_time = getattr(ctx['result'], 'execution_time', 0.0)
         self.swarm_intelligence.record_task_result(
@@ -937,14 +928,14 @@ class SwarmLearningPipeline:
             context={'goal': ctx['goal'][:100], 'episode': self.episode_count},
         )
 
-    def _step_stigmergy(self, ctx):
+    def _step_stigmergy(self, ctx: Any) -> Any:
         """Stigmergy: consolidated outcome + approach recording."""
         self._record_stigmergy(
             ctx['agent_name'], ctx['task_type'], ctx['result'],
             ctx['episode_reward'], ctx['goal'],
         )
 
-    def _step_effectiveness(self, ctx):
+    def _step_effectiveness(self, ctx: Any) -> Any:
         """Effectiveness tracker: measure actual improvement over time."""
         self.effectiveness.record(
             task_type=ctx['task_type'],
@@ -953,7 +944,7 @@ class SwarmLearningPipeline:
             agent=ctx['agent_name'],
         )
 
-    def _step_mas_learning(self, ctx):
+    def _step_mas_learning(self, ctx: Any) -> Any:
         """MAS Learning: session recording."""
         mas_learning = ctx['mas_learning']
         if not mas_learning:
@@ -974,7 +965,7 @@ class SwarmLearningPipeline:
             output_quality=ctx['episode_reward'],
         )
 
-    def _step_byzantine(self, ctx):
+    def _step_byzantine(self, ctx: Any) -> Any:
         """Byzantine verification: quality check + claim verification."""
         result = ctx['result']
         if hasattr(result, 'agent_contributions') and result.agent_contributions:
@@ -1000,7 +991,7 @@ class SwarmLearningPipeline:
                     f"{quality['issues']}"
                 )
 
-    def _step_credit_assignment(self, ctx):
+    def _step_credit_assignment(self, ctx: Any) -> Any:
         """Credit assignment: record which agent/approach deserves credit."""
         self.credit_assigner.record_improvement_application(
             improvement={'learned_pattern': ctx['goal'][:200], 'task': ctx['goal'][:100]},
@@ -1010,7 +1001,7 @@ class SwarmLearningPipeline:
             context={'task': ctx['goal'][:100], 'episode': self.episode_count},
         )
 
-    def _step_auditor_fixes(self, ctx):
+    def _step_auditor_fixes(self, ctx: Any) -> Any:
         """Auditor fix_instructions -> negative TD signal + procedural memory."""
         result = ctx['result']
         goal = ctx['goal']
@@ -1046,7 +1037,7 @@ class SwarmLearningPipeline:
             )
             logger.debug(f"Recorded {len(fix_texts)} fix_instructions as procedural memory")
 
-    def _step_adaptive_learning(self, ctx):
+    def _step_adaptive_learning(self, ctx: Any) -> Any:
         """Adaptive learning: adjust learning rate based on score trajectory."""
         lr_state = self.adaptive_learning.update_score(ctx['episode_reward'])
         if lr_state.get('is_plateau'):
@@ -1056,7 +1047,7 @@ class SwarmLearningPipeline:
                 f"explore={lr_state['exploration_rate']:.2f})"
             )
 
-    def _step_effectiveness_intervention(self, ctx):
+    def _step_effectiveness_intervention(self, ctx: Any) -> Any:
         """Effectiveness-driven intervention: boost exploration on stagnation."""
         task_type = ctx['task_type']
         if not self.effectiveness.is_improving(task_type) and self.episode_count >= 10:
@@ -1076,7 +1067,7 @@ class SwarmLearningPipeline:
                 f"queued curriculum task"
             )
 
-    def _step_credit_pruning(self, ctx):
+    def _step_credit_pruning(self, ctx: Any) -> Any:
         """Credit-driven pruning: every 10 episodes, prune low-value learnings."""
         if self.episode_count % 10 != 0 or self.episode_count == 0:
             return
@@ -1107,7 +1098,7 @@ class SwarmLearningPipeline:
                 f"experiences (removed {before_count - after_count} low-value)"
             )
 
-    def _step_curriculum(self, ctx):
+    def _step_curriculum(self, ctx: Any) -> Any:
         """Curriculum: queue training tasks when exploration is recommended."""
         recommendation = self.adaptive_learning._get_recommendation()
         if recommendation == 'increase_exploration':
@@ -1120,7 +1111,7 @@ class SwarmLearningPipeline:
             if len(self._pending_training_tasks) > 10:
                 self._pending_training_tasks = self._pending_training_tasks[-10:]
 
-    def pop_training_task(self):
+    def pop_training_task(self) -> Any:
         """Pop the next queued training task (or None if queue empty)."""
         if self._pending_training_tasks:
             return self._pending_training_tasks.pop(0)
@@ -1130,7 +1121,7 @@ class SwarmLearningPipeline:
         """How many training tasks are waiting."""
         return len(self._pending_training_tasks)
 
-    def learn_from_result(self, result: EpisodeResult, agent_config: AgentConfig, workflow_learner=None, goal: str = '') -> None:
+    def learn_from_result(self, result: EpisodeResult, agent_config: AgentConfig, workflow_learner: Any = None, goal: str = '') -> None:
         """Learn from a successful execution result."""
         if not result.success:
             return
@@ -1347,7 +1338,7 @@ class SwarmLearningPipeline:
                     )
                     tras_scores[name] = tras
             if tras_scores and max(tras_scores.values()) > min(tras_scores.values()):
-                def _combined_score(a):
+                def _combined_score(a: Any) -> Any:
                     name = getattr(a, 'name', str(a))
                     route_s = routes.get(name, 0.0) if routes else 0.0
                     tras_s = tras_scores.get(name, 0.5)
@@ -1404,16 +1395,14 @@ class SwarmLearningPipeline:
 
     _PARADIGMS = ('fanout', 'relay', 'debate', 'refinement')
 
-    def _ensure_paradigm_bucket(self, task_type: str):
+    def _ensure_paradigm_bucket(self, task_type: str) -> Any:
         """Lazy-create the stats bucket for a task_type."""
         if task_type not in self._paradigm_stats:
             self._paradigm_stats[task_type] = {
                 p: {'runs': 0, 'successes': 0} for p in self._PARADIGMS
             }
 
-    def record_paradigm_result(
-        self, paradigm: str, success: bool, task_type: str = '_global',
-    ):
+    def record_paradigm_result(self, paradigm: str, success: bool, task_type: str = '_global') -> Any:
         """Record the outcome of a discussion paradigm run for a task type."""
         self._ensure_paradigm_bucket(task_type)
         bucket = self._paradigm_stats[task_type]
@@ -1487,7 +1476,7 @@ class SwarmLearningPipeline:
             task_type: If provided, return stats for that task type.
                        If None, return _global stats with per-type breakdown.
         """
-        def _format_bucket(bucket):
+        def _format_bucket(bucket: Any) -> Any:
             out = {}
             for paradigm, data in bucket.items():
                 runs = data['runs']

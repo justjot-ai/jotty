@@ -21,7 +21,7 @@ class Message:
     role: str
     content: str
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: Any) -> Any:
         """Support dict-like access for compatibility."""
         if key == 'role':
             return self.role
@@ -29,7 +29,7 @@ class Message:
             return self.content
         raise KeyError(key)
 
-    def get(self, key, default=None):
+    def get(self, key: Any, default: Any = None) -> Any:
         """Support dict-like get method."""
         try:
             return self[key]
@@ -77,14 +77,7 @@ class ClaudeLLMTextGenerator:
         manager = Manager(text_gen=text_gen)
     """
 
-    def __init__(
-        self,
-        provider: str = "claude-cli",
-        model: str = DEFAULT_MODEL_ALIAS,
-        timeout: int = LLM_TIMEOUT_SECONDS,
-        fallback: bool = True,
-        **kwargs
-    ):
+    def __init__(self, provider: str = 'claude-cli', model: str = DEFAULT_MODEL_ALIAS, timeout: int = LLM_TIMEOUT_SECONDS, fallback: bool = True, **kwargs: Any) -> None:
         """
         Initialize Claude LLM text generator.
 
@@ -105,19 +98,14 @@ class ClaudeLLMTextGenerator:
         self._llm_generate = None
 
     @property
-    def llm_generate(self):
+    def llm_generate(self) -> Any:
         """Lazy import of core.llm.generate."""
         if self._llm_generate is None:
             from core.llm import generate
             self._llm_generate = generate
         return self._llm_generate
 
-    def generate(
-        self,
-        messages: Union[List[Dict], str],
-        config: TextGenerationConfig = None,
-        **kwargs
-    ) -> TextGenerationResponse:
+    def generate(self, messages: Union[List[Dict], str], config: TextGenerationConfig = None, **kwargs: Any) -> TextGenerationResponse:
         """
         Generate text using Claude LLM.
 
@@ -215,11 +203,7 @@ class ClaudeLLMTextGenerator:
         return len(text) // 4
 
 
-def get_lida_text_generator(
-    provider: str = "claude-cli",
-    model: str = DEFAULT_MODEL_ALIAS,
-    **kwargs
-) -> ClaudeLLMTextGenerator:
+def get_lida_text_generator(provider: str = 'claude-cli', model: str = DEFAULT_MODEL_ALIAS, **kwargs: Any) -> ClaudeLLMTextGenerator:
     """
     Get a LIDA-compatible text generator using Jotty's LLM infrastructure.
 

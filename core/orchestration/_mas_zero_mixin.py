@@ -32,14 +32,14 @@ class MASZeroMixin:
     - _mas_zero_evolve(): iterative refinement loop
     """
 
-    def _get_experience_library(self):
+    def _get_experience_library(self) -> Any:
         """Lazy-load per-problem ExperienceLibrary (reset per run)."""
         if not hasattr(self, '_experience_library') or self._experience_library is None:
             from .mas_zero import ExperienceLibrary
             self._experience_library = ExperienceLibrary()
         return self._experience_library
 
-    def _reset_experience(self):
+    def _reset_experience(self) -> Any:
         """Reset experience library for a new problem."""
         if hasattr(self, '_experience_library') and self._experience_library:
             self._experience_library.clear()
@@ -195,14 +195,7 @@ class MASZeroMixin:
     # MAS-EVOLVE: Iterative refinement of MAS design
     # =========================================================================
 
-    async def _mas_zero_evolve(
-        self,
-        goal: str,
-        initial_results: Dict[str, Any],
-        max_iterations: int = 2,
-        status_callback=None,
-        **kwargs,
-    ) -> Dict[str, Any]:
+    async def _mas_zero_evolve(self, goal: str, initial_results: Dict[str, Any], max_iterations: int = 2, status_callback: Any = None, **kwargs: Any) -> Dict[str, Any]:
         """
         Iteratively refine MAS design based on meta-feedback.
 
@@ -218,7 +211,7 @@ class MASZeroMixin:
         Returns:
             Best results dict after refinement
         """
-        def _status(stage: str, detail: str = ""):
+        def _status(stage: str, detail: str = '') -> Any:
             if status_callback:
                 try:
                     status_callback(stage, detail)

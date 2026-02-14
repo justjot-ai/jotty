@@ -21,13 +21,7 @@ class TaskQueueManager:
     Processes tasks from queue using Orchestrator
     """
     
-    def __init__(
-        self,
-        conductor: Orchestrator,
-        task_queue: TaskQueue,
-        max_concurrent: int = 3,
-        poll_interval: float = 1.0,
-    ):
+    def __init__(self, conductor: Orchestrator, task_queue: TaskQueue, max_concurrent: int = 3, poll_interval: float = 1.0) -> None:
         """
         Initialize task queue manager
         
@@ -44,7 +38,7 @@ class TaskQueueManager:
         self.running_tasks: Dict[str, asyncio.Task] = {}
         self._stop_event = asyncio.Event()
     
-    async def start(self):
+    async def start(self) -> Any:
         """Start processing tasks from queue"""
         logger.info(f" Starting TaskQueueManager (max_concurrent={self.max_concurrent})")
         
@@ -76,7 +70,7 @@ class TaskQueueManager:
                 logger.error(f" Error in task queue manager loop: {e}", exc_info=True)
                 await asyncio.sleep(self.poll_interval)
     
-    async def stop(self):
+    async def stop(self) -> Any:
         """Stop processing tasks"""
         logger.info(" Stopping TaskQueueManager...")
         self._stop_event.set()
@@ -92,7 +86,7 @@ class TaskQueueManager:
         
         logger.info(" TaskQueueManager stopped")
     
-    async def _process_task(self, task: Task):
+    async def _process_task(self, task: Task) -> Any:
         """Process a single task"""
         task_id = task.task_id
         

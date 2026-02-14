@@ -26,7 +26,7 @@ class ProviderManager:
     Takes explicit dependencies instead of accessing self.xxx on host.
     """
 
-    def __init__(self, config: 'SwarmConfig', get_swarm_intelligence):
+    def __init__(self, config: 'SwarmConfig', get_swarm_intelligence: Any) -> None:
         """
         Args:
             config: SwarmConfig instance
@@ -37,7 +37,7 @@ class ProviderManager:
         self.provider_registry = None
 
     @property
-    def swarm_intelligence(self):
+    def swarm_intelligence(self) -> Any:
         return self._get_si()
 
     def init_provider_registry(self) -> None:
@@ -109,13 +109,7 @@ class ProviderManager:
             return Path(base) / 'provider_learnings.json'
         return Path.home() / '.jotty' / 'provider_learnings.json'
 
-    async def execute_with_provider(
-        self,
-        category: str,
-        task: str,
-        context: Dict[str, Any] = None,
-        provider_name: str = None,
-    ):
+    async def execute_with_provider(self, category: str, task: str, context: Dict[str, Any] = None, provider_name: str = None) -> Any:
         """
         Execute a task using the skill provider system.
 

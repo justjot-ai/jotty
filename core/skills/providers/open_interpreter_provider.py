@@ -46,7 +46,7 @@ class OpenInterpreterProvider(SkillProvider):
     version = "0.4.0"
     description = "Natural language code execution via Open Interpreter"
 
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: Dict[str, Any] = None) -> None:
         super().__init__(config)
 
         self.capabilities = [
@@ -147,7 +147,7 @@ class OpenInterpreterProvider(SkillProvider):
             # Run in thread pool to avoid blocking
             loop = asyncio.get_running_loop()
 
-            def run_interpreter():
+            def run_interpreter() -> Any:
                 messages = self._interpreter.chat(task, display=False)
                 return messages
 

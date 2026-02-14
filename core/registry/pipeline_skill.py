@@ -49,12 +49,7 @@ class PipelineSkill:
     ```
     """
     
-    def __init__(
-        self,
-        name: str,
-        description: str,
-        pipeline: List[Dict[str, Any]]
-    ):
+    def __init__(self, name: str, description: str, pipeline: List[Dict[str, Any]]) -> None:
         """
         Initialize pipeline skill.
         
@@ -74,7 +69,7 @@ class PipelineSkill:
         self.pipeline = pipeline
         self._validate_pipeline()
     
-    def _validate_pipeline(self):
+    def _validate_pipeline(self) -> Any:
         """Validate pipeline structure."""
         if not self.pipeline:
             raise ValueError("Pipeline must have at least one step")
@@ -88,7 +83,7 @@ class PipelineSkill:
         if not has_sink:
             logger.warning(f"Pipeline '{self.name}' has no sink step - output will only be stored locally")
     
-    async def execute(self, initial_params: Dict[str, Any], registry) -> Dict[str, Any]:
+    async def execute(self, initial_params: Dict[str, Any], registry: Any) -> Dict[str, Any]:
         """
         Execute pipeline workflow.
         
@@ -260,13 +255,7 @@ class PipelineSkill:
         
         raise ValueError(f"Template variable '{var_name}' not found")
     
-    async def _execute_step(
-        self,
-        step: Dict[str, Any],
-        params: Dict[str, Any],
-        registry,
-        results: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def _execute_step(self, step: Dict[str, Any], params: Dict[str, Any], registry: Any, results: Dict[str, Any]) -> Dict[str, Any]:
         """Execute a single pipeline step."""
         skill_name = step.get('skill')
         tool_name = step.get('tool')

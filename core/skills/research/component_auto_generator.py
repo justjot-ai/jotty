@@ -373,7 +373,7 @@ class ComponentAutoGenerator:
         ],
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.suggestion_module = dspy.ChainOfThought(ComponentSuggestionSignature)
         self.code_generator = dspy.ChainOfThought(ComponentCodeGeneratorSignature)
         self.paper_analyzer = dspy.ChainOfThought(PaperComponentAnalyzerSignature)
@@ -625,7 +625,7 @@ class ComponentLibraryExpander:
     Batch generator to expand component library toward 1000+ components.
     """
 
-    def __init__(self, output_dir: str = None):
+    def __init__(self, output_dir: str = None) -> None:
         self.auto_generator = ComponentAutoGenerator()
         self.output_dir = Path(output_dir) if output_dir else Path(__file__).parent.parent / "generated_components"
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -691,7 +691,7 @@ class ComponentLibraryExpander:
 
         return all_generated
 
-    def _save_components_to_file(self, components: List[Dict], output_file: Path):
+    def _save_components_to_file(self, components: List[Dict], output_file: Path) -> Any:
         """Save generated components to a Python file"""
         code_parts = [
             '"""Auto-generated slide components"""\n',
@@ -711,7 +711,7 @@ class ComponentLibraryExpander:
 
 
 # Quick test function
-async def test_auto_generation():
+async def test_auto_generation() -> Any:
     """Test the auto-generation system"""
     sample_paper = {
         "paper_title": "Attention Is All You Need",

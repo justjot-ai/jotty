@@ -7,7 +7,7 @@ Lightweight timing decorators and context managers for performance analysis.
 import time
 import functools
 import logging
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Any
 from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ except ImportError:
 class ExecutionTimer:
     """Track execution times for different operations."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.timings: Dict[str, List[float]] = {}
         self.enabled = True
         self.profiling_report: Optional[ProfilingReport] = None
@@ -117,7 +117,7 @@ def set_overall_timing(start_time: float, end_time: float) -> None:
 
 
 @contextmanager
-def timed_block(operation: str, component: str = "Other", enabled: bool = True, **metadata) -> None:
+def timed_block(operation: str, component: str = 'Other', enabled: bool = True, **metadata: Any) -> None:
     """
     Context manager for timing a block of code.
 
@@ -154,7 +154,7 @@ def timed_block(operation: str, component: str = "Other", enabled: bool = True, 
             )
 
 
-def timed(operation: Optional[str] = None, enabled: bool = True):
+def timed(operation: Optional[str] = None, enabled: bool = True) -> Any:
     """
     Decorator for timing function execution.
 
@@ -167,11 +167,11 @@ def timed(operation: Optional[str] = None, enabled: bool = True):
         def fetch_data():
             ...
     """
-    def decorator(func):
+    def decorator(func: Any) -> Any:
         op_name = operation or f"{func.__module__}.{func.__name__}"
 
         @functools.wraps(func)
-        def sync_wrapper(*args, **kwargs):
+        def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
             if not enabled:
                 return func(*args, **kwargs)
 
@@ -184,7 +184,7 @@ def timed(operation: Optional[str] = None, enabled: bool = True):
                 _global_timer.record(op_name, duration)
 
         @functools.wraps(func)
-        async def async_wrapper(*args, **kwargs):
+        async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
             if not enabled:
                 return await func(*args, **kwargs)
 

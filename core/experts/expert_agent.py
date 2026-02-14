@@ -81,7 +81,7 @@ class ExpertAgentConfig:
     agent_module: Optional[Any] = None  # The underlying DSPy module/agent
     teacher_module: Optional[Any] = None  # Optional custom teacher
     
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Initialize defaults."""
         if self.expert_data_dir is None:
             self.expert_data_dir = f"./expert_data/{self.domain}"
@@ -98,7 +98,7 @@ class ExpertAgent:
     correct outputs. They can be pre-trained and validated.
     """
 
-    def __init__(self, config: ExpertAgentConfig, memory: Optional[SwarmMemory] = None):
+    def __init__(self, config: ExpertAgentConfig, memory: Optional[SwarmMemory] = None) -> None:
         import warnings
         warnings.warn(
             "ExpertAgent is deprecated. Use SingleAgentOrchestrator with "
@@ -892,7 +892,7 @@ class ExpertAgent:
         except ImportError:
             # Fallback to regular teacher
             class DefaultTeacher:
-                def forward(self, **kwargs) -> Any:
+                def forward(self, **kwargs: Any) -> Any:
                     result = type('Result', (), {})()
                     result._store = {"output": kwargs.get('gold_standard', '')}
                     return result
@@ -907,7 +907,7 @@ class ExpertAgent:
         except ImportError:
             return False
     
-    def _call_dspy_agent(self, agent: Any, **kwargs) -> Any:
+    def _call_dspy_agent(self, agent: Any, **kwargs: Any) -> Any:
         """Call a DSPy agent correctly (handles both DSPy modules and regular callables)."""
         try:
             import dspy

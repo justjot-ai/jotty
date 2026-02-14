@@ -108,7 +108,7 @@ class SwarmAgentConfig:
     parameters: Dict[str, Any] = field(default_factory=dict)
     version: int = 1
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         from Jotty.core.foundation.config_defaults import DEFAULTS
         if not self.model:
             self.model = DEFAULTS.DEFAULT_MODEL_ALIAS
@@ -154,7 +154,7 @@ class SwarmBaseConfig:
     gold_standard_max_version: int = 3  # Max gold standard versions before capping
     output_dir: str = field(default_factory=lambda: str(Path.home() / "jotty" / "swarm_outputs"))
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate configuration values."""
         # Validate max_retries
         if self.max_retries < 0:
@@ -201,7 +201,7 @@ class SwarmResult:
 # DEFENSIVE UTILITIES — safe LLM output parsing
 # =============================================================================
 
-def _split_field(value, sep='|') -> List:
+def _split_field(value: Any, sep: Any = '|') -> List:
     """Safely split a DSPy output field into a list of strings.
     Handles: str (pipe-split), list (coerce items to str), dict (flatten), None.
     """
@@ -217,7 +217,7 @@ def _split_field(value, sep='|') -> List:
     return [s.strip() for s in str(value).split(sep) if s.strip()]
 
 
-def _safe_join(items, sep=', ') -> str:
+def _safe_join(items: Any, sep: Any = ', ') -> str:
     """Safely join items into a string, coercing non-string elements."""
     if not items:
         return ''
@@ -226,7 +226,7 @@ def _safe_join(items, sep=', ') -> str:
     return sep.join(str(item) for item in items)
 
 
-def _safe_num(value, default=0):
+def _safe_num(value: Any, default: Any = 0) -> Any:
     """Extract a number from LLM output. Returns default for non-numeric."""
     if value is None:
         return default
@@ -263,7 +263,7 @@ __all__ = [
 # BACKWARD COMPATIBILITY WITH HELPFUL ERROR
 # =============================================================================
 
-def __getattr__(name: str):
+def __getattr__(name: str) -> Any:
     """Intercept attempts to import deprecated names and provide helpful errors."""
     if name == 'SwarmConfig':
         import warnings

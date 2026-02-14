@@ -1,5 +1,4 @@
-"""
-ValidationGate — LLM-Powered Intelligent Validation Routing
+"""ValidationGate — LLM-Powered Intelligent Validation Routing.
 =============================================================
 
 Replaces the boolean ``skip_validation`` flag with a cheap Haiku call
@@ -53,7 +52,6 @@ Usage::
     decision = await gate.decide(goal="Build a REST API with auth, rate limiting, and tests")
     # → ValidationMode.FULL  (complex multi-step, needs full pipeline)
 """
-
 from __future__ import annotations
 
 import logging
@@ -141,14 +139,7 @@ class ValidationGate:
         3. Historical outcome data   (learned from past decisions)
     """
 
-    def __init__(
-        self,
-        model: str = "haiku",
-        confidence_threshold: float = 0.80,
-        sample_rate: float = 0.10,
-        enable_llm: bool = True,
-        fallback_mode: ValidationMode = ValidationMode.FULL,
-    ):
+    def __init__(self, model: str = 'haiku', confidence_threshold: float = 0.8, sample_rate: float = 0.1, enable_llm: bool = True, fallback_mode: ValidationMode = ValidationMode.FULL) -> None:
         """
         Args:
             model: LLM model for gate classification (default: haiku — cheapest)
@@ -427,7 +418,7 @@ class ValidationGate:
                 try:
                     import litellm
                     _model = model
-                    def _litellm_call(prompt: str, m=_model) -> list:
+                    def _litellm_call(prompt: str, m: Any = _model) -> list:
                         resp = litellm.completion(
                             model=m,
                             messages=[{"role": "user", "content": prompt}],
@@ -564,7 +555,7 @@ class ValidationGate:
 _default_gate: Optional[ValidationGate] = None
 
 
-def get_validation_gate(**kwargs) -> ValidationGate:
+def get_validation_gate(**kwargs: Any) -> ValidationGate:
     """Get or create the default ValidationGate singleton."""
     global _default_gate
     if _default_gate is None:

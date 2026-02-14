@@ -136,7 +136,7 @@ __all__ = [
 ]
 
 # Lazy re-export of focused configs for convenient importing
-def __getattr__(name):
+def __getattr__(name: str) -> Any:
     _CONFIG_MAP = {
         'PersistenceConfig': '.configs.persistence',
         'ExecutionConfig': '.configs.execution',
@@ -199,15 +199,15 @@ class _ConfigView:
     __slots__ = ('_parent',)
     _FIELDS: frozenset = frozenset()
 
-    def __init__(self, parent: 'SwarmConfig'):
+    def __init__(self, parent: 'SwarmConfig') -> None:
         object.__setattr__(self, '_parent', parent)
 
-    def __getattr__(self, name: str):
+    def __getattr__(self, name: str) -> Any:
         if name in type(self)._FIELDS:
             return getattr(object.__getattribute__(self, '_parent'), name)
         raise AttributeError(f"'{type(self).__name__}' has no attribute '{name}'")
 
-    def __setattr__(self, name: str, value):
+    def __setattr__(self, name: str, value: Any) -> None:
         if name in type(self)._FIELDS:
             setattr(object.__getattribute__(self, '_parent'), name, value)
             return
@@ -793,7 +793,7 @@ class SwarmConfig:
     # =========================================================================
     # Computed properties
     # =========================================================================
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Calculate derived config values and validate via focused configs."""
         # Set reproducibility seeds if configured
         if self.random_seed is not None:
@@ -812,7 +812,7 @@ class SwarmConfig:
         # Validate via focused configs (catches invalid field combos)
         self._validate_via_focused_configs()
 
-    def _validate_via_focused_configs(self):
+    def _validate_via_focused_configs(self) -> None:
         """Delegate validation to focused configs that have __post_init__ checks."""
         errors = []
         for method_name in [
@@ -962,18 +962,7 @@ class SwarmConfig:
         })
 
     @classmethod
-    def from_configs(
-        cls,
-        persistence: 'PersistenceConfig' = None,
-        execution: 'ExecutionConfig' = None,
-        memory: 'MemoryConfig' = None,
-        context_budget: 'ContextBudgetConfig' = None,
-        learning: 'LearningConfig' = None,
-        validation: 'ValidationConfig' = None,
-        monitoring: 'MonitoringConfig' = None,
-        intelligence: 'IntelligenceConfig' = None,
-        **overrides,
-    ) -> 'SwarmConfig':
+    def from_configs(cls, persistence: 'PersistenceConfig' = None, execution: 'ExecutionConfig' = None, memory: 'MemoryConfig' = None, context_budget: 'ContextBudgetConfig' = None, learning: 'LearningConfig' = None, validation: 'ValidationConfig' = None, monitoring: 'MonitoringConfig' = None, intelligence: 'IntelligenceConfig' = None, **overrides: Any) -> 'SwarmConfig':
         """Build a SwarmConfig by composing focused sub-configs.
 
         Any fields not covered by sub-configs use defaults.

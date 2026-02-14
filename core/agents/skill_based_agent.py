@@ -30,7 +30,7 @@ class SkillBasedAgent(dspy.Module):
     This allows Conductor to use skills via AutoAgent execution.
     """
     
-    def __init__(self, skill_name: str, tool_name: Optional[str] = None):
+    def __init__(self, skill_name: str, tool_name: Optional[str] = None) -> None:
         """
         Initialize skill-based agent.
         
@@ -53,7 +53,7 @@ class SkillBasedAgent(dspy.Module):
         
         logger.info(f" SkillBasedAgent created for skill: {skill_name}")
     
-    def forward(self, task: str, **kwargs) -> dspy.Prediction:
+    def forward(self, task: str, **kwargs: Any) -> dspy.Prediction:
         """
         Execute task using AutoAgent.
         

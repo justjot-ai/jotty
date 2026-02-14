@@ -27,12 +27,7 @@ class LearningDelegate:
     Takes explicit references to the learning pipeline and MAS learning.
     """
 
-    def __init__(
-        self,
-        get_learning,
-        get_mas_learning,
-        get_agents,
-    ):
+    def __init__(self, get_learning: Any, get_mas_learning: Any, get_agents: Any) -> None:
         """
         Args:
             get_learning: Callable returning SwarmLearningPipeline
@@ -73,13 +68,7 @@ class LearningDelegate:
             except Exception:
                 pass
 
-    def auto_save_learnings(
-        self,
-        mas_learning=None,
-        swarm_terminal=None,
-        provider_registry=None,
-        memory_persistence=None,
-    ):
+    def auto_save_learnings(self, mas_learning: Any = None, swarm_terminal: Any = None, provider_registry: Any = None, memory_persistence: Any = None) -> Any:
         """Save all learnings to disk."""
         self.learning.auto_save(
             mas_learning=mas_learning or self.mas_learning,
@@ -106,14 +95,7 @@ class LearningDelegate:
             agent_types=agent_types or [a.name for a in self.agents],
         )
 
-    def record_agent_result(
-        self,
-        agent_name: str,
-        task_type: str,
-        success: bool,
-        time_taken: float,
-        output_quality: float = 0.0,
-    ):
+    def record_agent_result(self, agent_name: str, task_type: str, success: bool, time_taken: float, output_quality: float = 0.0) -> Any:
         """Record an agent's task result for learning."""
         mas = self.mas_learning
         if mas:
@@ -125,15 +107,7 @@ class LearningDelegate:
                 output_quality=output_quality,
             )
 
-    def record_session_result(
-        self,
-        task_description: str,
-        agent_performances: Dict[str, Dict[str, Any]],
-        total_time: float,
-        success: bool,
-        fixes_applied: List[Dict[str, Any]] = None,
-        stigmergy_signals: int = 0,
-    ):
+    def record_session_result(self, task_description: str, agent_performances: Dict[str, Dict[str, Any]], total_time: float, success: bool, fixes_applied: List[Dict[str, Any]] = None, stigmergy_signals: int = 0) -> Any:
         """Record session results for future learning."""
         mas = self.mas_learning
         if mas:

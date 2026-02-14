@@ -19,12 +19,7 @@ class WorkflowExecutor:
     Executes workflow tasks with agents.
     """
     
-    def __init__(
-        self,
-        conductor: Any,  # Conductor instance
-        orchestrator: WorkflowOrchestrator,
-        context: Optional[WorkflowContext] = None
-    ):
+    def __init__(self, conductor: Any, orchestrator: WorkflowOrchestrator, context: Optional[WorkflowContext] = None) -> None:
         """
         Initialize workflow executor.
         

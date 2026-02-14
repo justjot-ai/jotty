@@ -137,7 +137,7 @@ class StateDescriber:
         'confidence': "Confidence: {value:.0%}" if isinstance(0, float) else "Confidence: {value}",
     }
 
-    def __init__(self, custom_templates: Dict[str, str] = None):
+    def __init__(self, custom_templates: Dict[str, str] = None) -> None:
         """
         Initialize describer.
 
@@ -263,7 +263,7 @@ class SimilarityEngine:
         score = engine.similarity(state1, state2)
     """
 
-    def __init__(self, use_embeddings: bool = True):
+    def __init__(self, use_embeddings: bool = True) -> None:
         """
         Initialize similarity engine.
 
@@ -428,7 +428,7 @@ class SimpleExperienceBuffer:
     This is a lightweight alternative for basic replay needs.
     """
 
-    def __init__(self, capacity: int = 1000):
+    def __init__(self, capacity: int = 1000) -> None:
         """
         Initialize buffer.
 
@@ -438,15 +438,7 @@ class SimpleExperienceBuffer:
         self.capacity = capacity
         self.experiences: List[ExperienceRecord] = []
 
-    def add(
-        self,
-        state: Dict[str, Any],
-        action: Dict[str, Any],
-        reward: float,
-        next_state: Dict[str, Any] = None,
-        done: bool = False,
-        **kwargs
-    ):
+    def add(self, state: Dict[str, Any], action: Dict[str, Any], reward: float, next_state: Dict[str, Any] = None, done: bool = False, **kwargs: Any) -> Any:
         """Add experience to buffer."""
         exp = ExperienceRecord(
             state=state,
@@ -491,7 +483,7 @@ class SimpleExperienceBuffer:
     def __len__(self) -> int:
         return len(self.experiences)
 
-    def __iter__(self):
+    def __iter__(self) -> Any:
         return iter(self.experiences)
 
 

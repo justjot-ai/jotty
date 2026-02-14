@@ -99,7 +99,7 @@ class FeedbackChannel:
         ))
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the feedback channel."""
         self.messages: Dict[str, List[FeedbackMessage]] = defaultdict(list)
         self.message_history: List[FeedbackMessage] = []

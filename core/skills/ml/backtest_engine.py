@@ -290,7 +290,7 @@ class WorldClassBacktestEngine:
         )
     """
 
-    def __init__(self, risk_free_rate: float = 0.05):
+    def __init__(self, risk_free_rate: float = 0.05) -> None:
         """
         Initialize the backtesting engine.
 

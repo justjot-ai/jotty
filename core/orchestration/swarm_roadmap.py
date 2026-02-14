@@ -28,7 +28,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 _dspy_module = None
-def _get_dspy():
+def _get_dspy() -> Any:
     global _dspy_module
     if _dspy_module is None:
         import dspy
@@ -131,7 +131,7 @@ class AgenticState:
     created_at: datetime = field(default_factory=datetime.now)
     last_updated: datetime = field(default_factory=datetime.now)
     
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not self.state_id:
             self.state_id = self._generate_id()
     
@@ -140,13 +140,7 @@ class AgenticState:
         content = f"{self.agent_name}:{self.task_description}:{len(self.trajectory)}"
         return hashlib.md5(content.encode()).hexdigest()
     
-    def add_trajectory_step(self,
-                           action_type: str,
-                           action_content: str,
-                           observation: str,
-                           reward: float,
-                           context_summary: str = "",
-                           activated_memories: List[str] = None):
+    def add_trajectory_step(self, action_type: str, action_content: str, observation: str, reward: float, context_summary: str = '', activated_memories: List[str] = None) -> Any:
         """Add a step to the trajectory."""
         step = TrajectoryStep(
             step_idx=len(self.trajectory),
@@ -284,7 +278,7 @@ class DecomposedQFunction:
     Dr. Manning: "Different objectives require different value estimates"
     """
     
-    def __init__(self, config: Dict = None):
+    def __init__(self, config: Dict = None) -> None:
         self.config = config or {}
         
         # Separate Q-tables for each objective
@@ -339,12 +333,7 @@ class DecomposedQFunction:
                 self.weights['causal'] * q_c +
                 self.weights['safety'] * q_s)
     
-    def update(self,
-               state: AgenticState, 
-               action: str,
-               reward_decomposition: Dict[str, float],
-               next_state: AgenticState,
-               gamma: float = 0.95):
+    def update(self, state: AgenticState, action: str, reward_decomposition: Dict[str, float], next_state: AgenticState, gamma: float = 0.95) -> Any:
         """
         Update all Q-functions with decomposed rewards.
         
@@ -416,7 +405,7 @@ class DecomposedQFunction:
         """Deserialize from dictionary."""
         qfunc = cls()
         
-        def parse_key(key_str):
+        def parse_key(key_str: Any) -> Any:
             parts = key_str.rsplit('|', 1)
             return (parts[0], parts[1]) if len(parts) == 2 else (key_str, '')
         
@@ -555,20 +544,13 @@ class SwarmTaskBoard:
     checkpoints: List[Dict] = field(default_factory=list)
     last_checkpoint: Optional[datetime] = None
     
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not self.todo_id:
             self.todo_id = hashlib.md5(
                 f"{self.root_task}:{datetime.now().isoformat()}".encode()
             ).hexdigest()
     
-    def add_task(self,
-                 task_id: str,
-                 description: str,
-                 actor: str = "",
-                 depends_on: List[str] = None,
-                 estimated_duration: float = 60.0,
-                 priority: float = 1.0,
-                 max_attempts: int = 3):
+    def add_task(self, task_id: str, description: str, actor: str = '', depends_on: List[str] = None, estimated_duration: float = 60.0, priority: float = 1.0, max_attempts: int = 3) -> Any:
         """
         Add a subtask - NO HARDCODING.
 
@@ -592,14 +574,14 @@ class SwarmTaskBoard:
         self._update_blocks()
         self._estimate_remaining()
     
-    def _update_blocks(self):
+    def _update_blocks(self) -> Any:
         """Update which tasks block which."""
         for task_id, task in self.subtasks.items():
             for dep_id in task.depends_on:
                 if dep_id in self.subtasks:
                     self.subtasks[dep_id].blocks.append(task_id)
     
-    def get_next_task(self, q_predictor=None, current_state=None, goal=None, epsilon=0.1) -> Optional[SubtaskState]:
+    def get_next_task(self, q_predictor: Any = None, current_state: Any = None, goal: Any = None, epsilon: Any = 0.1) -> Optional[SubtaskState]:
         """
         Get next task OBJECT that can be started.
 
@@ -741,7 +723,7 @@ class SwarmTaskBoard:
                 self.failed_tasks.add(task_id)
             self._estimate_remaining()
     
-    def _estimate_remaining(self):
+    def _estimate_remaining(self) -> Any:
         """Estimate remaining steps and completion probability."""
         remaining = [
             t for t in self.subtasks.values()
@@ -985,8 +967,7 @@ class SwarmTaskBoard:
         if task_id in self.subtasks:
             self.subtasks[task_id].intermediary_values.update(values)
     
-    def predict_next(self, task_id: str, next_task_id: Optional[str] = None,
-                    duration: Optional[float] = None, reward: Optional[float] = None):
+    def predict_next(self, task_id: str, next_task_id: Optional[str] = None, duration: Optional[float] = None, reward: Optional[float] = None) -> Any:
         """
         Record predictions for trajectory planning.
         
@@ -1032,7 +1013,7 @@ class ThoughtLevelCredit:
     Dr. Chen: "CoT steps should get individual credit"
     """
     
-    def __init__(self, config: Dict = None):
+    def __init__(self, config: Dict = None) -> None:
         self.config = config or {}
         self.temporal_weight = self.config.get('temporal_weight', 0.3)
         self.tool_weight = self.config.get('tool_weight', 0.4)
@@ -1197,7 +1178,7 @@ class StateCheckpointer:
     enable resume from any checkpoint.
     """
     
-    def __init__(self, checkpoint_dir: str = "agent_generated/checkpoints"):
+    def __init__(self, checkpoint_dir: str = 'agent_generated/checkpoints') -> None:
         self.checkpoint_dir = Path(checkpoint_dir)
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
     
@@ -1275,7 +1256,7 @@ class StateCheckpointer:
 # =============================================================================
 
 _TrajectoryPredictorSignature = None
-def _get_trajectory_predictor_signature():
+def _get_trajectory_predictor_signature() -> Any:
     global _TrajectoryPredictorSignature
     if _TrajectoryPredictorSignature is None:
         dspy = _get_dspy()
@@ -1301,7 +1282,7 @@ class TrajectoryPredictor:
     to enable look-ahead planning.
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         self.predictor = _get_dspy().ChainOfThought(_get_trajectory_predictor_signature())
         self.prediction_history: List[Dict] = []
     

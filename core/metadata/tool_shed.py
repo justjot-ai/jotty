@@ -130,7 +130,7 @@ class AgenticToolSelector:
     This replaces regex/keyword matching with pure reasoning.
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         if DSPY_AVAILABLE:
             self.selector = dspy.ChainOfThought(ToolSelectionSignature)
         else:
@@ -200,7 +200,7 @@ class CapabilityIndex:
     - Automatic tool chaining based on I/O compatibility
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         # type/field → list of producers
         self.producers: Dict[str, List[str]] = {}
         # producer → list of what it produces
@@ -296,7 +296,7 @@ class ToolShed:
     - Usage statistics for learning
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         self.tools: Dict[str, Callable] = {}
         self.schemas: Dict[str, ToolShedSchema] = {}
         self.capability_index = CapabilityIndex()
@@ -311,14 +311,7 @@ class ToolShed:
         
         logger.info(" ToolShed initialized (agentic discovery, no hardcoding)")
     
-    def register(
-        self,
-        tool: Callable,
-        name: Optional[str] = None,
-        description: Optional[str] = None,
-        produces: Optional[List[str]] = None,
-        consumes: Optional[List[str]] = None,
-    ):
+    def register(self, tool: Callable, name: Optional[str] = None, description: Optional[str] = None, produces: Optional[List[str]] = None, consumes: Optional[List[str]] = None) -> Any:
         """
         Register a tool with automatic schema extraction.
         
@@ -426,12 +419,7 @@ class ToolShed:
             current_context=context or {},
         )
     
-    def call(
-        self,
-        tool_name: str,
-        use_cache: bool = True,
-        **kwargs
-    ) -> ToolResult:
+    def call(self, tool_name: str, use_cache: bool = True, **kwargs: Any) -> ToolResult:
         """
         Call a tool with caching and statistics.
         
@@ -502,7 +490,7 @@ class ToolShed:
                 latency=latency,
             )
     
-    def _update_stats(self, tool_name: str, success: bool, latency: float):
+    def _update_stats(self, tool_name: str, success: bool, latency: float) -> Any:
         """Update usage statistics."""
         if tool_name not in self.call_stats:
             self.call_stats[tool_name] = {

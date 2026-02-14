@@ -32,14 +32,7 @@ class WorkflowUseCase(BaseUseCase):
         task_id = await workflow.enqueue(goal="...", priority=5)
     """
     
-    def __init__(
-        self,
-        conductor: Any,
-        mode: str = "dynamic",
-        agent_order: Optional[list] = None,
-        config: Optional[UseCaseConfig] = None,
-        context: Optional[WorkflowContext] = None
-    ):
+    def __init__(self, conductor: Any, mode: str = 'dynamic', agent_order: Optional[list] = None, config: Optional[UseCaseConfig] = None, context: Optional[WorkflowContext] = None) -> None:
         """
         Initialize workflow use case.
         
@@ -70,13 +63,7 @@ class WorkflowUseCase(BaseUseCase):
         """Return workflow use case type."""
         return UseCaseType.WORKFLOW
     
-    async def execute(
-        self,
-        goal: str,
-        context: Optional[Dict[str, Any]] = None,
-        max_iterations: int = 100,
-        **kwargs
-    ) -> UseCaseResult:
+    async def execute(self, goal: str, context: Optional[Dict[str, Any]] = None, max_iterations: int = 100, **kwargs: Any) -> UseCaseResult:
         """
         Execute workflow synchronously.
         
@@ -123,13 +110,7 @@ class WorkflowUseCase(BaseUseCase):
                 execution_time=execution_time
             )
     
-    async def stream(
-        self,
-        goal: str,
-        context: Optional[Dict[str, Any]] = None,
-        max_iterations: int = 100,
-        **kwargs
-    ) -> AsyncIterator[Dict[str, Any]]:
+    async def stream(self, goal: str, context: Optional[Dict[str, Any]] = None, max_iterations: int = 100, **kwargs: Any) -> AsyncIterator[Dict[str, Any]]:
         """
         Execute workflow with streaming.
         
@@ -149,13 +130,7 @@ class WorkflowUseCase(BaseUseCase):
         ):
             yield event
     
-    async def enqueue(
-        self,
-        goal: str,
-        context: Optional[Dict[str, Any]] = None,
-        priority: int = 3,
-        **kwargs
-    ) -> str:
+    async def enqueue(self, goal: str, context: Optional[Dict[str, Any]] = None, priority: int = 3, **kwargs: Any) -> str:
         """
         Enqueue workflow task for asynchronous execution.
         

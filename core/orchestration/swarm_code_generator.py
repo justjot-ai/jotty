@@ -35,7 +35,7 @@ class SwarmCodeGenerator:
     DRY Principle: Reuses existing code templates and patterns from skills.
     """
     
-    def __init__(self, config=None):
+    def __init__(self, config: Any = None) -> None:
         """
         Initialize SwarmCodeGenerator.
         
@@ -45,7 +45,7 @@ class SwarmCodeGenerator:
         self.config = config
         self._planner = None
     
-    def _init_dependencies(self):
+    def _init_dependencies(self) -> Any:
         """Lazy load dependencies (DRY: avoid circular imports)."""
         if self._planner is None:
             from Jotty.core.agents.agentic_planner import TaskPlanner

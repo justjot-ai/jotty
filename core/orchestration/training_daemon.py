@@ -29,7 +29,7 @@ class TrainingDaemon:
     for access to learning pipeline and run() method.
     """
 
-    def __init__(self, manager):
+    def __init__(self, manager: Any) -> None:
         self._manager = manager
         self._daemon_task: Optional[asyncio.Task] = None
         self._results: List[EpisodeResult] = []
@@ -132,7 +132,7 @@ class TrainingDaemon:
 
         self._results = []
 
-        async def _daemon():
+        async def _daemon() -> Any:
             try:
                 results = await self.start_training_loop(
                     max_tasks=max_tasks,

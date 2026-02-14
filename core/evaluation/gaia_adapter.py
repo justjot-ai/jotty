@@ -13,7 +13,7 @@ import asyncio
 import logging
 import os
 import threading
-from typing import Callable, Optional
+from typing import Callable, Optional, Any
 
 # Ensure ANTHROPIC_API_KEY is in the environment for DSPy/litellm.
 # The native Anthropic SDK picks it up from .env files, but litellm doesn't.
@@ -41,7 +41,7 @@ if not os.environ.get("ANTHROPIC_API_KEY"):
 logger = logging.getLogger(__name__)
 
 
-def _extract_answer_from_output(output) -> str:
+def _extract_answer_from_output(output: Any) -> str:
     """
     Extract the answer string from ExecutionResult.output for GAIA scoring.
 
@@ -201,15 +201,7 @@ class JottyGAIAAdapter:
         cost = adapter.last_result.cost_usd
     """
 
-    def __init__(
-        self,
-        tier: Optional[str] = None,
-        model: Optional[str] = None,
-        dry_run: bool = False,
-        use_llm_doc_sources: bool = False,
-        progress_callback: Optional[Callable[[str, str], None]] = None,
-        num_attempts: int = 1,
-    ):
+    def __init__(self, tier: Optional[str] = None, model: Optional[str] = None, dry_run: bool = False, use_llm_doc_sources: bool = False, progress_callback: Optional[Callable[[str, str], None]] = None, num_attempts: int = 1) -> None:
         """
         Args:
             tier: Execution tier name (DIRECT, AGENTIC, etc.). None = DIRECT (tool-calling optimized for GAIA).
@@ -245,19 +237,28 @@ class JottyGAIAAdapter:
         self._load_strategy_stats()
 
         # RL Learning: Use Jotty's TD-Lambda for online learning
-        from Jotty.core.learning import get_td_lambda
-        self._td_learner = get_td_lambda()  # TD(λ) with eligibility traces
-        logger.info("[RL] TD-Lambda learner initialized (gamma=0.99, λ=0.95)")
+        self._td_learner = None
+        try:
+            from Jotty.core.learning import get_td_lambda
+            self._td_learner = get_td_lambda()  # TD(λ) with eligibility traces
+            logger.info("[RL] TD-Lambda learner initialized (gamma=0.99, λ=0.95)")
+        except Exception as e:
+            logger.warning(f"[RL] TD-Lambda initialization failed: {e}. Using meta-learning only.")
+            self._td_learner = None
 
-    def _get_jotty(self):
+    def _get_jotty(self) -> Any:
         """Lazy-initialize the Jotty instance (call from main thread only for dry_run; else from loop thread)."""
         if self._jotty is None:
             import os
             from pathlib import Path
 
-            # Load Jotty/.env so ANTHROPIC_API_KEY etc. are available
+            # Load Jotty/.env or .env.anthropic so ANTHROPIC_API_KEY etc. are available
             # (may not be in the environment when run from CI or Claude Code)
-            env_path = Path(__file__).resolve().parent.parent.parent / '.env'
+            base_path = Path(__file__).resolve().parent.parent.parent
+            env_path = base_path / '.env.anthropic'
+            if not env_path.exists():
+                env_path = base_path / '.env'
+
             if env_path.exists() and not os.environ.get('ANTHROPIC_API_KEY'):
                 for line in env_path.read_text().splitlines():
                     line = line.strip()
@@ -329,7 +330,7 @@ class JottyGAIAAdapter:
                     parts.append(f"Attached file: {path}\nUse read_file to read this file.")
         return "\n".join(parts)
 
-    def run(self, question: str, attachment_paths: Optional[list] = None, **kwargs) -> str:
+    def run(self, question: str, attachment_paths: Optional[list] = None, **kwargs: Any) -> str:
         """
         Synchronous entry point for GAIABenchmark.evaluate_task().
 
@@ -523,19 +524,20 @@ class JottyGAIAAdapter:
             score = 0.0
 
             # RL LEARNING: Query TD-Lambda Q-values for this (state, action)
-            state = {'question_type': question_type, 'attempt_num': i + 1}
-            action = {
-                'strategy': str(strategy),
-                'temperature': 0.0 if strategy == 1 else (0.5 if strategy == 2 else 0.3),
-            }
-            try:
-                q_value = self._td_learner.get_value(state, action)
-                if q_value is not None and q_value != 0:
-                    rl_boost = q_value * 100  # Scale Q-value to score range
-                    score += rl_boost
-                    logger.info(f"[RL] Strategy {strategy} Q-value={q_value:.3f} → score_boost={rl_boost:.1f}")
-            except Exception as e:
-                logger.debug(f"[RL] Could not get Q-value: {e}")
+            if self._td_learner:
+                state = {'question_type': question_type, 'attempt_num': i + 1}
+                action = {
+                    'strategy': str(strategy),
+                    'temperature': 0.0 if strategy == 1 else (0.5 if strategy == 2 else 0.3),
+                }
+                try:
+                    q_value = self._td_learner.get_value(state, action)
+                    if q_value is not None and q_value != 0:
+                        rl_boost = q_value * 100  # Scale Q-value to score range
+                        score += rl_boost
+                        logger.info(f"[RL] Strategy {strategy} Q-value={q_value:.3f} → score_boost={rl_boost:.1f}")
+                except Exception as e:
+                    logger.debug(f"[RL] Could not get Q-value: {e}")
 
             # META-LEARNING: Apply learned strategy preferences based on question type
             if question_type == 'calculation' and strategy == 1:
@@ -599,7 +601,7 @@ class JottyGAIAAdapter:
 
         return best_answer
 
-    def _load_strategy_stats(self):
+    def _load_strategy_stats(self) -> Any:
         """Load strategy performance stats from previous runs."""
         try:
             from pathlib import Path
@@ -611,7 +613,7 @@ class JottyGAIAAdapter:
         except Exception as e:
             logger.warning(f"[Meta-Learning] Could not load strategy stats: {e}")
 
-    def _save_strategy_stats(self):
+    def _save_strategy_stats(self) -> Any:
         """Save strategy performance stats for future runs."""
         try:
             from pathlib import Path
@@ -623,7 +625,7 @@ class JottyGAIAAdapter:
         except Exception as e:
             logger.warning(f"[Meta-Learning] Could not save strategy stats: {e}")
 
-    def record_strategy_outcome(self, question: str, attempts: list, correct_answer: str):
+    def record_strategy_outcome(self, question: str, attempts: list, correct_answer: str) -> Any:
         """
         Record which strategies succeeded/failed for this question type.
         Call this after validation to build learning database + TD-Lambda updates.
@@ -660,16 +662,17 @@ class JottyGAIAAdapter:
                 'terminal': (i == len(attempts) - 1),
             }
 
-            try:
-                self._td_learner.update(
-                    state=state,
-                    action=action,
-                    reward=reward,
-                    next_state=next_state,
-                )
-                logger.info(f"[RL] TD-Lambda updated: {question_type} + Strategy {strategy_num} → reward={reward}")
-            except Exception as e:
-                logger.warning(f"[RL] TD-Lambda update failed: {e}")
+            if self._td_learner:
+                try:
+                    self._td_learner.update(
+                        state=state,
+                        action=action,
+                        reward=reward,
+                        next_state=next_state,
+                    )
+                    logger.info(f"[RL] TD-Lambda updated: {question_type} + Strategy {strategy_num} → reward={reward}")
+                except Exception as e:
+                    logger.warning(f"[RL] TD-Lambda update failed: {e}")
 
         # Save after each recording
         self._save_strategy_stats()
@@ -686,7 +689,7 @@ class JottyGAIAAdapter:
         if self._loop is not None and self._loop_thread is not None and self._loop_thread.is_alive():
             return
 
-        def _run_loop():
+        def _run_loop() -> Any:
             self._loop = asyncio.new_event_loop()
             asyncio.set_event_loop(self._loop)
             self._loop_ready.set()
@@ -699,9 +702,9 @@ class JottyGAIAAdapter:
         if self._loop is None:
             raise RuntimeError("GAIA adapter: event loop thread failed to start")
 
-    def _run_async(self, prompt: str, **kwargs):
+    def _run_async(self, prompt: str, **kwargs: Any) -> Any:
         """Run the async Jotty.run() from sync context using a single long-lived loop."""
-        async def _exec():
+        async def _exec() -> Any:
             # Lazy-init Jotty in the loop thread so it uses this loop (avoids "Event loop is closed").
             jotty = self._get_jotty()
             return await jotty.run(prompt, **kwargs)
@@ -725,11 +728,11 @@ class JottyGAIAAdapter:
         future = asyncio.run_coroutine_threadsafe(_exec(), self._loop)
         return future.result(timeout=300)  # 5 min per task
 
-    def _run_async_standalone(self, prompt: str, **kwargs):
+    def _run_async_standalone(self, prompt: str, **kwargs: Any) -> Any:
         """Run in a fresh loop (used when already inside another loop)."""
         jotty = self._get_jotty()
 
-        async def _exec():
+        async def _exec() -> Any:
             return await jotty.run(prompt, **kwargs)
 
         return asyncio.run(_exec())

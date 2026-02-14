@@ -91,11 +91,7 @@ class BatchExecutor:
         await executor.flush()
     """
 
-    def __init__(
-        self,
-        config: Optional[LotusConfig] = None,
-        lm_provider: Optional[Any] = None,
-    ):
+    def __init__(self, config: Optional[LotusConfig] = None, lm_provider: Optional[Any] = None) -> None:
         """
         Initialize batch executor.
 
@@ -239,7 +235,7 @@ class BatchExecutor:
             return
 
         # Schedule flush after max_wait_ms
-        async def delayed_flush():
+        async def delayed_flush() -> Any:
             await asyncio.sleep(self.batch_config.max_wait_ms / 1000)
             await self._flush_operation(operation_type)
 
@@ -247,7 +243,7 @@ class BatchExecutor:
         if self._flush_task is None or self._flush_task.done():
             self._flush_task = asyncio.create_task(delayed_flush())
 
-    async def _flush_operation(self, operation_type: str):
+    async def _flush_operation(self, operation_type: str) -> Any:
         """Flush pending items for a specific operation type."""
         async with self._lock:
             items = self._pending.pop(operation_type, [])
@@ -292,7 +288,7 @@ class BatchExecutor:
                 if not item.future.done():
                     item.future.set_exception(e)
 
-    async def flush(self):
+    async def flush(self) -> Any:
         """Flush all pending items."""
         operation_types = list(self._pending.keys())
         for op_type in operation_types:
@@ -378,7 +374,7 @@ class BatchExecutor:
             "pending_by_type": {k: len(v) for k, v in self._pending.items()},
         }
 
-    async def close(self):
+    async def close(self) -> Any:
         """Close executor and flush pending items."""
         await self.flush()
 

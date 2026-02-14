@@ -150,7 +150,7 @@ class CostTracker:
         print(f"Cost per success: ${efficiency.cost_per_success:.4f}")
     """
     
-    def __init__(self, enable_tracking: bool = True):
+    def __init__(self, enable_tracking: bool = True) -> None:
         """
         Initialize cost tracker.
         

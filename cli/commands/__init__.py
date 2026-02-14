@@ -1,3 +1,4 @@
+from typing import Any
 """
 CLI Commands Module
 ===================
@@ -82,7 +83,7 @@ __all__ = [
 ]
 
 
-def register_all_commands(registry: CommandRegistry):
+def register_all_commands(registry: CommandRegistry) -> Any:
     """Register all built-in commands."""
     commands = [
         RunCommand(),

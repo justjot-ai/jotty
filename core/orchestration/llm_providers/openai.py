@@ -14,19 +14,14 @@ from .types import LLMResponse, TextBlock, ToolUseBlock
 class OpenAIProvider(LLMProvider):
     """OpenAI GPT provider (also works for OpenRouter)."""
 
-    def __init__(
-        self,
-        model: str = "gpt-4o",
-        api_key: Optional[str] = None,
-        base_url: Optional[str] = None
-    ):
+    def __init__(self, model: str = 'gpt-4o', api_key: Optional[str] = None, base_url: Optional[str] = None) -> None:
         self.model = model
         self.api_key = api_key or os.environ.get("OPENAI_API_KEY")
         self.base_url = base_url
         self._client = None
 
     @property
-    def client(self):
+    def client(self) -> Any:
         if self._client is None:
             from openai import OpenAI
             kwargs = {"api_key": self.api_key}
@@ -188,7 +183,7 @@ class OpenAIProvider(LLMProvider):
                     converted.append({"role": "assistant", "content": str(content)})
         return converted
 
-    def _parse_response(self, response) -> LLMResponse:
+    def _parse_response(self, response: Any) -> LLMResponse:
         choice = response.choices[0]
         content = []
 
@@ -232,7 +227,7 @@ class OpenAIProvider(LLMProvider):
 class OpenRouterProvider(OpenAIProvider):
     """OpenRouter provider (OpenAI-compatible)."""
 
-    def __init__(self, model: str = "anthropic/claude-3.5-sonnet", api_key: Optional[str] = None):
+    def __init__(self, model: str = 'anthropic/claude-3.5-sonnet', api_key: Optional[str] = None) -> None:
         super().__init__(
             model=model,
             api_key=api_key or os.environ.get("OPENROUTER_API_KEY"),
@@ -243,7 +238,7 @@ class OpenRouterProvider(OpenAIProvider):
 class GroqProvider(OpenAIProvider):
     """Groq provider (OpenAI-compatible)."""
 
-    def __init__(self, model: str = "llama-3.1-70b-versatile", api_key: Optional[str] = None):
+    def __init__(self, model: str = 'llama-3.1-70b-versatile', api_key: Optional[str] = None) -> None:
         super().__init__(
             model=model,
             api_key=api_key or os.environ.get("GROQ_API_KEY"),

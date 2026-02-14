@@ -61,7 +61,7 @@ class TemplateLayout:
 class BaseTemplate(ABC):
     """Abstract base class for all templates."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.name: str = "Base Template"
         self.description: str = "Base template class"
         self.category: str = "general"

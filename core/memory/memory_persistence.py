@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 class MemoryPersistence:
     """Handles persistence of SwarmMemory to disk."""
     
-    def __init__(self, memory: SwarmMemory, persistence_dir: Path):
+    def __init__(self, memory: SwarmMemory, persistence_dir: Path) -> None:
         """
         Initialize memory persistence.
         

@@ -115,7 +115,7 @@ class ModelChatAgent:
         'max_drawdown': ['drawdown', 'max_drawdown', 'mdd'],
     }
 
-    def __init__(self, llm_model: str = ""):
+    def __init__(self, llm_model: str = '') -> None:
         """
         Initialize ModelChatAgent.
 
@@ -129,7 +129,7 @@ class ModelChatAgent:
         self.conversation_history: List[Dict[str, str]] = []
         self._initialized = False
 
-    async def _ensure_initialized(self):
+    async def _ensure_initialized(self) -> Any:
         """Lazy initialization of dependencies."""
         if self._initialized:
             return

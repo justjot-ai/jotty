@@ -302,10 +302,10 @@ Output the full markdown. It should be ready to save as a single file (e.g. scie
 """,
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
-    def detect_problem_type(self, X=None, y=None, **kwargs) -> str:
+    def detect_problem_type(self, X: Any = None, y: Any = None, **kwargs: Any) -> str:
         """Detect if this is a science-teaching request from task/context."""
         task = kwargs.get("task") or kwargs.get("business_context") or ""
         if isinstance(X, str):
@@ -317,7 +317,7 @@ Output the full markdown. It should be ready to save as a single file (e.g. scie
             return "science_teaching"
         return "unknown"
 
-    def validate_inputs(self, **kwargs) -> bool:
+    def validate_inputs(self, **kwargs: Any) -> bool:
         task = kwargs.get("task") or kwargs.get("business_context") or ""
         subject = kwargs.get("subject", "").strip()
         topic = kwargs.get("topic", "").strip()
@@ -328,7 +328,7 @@ Output the full markdown. It should be ready to save as a single file (e.g. scie
             return True
         return bool(subject and topic and student_name)
 
-    def get_prompt(self, prompt_name: str, **format_kwargs) -> str:
+    def get_prompt(self, prompt_name: str, **format_kwargs: Any) -> str:
         defaults = {
             "subject": "Science",
             "topic": "General science topic",

@@ -1,3 +1,4 @@
+from typing import Any
 """
 JOTTY Core Module - Multi-Agent AI Framework
 =============================================
@@ -277,7 +278,7 @@ _LOTUS_NAMES: dict[str, str] = {
 LOTUS_AVAILABLE = False  # Set to True on first successful lotus import
 
 
-def __getattr__(name: str):
+def __getattr__(name: str) -> Any:
     global LOTUS_AVAILABLE
 
     # Standard lazy imports

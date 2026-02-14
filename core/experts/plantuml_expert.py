@@ -347,12 +347,7 @@ State2 --> [*]
     # PUBLIC API
     # =========================================================================
 
-    async def generate_plantuml(
-        self,
-        description: str,
-        diagram_type: str = "sequence",
-        **kwargs
-    ) -> str:
+    async def generate_plantuml(self, description: str, diagram_type: str = 'sequence', **kwargs: Any) -> str:
         """
         Generate a PlantUML diagram using the trained expert agent.
 

@@ -179,7 +179,7 @@ class SwarmTemplate:
     # Template capabilities
     supported_problem_types: List[str] = []
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize template with default configurations."""
         self._context: Dict[str, Any] = {}
         self._results: Dict[str, Any] = {}
@@ -187,7 +187,7 @@ class SwarmTemplate:
         self._best_score: float = 0.0
         self._learning = None  # MASLearning instance, set by Swarm
 
-    def detect_problem_type(self, X, y=None, **kwargs) -> str:
+    def detect_problem_type(self, X: Any, y: Any = None, **kwargs: Any) -> str:
         """
         Auto-detect the problem type from data.
 
@@ -195,7 +195,7 @@ class SwarmTemplate:
         """
         return "unknown"
 
-    def validate_inputs(self, **kwargs) -> bool:
+    def validate_inputs(self, **kwargs: Any) -> bool:
         """
         Validate that all required inputs are provided.
 
@@ -214,7 +214,7 @@ class SwarmTemplate:
                 return stage
         return None
 
-    def get_prompt(self, prompt_name: str, **format_kwargs) -> str:
+    def get_prompt(self, prompt_name: str, **format_kwargs: Any) -> str:
         """Get and format an LLM prompt."""
         prompt = self.llm_prompts.get(prompt_name, "")
         if format_kwargs:
@@ -302,11 +302,11 @@ class SwarmTemplate:
     # Learning Lifecycle Hooks (inherited by ALL templates)
     # =========================================================================
 
-    def set_learning(self, mas_learning) -> None:
+    def set_learning(self, mas_learning: Any) -> None:
         """Attach learning system (called by Swarm before execution)."""
         self._learning = mas_learning
 
-    async def before_execution(self, **kwargs) -> Dict[str, Any]:
+    async def before_execution(self, **kwargs: Any) -> Dict[str, Any]:
         """
         Pre-execution learning phase. Loads relevant past sessions.
         Override in subclass for template-specific learning.
@@ -325,7 +325,7 @@ class SwarmTemplate:
             logger.debug(f"Pre-execution learning failed: {e}")
             return {}
 
-    async def after_execution(self, results: Dict[str, Any], **kwargs):
+    async def after_execution(self, results: Dict[str, Any], **kwargs: Any) -> Any:
         """
         Post-execution learning phase. Records session outcome.
         Override in subclass for template-specific pattern extraction.
@@ -378,14 +378,14 @@ class TemplateExecutor:
     5. Tracks progress
     """
 
-    def __init__(self, template: SwarmTemplate, swarm_manager=None):
+    def __init__(self, template: SwarmTemplate, swarm_manager: Any = None) -> None:
         self.template = template
         self.swarm_manager = swarm_manager
         self._context: Dict[str, Any] = {}
         self._agents: Dict[str, Any] = {}
         self._progress_callback: Optional[Callable] = None
 
-    async def execute(self, **kwargs) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
         """
         Execute the template pipeline.
 
@@ -412,7 +412,7 @@ class TemplateExecutor:
 
         return results
 
-    async def _spawn_agents(self):
+    async def _spawn_agents(self) -> Any:
         """Spawn all agents defined in template."""
         for name, config in self.template.agents.items():
             # Create agent instance (integration with Orchestrator)

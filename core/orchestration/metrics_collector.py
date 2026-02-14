@@ -43,7 +43,7 @@ class TimeWindow:
     (mean, sum, count, percentiles) over configurable time windows.
     """
 
-    def __init__(self, max_age_seconds: float = 3600, max_points: int = 10000):
+    def __init__(self, max_age_seconds: float = 3600, max_points: int = 10000) -> None:
         self.max_age = max_age_seconds
         self.max_points = max_points
         self._points: deque = deque(maxlen=max_points)
@@ -56,7 +56,7 @@ class TimeWindow:
             labels=labels or {}
         ))
 
-    def _prune(self):
+    def _prune(self) -> Any:
         """Remove expired points."""
         cutoff = time.time() - self.max_age
         while self._points and self._points[0].timestamp < cutoff:
@@ -156,7 +156,7 @@ class MetricsCollector:
     # Singleton for process-wide metrics
     _instance: 'MetricsCollector' = None
 
-    def __init__(self, retention_seconds: float = 7200):
+    def __init__(self, retention_seconds: float = 7200) -> None:
         """
         Args:
             retention_seconds: How long to keep data points (default: 2 hours)
@@ -196,26 +196,14 @@ class MetricsCollector:
     # RECORDING METHODS
     # =========================================================================
 
-    def record_task(
-        self,
-        swarm: str,
-        agent: str,
-        task_type: str,
-        success: bool,
-        duration: float = 0.0,
-    ):
+    def record_task(self, swarm: str, agent: str, task_type: str, success: bool, duration: float = 0.0) -> Any:
         """Record a task execution."""
         labels = {'swarm': swarm, 'agent': agent, 'task_type': task_type}
         self.task_success.add(1.0 if success else 0.0, labels)
         self.task_duration.add(duration, labels)
         self.task_count.add(1.0, labels)
 
-    def record_coordination(
-        self,
-        protocol: str,
-        agent: str = "",
-        success: bool = True,
-    ):
+    def record_coordination(self, protocol: str, agent: str = '', success: bool = True) -> Any:
         """
         Record a coordination protocol event.
 
@@ -230,12 +218,7 @@ class MetricsCollector:
             {'protocol': protocol, 'agent': agent}
         )
 
-    def record_learning(
-        self,
-        td_error: float = 0.0,
-        value_update: float = 0.0,
-        task_type: str = "",
-    ):
+    def record_learning(self, td_error: float = 0.0, value_update: float = 0.0, task_type: str = '') -> Any:
         """Record a learning update from TD-Lambda."""
         labels = {'task_type': task_type}
         if td_error != 0.0:
@@ -243,12 +226,7 @@ class MetricsCollector:
         if value_update != 0.0:
             self.learning_updates.add(value_update, labels)
 
-    def record_error(
-        self,
-        category: str,
-        component: str = "",
-        message: str = "",
-    ):
+    def record_error(self, category: str, component: str = '', message: str = '') -> Any:
         """
         Record an error event.
 

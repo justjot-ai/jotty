@@ -1,3 +1,4 @@
+from typing import Any
 """
 JustJot Memory Sync Adapter
 ============================
@@ -192,12 +193,7 @@ class JustJotMemorySyncAdapter:
         'working': 'EPISODIC'    # Working memory is temporary episodic
     }
 
-    def __init__(
-        self,
-        cortex=None,
-        justjot_api_url: str = None,
-        entity_type: str = "agent"
-    ):
+    def __init__(self, cortex: Any = None, justjot_api_url: str = None, entity_type: str = 'agent') -> None:
         """
         Initialize sync adapter.
 
@@ -220,7 +216,7 @@ class JustJotMemorySyncAdapter:
             f"api_url={self.api_url}, entity_type={self.entity_type}"
         )
 
-    def level_to_cognitive_type(self, level) -> str:
+    def level_to_cognitive_type(self, level: Any) -> str:
         """
         Map Jotty 5-level to JustJot 4-type cognitive type.
 
@@ -238,7 +234,7 @@ class JustJotMemorySyncAdapter:
 
         return self.LEVEL_TO_COGNITIVE_TYPE.get(level_str, 'episodic')
 
-    def cognitive_type_to_level(self, cognitive_type: str):
+    def cognitive_type_to_level(self, cognitive_type: str) -> Any:
         """
         Map JustJot 4-type cognitive type to Jotty 5-level.
 
@@ -331,7 +327,7 @@ class JustJotMemorySyncAdapter:
 
         return {goal: {'value': value, 'access_count': access_count}}
 
-    def sync_to_justjot(self, memory_entry) -> JustJotMemory:
+    def sync_to_justjot(self, memory_entry: Any) -> JustJotMemory:
         """
         Transform Jotty MemoryEntry → JustJot Memory format.
 
@@ -396,7 +392,7 @@ class JustJotMemorySyncAdapter:
             metadata=metadata
         )
 
-    def sync_from_justjot(self, justjot_memory: JustJotMemory):
+    def sync_from_justjot(self, justjot_memory: JustJotMemory) -> Any:
         """
         Transform JustJot Memory → Jotty MemoryEntry format.
 
@@ -479,7 +475,7 @@ class JustJotMemorySyncAdapter:
             }
         }
 
-    async def push_to_justjot(self, memory_entry) -> bool:
+    async def push_to_justjot(self, memory_entry: Any) -> bool:
         """
         Push a single Jotty memory to JustJot API.
 
@@ -517,7 +513,7 @@ class JustJotMemorySyncAdapter:
             logger.error(f"Push to JustJot failed: {e}", exc_info=True)
             return False
 
-    def _push_sync(self, memory_entry) -> bool:
+    def _push_sync(self, memory_entry: Any) -> bool:
         """Synchronous push using requests."""
         try:
             import requests

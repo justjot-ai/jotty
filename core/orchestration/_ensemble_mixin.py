@@ -15,13 +15,7 @@ logger = logging.getLogger(__name__)
 class EnsembleMixin:
     """Mixin for prompt ensemble execution."""
 
-    async def _execute_ensemble(
-        self,
-        goal: str,
-        strategy: str = 'multi_perspective',
-        status_callback=None,
-        max_perspectives: int = 4,
-    ) -> Dict[str, Any]:
+    async def _execute_ensemble(self, goal: str, strategy: str = 'multi_perspective', status_callback: Any = None, max_perspectives: int = 4) -> Dict[str, Any]:
         """
         Execute prompt ensembling for multi-perspective analysis.
 
@@ -34,7 +28,7 @@ class EnsembleMixin:
         - gsa: Generative Self-Aggregation
         - debate: Multi-round argumentation
         """
-        def _status(stage: str, detail: str = ""):
+        def _status(stage: str, detail: str = '') -> Any:
             if status_callback:
                 try:
                     status_callback(stage, detail)
@@ -86,7 +80,7 @@ class EnsembleMixin:
             from concurrent.futures import ThreadPoolExecutor, as_completed
             responses = {}
 
-            def _gen_perspective(name, prefix) -> Tuple:
+            def _gen_perspective(name: Any, prefix: Any) -> Tuple:
                 prompt = f"{prefix}\n\n{goal}"
                 response = lm(prompt=prompt)
                 return name, response[0] if isinstance(response, list) else str(response)
@@ -137,7 +131,7 @@ Provide a structured synthesis with:
             logger.error(f"Ensemble execution failed: {e}", exc_info=True)
             return {'success': False, 'error': str(e)}
 
-    def _should_auto_ensemble(self, goal: str):
+    def _should_auto_ensemble(self, goal: str) -> tuple[bool, int]:
         """
         Decide if auto-ensemble is beneficial and with how many perspectives.
 

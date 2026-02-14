@@ -114,15 +114,11 @@ class PerspectiveLearningSwarm(DomainSwarm):
         (NarrativeEditorAgent, "NarrativeEditor", "_narrative_editor"),
     )
 
-    def __init__(self, config: PerspectiveLearningConfig = None):
+    def __init__(self, config: PerspectiveLearningConfig = None) -> None:
         super().__init__(config or PerspectiveLearningConfig())
         self._optimization_mode = self.config.optimization_mode
 
-    async def _execute_domain(
-        self,
-        topic: str = None,
-        **kwargs
-    ) -> PerspectiveLearningResult:
+    async def _execute_domain(self, topic: str = None, **kwargs: Any) -> PerspectiveLearningResult:
         """Execute learning content generation."""
         return await self.teach(topic=topic, **kwargs)
 
@@ -230,7 +226,7 @@ class PerspectiveLearningSwarm(DomainSwarm):
         # ==============================================================
         semaphore = asyncio.Semaphore(config.max_concurrent_llm)
 
-        async def rate_limited(coro):
+        async def rate_limited(coro: Any) -> Any:
             async with semaphore:
                 return await coro
 
@@ -479,7 +475,7 @@ class PerspectiveLearningSwarm(DomainSwarm):
         pdf_path = None
         html_path = None
 
-        async def _noop():
+        async def _noop() -> Any:
             return None
 
         output_results = await executor.run_parallel(
@@ -931,15 +927,7 @@ class PerspectiveLearningSwarm(DomainSwarm):
     # TELEGRAM
     # =========================================================================
 
-    async def _send_to_telegram(
-        self,
-        topic: str,
-        student_name: str,
-        content: LessonContent,
-        full_content: str,
-        pdf_path: Optional[str] = None,
-        html_path: Optional[str] = None,
-    ):
+    async def _send_to_telegram(self, topic: str, student_name: str, content: LessonContent, full_content: str, pdf_path: Optional[str] = None, html_path: Optional[str] = None) -> Any:
         """Send lesson summary + PDF + HTML to Telegram."""
         if not TELEGRAM_AVAILABLE:
             logger.warning("Telegram tools not available")

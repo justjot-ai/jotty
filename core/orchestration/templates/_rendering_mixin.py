@@ -323,7 +323,7 @@ window.addEventListener('scroll', () => {{
         html = re.sub(r'`(.+?)`', r'<code>\1</code>', html)
 
         # Images - convert to embedded or chart container
-        def replace_image(match):
+        def replace_image(match: Any) -> Any:
             alt = match.group(1)
             src = match.group(2)
             full_path = self.output_dir / src
@@ -375,7 +375,7 @@ window.addEventListener('scroll', () => {{
         """Convert markdown tables to HTML tables."""
         import re
 
-        def table_replacer(match):
+        def table_replacer(match: Any) -> Any:
             table_text = match.group(0)
             rows = [r.strip() for r in table_text.strip().split('\n') if r.strip()]
 
@@ -711,7 +711,7 @@ header-includes:
             # Track headings for TOC
             heading_entries = []
 
-            def _on_page(canvas, doc_obj):
+            def _on_page(canvas: Any, doc_obj: Any) -> Any:
                 """Add page number and brand to footer."""
                 canvas.saveState()
                 page_num = canvas.getPageNumber()
@@ -757,7 +757,7 @@ header-includes:
             story.append(toc)
             story.append(PageBreak())
 
-            def _render_markdown_inline(text):
+            def _render_markdown_inline(text: Any) -> Any:
                 """Convert basic markdown inline formatting to reportlab XML."""
                 text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', text)
                 text = re.sub(r'(?<!\*)\*([^*]+?)\*(?!\*)', r'<i>\1</i>', text)
@@ -769,7 +769,7 @@ header-includes:
                 text = text.replace('&lt;font', '<font').replace('&lt;/font>', '</font>')
                 return text
 
-            def _parse_md_table(lines):
+            def _parse_md_table(lines: Any) -> Any:
                 """Parse markdown pipe table into list of rows."""
                 rows = []
                 for line in lines:
@@ -906,10 +906,10 @@ header-includes:
             # Build with TOC notification
             class _TOCBuilder:
                 """Handles TOC heading registration during multiBuild."""
-                def __init__(self, toc_obj):
+                def __init__(self, toc_obj: Any) -> None:
                     self._toc = toc_obj
 
-                def afterFlowable(self, flowable) -> None:
+                def afterFlowable(self, flowable: Any) -> None:
                     if isinstance(flowable, Paragraph):
                         style_name = flowable.style.name
                         if style_name == 'ReportH1':

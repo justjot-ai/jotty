@@ -123,13 +123,7 @@ class LLMCallCache:
     _instances: Dict[str, 'LLMCallCache'] = {}
     _instances_lock = threading.Lock()
 
-    def __init__(
-        self,
-        max_size: int = 1000,
-        default_ttl: float = 3600.0,  # 1 hour
-        persist_path: Optional[str] = None,
-        enabled: bool = True
-    ):
+    def __init__(self, max_size: int = 1000, default_ttl: float = 3600.0, persist_path: Optional[str] = None, enabled: bool = True) -> None:
         """
         Initialize LLM call cache.
 
@@ -163,7 +157,7 @@ class LLMCallCache:
         )
 
     @classmethod
-    def get_instance(cls, name: str = "default", **kwargs) -> 'LLMCallCache':
+    def get_instance(cls, name: str = 'default', **kwargs: Any) -> 'LLMCallCache':
         """
         Get a singleton cache instance by name (thread-safe, double-checked locking).
 
@@ -185,13 +179,7 @@ class LLMCallCache:
         """Reset all cached instances (for testing)."""
         cls._instances.clear()
 
-    def _compute_hash(
-        self,
-        prompt: str,
-        model: str = "",
-        temperature: float = 0.0,
-        **extra_context
-    ) -> str:
+    def _compute_hash(self, prompt: str, model: str = '', temperature: float = 0.0, **extra_context: Any) -> str:
         """
         Compute cache key hash from prompt and parameters.
 
@@ -321,15 +309,7 @@ class LLMCallCache:
             self._stats.evictions += 1
             logger.debug(f"Cache EVICT: {oldest_key[:8]}...")
 
-    def get_or_call(
-        self,
-        prompt: str,
-        llm_func: Callable[[str], Any],
-        model: str = "",
-        temperature: float = 0.0,
-        ttl: Optional[float] = None,
-        **extra_context
-    ) -> Any:
+    def get_or_call(self, prompt: str, llm_func: Callable[[str], Any], model: str = '', temperature: float = 0.0, ttl: Optional[float] = None, **extra_context: Any) -> Any:
         """
         Get cached response or call LLM function.
 
@@ -374,15 +354,7 @@ class LLMCallCache:
 
         return response
 
-    async def get_or_call_async(
-        self,
-        prompt: str,
-        llm_func: Callable[[str], Any],
-        model: str = "",
-        temperature: float = 0.0,
-        ttl: Optional[float] = None,
-        **extra_context
-    ) -> Any:
+    async def get_or_call_async(self, prompt: str, llm_func: Callable[[str], Any], model: str = '', temperature: float = 0.0, ttl: Optional[float] = None, **extra_context: Any) -> Any:
         """
         Async version of get_or_call.
 
@@ -457,7 +429,7 @@ class LLMCallCache:
             import asyncio
 
             @functools.wraps(func)
-            def sync_wrapper(prompt: str, *args, **kwargs) -> Any:
+            def sync_wrapper(prompt: str, *args: Any, **kwargs: Any) -> Any:
                 return self.get_or_call(
                     prompt=prompt,
                     llm_func=lambda p: func(p, *args, **kwargs),
@@ -467,7 +439,7 @@ class LLMCallCache:
                 )
 
             @functools.wraps(func)
-            async def async_wrapper(prompt: str, *args, **kwargs) -> Any:
+            async def async_wrapper(prompt: str, *args: Any, **kwargs: Any) -> Any:
                 return await self.get_or_call_async(
                     prompt=prompt,
                     llm_func=lambda p: func(p, *args, **kwargs),
@@ -595,7 +567,7 @@ class LLMCallCache:
 # CONVENIENCE FUNCTIONS
 # =============================================================================
 
-def get_cache(name: str = "default", **kwargs) -> LLMCallCache:
+def get_cache(name: str = 'default', **kwargs: Any) -> LLMCallCache:
     """Get a named cache instance."""
     return LLMCallCache.get_instance(name, **kwargs)
 

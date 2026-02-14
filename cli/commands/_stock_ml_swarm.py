@@ -699,7 +699,7 @@ class StockMLQLearner:
     # Q-table persistence path
     Q_TABLE_PATH = Path.home() / ".jotty" / "stock_ml_qtable.json"
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.Q = {}  # State-Action -> (value, count, last_updated)
         self.alpha = 0.1  # Learning rate
         self.gamma = 0.9  # Discount factor (lower for stock ML - focus on immediate)
@@ -708,7 +708,7 @@ class StockMLQLearner:
         # Load existing Q-table
         self._load_q_table()
 
-    def _load_q_table(self):
+    def _load_q_table(self) -> Any:
         """Load Q-table from disk."""
         if self.Q_TABLE_PATH.exists():
             try:
@@ -720,7 +720,7 @@ class StockMLQLearner:
             except:
                 self.Q = {}
 
-    def _save_q_table(self):
+    def _save_q_table(self) -> Any:
         """Save Q-table to disk."""
         self.Q_TABLE_PATH.parent.mkdir(parents=True, exist_ok=True)
         with open(self.Q_TABLE_PATH, 'w') as f:
@@ -848,7 +848,7 @@ class StockMLQLearner:
 
         return max(0.0, min(1.0, reward))
 
-    def update(self, state: str, action: str, reward: float, next_state: str = None):
+    def update(self, state: str, action: str, reward: float, next_state: str = None) -> Any:
         """
         Update Q-value using Q-learning update rule.
 

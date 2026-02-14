@@ -1,3 +1,4 @@
+from typing import Any
 """
 DevOps Swarm - World-Class Infrastructure & Operations
 =======================================================
@@ -115,7 +116,7 @@ class DevOpsConfig(SwarmBaseConfig):
     environment: str = "production"
     region: str = "us-east-1"
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.name = "DevOpsSwarm"
         self.domain = "devops"
 
@@ -335,7 +336,7 @@ class IaCGenerationSignature(dspy.Signature):
 class InfrastructureArchitect(BaseSwarmAgent):
     """Designs cloud infrastructure."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, signature=InfrastructureDesignSignature)
         self._designer = dspy.ChainOfThought(InfrastructureDesignSignature)
         self.learned_context = learned_context
@@ -387,7 +388,7 @@ class InfrastructureArchitect(BaseSwarmAgent):
 class CICDDesigner(BaseSwarmAgent):
     """Designs CI/CD pipelines."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, signature=CICDDesignSignature)
         self._designer = dspy.ChainOfThought(CICDDesignSignature)
         self.learned_context = learned_context
@@ -442,7 +443,7 @@ class CICDDesigner(BaseSwarmAgent):
 class ContainerSpecialist(BaseSwarmAgent):
     """Handles containerization."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, signature=ContainerizationSignature)
         self._specialist = dspy.ChainOfThought(ContainerizationSignature)
         self.learned_context = learned_context
@@ -493,7 +494,7 @@ class ContainerSpecialist(BaseSwarmAgent):
 class SecurityHardener(BaseSwarmAgent):
     """Handles security hardening."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, signature=SecurityHardeningSignature)
         self._hardener = dspy.ChainOfThought(SecurityHardeningSignature)
         self.learned_context = learned_context
@@ -549,7 +550,7 @@ class SecurityHardener(BaseSwarmAgent):
 class MonitoringSpecialist(BaseSwarmAgent):
     """Sets up monitoring and observability."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, signature=MonitoringSetupSignature)
         self._specialist = dspy.ChainOfThought(MonitoringSetupSignature)
         self.learned_context = learned_context
@@ -602,7 +603,7 @@ class MonitoringSpecialist(BaseSwarmAgent):
 class IaCGenerator(BaseSwarmAgent):
     """Generates Infrastructure as Code."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
         super().__init__(memory, context, bus, signature=IaCGenerationSignature)
         self._generator = dspy.ChainOfThought(IaCGenerationSignature)
         self.learned_context = learned_context
@@ -666,14 +667,10 @@ class DevOpsSwarm(DomainSwarm):
     )
     SWARM_SIGNATURE = DevOpsSwarmSignature
 
-    def __init__(self, config: DevOpsConfig = None):
+    def __init__(self, config: DevOpsConfig = None) -> None:
         super().__init__(config or DevOpsConfig())
 
-    async def _execute_domain(
-        self,
-        app_name: str,
-        **kwargs
-    ) -> DevOpsResult:
+    async def _execute_domain(self, app_name: str, **kwargs: Any) -> DevOpsResult:
         """Execute DevOps setup."""
         return await self.design_infrastructure(app_name=app_name, **kwargs)
 
@@ -738,17 +735,7 @@ class DevOpsSwarm(DomainSwarm):
             },
         )
 
-    async def _execute_phases(
-        self,
-        executor,
-        app_name: str,
-        app_type: str,
-        language: str,
-        requirements: str,
-        scale: str,
-        compliance: List[str],
-        config: DevOpsConfig
-    ) -> DevOpsResult:
+    async def _execute_phases(self, executor: Any, app_name: str, app_type: str, language: str, requirements: str, scale: str, compliance: List[str], config: DevOpsConfig) -> DevOpsResult:
         """Execute all DevOps phases using PhaseExecutor.
 
         Args:
@@ -919,7 +906,7 @@ class DevOpsSwarm(DomainSwarm):
 # CONVENIENCE FUNCTIONS
 # =============================================================================
 
-async def deploy(app_name: str, **kwargs) -> DevOpsResult:
+async def deploy(app_name: str, **kwargs: Any) -> DevOpsResult:
     """
     One-liner DevOps setup.
 
@@ -931,7 +918,7 @@ async def deploy(app_name: str, **kwargs) -> DevOpsResult:
     return await swarm.design_infrastructure(app_name=app_name, **kwargs)
 
 
-def deploy_sync(app_name: str, **kwargs) -> DevOpsResult:
+def deploy_sync(app_name: str, **kwargs: Any) -> DevOpsResult:
     """Synchronous DevOps setup."""
     return asyncio.run(deploy(app_name, **kwargs))
 

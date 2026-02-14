@@ -66,7 +66,7 @@ class Column:
     hidden: bool = False
     label: Optional[str] = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Auto-detect semantic properties based on type and name."""
         self._normalize_type()
         self._detect_semantics()

@@ -100,7 +100,7 @@ class BaseMetadataProvider:
         NO manual wrapping, NO hardcoding, COMPLETE genericity.
     """
     
-    def __init__(self, token_budget: int = 50000, enable_caching: bool = True, **kwargs):
+    def __init__(self, token_budget: int = 50000, enable_caching: bool = True, **kwargs: Any) -> None:
         """
         Initialize base provider with auto-registration.
         
@@ -130,7 +130,7 @@ class BaseMetadataProvider:
         logger.info(f"   Token budget: {self._token_budget:,}")
         logger.info(f"   Caching: {'enabled' if self._enable_caching else 'disabled'}")
     
-    def _auto_register_methods(self):
+    def _auto_register_methods(self) -> Any:
         """
         Auto-register all public methods as callable tools.
         
@@ -265,7 +265,7 @@ class BaseMetadataProvider:
         
         # Create wrapper with safeguards
         @functools.wraps(method)
-        def safeguarded_tool(*args, **kwargs):
+        def safeguarded_tool(*args: Any, **kwargs: Any) -> Any:
             """Tool wrapper with budget, caching, and logging."""
             
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -404,13 +404,7 @@ class BaseMetadataProvider:
     # PROTOCOL METHODS (Must be implemented by subclass)
     # =========================================================================
     
-    def get_context_for_actor(
-        self,
-        actor_name: str,
-        query: str,
-        previous_outputs: Optional[Dict[str, Any]] = None,
-        **kwargs
-    ) -> Dict[str, Any]:
+    def get_context_for_actor(self, actor_name: str, query: str, previous_outputs: Optional[Dict[str, Any]] = None, **kwargs: Any) -> Dict[str, Any]:
         """
         Return context/metadata for a specific actor.
         
@@ -425,7 +419,7 @@ class BaseMetadataProvider:
             f"{self.__class__.__name__} must implement get_context_for_actor()"
         )
     
-    def get_swarm_context(self, **kwargs) -> Dict[str, Any]:
+    def get_swarm_context(self, **kwargs: Any) -> Dict[str, Any]:
         """
         Return global context for the entire swarm (optional).
         
@@ -546,7 +540,7 @@ def create_metadata_provider(
     class AutoMetadataProvider(BaseMetadataProvider):
         """Auto-generated metadata provider from directory."""
         
-        def __init__(self):
+        def __init__(self) -> None:
             # Load all files
             self._fields = {}
             for filepath in files:
@@ -573,13 +567,7 @@ def create_metadata_provider(
             logger.info(f"   Fields: {list(self._fields.keys())}")
             logger.info(f"   Actor mappings: {len(self._actor_mappings)}")
         
-        def get_context_for_actor(
-            self,
-            actor_name: str,
-            query: str,
-            previous_outputs: Optional[Dict[str, Any]] = None,
-            **kwargs
-        ) -> Dict[str, Any]:
+        def get_context_for_actor(self, actor_name: str, query: str, previous_outputs: Optional[Dict[str, Any]] = None, **kwargs: Any) -> Dict[str, Any]:
             """Return fields for this actor based on mappings."""
             # Get fields for this actor
             fields = self._actor_mappings.get(actor_name, self._default_fields)

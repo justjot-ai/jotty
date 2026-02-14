@@ -59,7 +59,7 @@ class AgenticParameterResolver(dspy.Module):
     - Zero hardcoding
     """
     
-    def __init__(self, llm: Optional[dspy.LM] = None):
+    def __init__(self, llm: Optional[dspy.LM] = None) -> None:
         super().__init__()
         self.llm = llm or dspy.settings.lm
         

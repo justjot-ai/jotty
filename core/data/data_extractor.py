@@ -35,7 +35,7 @@ class SmartDataExtractor:
     Just works!
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         self.extraction_stats = []  # Track which strategies work
     
     async def extract(
@@ -92,13 +92,13 @@ class SmartDataExtractor:
         })
         return None
     
-    async def _extract_as_string(self, data_source, param_name, context_key) -> Optional[str]:
+    async def _extract_as_string(self, data_source: Any, param_name: Any, context_key: Any) -> Optional[str]:
         """Strategy 1: Direct string"""
         if isinstance(data_source, str) and len(data_source) > 0:
             return data_source
         return None
     
-    async def _extract_as_callable(self, data_source, param_name, context_key) -> Optional[Any]:
+    async def _extract_as_callable(self, data_source: Any, param_name: Any, context_key: Any) -> Optional[Any]:
         """Strategy 2: Callable (function/lambda)"""
         if callable(data_source) and not isinstance(data_source, type):
             result = data_source()
@@ -108,7 +108,7 @@ class SmartDataExtractor:
             return result
         return None
     
-    async def _extract_from_dict_exact(self, data_source, param_name, context_key) -> Optional[Any]:
+    async def _extract_from_dict_exact(self, data_source: Any, param_name: Any, context_key: Any) -> Optional[Any]:
         """Strategy 3: Dict with exact key match"""
         if isinstance(data_source, dict):
             if param_name in data_source:
@@ -120,7 +120,7 @@ class SmartDataExtractor:
                 return value
         return None
     
-    async def _extract_via_method_exact(self, data_source, param_name, context_key) -> Optional[Any]:
+    async def _extract_via_method_exact(self, data_source: Any, param_name: Any, context_key: Any) -> Optional[Any]:
         """Strategy 5: Object with exact method name"""
         if hasattr(data_source, param_name):
             attr = getattr(data_source, param_name)
@@ -130,7 +130,7 @@ class SmartDataExtractor:
             return attr
         return None
     
-    async def _extract_as_attribute(self, data_source, param_name, context_key) -> Optional[Any]:
+    async def _extract_as_attribute(self, data_source: Any, param_name: Any, context_key: Any) -> Optional[Any]:
         """Strategy 7: Object attribute (non-callable)"""
         if hasattr(data_source, param_name):
             attr = getattr(data_source, param_name)
@@ -138,7 +138,7 @@ class SmartDataExtractor:
                 return attr
         return None
     
-    async def _extract_from_file(self, data_source, param_name, context_key) -> Optional[str]:
+    async def _extract_from_file(self, data_source: Any, param_name: Any, context_key: Any) -> Optional[str]:
         """Strategy 8: File path"""
         if isinstance(data_source, (str, Path)):
             path = Path(data_source)
@@ -150,7 +150,7 @@ class SmartDataExtractor:
                     logger.debug(f"  Could not read file {path}: {e}")
         return None
     
-    async def _extract_as_json(self, data_source, param_name, context_key) -> Optional[Any]:
+    async def _extract_as_json(self, data_source: Any, param_name: Any, context_key: Any) -> Optional[Any]:
         """Strategy 9: JSON string"""
         if isinstance(data_source, str):
             try:
@@ -163,7 +163,7 @@ class SmartDataExtractor:
                 pass
         return None
     
-    async def _extract_str_fallback(self, data_source, param_name, context_key) -> Optional[str]:
+    async def _extract_str_fallback(self, data_source: Any, param_name: Any, context_key: Any) -> Optional[str]:
         """Strategy 10: Convert to string (last resort)"""
         try:
             result = str(data_source)

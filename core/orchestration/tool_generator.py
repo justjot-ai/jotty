@@ -67,14 +67,7 @@ class UnifiedToolGenerator:
     a unified set that Claude can choose from with tool_choice="auto".
     """
 
-    def __init__(
-        self,
-        include_input_tools: bool = True,
-        include_output_tools: bool = True,
-        include_visualization_tools: bool = True,
-        include_skills_tools: bool = True,
-        skills_filter: Optional[List[str]] = None
-    ):
+    def __init__(self, include_input_tools: bool = True, include_output_tools: bool = True, include_visualization_tools: bool = True, include_skills_tools: bool = True, skills_filter: Optional[List[str]] = None) -> None:
         """
         Initialize tool generator.
 
@@ -100,7 +93,7 @@ class UnifiedToolGenerator:
         self._skills_registry = None
 
     @property
-    def schema_registry(self):
+    def schema_registry(self) -> Any:
         """Lazy-load schema registry."""
         if self._schema_registry is None:
             try:
@@ -111,7 +104,7 @@ class UnifiedToolGenerator:
         return self._schema_registry
 
     @property
-    def skills_registry(self):
+    def skills_registry(self) -> Any:
         """Lazy-load skills registry."""
         if self._skills_registry is None:
             try:

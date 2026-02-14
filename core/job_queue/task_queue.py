@@ -36,16 +36,7 @@ class TaskQueue(ABC):
         pass
     
     @abstractmethod
-    async def update_status(
-        self,
-        task_id: str,
-        status: str,
-        pid: Optional[int] = None,
-        error: Optional[str] = None,
-        log_file: Optional[str] = None,
-        agent_type: Optional[str] = None,
-        **kwargs
-    ) -> bool:
+    async def update_status(self, task_id: str, status: str, pid: Optional[int] = None, error: Optional[str] = None, log_file: Optional[str] = None, agent_type: Optional[str] = None, **kwargs: Any) -> bool:
         """
         Update task status
         Compatible with supervisor's update_task_status signature
@@ -96,17 +87,7 @@ class TaskQueue(ABC):
         pass
     
     @abstractmethod
-    async def update_task_metadata(
-        self,
-        task_id: str,
-        title: Optional[str] = None,
-        description: Optional[str] = None,
-        priority: Optional[int] = None,
-        category: Optional[str] = None,
-        context_files: Optional[str] = None,
-        agent_type: Optional[str] = None,
-        **kwargs
-    ) -> bool:
+    async def update_task_metadata(self, task_id: str, title: Optional[str] = None, description: Optional[str] = None, priority: Optional[int] = None, category: Optional[str] = None, context_files: Optional[str] = None, agent_type: Optional[str] = None, **kwargs: Any) -> bool:
         """Update task metadata"""
         pass
     
@@ -116,17 +97,7 @@ class TaskQueue(ABC):
         pass
     
     @abstractmethod
-    async def create_task(
-        self,
-        title: str,
-        description: str = "",
-        priority: int = 3,
-        category: str = "",
-        context_files: Optional[str] = None,
-        status: str = "backlog",
-        agent_type: Optional[str] = None,
-        **kwargs
-    ) -> Optional[str]:
+    async def create_task(self, title: str, description: str = '', priority: int = 3, category: str = '', context_files: Optional[str] = None, status: str = 'backlog', agent_type: Optional[str] = None, **kwargs: Any) -> Optional[str]:
         """
         Create a new task
         Returns task_id

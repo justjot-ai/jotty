@@ -56,7 +56,7 @@ class RouteResult:
     stopped_early: bool = False  # True if execution stopped due to failure
     metadata: Dict[str, Any] = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.skills_used is None:
             self.skills_used = []
         if self.agents_used is None:
@@ -99,7 +99,7 @@ class ModeRouter:
     - Logging
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._auto_agent = None
         self._registry = None
         self._initialized = False
@@ -136,7 +136,7 @@ class ModeRouter:
 
         self._initialized = True
 
-    def _get_executor(self, context: Optional[ExecutionContext] = None):
+    def _get_executor(self, context: Optional[ExecutionContext] = None) -> Any:
         """Get ChatExecutor with callbacks from context."""
         from Jotty.core.orchestration.unified_executor import ChatExecutor
         status_cb = context.status_callback if context else None
@@ -431,12 +431,7 @@ class ModeRouter:
     # CONVENIENCE METHODS
     # =========================================================================
 
-    async def chat(
-        self,
-        message: str,
-        context: Optional[ExecutionContext] = None,
-        **kwargs
-    ) -> RouteResult:
+    async def chat(self, message: str, context: Optional[ExecutionContext] = None, **kwargs: Any) -> RouteResult:
         """Execute chat mode."""
         if context is None:
             context = ExecutionContext(
@@ -446,12 +441,7 @@ class ModeRouter:
             )
         return await self.route(message, context.with_mode(ExecutionMode.CHAT))
 
-    async def workflow(
-        self,
-        goal: str,
-        context: Optional[ExecutionContext] = None,
-        **kwargs
-    ) -> RouteResult:
+    async def workflow(self, goal: str, context: Optional[ExecutionContext] = None, **kwargs: Any) -> RouteResult:
         """Execute workflow mode."""
         if context is None:
             context = ExecutionContext(
@@ -461,13 +451,7 @@ class ModeRouter:
             )
         return await self.route(goal, context.with_mode(ExecutionMode.WORKFLOW))
 
-    async def skill(
-        self,
-        skill_name: str,
-        params: Dict[str, Any],
-        context: Optional[ExecutionContext] = None,
-        **kwargs
-    ) -> RouteResult:
+    async def skill(self, skill_name: str, params: Dict[str, Any], context: Optional[ExecutionContext] = None, **kwargs: Any) -> RouteResult:
         """Execute a skill directly."""
         if context is None:
             context = ExecutionContext(
@@ -482,12 +466,7 @@ class ModeRouter:
         )
         return await self.route(request, context.with_mode(ExecutionMode.SKILL))
 
-    async def stream(
-        self,
-        content: str,
-        context: Optional[ExecutionContext] = None,
-        **kwargs
-    ) -> AsyncIterator[SDKEvent]:
+    async def stream(self, content: str, context: Optional[ExecutionContext] = None, **kwargs: Any) -> AsyncIterator[SDKEvent]:
         """
         Stream execution with events.
 

@@ -57,7 +57,7 @@ class ExecutionStep:
 class FactRetrievalExecutor:
     """Optimized executor for fact-retrieval tasks (GAIA benchmark)."""
 
-    def __init__(self, registry=None, lm=None):
+    def __init__(self, registry: Any = None, lm: Any = None) -> None:
         """
         Initialize executor.
 
@@ -69,7 +69,7 @@ class FactRetrievalExecutor:
         self._lm = lm
 
     @property
-    def registry(self):
+    def registry(self) -> Any:
         """Lazy-load registry."""
         if self._registry is None:
             from Jotty.core.registry import get_unified_registry
@@ -77,7 +77,7 @@ class FactRetrievalExecutor:
         return self._registry
 
     @property
-    def lm(self):
+    def lm(self) -> Any:
         """Lazy-load language model."""
         if self._lm is None:
             # Use the already-configured DSPy LM (from benchmark setup)

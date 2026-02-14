@@ -214,7 +214,7 @@ class AdaptiveThreshold:
     Uses running statistics to determine what's "high" or "low".
     """
     
-    def __init__(self, initial_mean: float = 0.5, initial_std: float = 0.2):
+    def __init__(self, initial_mean: float = 0.5, initial_std: float = 0.2) -> None:
         self.mean = initial_mean
         self.std = initial_std
         self.count = 0
@@ -252,7 +252,7 @@ class EpsilonGreedy:
     A-Team Approved: No random.random() > 0.5 fallbacks.
     """
     
-    def __init__(self, initial_epsilon: float = 0.3, decay: float = 0.99, min_epsilon: float = 0.05):
+    def __init__(self, initial_epsilon: float = 0.3, decay: float = 0.99, min_epsilon: float = 0.05) -> None:
         self.epsilon = initial_epsilon
         self.decay = decay
         self.min_epsilon = min_epsilon
@@ -401,7 +401,7 @@ class AdaptiveWeightGroup:
     learned weights that adapt based on feedback.
     """
 
-    def __init__(self, weights: Dict[str, float], learning_rate: float = 0.01):
+    def __init__(self, weights: Dict[str, float], learning_rate: float = 0.01) -> None:
         """
         Initialize with initial weights (will be normalized to sum=1.0).
 
@@ -454,7 +454,7 @@ class AdaptiveWeightGroup:
         # Renormalize all weights to sum to 1.0
         self._renormalize()
 
-    def _renormalize(self):
+    def _renormalize(self) -> Any:
         """Ensure all weights sum to 1.0."""
         total = sum(w.value for w in self._weights.values())
         if total > 0:

@@ -18,7 +18,7 @@ class SupervisorStateManagerAdapter(TaskQueue):
     This allows supervisor to optionally use Jotty's TaskQueue without migration pain
     """
     
-    def __init__(self, state_manager):
+    def __init__(self, state_manager: Any) -> None:
         """
         Initialize adapter with supervisor's StateManager
         
@@ -77,16 +77,7 @@ class SupervisorStateManagerAdapter(TaskQueue):
             return Task.from_dict(task_dict)
         return None
     
-    async def update_status(
-        self,
-        task_id: str,
-        status: str,
-        pid: Optional[int] = None,
-        error: Optional[str] = None,
-        log_file: Optional[str] = None,
-        agent_type: Optional[str] = None,
-        **kwargs
-    ) -> bool:
+    async def update_status(self, task_id: str, status: str, pid: Optional[int] = None, error: Optional[str] = None, log_file: Optional[str] = None, agent_type: Optional[str] = None, **kwargs: Any) -> bool:
         """Update task status"""
         return self.state_manager.update_task_status(
             task_id=task_id,
@@ -129,17 +120,7 @@ class SupervisorStateManagerAdapter(TaskQueue):
         """Update task priority"""
         return self.state_manager.update_task_priority(task_id, priority)
     
-    async def update_task_metadata(
-        self,
-        task_id: str,
-        title: Optional[str] = None,
-        description: Optional[str] = None,
-        priority: Optional[int] = None,
-        category: Optional[str] = None,
-        context_files: Optional[str] = None,
-        agent_type: Optional[str] = None,
-        **kwargs
-    ) -> bool:
+    async def update_task_metadata(self, task_id: str, title: Optional[str] = None, description: Optional[str] = None, priority: Optional[int] = None, category: Optional[str] = None, context_files: Optional[str] = None, agent_type: Optional[str] = None, **kwargs: Any) -> bool:
         """Update task metadata"""
         return self.state_manager.update_task_metadata(
             task_id=task_id,
@@ -155,17 +136,7 @@ class SupervisorStateManagerAdapter(TaskQueue):
         """Delete a task"""
         return self.state_manager.delete_task(task_id)
     
-    async def create_task(
-        self,
-        title: str,
-        description: str = "",
-        priority: int = 3,
-        category: str = "",
-        context_files: Optional[str] = None,
-        status: str = "backlog",
-        agent_type: Optional[str] = None,
-        **kwargs
-    ) -> Optional[str]:
+    async def create_task(self, title: str, description: str = '', priority: int = 3, category: str = '', context_files: Optional[str] = None, status: str = 'backlog', agent_type: Optional[str] = None, **kwargs: Any) -> Optional[str]:
         """Create a new task"""
         return self.state_manager.create_task(
             title=title,

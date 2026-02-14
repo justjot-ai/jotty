@@ -8,7 +8,7 @@ Discovers and loads CLI plugins.
 import logging
 import importlib.util
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Dict, Optional
+from typing import TYPE_CHECKING, List, Dict, Optional, Any
 
 from .base import PluginBase, PluginInfo, SkillPlugin
 
@@ -27,7 +27,7 @@ class PluginLoader:
     - Built-in skill plugins
     """
 
-    def __init__(self, plugin_dir: Optional[str] = None):
+    def __init__(self, plugin_dir: Optional[str] = None) -> None:
         """
         Initialize plugin loader.
 
@@ -133,7 +133,7 @@ class PluginLoader:
 
         return None
 
-    def load_skill_plugins(self, cli: "JottyCLI"):
+    def load_skill_plugins(self, cli: 'JottyCLI') -> Any:
         """
         Load all skills as plugins.
 
@@ -166,7 +166,7 @@ class PluginLoader:
         except Exception as e:
             logger.warning(f"Failed to load skill plugins: {e}")
 
-    def unload(self, name: str, cli: "JottyCLI"):
+    def unload(self, name: str, cli: 'JottyCLI') -> Any:
         """
         Unload a plugin.
 

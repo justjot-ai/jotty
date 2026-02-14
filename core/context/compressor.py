@@ -14,7 +14,7 @@ The compressor UNDERSTANDS the content and preserves what's important!
 """
 
 import dspy
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 import logging
 
 from ..utils.tokenizer import SmartTokenizer
@@ -52,7 +52,7 @@ class AgenticCompressor:
     NO rule-based slicing! Uses LLM to intelligently preserve important information.
     """
     
-    def __init__(self, lm=None):
+    def __init__(self, lm: Any = None) -> None:
         """
         Initialize compressor.
         

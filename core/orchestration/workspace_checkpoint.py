@@ -28,7 +28,7 @@ class WorkspaceCheckpoint:
     # Branch prefix for checkpoint refs (won't clutter normal branches)
     _REF_PREFIX = "refs/jotty-checkpoints/"
 
-    def __init__(self, workspace_dir: str = "."):
+    def __init__(self, workspace_dir: str = '.') -> None:
         self.cwd = str(Path(workspace_dir).resolve())
         self._git_available = self._check_git()
 

@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 _dspy_module = None
 DSPY_AVAILABLE = None  # Determined on first access
 
-def _get_dspy():
+def _get_dspy() -> Any:
     global _dspy_module, DSPY_AVAILABLE
     if DSPY_AVAILABLE is None:
         try:
@@ -108,7 +108,7 @@ class AgenticRewardEvaluator:
     reasons about whether progress conditions are met.
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         sig = _get_reward_condition_signature()
         if sig is not None:
             dspy = _get_dspy()
@@ -258,7 +258,7 @@ class ShapedRewardManager:
         ),
     ]
     
-    def __init__(self, custom_conditions: Optional[List[RewardCondition]] = None):
+    def __init__(self, custom_conditions: Optional[List[RewardCondition]] = None) -> None:
         """
         Initialize with standard + optional custom conditions.
         

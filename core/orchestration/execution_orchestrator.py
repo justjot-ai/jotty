@@ -44,7 +44,7 @@ class ExecutionOrchestrator:
     - Provider management (ProviderManager)
     """
 
-    def __init__(self, manager: 'Orchestrator'):
+    def __init__(self, manager: 'Orchestrator') -> None:
         """Initialize with reference to owning Orchestrator.
 
         Args:
@@ -53,7 +53,7 @@ class ExecutionOrchestrator:
         self._mgr = manager
         self._efficiency_stats: Dict[str, Any] = {}
 
-    async def execute_single(self, goal: str, **kwargs) -> Any:
+    async def execute_single(self, goal: str, **kwargs: Any) -> Any:
         """Execute in single-agent mode.
 
         Delegates to Orchestrator._execute_single_agent for now,
@@ -61,7 +61,7 @@ class ExecutionOrchestrator:
         """
         return await self._mgr._execute_single_agent(goal, **kwargs)
 
-    async def execute_multi(self, goal: str, **kwargs) -> Any:
+    async def execute_multi(self, goal: str, **kwargs: Any) -> Any:
         """Execute in multi-agent mode with paradigm dispatch.
 
         Delegates to Orchestrator._execute_multi_agent for now,
@@ -119,7 +119,7 @@ class ExecutionOrchestrator:
         except Exception as e:
             logger.debug(f"Coordination wiring skipped: {e}")
 
-    def compute_efficiency(self, start_time: float, result, ensemble_time: float = 0) -> Dict[str, float]:
+    def compute_efficiency(self, start_time: float, result: Any, ensemble_time: float = 0) -> Dict[str, float]:
         """Compute execution efficiency metrics.
 
         Args:

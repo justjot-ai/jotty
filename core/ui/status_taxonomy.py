@@ -17,7 +17,7 @@ Usage:
     # Returns: 'In Progress'
 """
 
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 
 
 class StatusTaxonomy:
@@ -61,7 +61,7 @@ class StatusTaxonomy:
         }
     }
 
-    def __init__(self, custom_mapping: Optional[Dict[str, str]] = None):
+    def __init__(self, custom_mapping: Optional[Dict[str, str]] = None) -> None:
         """
         Initialize status taxonomy.
 

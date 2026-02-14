@@ -1,3 +1,4 @@
+from typing import Any
 """
 MemorySystem - Unified Memory Facade
 =====================================
@@ -76,7 +77,7 @@ class MemoryResult:
     timestamp: float = 0.0
     metadata: Dict[str, Any] = field(default_factory=dict)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"[{self.level}] {self.content[:100]}"
 
 
@@ -98,8 +99,7 @@ class MemorySystem:
         └── FallbackMemory (fallback_memory.py) - graceful degradation
     """
 
-    def __init__(self, config: Optional[MemoryConfig] = None,
-                 jotty_config=None):
+    def __init__(self, config: Optional[MemoryConfig] = None, jotty_config: Any = None) -> None:
         """
         Initialize MemorySystem.
 
@@ -137,7 +137,7 @@ class MemorySystem:
         # Fall back
         self._init_fallback()
 
-    def _init_full(self):
+    def _init_full(self) -> Any:
         """Initialize full SwarmMemory backend."""
         from Jotty.core.foundation.data_structures import SwarmConfig, MemoryLevel
         from Jotty.core.foundation.configs.memory import MemoryConfig as FocusedMemoryConfig
@@ -176,7 +176,7 @@ class MemorySystem:
             f"agent={self.config.agent_name}"
         )
 
-    def _init_fallback(self):
+    def _init_fallback(self) -> Any:
         """Initialize fallback memory backend."""
         from .fallback_memory import SimpleFallbackMemory
         self._backend = SimpleFallbackMemory(
@@ -230,7 +230,7 @@ class MemorySystem:
         else:
             return self._store_fallback(content, level, metadata or {})
 
-    def _store_full(self, content, level, goal, metadata, reward):
+    def _store_full(self, content: Any, level: Any, goal: Any, metadata: Any, reward: Any) -> Any:
         """Store using SwarmMemory."""
         from Jotty.core.foundation.data_structures import MemoryLevel
 
@@ -257,7 +257,7 @@ class MemorySystem:
 
         return memory_id or f"mem_{self._store_count}"
 
-    def _store_fallback(self, content, level, metadata):
+    def _store_fallback(self, content: Any, level: Any, metadata: Any) -> Any:
         """Store using SimpleFallbackMemory."""
         from .fallback_memory import MemoryType as FallbackMemoryType
 
@@ -303,7 +303,7 @@ class MemorySystem:
         else:
             return self._retrieve_fallback(query, top_k)
 
-    def _retrieve_full(self, query, goal, top_k, level) -> List:
+    def _retrieve_full(self, query: Any, goal: Any, top_k: Any, level: Any) -> List:
         """Retrieve using SwarmMemory."""
         try:
             # SwarmMemory.retrieve_fast() supports top_k directly
@@ -328,7 +328,7 @@ class MemorySystem:
             logger.warning(f"Full retrieval failed: {e}")
             return []
 
-    def _retrieve_fallback(self, query, top_k) -> List:
+    def _retrieve_fallback(self, query: Any, top_k: Any) -> List:
         """Retrieve using FallbackMemory."""
         try:
             results = self._backend.retrieve(query=query, top_k=top_k)
@@ -390,7 +390,7 @@ class MemorySystem:
             except Exception as e:
                 return {'success': False, 'error': str(e)}
 
-    async def record_episode(self, goal: str, result: Any, reward: float = 0.0):
+    async def record_episode(self, goal: str, result: Any, reward: float = 0.0) -> Any:
         """
         Record a complete episode for learning.
 

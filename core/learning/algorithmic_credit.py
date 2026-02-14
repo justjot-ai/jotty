@@ -27,7 +27,7 @@ import logging
 DSPY_AVAILABLE = True  # Assumed available; checked on first use
 _dspy_module = None
 
-def _get_dspy():
+def _get_dspy() -> Any:
     """Lazy-load DSPy on first use."""
     global _dspy_module, DSPY_AVAILABLE
     if _dspy_module is None:
@@ -63,7 +63,7 @@ class Coalition:
     members: List[str]
     value: float  # Estimated value of this coalition
     
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(frozenset(self.members))
 
 
@@ -110,7 +110,7 @@ class ShapleyValueEstimator:
     - Cache coalition values for efficiency
     """
     
-    def __init__(self, num_samples: int = 20, min_samples: int = 10, max_samples: int = 100):
+    def __init__(self, num_samples: int = 20, min_samples: int = 10, max_samples: int = 100) -> None:
         self.base_samples = num_samples
         self.min_samples = min_samples
         self.max_samples = max_samples
@@ -341,7 +341,7 @@ class DifferenceRewardEstimator:
     - If agent i hurts others, G << G_{-i}, so D_i is negative
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         self.counterfactual_estimator = None  # Lazy-created on first use
         
         logger.info(" DifferenceRewardEstimator initialized")
@@ -442,7 +442,7 @@ class AlgorithmicCreditAssigner:
     - LLM validation of final credits
     """
     
-    def __init__(self, config=None):
+    def __init__(self, config: Any = None) -> None:
         self.shapley_estimator = ShapleyValueEstimator()
         self.difference_estimator = DifferenceRewardEstimator()
         

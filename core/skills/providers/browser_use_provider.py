@@ -49,7 +49,7 @@ class BrowserUseProvider(SkillProvider):
     version = "0.11.0"
     description = "Web automation via browser-use library"
 
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: Dict[str, Any] = None) -> None:
         super().__init__(config)
 
         self.capabilities = [
@@ -114,7 +114,7 @@ class BrowserUseProvider(SkillProvider):
             self.is_available = False
             return False
 
-    async def _setup_llm(self):
+    async def _setup_llm(self) -> Any:
         """Set up LLM for browser-use agent."""
         try:
             # Try to use Claude CLI via our adapter
@@ -240,7 +240,7 @@ class BrowserUseProvider(SkillProvider):
             return await self.execute(f"Navigate to {url} and take a screenshot")
         return await self.execute("Take a screenshot of the current page")
 
-    async def close(self):
+    async def close(self) -> Any:
         """Close the browser."""
         if self._browser:
             try:
@@ -264,7 +264,7 @@ class BrowserUseCompositeProvider(SkillProvider):
     version = "1.0.0"
     description = "Composite browser automation with data processing"
 
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: Dict[str, Any] = None) -> None:
         super().__init__(config)
 
         # Sub-providers

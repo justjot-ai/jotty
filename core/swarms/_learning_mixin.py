@@ -234,7 +234,7 @@ class SwarmLearningMixin:
     # COORDINATION PROTOCOLS (Wire auctions, coalitions, gossip, etc.)
     # =========================================================================
 
-    def _coordinate_pre_execution(self, si) -> Dict[str, Any]:
+    def _coordinate_pre_execution(self, si: Any) -> Dict[str, Any]:
         """
         Run coordination protocols before task execution.
 
@@ -362,14 +362,7 @@ class SwarmLearningMixin:
 
         return coord
 
-    def _coordinate_post_execution(
-        self,
-        si,
-        success: bool,
-        execution_time: float,
-        tools_used: List[str],
-        task_type: str
-    ):
+    def _coordinate_post_execution(self, si: Any, success: bool, execution_time: float, tools_used: List[str], task_type: str) -> Any:
         """
         Run coordination protocols after task execution.
 
@@ -802,7 +795,7 @@ class SwarmLearningMixin:
 
         # Create concrete subclass to bypass ABC restriction
         class _TestSwarm(cls):
-            async def execute(self, *args, **kwargs):
+            async def execute(self, *args: Any, **kwargs: Any) -> Any:
                 pass
 
         # Create minimal swarm instance for testing (no disk I/O beyond tempdir)
@@ -1047,13 +1040,7 @@ class SwarmLearningMixin:
 
         return failures
 
-    def _store_execution_as_improvement(
-        self,
-        success: bool,
-        execution_time: float,
-        tools_used: List[str],
-        task_type: str
-    ):
+    def _store_execution_as_improvement(self, success: bool, execution_time: float, tools_used: List[str], task_type: str) -> Any:
         """
         Store execution outcome as an expert improvement in SwarmMemory.
 
@@ -1124,15 +1111,7 @@ class SwarmLearningMixin:
         except Exception as e:
             logger.debug(f"Failed to store execution improvement (unexpected): {e}")
 
-    async def _post_execute_learning(
-        self,
-        success: bool,
-        execution_time: float,
-        tools_used: List[str],
-        task_type: str,
-        output_data: Dict[str, Any] = None,
-        input_data: Dict[str, Any] = None
-    ):
+    async def _post_execute_learning(self, success: bool, execution_time: float, tools_used: List[str], task_type: str, output_data: Dict[str, Any] = None, input_data: Dict[str, Any] = None) -> Any:
         """
         Post-execution learning hook. Called at end of execute().
 
@@ -1374,17 +1353,7 @@ class SwarmLearningMixin:
 
         return suggestions
 
-    def _record_trace(
-        self,
-        agent_name: str,
-        agent_role: AgentRole,
-        input_data: Dict[str, Any],
-        output_data: Dict[str, Any],
-        execution_time: float,
-        success: bool,
-        error: Optional[str] = None,
-        tools_used: List[str] = None
-    ):
+    def _record_trace(self, agent_name: str, agent_role: AgentRole, input_data: Dict[str, Any], output_data: Dict[str, Any], execution_time: float, success: bool, error: Optional[str] = None, tools_used: List[str] = None) -> Any:
         """Record execution trace for learning and Agent0 feedback."""
         trace = ExecutionTrace(
             agent_name=agent_name,
@@ -1471,13 +1440,7 @@ class SwarmLearningMixin:
             except Exception as e:
                 logger.debug(f"Failed to store trace in memory (unexpected): {e}")
 
-    def record_improvement_outcome(
-        self,
-        suggestion_id: str,
-        success: bool,
-        impact: float,
-        notes: str = ""
-    ):
+    def record_improvement_outcome(self, suggestion_id: str, success: bool, impact: float, notes: str = '') -> Any:
         """Record the outcome of an applied improvement."""
         if self._improvement_history:
             self._improvement_history.record_outcome(suggestion_id, success, impact, notes)

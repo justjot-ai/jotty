@@ -59,7 +59,7 @@ class ArxivLearningSwarm(DomainSwarm):
         (UnifiedLearningAgent, "UnifiedLearner", "_unified_learner"),
     )
 
-    def __init__(self, config: ArxivLearningConfig = None):
+    def __init__(self, config: ArxivLearningConfig = None) -> None:
         super().__init__(config or ArxivLearningConfig())
         # Optimization mode from config: "unified" (fast, 2 LLM calls) or "sequential" (original, 10+ calls)
         self._optimization_mode = self.config.optimization_mode
@@ -77,12 +77,7 @@ class ArxivLearningSwarm(DomainSwarm):
         self._agents_initialized = False  # Force re-init
         logger.info(f" Optimization mode set to: {mode}")
 
-    async def _execute_domain(
-        self,
-        paper_id: str = None,
-        topic: str = None,
-        **kwargs
-    ) -> ArxivLearningResult:
+    async def _execute_domain(self, paper_id: str = None, topic: str = None, **kwargs: Any) -> ArxivLearningResult:
         """Execute learning content generation."""
         return await self.learn(paper_id=paper_id, topic=topic, **kwargs)
 
@@ -141,15 +136,7 @@ class ArxivLearningSwarm(DomainSwarm):
             },
         )
 
-    async def _execute_phases(
-        self,
-        executor,
-        paper_id: str,
-        topic: str,
-        learning_depth: LearningDepth,
-        send_telegram: bool,
-        config,
-    ) -> ArxivLearningResult:
+    async def _execute_phases(self, executor: Any, paper_id: str, topic: str, learning_depth: LearningDepth, send_telegram: bool, config: Any) -> ArxivLearningResult:
         """Execute all ArXiv learning phases using PhaseExecutor.
 
         Args:
@@ -334,7 +321,7 @@ class ArxivLearningSwarm(DomainSwarm):
 
         return result
 
-    async def _fetch_paper(self, paper_id: str, topic: str):
+    async def _fetch_paper(self, paper_id: str, topic: str) -> Any:
         """Fetch paper by ID or topic. Returns PaperInfo or None."""
         paper = None
         if paper_id:
@@ -344,7 +331,7 @@ class ArxivLearningSwarm(DomainSwarm):
             paper = papers[0] if papers else None
         return paper
 
-    async def _extract_concepts(self, paper, config):
+    async def _extract_concepts(self, paper: Any, config: Any) -> Any:
         """Extract concepts from paper with swarm caching. Returns list of Concept."""
         cache_key = f"concepts_{paper.arxiv_id}"
         concepts = None
@@ -373,9 +360,7 @@ class ArxivLearningSwarm(DomainSwarm):
 
         return concepts
 
-    async def _generate_content(
-        self, executor, paper, concepts, learning_depth, config
-    ) -> Dict[str, Any]:
+    async def _generate_content(self, executor: Any, paper: Any, concepts: Any, learning_depth: Any, config: Any) -> Dict[str, Any]:
         """Generate content using the appropriate optimization mode.
 
         Dispatches to parallel_deep, unified, parallel, or sequential mode
@@ -401,7 +386,7 @@ class ArxivLearningSwarm(DomainSwarm):
         else:
             return await self._content_sequential(executor, paper, concepts, learning_depth, config)
 
-    async def _content_parallel_deep(self, executor, paper, concepts, config) -> Dict[str, Any]:
+    async def _content_parallel_deep(self, executor: Any, paper: Any, concepts: Any, config: Any) -> Dict[str, Any]:
         """Parallel deep mode: full quality with parallel per-concept generation."""
         # Check cache first
         content_cache_key = f"parallel_deep_{paper.arxiv_id}_{config.audience.value}_{len(concepts)}"
@@ -442,7 +427,7 @@ class ArxivLearningSwarm(DomainSwarm):
             'polished': {'polished_content': draft_content},
         }
 
-    async def _content_unified(self, executor, paper, concepts, config) -> Dict[str, Any]:
+    async def _content_unified(self, executor: Any, paper: Any, concepts: Any, config: Any) -> Dict[str, Any]:
         """Unified mode: single LLM call (experimental, may timeout)."""
         # Check swarm cache for unified content
         content_cache_key = f"unified_{paper.arxiv_id}_{config.audience.value}_{len(concepts)}"
@@ -483,12 +468,12 @@ class ArxivLearningSwarm(DomainSwarm):
             'polished': {'polished_content': draft_content},
         }
 
-    async def _content_parallel(self, executor, paper, concepts, learning_depth, config) -> Dict[str, Any]:
+    async def _content_parallel(self, executor: Any, paper: Any, concepts: Any, learning_depth: Any, config: Any) -> Dict[str, Any]:
         """Parallel mode: run concept operations with controlled concurrency."""
         # Semaphore to limit concurrent LLM calls
         llm_semaphore = asyncio.Semaphore(2)
 
-        async def rate_limited_call(coro):
+        async def rate_limited_call(coro: Any) -> Any:
             """Wrapper to limit concurrent LLM calls."""
             async with llm_semaphore:
                 return await coro
@@ -565,7 +550,7 @@ class ArxivLearningSwarm(DomainSwarm):
             'polished': {'polished_content': draft_content},
         }
 
-    async def _content_sequential(self, executor, paper, concepts, learning_depth, config) -> Dict[str, Any]:
+    async def _content_sequential(self, executor: Any, paper: Any, concepts: Any, learning_depth: Any, config: Any) -> Dict[str, Any]:
         """Sequential mode: original multi-call approach."""
         # Phase 3: Build intuitions sequentially
         intuitions = {}
@@ -647,7 +632,7 @@ class ArxivLearningSwarm(DomainSwarm):
             'polished': polished,
         }
 
-    def _build_direct_content(self, paper, concepts, intuitions, math_explanations, examples, config) -> str:
+    def _build_direct_content(self, paper: Any, concepts: Any, intuitions: Any, math_explanations: Any, examples: Any, config: Any) -> str:
         """Build content directly from sections without an extra LLM call."""
         draft_parts = []
         draft_parts.append(f"# {paper.title}\n")
@@ -678,7 +663,7 @@ class ArxivLearningSwarm(DomainSwarm):
 
         return '\n'.join(draft_parts)
 
-    def _build_learning_sections(self, paper, concepts, intuitions, math_explanations, examples, config) -> List[LearningSection]:
+    def _build_learning_sections(self, paper: Any, concepts: Any, intuitions: Any, math_explanations: Any, examples: Any, config: Any) -> List[LearningSection]:
         """Build learning sections from generated content data."""
         sections = []
 
@@ -734,7 +719,7 @@ class ArxivLearningSwarm(DomainSwarm):
 
         return sections
 
-    async def _generate_outputs(self, executor, paper, learning_content) -> tuple:
+    async def _generate_outputs(self, executor: Any, paper: Any, learning_content: Any) -> tuple:
         """Generate PDF, PPTX, and HTML outputs in parallel.
 
         Args:
@@ -747,15 +732,15 @@ class ArxivLearningSwarm(DomainSwarm):
         """
         logger.info(" Generating outputs (PDF, PPTX, HTML in parallel)...")
 
-        async def gen_pdf():
+        async def gen_pdf() -> Any:
             return await self._generate_pdf(paper, learning_content)
 
-        async def gen_pptx():
+        async def gen_pptx() -> Any:
             if self.config.generate_pptx:
                 return await self._generate_pptx(paper, learning_content)
             return (None, None)
 
-        async def gen_html():
+        async def gen_html() -> Any:
             if self.config.generate_html:
                 return await self._generate_html(paper, learning_content)
             return None
@@ -858,7 +843,7 @@ class ArxivLearningSwarm(DomainSwarm):
                         concept_intuitions[c.name] = s.content[:500]
 
             # OPTIMIZATION: Generate visualizations in PARALLEL using asyncio.gather
-            async def generate_viz_for_concept(concept):
+            async def generate_viz_for_concept(concept: Any) -> Any:
                 """Generate visualization for a single concept."""
                 try:
                     description_parts = [concept.description, concept.why_it_matters]
@@ -1105,16 +1090,7 @@ class ArxivLearningSwarm(DomainSwarm):
             traceback.print_exc()
             return None
 
-    async def _send_to_telegram(
-        self,
-        paper: PaperInfo,
-        content: LearningContent,
-        full_content: str,
-        pdf_path: Optional[str] = None,
-        pptx_path: Optional[str] = None,
-        pptx_pdf_path: Optional[str] = None,
-        html_path: Optional[str] = None
-    ):
+    async def _send_to_telegram(self, paper: PaperInfo, content: LearningContent, full_content: str, pdf_path: Optional[str] = None, pptx_path: Optional[str] = None, pptx_pdf_path: Optional[str] = None, html_path: Optional[str] = None) -> Any:
         """Send learning content summary, PDF, PPTX, and HTML to Telegram.
 
         Args:

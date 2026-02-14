@@ -66,7 +66,7 @@ class ExecutionContextManager:
         context = ctx.get_context()
     """
 
-    def __init__(self, max_history_size: int = 100_000):
+    def __init__(self, max_history_size: int = 100000) -> None:
         self._history: List[dict] = []
         self._max_history_size = max_history_size
         self._compression_ratio: float = 0.7
@@ -150,7 +150,7 @@ class AutonomousAgent(BaseAgent):
     - Execution behavior
     """
 
-    def __init__(self, config: AutonomousAgentConfig = None):
+    def __init__(self, config: AutonomousAgentConfig = None) -> None:
         """
         Initialize AutonomousAgent.
 
@@ -166,7 +166,7 @@ class AutonomousAgent(BaseAgent):
         self._planner = None
         self._executor = None
 
-    def _ensure_initialized(self):
+    def _ensure_initialized(self) -> Any:
         """Initialize planner, executor, and skills registry."""
         super()._ensure_initialized()
 
@@ -179,7 +179,7 @@ class AutonomousAgent(BaseAgent):
                 logger.warning(f"Could not initialize TaskPlanner: {e}")
 
     @property
-    def planner(self):
+    def planner(self) -> Any:
         """Get the TaskPlanner instance."""
         self._ensure_initialized()
         return self._planner
@@ -265,12 +265,7 @@ class AutonomousAgent(BaseAgent):
     # STEP EXECUTION (delegates to executor)
     # =========================================================================
 
-    async def _execute_step(
-        self,
-        step,
-        outputs: Dict[str, Any],
-        status_callback: Optional[Callable] = None,
-    ) -> Dict[str, Any]:
+    async def _execute_step(self, step: Any, outputs: Dict[str, Any], status_callback: Optional[Callable] = None) -> Dict[str, Any]:
         """Execute a single step via SkillPlanExecutor."""
         return await self.executor.execute_step(step, outputs, status_callback)
 
@@ -278,7 +273,7 @@ class AutonomousAgent(BaseAgent):
     # EVENT EMISSION HELPER
     # =========================================================================
 
-    def _emit(self, event_type: str, **data) -> None:
+    def _emit(self, event_type: str, **data: Any) -> None:
         """Emit an AgentEvent via the global broadcaster."""
         try:
             broadcaster = AgentEventBroadcaster.get_instance()
@@ -294,7 +289,7 @@ class AutonomousAgent(BaseAgent):
     # MAIN EXECUTION (orchestration loop with replanning)
     # =========================================================================
 
-    async def _execute_impl(self, task: str = "", **kwargs) -> Dict[str, Any]:
+    async def _execute_impl(self, task: str = '', **kwargs: Any) -> Dict[str, Any]:
         """
         Execute an autonomous task.
 
@@ -417,7 +412,7 @@ class AutonomousAgent(BaseAgent):
         import asyncio as _asyncio
         status("Analyzing", "inferring task type + discovering skills (parallel)")
 
-        async def _infer_type_async():
+        async def _infer_type_async() -> Any:
             return self._infer_task_type(task)
 
         task_type, all_skills = await _asyncio.gather(
@@ -703,7 +698,7 @@ class AutonomousAgent(BaseAgent):
 
         return outputs, skills_used, errors, warnings, execution_stopped
 
-    def _verify_output_files(self, task: str, outputs: Dict[str, Any]):
+    def _verify_output_files(self, task: str, outputs: Dict[str, Any]) -> Any:
         """Auto-save missing files mentioned in the task."""
         try:
             import re as _re

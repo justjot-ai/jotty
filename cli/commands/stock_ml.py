@@ -374,7 +374,7 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
         # Default to next day up/down
         return {"type": "classification", "days": 1, "desc": "Price up tomorrow"}
 
-    async def _load_stock_data(self, symbol: str, timeframe: str, years: int, cli) -> Optional['pd.DataFrame']:
+    async def _load_stock_data(self, symbol: str, timeframe: str, years: int, cli: Any) -> Optional['pd.DataFrame']:
         """Load stock data from files."""
         import pandas as pd
         from datetime import datetime
@@ -592,7 +592,7 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
 
         return adx
 
-    def _run_backtest(self, df_ohlcv, X, y, model, target_config, symbol, cli) -> Dict[str, Any]:
+    def _run_backtest(self, df_ohlcv: Any, X: Any, y: Any, model: Any, target_config: Any, symbol: Any, cli: Any) -> Dict[str, Any]:
         """Run comprehensive backtesting with Buy & Hold comparison."""
         import pandas as pd
         import numpy as np
@@ -725,7 +725,7 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
         bnh_sortino = (bnh_annual / bnh_downside_std) if bnh_downside_std > 0 else 0
 
         # Max Drawdown
-        def calc_max_drawdown(cumret):
+        def calc_max_drawdown(cumret: Any) -> Any:
             peak = cumret.expanding(min_periods=1).max()
             drawdown = (cumret - peak) / peak
             return drawdown.min() * 100
@@ -797,11 +797,7 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
             'romad_ratio': strategy_romad / bnh_romad if bnh_romad != 0 else 0,
         }
 
-    async def _run_stock_ml(self, X, y, feature_names, target_config, symbol,
-                            max_iterations, cli, use_mlflow=True, experiment_name="stock",
-                            df_ohlcv=None, run_backtest=False, timeframe="day",
-                            generate_report=False, report_template="quantitative",
-                            comprehensive_backtest=False):
+    async def _run_stock_ml(self, X: Any, y: Any, feature_names: Any, target_config: Any, symbol: Any, max_iterations: Any, cli: Any, use_mlflow: Any = True, experiment_name: Any = 'stock', df_ohlcv: Any = None, run_backtest: Any = False, timeframe: Any = 'day', generate_report: Any = False, report_template: Any = 'quantitative', comprehensive_backtest: Any = False) -> Any:
         """Run ML pipeline for stock prediction with auto-MLflow logging and optional backtesting."""
         import pandas as pd
         import numpy as np
@@ -1972,7 +1968,7 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
             return 'Insufficient testing; run more configs'
         return 'Low predictability; may be driven by external factors'
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.Q = {}  # State-Action -> (value, count, last_updated)
         self.alpha = 0.1  # Learning rate
         self.gamma = 0.9  # Discount factor (lower for stock ML - focus on immediate)
@@ -1981,7 +1977,7 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
         # Load existing Q-table
         self._load_q_table()
 
-    def _load_q_table(self):
+    def _load_q_table(self) -> Any:
         """Load Q-table from disk."""
         if self.Q_TABLE_PATH.exists():
             try:
@@ -1993,7 +1989,7 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
             except:
                 self.Q = {}
 
-    def _save_q_table(self):
+    def _save_q_table(self) -> Any:
         """Save Q-table to disk."""
         self.Q_TABLE_PATH.parent.mkdir(parents=True, exist_ok=True)
         with open(self.Q_TABLE_PATH, 'w') as f:
@@ -2121,7 +2117,7 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
 
         return max(0.0, min(1.0, reward))
 
-    def update(self, state: str, action: str, reward: float, next_state: str = None):
+    def update(self, state: str, action: str, reward: float, next_state: str = None) -> Any:
         """
         Update Q-value using Q-learning update rule.
 

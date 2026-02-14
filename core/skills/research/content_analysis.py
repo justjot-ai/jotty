@@ -79,12 +79,12 @@ class PatternCrystallizer:
     SUCCESS_THRESHOLD = 0.7          # Min success rate to crystallize
     STALE_DAYS = 30                  # Prune patterns unused for this long
 
-    def __init__(self, storage_path: Optional[str] = None):
+    def __init__(self, storage_path: Optional[str] = None) -> None:
         self.storage_path = Path(storage_path or Path.home() / ".jotty" / "learned_patterns.json")
         self.patterns: Dict[str, ComponentPattern] = {}
         self._load()
 
-    def _load(self):
+    def _load(self) -> Any:
         """Load patterns from storage."""
         if self.storage_path.exists():
             try:
@@ -95,7 +95,7 @@ class PatternCrystallizer:
             except Exception as e:
                 logger.warning(f"Could not load patterns: {e}")
 
-    def _save(self):
+    def _save(self) -> Any:
         """Save patterns to storage."""
         try:
             self.storage_path.parent.mkdir(parents=True, exist_ok=True)
@@ -360,7 +360,7 @@ class ComponentMapper:
     - Beautiful.ai-style research flow
     """
 
-    def __init__(self, enable_learning: bool = True):
+    def __init__(self, enable_learning: bool = True) -> None:
         self.used_components: List[str] = []
         self.crystallizer = PatternCrystallizer() if enable_learning else None
         self.component_pools = {

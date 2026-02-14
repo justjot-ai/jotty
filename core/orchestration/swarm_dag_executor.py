@@ -26,16 +26,10 @@ class SwarmDAGExecutor:
     executes in parallel stages, and records learnings.
     """
 
-    def __init__(self, swarm: 'Orchestrator'):
+    def __init__(self, swarm: 'Orchestrator') -> None:
         self.swarm = swarm
 
-    async def run(
-        self,
-        implementation_plan: str,
-        available_actors: List[Dict[str, Any]] = None,
-        status_callback=None,
-        **kwargs,
-    ) -> EpisodeResult:
+    async def run(self, implementation_plan: str, available_actors: List[Dict[str, Any]] = None, status_callback: Any = None, **kwargs: Any) -> EpisodeResult:
         """
         Execute a task using DAG-based orchestration.
 
@@ -50,7 +44,7 @@ class SwarmDAGExecutor:
         from Jotty.core.agents.dag_agents import TaskBreakdownAgent, TodoCreatorAgent
         from Jotty.core.agents.auto_agent import AutoAgent
 
-        def _status(stage: str, detail: str = ""):
+        def _status(stage: str, detail: str = '') -> Any:
             if status_callback:
                 try:
                     status_callback(stage, detail)
@@ -160,18 +154,13 @@ class SwarmDAGExecutor:
             },
         )
 
-    async def _execute_stage(
-        self,
-        executable_dag,
-        task_ids: List[str],
-        status_callback=None,
-    ) -> Dict[str, Dict[str, Any]]:
+    async def _execute_stage(self, executable_dag: Any, task_ids: List[str], status_callback: Any = None) -> Dict[str, Dict[str, Any]]:
         """Execute a stage of tasks (potentially in parallel)."""
         from Jotty.core.agents.auto_agent import AutoAgent
 
         results = {}
 
-        async def execute_single_task(task_id: str):
+        async def execute_single_task(task_id: str) -> Any:
             task = executable_dag.markovian_todo.subtasks.get(task_id)
             actor = executable_dag.assignments.get(task_id)
 

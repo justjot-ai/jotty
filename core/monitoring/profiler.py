@@ -73,7 +73,7 @@ class PerformanceProfiler:
         print(f"Slowest: {report.slowest_segments[0].name}")
     """
     
-    def __init__(self, enable_cprofile: bool = False):
+    def __init__(self, enable_cprofile: bool = False) -> None:
         """
         Initialize profiler.
         
@@ -138,7 +138,7 @@ class PerformanceProfiler:
             else:
                 self.current_segment = None
     
-    def profile_function(self, name: Optional[str] = None):
+    def profile_function(self, name: Optional[str] = None) -> Any:
         """
         Decorator to profile a function.
         
@@ -147,11 +147,11 @@ class PerformanceProfiler:
             def my_function():
                 ...
         """
-        def decorator(func: Callable):
+        def decorator(func: Callable) -> Any:
             func_name = name or func.__name__
             
             @wraps(func)
-            def wrapper(*args, **kwargs):
+            def wrapper(*args: Any, **kwargs: Any) -> Any:
                 with self.profile(func_name, {"function": func.__name__}):
                     return func(*args, **kwargs)
             
@@ -237,7 +237,7 @@ class PerformanceProfiler:
             self.profiler = cProfile.Profile()
 
 
-def profile_function(name: Optional[str] = None):
+def profile_function(name: Optional[str] = None) -> Any:
     """
     Standalone decorator for profiling functions.
     

@@ -32,7 +32,7 @@ _dspy = None
 _dspy_lock = threading.Lock()
 
 
-def _get_dspy():
+def _get_dspy() -> Any:
     global _dspy
     if _dspy is None:
         with _dspy_lock:
@@ -100,14 +100,12 @@ class ExperienceLibrary:
     KISS: Just a list with helper methods. No database, no persistence.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.experiences: List[EpisodeExperience] = []
         self.candidates: List[CandidateAnswer] = []
         self._iteration = 0
 
-    def record(self, agent_name: str, sub_goal: str, strategy: str,
-               output_summary: str, success: bool, feedback: str = "",
-               solvability: float = 0.0, completeness: float = 0.0):
+    def record(self, agent_name: str, sub_goal: str, strategy: str, output_summary: str, success: bool, feedback: str = '', solvability: float = 0.0, completeness: float = 0.0) -> Any:
         """Record an experience from this problem's execution."""
         self.experiences.append(EpisodeExperience(
             iteration=self._iteration,
@@ -121,9 +119,7 @@ class ExperienceLibrary:
             completeness=completeness,
         ))
 
-    def add_candidate(self, source: str, agent_name: str, output: Any,
-                      success: bool, confidence: float = 0.5,
-                      execution_time: float = 0.0):
+    def add_candidate(self, source: str, agent_name: str, output: Any, success: bool, confidence: float = 0.5, execution_time: float = 0.0) -> Any:
         """Add a candidate answer to the pool."""
         self.candidates.append(CandidateAnswer(
             source=source,

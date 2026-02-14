@@ -55,7 +55,7 @@ class CurriculumGenerator:
     This enables AUTONOMOUS SKILL IMPROVEMENT without user intervention.
     """
 
-    def __init__(self, config=None, state_manager=None, memory_system=None):
+    def __init__(self, config: Any = None, state_manager: Any = None, memory_system: Any = None) -> None:
         self.config = config
 
         # Agent0: Connect to existing infrastructure (DRY - don't duplicate)
@@ -352,7 +352,7 @@ class CurriculumGenerator:
     # Agent0 Enhancements: Tool-awareness & Memory Integration
     # =========================================================================
 
-    def connect_state_manager(self, state_manager) -> None:
+    def connect_state_manager(self, state_manager: Any) -> None:
         """
         Connect to SwarmStateManager for tool success tracking.
 
@@ -361,7 +361,7 @@ class CurriculumGenerator:
         self._state_manager = state_manager
         logger.debug("CurriculumGenerator connected to SwarmStateManager")
 
-    def connect_memory(self, memory_system) -> None:
+    def connect_memory(self, memory_system: Any) -> None:
         """
         Connect to memory system for weakness detection.
 
@@ -370,14 +370,7 @@ class CurriculumGenerator:
         self._memory_system = memory_system
         logger.debug("CurriculumGenerator connected to memory system")
 
-    def receive_executor_feedback(
-        self,
-        task_id: str,
-        success: bool,
-        tools_used: List[str],
-        execution_time: float = 0.0,
-        error_type: str = None
-    ):
+    def receive_executor_feedback(self, task_id: str, success: bool, tools_used: List[str], execution_time: float = 0.0, error_type: str = None) -> Any:
         """
         Agent0: Receive feedback from executor to adapt curriculum.
 
@@ -571,12 +564,7 @@ class CurriculumGenerator:
     # REPLAY BUFFER: Generate tasks from real past executions
     # =========================================================================
 
-    def generate_replay_task(
-        self,
-        collective_memory,
-        profiles: Dict[str, 'AgentProfile'],
-        target_agent: Optional[str] = None
-    ) -> Optional[SyntheticTask]:
+    def generate_replay_task(self, collective_memory: Any, profiles: Dict[str, 'AgentProfile'], target_agent: Optional[str] = None) -> Optional[SyntheticTask]:
         """
         Generate a training task from REAL past executions (replay buffer).
 
@@ -682,12 +670,7 @@ class CurriculumGenerator:
         )
         return task
 
-    def generate_smart_task(
-        self,
-        profiles: Dict[str, 'AgentProfile'],
-        collective_memory=None,
-        target_agent: Optional[str] = None,
-    ) -> SyntheticTask:
+    def generate_smart_task(self, profiles: Dict[str, 'AgentProfile'], collective_memory: Any = None, target_agent: Optional[str] = None) -> SyntheticTask:
         """
         Smart task generation: prefer replay buffer, fall back to templates.
 
@@ -748,7 +731,7 @@ class CurriculumGenerator:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict, config=None, state_manager=None, memory_system=None) -> 'CurriculumGenerator':
+    def from_dict(cls, data: Dict, config: Any = None, state_manager: Any = None, memory_system: Any = None) -> 'CurriculumGenerator':
         """Deserialize from persistence - restores full learning state."""
         instance = cls(config, state_manager=state_manager, memory_system=memory_system)
         instance.difficulty_by_type = defaultdict(lambda: 0.3, data.get('difficulty_by_type', {}))

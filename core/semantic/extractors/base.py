@@ -26,7 +26,7 @@ class BaseExtractor(ABC):
     - _extract_indexes(table_name): Get indexes (optional)
     """
 
-    def __init__(self, database_type: str = "unknown"):
+    def __init__(self, database_type: str = 'unknown') -> None:
         self.database_type = database_type
         self._schema_cache: Optional[Schema] = None
 
@@ -98,7 +98,7 @@ class BaseExtractor(ABC):
             indexes=indexes
         )
 
-    def _infer_additional_relationships(self, schema: Schema):
+    def _infer_additional_relationships(self, schema: Schema) -> Any:
         """
         Infer relationships from naming conventions.
 

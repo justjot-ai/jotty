@@ -78,7 +78,7 @@ class MLCommand(BaseCommand):
     }
 
     @classmethod
-    def save_mlflow_state(cls, experiment_name: str, run_id: str = None, tracking_uri: str = None):
+    def save_mlflow_state(cls, experiment_name: str, run_id: str = None, tracking_uri: str = None) -> Any:
         """Save MLflow state for later retrieval."""
         cls.MLFLOW_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
         state = {
@@ -100,7 +100,7 @@ class MLCommand(BaseCommand):
                 pass
         return {"experiment_name": "jotty_ml", "last_run_id": None, "tracking_uri": None}
 
-    def _show_leaderboard(self, cli: "JottyCLI"):
+    def _show_leaderboard(self, cli: 'JottyCLI') -> Any:
         """Display dataset leaderboard."""
         cli.renderer.header("Dataset Leaderboard")
         cli.renderer.info("")
@@ -224,17 +224,7 @@ class MLCommand(BaseCommand):
             traceback.print_exc()
             return CommandResult.fail(str(e))
 
-    async def _load_from_database(self,
-                                   query: str,
-                                   target_col: str,
-                                   connection: str = None,
-                                   db_type: str = None,
-                                   host: str = "localhost",
-                                   port: int = None,
-                                   database: str = None,
-                                   user: str = None,
-                                   password: str = None,
-                                   cli: "JottyCLI" = None):
+    async def _load_from_database(self, query: str, target_col: str, connection: str = None, db_type: str = None, host: str = 'localhost', port: int = None, database: str = None, user: str = None, password: str = None, cli: 'JottyCLI' = None) -> Any:
         """Load dataset from database using ConnectorX."""
         import pandas as pd
 
@@ -303,7 +293,7 @@ class MLCommand(BaseCommand):
 
         return X, y, target_col
 
-    async def _load_dataset(self, dataset: str, target_col: Optional[str], cli: "JottyCLI"):
+    async def _load_dataset(self, dataset: str, target_col: Optional[str], cli: 'JottyCLI') -> Any:
         """Load dataset from various sources."""
         import pandas as pd
         import numpy as np
@@ -438,11 +428,7 @@ class MLCommand(BaseCommand):
 
         return X, y, target_col
 
-    async def _run_swarm_ml(self, X, y, context: str, max_iterations: int, cli: "JottyCLI",
-                            use_mlflow: bool = False,
-                            experiment_name: str = "jotty_ml",
-                            tracking_uri: str = None,
-                            dataset_name: str = "unknown") -> Dict[str, Any]:
+    async def _run_swarm_ml(self, X: Any, y: Any, context: str, max_iterations: int, cli: 'JottyCLI', use_mlflow: bool = False, experiment_name: str = 'jotty_ml', tracking_uri: str = None, dataset_name: str = 'unknown') -> Dict[str, Any]:
         """Run the full SwarmML pipeline with optional MLflow tracking."""
         import pandas as pd
         import numpy as np

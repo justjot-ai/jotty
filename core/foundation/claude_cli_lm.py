@@ -39,7 +39,7 @@ class ClaudeCLILM(BaseLM):
     - Returning raw LLM text for DSPy's adapter to parse with [[ ## ]] markers
     """
 
-    def __init__(self, model="", **kwargs):
+    def __init__(self, model: Any = '', **kwargs: Any) -> None:
         """
         Initialize Claude CLI LM.
 
@@ -57,7 +57,7 @@ class ClaudeCLILM(BaseLM):
         self.provider = "claude-cli"
         self.history = []
 
-    def _verify_cli_available(self):
+    def _verify_cli_available(self) -> Any:
         """Check if claude CLI is available."""
         try:
             result = subprocess.run(
@@ -140,7 +140,7 @@ class ClaudeCLILM(BaseLM):
         # Fallback: return raw output as-is
         return raw_output
 
-    def __call__(self, prompt=None, messages=None, **kwargs):
+    def __call__(self, prompt: Any = None, messages: Any = None, **kwargs: Any) -> Any:
         """
         DSPy-compatible call interface.
 
@@ -224,6 +224,6 @@ class ClaudeCLILM(BaseLM):
         # Return in DSPy format (list of response strings)
         return [response_text]
 
-    def inspect_history(self, n=1):
+    def inspect_history(self, n: Any = 1) -> Any:
         """DSPy-compatible history inspection."""
         return self.history[-n:] if self.history else []

@@ -35,9 +35,7 @@ class FairnessMixin:
         - self.figures_dir (Path)
     """
 
-    def add_fairness_audit(self, X, y_true, y_pred, y_prob,
-                           sensitive_features: Dict[str, Any],
-                           labels: List[str] = None):
+    def add_fairness_audit(self, X: Any, y_true: Any, y_pred: Any, y_prob: Any, sensitive_features: Dict[str, Any], labels: List[str] = None) -> Any:
         """
         Add fairness and bias audit for model predictions across sensitive groups.
 
@@ -242,7 +240,7 @@ Group-specific thresholds optimized for equalized odds:
         except Exception as e:
             self._record_section_failure('Fairness Audit', e)
 
-    def _compute_fairness_metrics(self, y_true, y_pred, y_prob, groups) -> Dict:
+    def _compute_fairness_metrics(self, y_true: Any, y_pred: Any, y_prob: Any, groups: Any) -> Dict:
         """Compute comprehensive fairness metrics per group.
 
         Includes: demographic parity, equalized odds, predictive parity,
@@ -323,8 +321,7 @@ Group-specific thresholds optimized for equalized odds:
 
         return metrics
 
-    def _compute_intersectional_fairness(self, y_true, y_pred, y_prob,
-                                          sensitive_features: Dict[str, Any], X) -> Dict:
+    def _compute_intersectional_fairness(self, y_true: Any, y_pred: Any, y_prob: Any, sensitive_features: Dict[str, Any], X: Any) -> Dict:
         """Compute fairness metrics on intersected groups (e.g., gender=F x race=Black).
 
         Only invoked when 2+ sensitive features are provided.
@@ -351,9 +348,7 @@ Group-specific thresholds optimized for equalized odds:
 
         return self._compute_fairness_metrics(y_true, y_pred, y_prob, intersection_groups)
 
-    def _find_fair_thresholds(self, y_true, y_prob, groups,
-                               fairness_criterion='equalized_odds',
-                               min_performance=None) -> Dict:
+    def _find_fair_thresholds(self, y_true: Any, y_prob: Any, groups: Any, fairness_criterion: Any = 'equalized_odds', min_performance: Any = None) -> Dict:
         """Find per-group thresholds to satisfy fairness criterion using scipy optimization.
 
         Args:
@@ -372,7 +367,7 @@ Group-specific thresholds optimized for equalized odds:
         if len(unique_groups) < 2 or y_prob is None:
             return {}
 
-        def _compute_metrics_at_threshold(yt, yp, threshold) -> Dict:
+        def _compute_metrics_at_threshold(yt: Any, yp: Any, threshold: Any) -> Dict:
             preds = (yp >= threshold).astype(int)
             pos_mask = yt == 1
             neg_mask = yt == 0
@@ -421,7 +416,7 @@ Group-specific thresholds optimized for equalized odds:
                 thresholds[str(group)] = 0.5
                 continue
 
-            def objective(threshold):
+            def objective(threshold: Any) -> Any:
                 m = _compute_metrics_at_threshold(yt, yp, threshold)
                 return sum((m[metric] - targets[metric]) ** 2 for metric in metrics_to_equalize)
 

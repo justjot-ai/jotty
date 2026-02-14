@@ -49,7 +49,7 @@ class WhatsAppWebClient:
     No business account needed - uses your personal WhatsApp.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._process: Optional[subprocess.Popen] = None
         self._connected = False
         self._qr_code: Optional[str] = None
@@ -69,7 +69,7 @@ class WhatsAppWebClient:
     def qr_code(self) -> Optional[str]:
         return self._qr_code
 
-    def on_message(self, handler: Callable):
+    def on_message(self, handler: Callable) -> Any:
         """Register message handler."""
         self._message_handlers.append(handler)
 
@@ -122,7 +122,7 @@ class WhatsAppWebClient:
             logger.error(f"Failed to start WhatsApp client: {e}")
             return False
 
-    async def _install_dependencies(self):
+    async def _install_dependencies(self) -> Any:
         """Install npm dependencies."""
         package_dir = self._bridge_path.parent
 
@@ -147,7 +147,7 @@ class WhatsAppWebClient:
         )
         await process.wait()
 
-    async def _read_output(self):
+    async def _read_output(self) -> Any:
         """Read and process output from Node.js bridge."""
         while self._process and self._process.poll() is None:
             try:
@@ -171,7 +171,7 @@ class WhatsAppWebClient:
                 logger.error(f"Error reading output: {e}")
                 await asyncio.sleep(0.1)
 
-    async def _handle_event(self, data: Dict[str, Any]):
+    async def _handle_event(self, data: Dict[str, Any]) -> Any:
         """Handle event from Node.js bridge."""
         event_type = data.get("type")
 
@@ -275,7 +275,7 @@ class WhatsAppWebClient:
                 future = self._pending_requests.pop(request_id)
                 future.set_exception(Exception(data.get("error")))
 
-    def _send_command(self, command: Dict[str, Any]):
+    def _send_command(self, command: Dict[str, Any]) -> Any:
         """Send command to Node.js bridge."""
         if not self._process or self._process.poll() is not None:
             raise RuntimeError("WhatsApp client not running")
@@ -472,13 +472,13 @@ class WhatsAppWebClient:
             self._pending_requests.pop(request_id, None)
             return []
 
-    async def logout(self):
+    async def logout(self) -> Any:
         """Logout from WhatsApp."""
         if self._process:
             self._send_command({"action": "logout"})
             await asyncio.sleep(2)
 
-    async def stop(self):
+    async def stop(self) -> Any:
         """Stop the WhatsApp client."""
         if self._read_task:
             self._read_task.cancel()

@@ -52,7 +52,7 @@ class SkillsManifest:
     - Getting skill metadata
     """
 
-    def __init__(self, skills_dir: Optional[str] = None, manifest_path: Optional[str] = None):
+    def __init__(self, skills_dir: Optional[str] = None, manifest_path: Optional[str] = None) -> None:
         """
         Initialize skills manifest.
 

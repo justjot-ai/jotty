@@ -102,7 +102,7 @@ class JustJotSectionRegistry:
         'mindmap',       # Mind map diagrams
     ]
 
-    def __init__(self, registry_path: Path = None):
+    def __init__(self, registry_path: Path = None) -> None:
         """
         Initialize the registry.
 
@@ -377,7 +377,7 @@ class ContentSchemaBuilder:
     Uses the registry to validate against expected formats.
     """
 
-    def __init__(self, registry: JustJotSectionRegistry = None):
+    def __init__(self, registry: JustJotSectionRegistry = None) -> None:
         self.registry = registry or get_registry()
 
     def build_chart_v2(

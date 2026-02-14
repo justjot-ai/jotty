@@ -54,7 +54,7 @@ class LookMLGenerator:
         SchemaMeasureType.MEDIAN: MeasureType.MEDIAN,
     }
 
-    def __init__(self, schema: Schema):
+    def __init__(self, schema: Schema) -> None:
         """
         Initialize generator with schema.
 
@@ -159,7 +159,7 @@ class LookMLGenerator:
             description=column.description,
         )
 
-    def _generate_explores(self):
+    def _generate_explores(self) -> Any:
         """Generate explores from relationships."""
         # Group relationships by base table
         base_tables: Dict[str, List[SchemaRelationship]] = {}

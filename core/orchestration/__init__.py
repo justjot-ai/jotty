@@ -1,3 +1,4 @@
+from typing import Any
 """
 Orchestration Layer - Multi-Agent Coordination
 ===============================================
@@ -88,7 +89,7 @@ _LAZY_MAP: dict[str, tuple[str, str]] = {
 }
 
 
-def __getattr__(name: str):
+def __getattr__(name: str) -> Any:
     if name in _LAZY_MAP:
         module_path, attr_name = _LAZY_MAP[name]
         if module_path.startswith("."):

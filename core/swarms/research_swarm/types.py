@@ -46,7 +46,7 @@ class ResearchConfig(SwarmBaseConfig):
     include_heiken_ashi: bool = False
     nse_data_path: str = "/var/www/sites/personal/stock_market/common/Data/NSE/"
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.name = "ResearchSwarm"
         self.domain = "research"
         self.output_dir = os.path.expanduser('~/jotty/reports')

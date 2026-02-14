@@ -22,13 +22,7 @@ class EnsembleManager:
     Stateless — depends only on DSPy global LM config and skills registry.
     """
 
-    async def execute_ensemble(
-        self,
-        goal: str,
-        strategy: str = 'multi_perspective',
-        status_callback=None,
-        max_perspectives: int = 4,
-    ) -> Dict[str, Any]:
+    async def execute_ensemble(self, goal: str, strategy: str = 'multi_perspective', status_callback: Any = None, max_perspectives: int = 4) -> Dict[str, Any]:
         """
         Execute prompt ensembling for multi-perspective analysis.
 
@@ -83,7 +77,7 @@ class EnsembleManager:
 
             responses = {}
 
-            def _call_with_retry(prompt, max_retries=4, base_delay=8.0):
+            def _call_with_retry(prompt: Any, max_retries: Any = 4, base_delay: Any = 8.0) -> Any:
                 """Call LM with exponential backoff on rate-limit errors."""
                 import time
                 for attempt in range(max_retries + 1):

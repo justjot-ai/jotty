@@ -7,7 +7,7 @@ Autocomplete for CLI commands.
 
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Optional, Iterable
+from typing import TYPE_CHECKING, List, Optional, Iterable, Any
 
 try:
     from prompt_toolkit.completion import Completer, Completion
@@ -62,7 +62,7 @@ class CommandCompleter(Completer if PROMPT_TOOLKIT_AVAILABLE else object):
 
     MAX_FILE_COMPLETIONS = 30
 
-    def __init__(self, command_registry: "CommandRegistry"):
+    def __init__(self, command_registry: 'CommandRegistry') -> None:
         """
         Initialize completer.
 
@@ -74,13 +74,13 @@ class CommandCompleter(Completer if PROMPT_TOOLKIT_AVAILABLE else object):
         self._tool_names: List[str] = []
         self._code_tokens: List[str] = []
 
-    def set_skill_names(self, names: List[str]):
+    def set_skill_names(self, names: List[str]) -> Any:
         """Set available skill names for completion."""
         self._skill_names = names
         # Also set as tool names
         self._tool_names = names
 
-    def set_code_tokens(self, tokens: List[str]):
+    def set_code_tokens(self, tokens: List[str]) -> Any:
         """
         Set recent function/class names from LLM output for code completion.
 
@@ -96,11 +96,7 @@ class CommandCompleter(Completer if PROMPT_TOOLKIT_AVAILABLE else object):
                 unique.append(t)
         self._code_tokens = list(reversed(unique[:100]))
 
-    def get_completions(
-        self,
-        document: "Document",
-        complete_event
-    ) -> Iterable["Completion"]:
+    def get_completions(self, document: 'Document', complete_event: Any) -> Iterable['Completion']:
         """
         Get completions for current input.
 
@@ -334,11 +330,11 @@ class SimpleCompleter:
     Provides basic completion functionality.
     """
 
-    def __init__(self, command_registry: "CommandRegistry"):
+    def __init__(self, command_registry: 'CommandRegistry') -> None:
         self.command_registry = command_registry
         self._skill_names: List[str] = []
 
-    def set_skill_names(self, names: List[str]):
+    def set_skill_names(self, names: List[str]) -> Any:
         """Set available skill names."""
         self._skill_names = names
 

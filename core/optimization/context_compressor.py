@@ -42,7 +42,7 @@ class ContextCompressor:
     - Semantic compression
     """
     
-    def __init__(self, max_length: int = 1000, strategy: str = "truncate"):
+    def __init__(self, max_length: int = 1000, strategy: str = 'truncate') -> None:
         """
         Initialize context compressor.
         
@@ -209,12 +209,7 @@ class ContextManager:
     - Context summarization
     """
     
-    def __init__(
-        self,
-        max_length: int = 2000,
-        compression_strategy: str = "truncate",
-        compress_threshold: float = 0.8  # Compress when 80% full
-    ):
+    def __init__(self, max_length: int = 2000, compression_strategy: str = 'truncate', compress_threshold: float = 0.8) -> None:
         """
         Initialize context manager.
         

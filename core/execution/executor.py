@@ -197,8 +197,7 @@ class LLMProvider:
             text = result[0] if isinstance(result, list) else str(result)
             return {'content': text, 'usage': {'input_tokens': 250, 'output_tokens': 250}}
 
-    async def stream(self, prompt: str, tools=None, temperature: float = 0.7,
-                     max_tokens: int = 4000, **kwargs):
+    async def stream(self, prompt: str, tools: Any = None, temperature: float = 0.7, max_tokens: int = 4000, **kwargs: Any) -> Any:
         """Stream tokens. Yields {'content': str} chunks, final chunk has 'usage'."""
         client = self._get_client()
 
@@ -446,8 +445,8 @@ class TierExecutor:
         self,
         goal: str,
         config: Optional[ExecutionConfig] = None,
-        status_callback: Optional[Callable] = None,
-        **kwargs
+        status_callback: Optional[Callable[[str, str], None]] = None,
+        **kwargs: Any,
     ) -> ExecutionResult:
         """Execute task with appropriate tier."""
         start_time = time.time()
@@ -600,12 +599,7 @@ class TierExecutor:
     # STREAMING
     # =========================================================================
 
-    async def stream(
-        self,
-        goal: str,
-        config: Optional[ExecutionConfig] = None,
-        **kwargs
-    ) -> AsyncGenerator[StreamEvent, None]:
+    async def stream(self, goal: str, config: Optional[ExecutionConfig] = None, **kwargs: Any) -> AsyncGenerator[StreamEvent, None]:
         """Stream execution events as an async generator."""
         config = config or self.config
 
@@ -628,7 +622,7 @@ class TierExecutor:
         # All other tiers: queue-based bridge from status_callback
         queue = asyncio.Queue()
 
-        def _callback(stage: str, detail: str):
+        def _callback(stage: str, detail: str) -> Any:
             queue.put_nowait(StreamEvent(
                 type=StreamEventType.STATUS,
                 data={'stage': stage, 'detail': detail},
@@ -667,12 +661,7 @@ class TierExecutor:
                 tier=config.tier,
             )
 
-    async def _stream_tier1(
-        self,
-        goal: str,
-        config: ExecutionConfig,
-        **kwargs
-    ) -> AsyncGenerator[StreamEvent, None]:
+    async def _stream_tier1(self, goal: str, config: ExecutionConfig, **kwargs: Any) -> AsyncGenerator[StreamEvent, None]:
         """Stream Tier 1 execution with token-level streaming."""
         tier = ExecutionTier.DIRECT
         start_time = time.time()
@@ -795,13 +784,7 @@ class TierExecutor:
     # TIER 1: DIRECT - Single LLM call
     # =========================================================================
 
-    async def _execute_tier1(
-        self,
-        goal: str,
-        config: ExecutionConfig,
-        status_callback: Optional[Callable],
-        **kwargs
-    ) -> ExecutionResult:
+    async def _execute_tier1(self, goal: str, config: ExecutionConfig, status_callback: Optional[Callable], **kwargs: Any) -> ExecutionResult:
         """Tier 1: Direct LLM call with tools. Expected: 1 LLM call, 1-2s, $0.01."""
         logger.info(f"[Tier 1: DIRECT] Executing: {goal[:50]}...")
 
@@ -1008,13 +991,7 @@ Correct answer:"""
     # TIER 2: AGENTIC - Planning + Orchestration
     # =========================================================================
 
-    async def _execute_tier2(
-        self,
-        goal: str,
-        config: ExecutionConfig,
-        status_callback: Optional[Callable],
-        **kwargs
-    ) -> ExecutionResult:
+    async def _execute_tier2(self, goal: str, config: ExecutionConfig, status_callback: Optional[Callable], **kwargs: Any) -> ExecutionResult:
         """Tier 2: Agentic execution with planning. Expected: 3-5 LLM calls, 3-5s, $0.03."""
         logger.info(f"[Tier 2: AGENTIC] Executing: {goal[:50]}...")
 
@@ -1152,13 +1129,7 @@ Correct answer:"""
     # TIER 3: LEARNING - Memory + Validation
     # =========================================================================
 
-    async def _execute_tier3(
-        self,
-        goal: str,
-        config: ExecutionConfig,
-        status_callback: Optional[Callable],
-        **kwargs
-    ) -> ExecutionResult:
+    async def _execute_tier3(self, goal: str, config: ExecutionConfig, status_callback: Optional[Callable], **kwargs: Any) -> ExecutionResult:
         """Tier 3: Learning with memory and validation. Expected: 5-10 LLM calls, 5-10s, $0.06."""
         logger.info(f"[Tier 3: LEARNING] Executing: {goal[:50]}...")
 
@@ -1286,13 +1257,7 @@ Correct answer:"""
     # TIER 4: RESEARCH - Domain Swarm Execution
     # =========================================================================
 
-    async def _execute_tier4(
-        self,
-        goal: str,
-        config: ExecutionConfig,
-        status_callback: Optional[Callable],
-        **kwargs
-    ) -> ExecutionResult:
+    async def _execute_tier4(self, goal: str, config: ExecutionConfig, status_callback: Optional[Callable], **kwargs: Any) -> ExecutionResult:
         """Tier 4: Domain swarm execution. Expected: 10-30s, $0.15."""
         logger.info(f"[Tier 4: RESEARCH] Executing with domain swarm...")
 
@@ -1324,13 +1289,7 @@ Correct answer:"""
             metadata={'direct_swarm': True},
         )
 
-    async def _execute_with_swarm_manager(
-        self,
-        goal: str,
-        config: ExecutionConfig,
-        status_callback: Optional[Callable],
-        **kwargs
-    ) -> ExecutionResult:
+    async def _execute_with_swarm_manager(self, goal: str, config: ExecutionConfig, status_callback: Optional[Callable], **kwargs: Any) -> ExecutionResult:
         """Delegate to Orchestrator when no specific swarm matches."""
         logger.info("[Tier 4: RESEARCH] Delegating to Orchestrator...")
 
@@ -1365,13 +1324,7 @@ Correct answer:"""
     # TIER 5: AUTONOMOUS - Sandbox + Coalition + Full Features
     # =========================================================================
 
-    async def _execute_tier5(
-        self,
-        goal: str,
-        config: ExecutionConfig,
-        status_callback: Optional[Callable],
-        **kwargs
-    ) -> ExecutionResult:
+    async def _execute_tier5(self, goal: str, config: ExecutionConfig, status_callback: Optional[Callable], **kwargs: Any) -> ExecutionResult:
         """Tier 5: Autonomous execution with sandbox, coalition, curriculum."""
         logger.info(f"[Tier 5: AUTONOMOUS] Executing: {goal[:50]}...")
 
@@ -1820,13 +1773,7 @@ Is this result correct and complete? Provide:
             reasoning=response.get('reasoning', ''),
         )
 
-    async def _store_memory(
-        self,
-        goal: str,
-        result: ExecutionResult,
-        validation: Optional[TierValidationResult],
-        config: ExecutionConfig
-    ):
+    async def _store_memory(self, goal: str, result: ExecutionResult, validation: Optional[TierValidationResult], config: ExecutionConfig) -> Any:
         """Store result in memory."""
         try:
             await self.memory.store(

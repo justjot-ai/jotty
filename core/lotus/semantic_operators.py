@@ -55,13 +55,7 @@ class SemanticOperator(ABC):
     DRY: Common optimization logic in base class.
     """
 
-    def __init__(
-        self,
-        config: Optional[LotusConfig] = None,
-        cascade: Optional[ModelCascade] = None,
-        cache: Optional[SemanticCache] = None,
-        batch_executor: Optional[BatchExecutor] = None,
-    ):
+    def __init__(self, config: Optional[LotusConfig] = None, cascade: Optional[ModelCascade] = None, cache: Optional[SemanticCache] = None, batch_executor: Optional[BatchExecutor] = None) -> None:
         """
         Initialize operator with shared optimization components.
 
@@ -73,12 +67,7 @@ class SemanticOperator(ABC):
         self.batch_executor = batch_executor or BatchExecutor(self.config)
 
     @abstractmethod
-    async def execute(
-        self,
-        data: Any,
-        instruction: str,
-        **kwargs,
-    ) -> OperatorResult:
+    async def execute(self, data: Any, instruction: str, **kwargs: Any) -> OperatorResult:
         """Execute the semantic operation."""
         pass
 
@@ -110,13 +99,7 @@ class SemFilter(SemanticOperator):
         )
     """
 
-    async def execute(
-        self,
-        data: List[Any],
-        instruction: str,
-        use_cascade: bool = True,
-        **kwargs,
-    ) -> OperatorResult:
+    async def execute(self, data: List[Any], instruction: str, use_cascade: bool = True, **kwargs: Any) -> OperatorResult:
         """
         Filter data based on natural language condition.
 
@@ -181,7 +164,7 @@ class SemFilter(SemanticOperator):
     ) -> List[tuple]:
         """Filter using model cascade."""
 
-        def prompt_fn(item):
+        def prompt_fn(item: Any) -> Any:
             return self._build_prompt(
                 f"Does this item satisfy the condition: {instruction}? Answer YES or NO with confidence.",
                 item
@@ -210,7 +193,7 @@ class SemFilter(SemanticOperator):
     ) -> List[tuple]:
         """Filter using batch execution (no cascade)."""
 
-        def prompt_fn(item):
+        def prompt_fn(item: Any) -> Any:
             return self._build_prompt(
                 f"Does this item satisfy: {instruction}? Answer YES or NO.",
                 item
@@ -242,13 +225,7 @@ class SemMap(SemanticOperator):
         )
     """
 
-    async def execute(
-        self,
-        data: List[Any],
-        instruction: str,
-        output_column: Optional[str] = None,
-        **kwargs,
-    ) -> OperatorResult:
+    async def execute(self, data: List[Any], instruction: str, output_column: Optional[str] = None, **kwargs: Any) -> OperatorResult:
         """
         Map each item through LLM transformation.
 
@@ -280,7 +257,7 @@ class SemMap(SemanticOperator):
 
         # Process uncached
         if to_process:
-            def prompt_fn(item):
+            def prompt_fn(item: Any) -> Any:
                 return self._build_prompt(instruction, item)
 
             batch_results = await self.batch_executor.execute_batch(
@@ -323,13 +300,7 @@ class SemExtract(SemanticOperator):
         )
     """
 
-    async def execute(
-        self,
-        data: List[Any],
-        instruction: str,
-        schema: Optional[Dict[str, type]] = None,
-        **kwargs,
-    ) -> OperatorResult:
+    async def execute(self, data: List[Any], instruction: str, schema: Optional[Dict[str, type]] = None, **kwargs: Any) -> OperatorResult:
         """
         Extract structured data from items.
 
@@ -366,7 +337,7 @@ class SemExtract(SemanticOperator):
 
         # Process uncached
         if to_process:
-            def prompt_fn(item):
+            def prompt_fn(item: Any) -> Any:
                 return self._build_prompt(instruction + schema_hint, item)
 
             batch_results = await self.batch_executor.execute_batch(
@@ -413,13 +384,7 @@ class SemTopK(SemanticOperator):
         )
     """
 
-    async def execute(
-        self,
-        data: List[Any],
-        instruction: str,
-        k: int = 10,
-        **kwargs,
-    ) -> OperatorResult:
+    async def execute(self, data: List[Any], instruction: str, k: int = 10, **kwargs: Any) -> OperatorResult:
         """
         Select top-k items by semantic criteria.
 
@@ -442,7 +407,7 @@ class SemTopK(SemanticOperator):
             return OperatorResult(data=list(data), items_processed=0)
 
         # Score all items
-        def prompt_fn(item):
+        def prompt_fn(item: Any) -> Any:
             return self._build_prompt(
                 f"Rate how well this item matches: {instruction}. "
                 f"Respond with a score from 0-100.",
@@ -502,12 +467,7 @@ class SemanticDataFrame:
         )
     """
 
-    def __init__(
-        self,
-        data: Union[pd.DataFrame, List[Dict], List[Any]],
-        config: Optional[LotusConfig] = None,
-        text_column: Optional[str] = None,
-    ):
+    def __init__(self, data: Union[pd.DataFrame, List[Dict], List[Any]], config: Optional[LotusConfig] = None, text_column: Optional[str] = None) -> None:
         """
         Initialize SemanticDataFrame.
 

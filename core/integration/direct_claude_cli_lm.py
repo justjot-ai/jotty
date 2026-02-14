@@ -68,7 +68,7 @@ class DirectClaudeCLI(dspy.BaseLM):
         "opus": 180,   # Opus is slower but higher quality
     }
 
-    def __init__(self, model: str = "", max_retries: int = 0, base_timeout: int = None, **kwargs):
+    def __init__(self, model: str = '', max_retries: int = 0, base_timeout: int = None, **kwargs: Any) -> None:
         """
         Initialize Direct Claude CLI wrapper.
 
@@ -154,7 +154,7 @@ class DirectClaudeCLI(dspy.BaseLM):
 
         return response
 
-    def __call__(self, prompt: str = None, messages: List[Dict] = None, **kwargs) -> List[str]:
+    def __call__(self, prompt: str = None, messages: List[Dict] = None, **kwargs: Any) -> List[str]:
         """
         Call Claude CLI with prompt and automatic retry.
 

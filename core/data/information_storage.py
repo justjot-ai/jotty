@@ -49,7 +49,7 @@ class InformationWeightedMemory:
     detail_level: str  # "maximum", "high", "normal", "minimal"
     created_at: datetime = field(default_factory=datetime.now)
     
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         # Ensure information content is valid
         if self.information_content < 0:
             self.information_content = 0
@@ -90,7 +90,7 @@ class SurpriseEstimator:
     2. Comparison to historical patterns
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         if DSPY_AVAILABLE:
             self.estimator = dspy.ChainOfThought(SurpriseSignature)
         else:
@@ -165,12 +165,7 @@ class InformationTheoreticStorage:
     3. Combined: P = α * P_freq + (1-α) * P_llm
     """
     
-    def __init__(
-        self,
-        alpha: float = 0.5,  # Weight for frequency vs LLM
-        min_info_threshold: float = 0.5,  # Below this, store minimal
-        max_info_threshold: float = 3.0   # Above this, store maximum
-    ):
+    def __init__(self, alpha: float = 0.5, min_info_threshold: float = 0.5, max_info_threshold: float = 3.0) -> None:
         self.alpha = alpha
         self.min_info_threshold = min_info_threshold
         self.max_info_threshold = max_info_threshold

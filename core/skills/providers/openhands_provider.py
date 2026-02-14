@@ -50,7 +50,7 @@ class OpenHandsProvider(SkillProvider):
     version = "0.38.0"
     description = "Terminal and code operations via OpenHands SDK"
 
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: Dict[str, Any] = None) -> None:
         super().__init__(config)
 
         self.capabilities = [

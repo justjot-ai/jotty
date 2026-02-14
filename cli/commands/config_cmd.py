@@ -5,7 +5,7 @@ Config Command
 Configuration management.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from .base import BaseCommand, CommandResult, ParsedArgs
 
 if TYPE_CHECKING:
@@ -44,7 +44,7 @@ class ConfigCommand(BaseCommand):
             config_dict = cli.config.to_dict()
 
             # Filter out empty/None values for cleaner display
-            def clean_dict(d):
+            def clean_dict(d: Any) -> Any:
                 if isinstance(d, dict):
                     return {k: clean_dict(v) for k, v in d.items()
                             if v is not None and v != "" and v != []}

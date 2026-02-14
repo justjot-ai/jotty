@@ -28,14 +28,7 @@ class ChatUseCase(BaseUseCase):
             print(event)
     """
     
-    def __init__(
-        self,
-        conductor: Any,
-        agent_id: Optional[str] = None,
-        mode: str = "dynamic",
-        config: Optional[UseCaseConfig] = None,
-        context: Optional[ChatContext] = None
-    ):
+    def __init__(self, conductor: Any, agent_id: Optional[str] = None, mode: str = 'dynamic', config: Optional[UseCaseConfig] = None, context: Optional[ChatContext] = None) -> None:
         """
         Initialize chat use case.
         
@@ -66,13 +59,7 @@ class ChatUseCase(BaseUseCase):
         """Return chat use case type."""
         return UseCaseType.CHAT
     
-    async def execute(
-        self,
-        goal: str,  # In chat, this is the message
-        context: Optional[Dict[str, Any]] = None,
-        history: Optional[List[ChatMessage]] = None,
-        **kwargs
-    ) -> UseCaseResult:
+    async def execute(self, goal: str, context: Optional[Dict[str, Any]] = None, history: Optional[List[ChatMessage]] = None, **kwargs: Any) -> UseCaseResult:
         """
         Execute chat interaction synchronously.
         
@@ -119,13 +106,7 @@ class ChatUseCase(BaseUseCase):
                 execution_time=execution_time
             )
     
-    async def stream(
-        self,
-        goal: str,  # In chat, this is the message
-        context: Optional[Dict[str, Any]] = None,
-        history: Optional[List[ChatMessage]] = None,
-        **kwargs
-    ) -> AsyncIterator[Dict[str, Any]]:
+    async def stream(self, goal: str, context: Optional[Dict[str, Any]] = None, history: Optional[List[ChatMessage]] = None, **kwargs: Any) -> AsyncIterator[Dict[str, Any]]:
         """
         Execute chat interaction with streaming.
         

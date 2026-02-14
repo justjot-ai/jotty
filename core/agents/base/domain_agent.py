@@ -70,11 +70,7 @@ class DomainAgent(BaseAgent):
         # result.output = {'analysis': '...', 'confidence': 0.95}
     """
 
-    def __init__(
-        self,
-        signature: Optional[Type] = None,
-        config: DomainAgentConfig = None,
-    ):
+    def __init__(self, signature: Optional[Type] = None, config: DomainAgentConfig = None) -> None:
         """
         Initialize DomainAgent with an optional DSPy signature.
 
@@ -101,7 +97,7 @@ class DomainAgent(BaseAgent):
         if self.signature is not None:
             self._extract_fields()
 
-    def _extract_fields(self):
+    def _extract_fields(self) -> Any:
         """Extract input and output field names from the signature."""
         try:
             import dspy
@@ -151,7 +147,7 @@ class DomainAgent(BaseAgent):
         except Exception as e:
             logger.warning(f"Failed to extract fields from signature: {e}")
 
-    def _ensure_initialized(self):
+    def _ensure_initialized(self) -> Any:
         """Initialize DSPy module."""
         super()._ensure_initialized()
 
@@ -190,11 +186,7 @@ class DomainAgent(BaseAgent):
                 logger.error(f"Failed to initialize DSPy module: {e}")
                 raise
 
-    def _enrich_module_for_call(
-        self,
-        learning_context: Optional[str] = None,
-        workspace_dir: Optional[str] = None,
-    ):
+    def _enrich_module_for_call(self, learning_context: Optional[str] = None, workspace_dir: Optional[str] = None) -> Any:
         """
         Enrich the DSPy module's signature instructions using PromptComposer.
 
@@ -260,7 +252,7 @@ class DomainAgent(BaseAgent):
             logger.debug(f"Could not build ReAct tools: {e}")
             return []
 
-    async def _execute_impl(self, **kwargs) -> Dict[str, Any]:
+    async def _execute_impl(self, **kwargs: Any) -> Dict[str, Any]:
         """
         Execute the DSPy signature with the provided inputs.
 
@@ -357,7 +349,7 @@ class DomainAgent(BaseAgent):
     # SKILL-BASED FALLBACK
     # =========================================================================
 
-    async def _execute_with_skills(self, task: str, **kwargs) -> Dict[str, Any]:
+    async def _execute_with_skills(self, task: str, **kwargs: Any) -> Dict[str, Any]:
         """
         Execute a task using skill discovery and planning.
 
@@ -433,7 +425,7 @@ class DomainAgent(BaseAgent):
         """Get list of output field names."""
         return self._output_fields.copy()
 
-    def get_io_schema(self):
+    def get_io_schema(self) -> Any:
         """Get typed AgentIOSchema built from the DSPy Signature.
 
         Returns an ``AgentIOSchema`` with input/output field names,

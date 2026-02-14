@@ -289,13 +289,7 @@ class ToolSchema:
     # Content-like fields used by auto_wire to find rich text in outputs
     _CONTENT_FIELDS = ('response', 'text', 'content', 'output', 'stdout', 'result')
 
-    def __init__(
-        self,
-        name: str,
-        description: str = "",
-        params: Optional[List[ToolParam]] = None,
-        outputs: Optional[List[ToolParam]] = None,
-    ):
+    def __init__(self, name: str, description: str = '', params: Optional[List[ToolParam]] = None, outputs: Optional[List[ToolParam]] = None) -> None:
         self.name = name
         self.description = description
         self.params: List[ToolParam] = params or []
@@ -764,13 +758,7 @@ class AgentIOSchema:
         next_kwargs = schema_a.map_outputs(result_a, schema_b)
     """
 
-    def __init__(
-        self,
-        agent_name: str,
-        inputs: Optional[List[ToolParam]] = None,
-        outputs: Optional[List[ToolParam]] = None,
-        description: str = "",
-    ):
+    def __init__(self, agent_name: str, inputs: Optional[List[ToolParam]] = None, outputs: Optional[List[ToolParam]] = None, description: str = '') -> None:
         self.agent_name = agent_name
         self.inputs: List[ToolParam] = inputs or []
         self.outputs: List[ToolParam] = outputs or []
@@ -779,7 +767,7 @@ class AgentIOSchema:
     # -- construction ---------------------------------------------------------
 
     @classmethod
-    def from_dspy_signature(cls, agent_name: str, signature_cls) -> AgentIOSchema:
+    def from_dspy_signature(cls, agent_name: str, signature_cls: Any) -> AgentIOSchema:
         """Build from a DSPy Signature class.
 
         Extracts InputField/OutputField with their ``desc`` annotations
@@ -987,7 +975,7 @@ class ToolStats:
         # → "web-search/search_web_tool: 95% success, avg 1.2s (20 calls)"
     """
 
-    def __init__(self, max_history: int = 200):
+    def __init__(self, max_history: int = 200) -> None:
         self._max_history = max_history
         # Key: "skill:tool" → list of (success, latency_ms)
         self._records: Dict[str, List[Tuple[bool, float]]] = {}
@@ -1072,7 +1060,7 @@ class CapabilityIndex:
         # → ["web-search", "summarizer"]
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         # tool_name → (input_types, output_types)
         self._tools: Dict[str, Tuple[List[str], List[str]]] = {}
         # output_type → list of tool_names that produce it

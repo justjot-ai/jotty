@@ -1,3 +1,4 @@
+from typing import Any
 """
 DSPy-based agents with MCP tool support
 
@@ -66,7 +67,7 @@ _LAZY_IMPORTS: dict[str, str] = {
 }
 
 
-def __getattr__(name: str):
+def __getattr__(name: str) -> Any:
     if name in _LAZY_IMPORTS:
         module_path = _LAZY_IMPORTS[name]
         module = _importlib.import_module(module_path, __name__)

@@ -72,7 +72,7 @@ class TrajectoryParser:
     Agents should NOT parse their own trajectories.
     """
     
-    def __init__(self, lm: Optional[Any] = None):
+    def __init__(self, lm: Optional[Any] = None) -> None:
         """
         Initialize parser.
         

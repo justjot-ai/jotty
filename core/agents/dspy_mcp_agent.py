@@ -51,13 +51,7 @@ class ToolResultIntegrationSignature(dspy.Signature):
 class DSPyMCPAgent:
     """DSPy agent that can use MCP tools for enhanced capabilities"""
 
-    def __init__(
-        self,
-        name: str,
-        description: str,
-        system_prompt: Optional[str] = None,
-        base_url: str = None
-    ):
+    def __init__(self, name: str, description: str, system_prompt: Optional[str] = None, base_url: str = None) -> None:
         """
         Initialize DSPy agent with MCP tool support
 
@@ -75,7 +69,7 @@ class DSPyMCPAgent:
         self.result_integrator = dspy.ChainOfThought(ToolResultIntegrationSignature)
         self.initialized = False
 
-    async def initialize(self):
+    async def initialize(self) -> Any:
         """Discover available MCP tools"""
         if self.initialized:
             return

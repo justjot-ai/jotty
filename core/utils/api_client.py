@@ -41,7 +41,7 @@ class BaseAPIClient(ABC):
     CONTENT_TYPE: str = "application/json"
     DEFAULT_TIMEOUT: int = 30
 
-    def __init__(self, token: Optional[str] = None):
+    def __init__(self, token: Optional[str] = None) -> None:
         """
         Initialize API client.
 

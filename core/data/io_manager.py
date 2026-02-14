@@ -172,21 +172,12 @@ class IOManager:
 # NO HARDCODING: Discovers structure automatically
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         self.outputs: Dict[str, ActorOutput] = {}  # actor_name -> ActorOutput
         self.execution_order: List[str] = []  # Track execution order
         logger.info(" IOManager initialized - typed output management enabled")
     
-    def register_output(
-        self,
-        actor_name: str,
-        output: Any,
-        actor: Optional[Any] = None,
-        signature: Optional[Type[dspy.Signature]] = None,
-        success: bool = True,
-        error: Optional[str] = None,
-        tagged_attempts: Optional[List[Any]] = None  # NEW: Tagged attempts from trajectory
-    ):
+    def register_output(self, actor_name: str, output: Any, actor: Optional[Any] = None, signature: Optional[Type[dspy.Signature]] = None, success: bool = True, error: Optional[str] = None, tagged_attempts: Optional[List[Any]] = None) -> Any:
         """
         Register actor output automatically WITH tagged attempts.
         

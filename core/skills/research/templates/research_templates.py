@@ -1,3 +1,4 @@
+from typing import Any
 """
 Research Report Templates
 =========================
@@ -15,7 +16,7 @@ from .base_template import BaseTemplate, TemplateColors, TemplateTypography, Tem
 class GoldmanSachsTemplate(BaseTemplate):
     """Goldman Sachs inspired template - Clean, minimal, professional."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.name = "Goldman Sachs"
         self.description = "Clean, minimal design with navy blue accents"
@@ -148,7 +149,7 @@ th {{
 class MorganStanleyTemplate(BaseTemplate):
     """Morgan Stanley inspired template - Modern, gradient headers."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.name = "Morgan Stanley"
         self.description = "Modern design with gradient headers and blue accents"
@@ -306,7 +307,7 @@ th {{
 class CLSATemplate(BaseTemplate):
     """CLSA inspired template - Data-rich, detailed, Asian market focus."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.name = "CLSA"
         self.description = "Data-rich design with detailed tables and red accents"
@@ -442,7 +443,7 @@ td {{
 class MotilalOswalTemplate(BaseTemplate):
     """Motilal Oswal inspired template - Colorful, Indian market focus."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.name = "Motilal Oswal"
         self.description = "Colorful design with orange accents for Indian markets"

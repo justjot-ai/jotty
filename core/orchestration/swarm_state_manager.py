@@ -59,7 +59,7 @@ class AgentStateTracker:
     - Validation results (architect/auditor)
     """
     
-    def __init__(self, agent_name: str):
+    def __init__(self, agent_name: str) -> None:
         """Initialize agent state tracker."""
         self.agent_name = agent_name
         self.outputs: List[Dict[str, Any]] = []
@@ -209,18 +209,7 @@ class SwarmStateManager:
     - Agent-level state (per-agent tracking)
     """
     
-    def __init__(
-        self,
-        swarm_task_board: SwarmTaskBoard,
-        swarm_memory: Any,  # SwarmMemory
-        io_manager: Optional[IOManager] = None,
-        data_registry: Optional[DataRegistry] = None,
-        shared_context: Optional[Dict[str, Any]] = None,
-        context_guard: Optional[LLMContextManager] = None,
-        config: Optional[Any] = None,  # SwarmConfig
-        agents: Optional[Dict[str, AgentConfig]] = None,
-        agent_signatures: Optional[Dict[str, Dict]] = None
-    ):
+    def __init__(self, swarm_task_board: SwarmTaskBoard, swarm_memory: Any, io_manager: Optional[IOManager] = None, data_registry: Optional[DataRegistry] = None, shared_context: Optional[Dict[str, Any]] = None, context_guard: Optional[LLMContextManager] = None, config: Optional[Any] = None, agents: Optional[Dict[str, AgentConfig]] = None, agent_signatures: Optional[Dict[str, Dict]] = None) -> None:
         """
         Initialize SwarmStateManager.
         

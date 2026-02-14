@@ -103,7 +103,7 @@ class ProviderSelector:
     4. Exploration/exploitation balance (epsilon-greedy)
     """
 
-    def __init__(self, epsilon: float = 0.1, swarm_intelligence: SwarmIntelligence = None):
+    def __init__(self, epsilon: float = 0.1, swarm_intelligence: SwarmIntelligence = None) -> None:
         """
         Initialize the selector.
 
@@ -227,13 +227,7 @@ class ProviderSelector:
 
         return score
 
-    def record_result(
-        self,
-        provider: SkillProvider,
-        category: SkillCategory,
-        task: str,
-        result: ProviderResult
-    ):
+    def record_result(self, provider: SkillProvider, category: SkillCategory, task: str, result: ProviderResult) -> Any:
         """Record execution result for learning."""
         task_hash = self._hash_task(task)
         key = (category.value, task_hash)
@@ -385,7 +379,7 @@ class ProviderRegistry:
         'n8n', 'activepieces',
     }
 
-    def __init__(self, swarm_intelligence: SwarmIntelligence = None):
+    def __init__(self, swarm_intelligence: SwarmIntelligence = None) -> None:
         """
         Initialize the registry.
 
@@ -419,7 +413,7 @@ class ProviderRegistry:
 
         logger.info(" ProviderRegistry initialized")
 
-    def _register_app_building_providers(self):
+    def _register_app_building_providers(self) -> Any:
         """Register app building providers. Streamlit first (default, open source)."""
         # StreamlitProvider - fully open source, no cloud needed (DEFAULT)
         try:
@@ -435,7 +429,7 @@ class ProviderRegistry:
         except Exception as e:
             logger.debug(f"Could not register MorphProvider: {e}")
 
-    def _register_workflow_providers(self):
+    def _register_workflow_providers(self) -> Any:
         """Register n8n and Activepieces as skill providers (workflows as skills)."""
         try:
             from .n8n_provider import N8nProvider
@@ -465,11 +459,7 @@ class ProviderRegistry:
         }
         return level_map.get(level.lower(), TrustLevel.SANDBOXED)
 
-    def register(
-        self,
-        provider: SkillProvider,
-        trust_level: Optional[str] = None
-    ):
+    def register(self, provider: SkillProvider, trust_level: Optional[str] = None) -> Any:
         """
         Register a provider with optional trust level.
 
@@ -777,7 +767,7 @@ class ProviderRegistry:
                 metadata={'trust_level': trust_level.value, 'sandboxed': True},
             )
 
-    async def initialize_all(self):
+    async def initialize_all(self) -> Any:
         """Initialize all registered providers."""
         for name, provider in self._providers.items():
             try:

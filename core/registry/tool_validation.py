@@ -43,7 +43,7 @@ class RegistryValidationResult:
     errors: List[str] = None
     warnings: List[str] = None
     
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.errors is None:
             self.errors = []
         if self.warnings is None:
@@ -74,7 +74,7 @@ class MethodChecker(ast.NodeVisitor):
         '__builtins__', '__globals__', '__locals__', '__code__', '__dict__'
     }
     
-    def __init__(self, allowed_imports: Set[str]):
+    def __init__(self, allowed_imports: Set[str]) -> None:
         """
         Initialize method checker.
         
@@ -84,7 +84,7 @@ class MethodChecker(ast.NodeVisitor):
         self.allowed_imports = allowed_imports
         self.errors: List[str] = []
     
-    def visit_Call(self, node) -> None:
+    def visit_Call(self, node: Any) -> None:
         """Check function calls."""
         if isinstance(node.func, ast.Name):
             if node.func.id in self.DANGEROUS_METHODS:
@@ -98,7 +98,7 @@ class MethodChecker(ast.NodeVisitor):
                 )
         self.generic_visit(node)
     
-    def visit_Import(self, node) -> None:
+    def visit_Import(self, node: Any) -> None:
         """Check imports."""
         for alias in node.names:
             if alias.name not in self.allowed_imports:
@@ -107,7 +107,7 @@ class MethodChecker(ast.NodeVisitor):
                 )
         self.generic_visit(node)
     
-    def visit_ImportFrom(self, node) -> None:
+    def visit_ImportFrom(self, node: Any) -> None:
         """Check from imports."""
         if node.module not in self.allowed_imports:
             self.errors.append(
@@ -133,7 +133,7 @@ class ToolValidator:
             print(f"Validation errors: {result.errors}")
     """
     
-    def __init__(self, strict: bool = True):
+    def __init__(self, strict: bool = True) -> None:
         """
         Initialize tool validator.
         
@@ -432,11 +432,7 @@ class ToolGuard:
         'token', 'password', '.key', '.pem',
     }
 
-    def __init__(
-        self,
-        blocked_path_patterns: Optional[Set[str]] = None,
-        max_destructive_per_session: int = 3,
-    ):
+    def __init__(self, blocked_path_patterns: Optional[Set[str]] = None, max_destructive_per_session: int = 3) -> None:
         self._blocked_patterns = blocked_path_patterns or self.DEFAULT_BLOCKED_PATHS
         self._max_destructive = max_destructive_per_session
         self._side_effect_used_this_turn = False

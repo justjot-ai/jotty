@@ -82,7 +82,7 @@ class Task:
     # Additional fields for Jotty integration
     metadata: Dict[str, Any] = field(default_factory=dict)
     
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Initialize defaults"""
         if self.created_at is None:
             self.created_at = datetime.now()

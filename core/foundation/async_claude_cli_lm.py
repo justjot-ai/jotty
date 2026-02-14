@@ -41,12 +41,7 @@ class AsyncClaudeCLILM(dspy.BaseLM):
     Optimized for async contexts with non-blocking subprocess calls.
     """
 
-    def __init__(
-        self,
-        model: str = "",
-        timeout: int = 0,
-        **kwargs
-    ):
+    def __init__(self, model: str = '', timeout: int = 0, **kwargs: Any) -> None:
         """
         Initialize Async Claude CLI LM.
 
@@ -70,12 +65,7 @@ class AsyncClaudeCLILM(dspy.BaseLM):
         if not self.claude_path:
             raise LLMError("Claude CLI not found. Install with: npm install -g @anthropic-ai/claude-code")
 
-    def __call__(
-        self,
-        prompt: str = None,
-        messages: List[Dict] = None,
-        **kwargs
-    ) -> List[str]:
+    def __call__(self, prompt: str = None, messages: List[Dict] = None, **kwargs: Any) -> List[str]:
         """
         Synchronous call interface (required by DSPy).
 
@@ -96,12 +86,7 @@ class AsyncClaudeCLILM(dspy.BaseLM):
             # Not in async context - safe to use asyncio.run
             return asyncio.run(self._async_call(prompt, messages, **kwargs))
 
-    async def _async_call(
-        self,
-        prompt: str = None,
-        messages: List[Dict] = None,
-        **kwargs
-    ) -> List[str]:
+    async def _async_call(self, prompt: str = None, messages: List[Dict] = None, **kwargs: Any) -> List[str]:
         """
         Async implementation of the LLM call.
         """
@@ -237,7 +222,7 @@ class AsyncClaudeCLILM(dspy.BaseLM):
 
 
 # Convenience function for DSPy configuration
-def configure_async_claude_cli(model: str = "", **kwargs) -> AsyncClaudeCLILM:
+def configure_async_claude_cli(model: str = '', **kwargs: Any) -> AsyncClaudeCLILM:
     """
     Configure DSPy with AsyncClaudeCLILM.
 

@@ -35,20 +35,13 @@ class TimingEntry:
 class ProfilingReport:
     """Collects and generates profiling reports."""
 
-    def __init__(self, output_dir: str):
+    def __init__(self, output_dir: str) -> None:
         self.output_dir = Path(output_dir)
         self.entries: List[TimingEntry] = []
         self.start_time: Optional[float] = None
         self.end_time: Optional[float] = None
 
-    def record_timing(
-        self,
-        operation: str,
-        component: str,
-        start_time: float,
-        end_time: float,
-        **metadata
-    ):
+    def record_timing(self, operation: str, component: str, start_time: float, end_time: float, **metadata: Any) -> Any:
         """Record a timing entry."""
         entry = TimingEntry(
             operation=operation,

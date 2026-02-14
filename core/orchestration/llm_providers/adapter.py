@@ -1,3 +1,4 @@
+from typing import Any
 """
 JottyClaudeProvider adapter for ChatExecutor's provider interface.
 """
@@ -10,17 +11,17 @@ logger = logging.getLogger(__name__)
 class JottyClaudeProviderAdapter:
     """Adapter to use JottyClaudeProvider with ChatExecutor's provider interface."""
 
-    def __init__(self, jotty_provider):
+    def __init__(self, jotty_provider: Any) -> None:
         self.jotty_provider = jotty_provider
         self._lm = None
 
-    def _get_lm(self):
+    def _get_lm(self) -> Any:
         """Get or create DSPy LM from JottyClaudeProvider."""
         if self._lm is None:
             self._lm = self.jotty_provider.configure_dspy()
         return self._lm
 
-    def call(self, messages: list, tools: list = None, **kwargs) -> dict:
+    def call(self, messages: list, tools: list = None, **kwargs: Any) -> dict:
         """Make LLM call using JottyClaudeProvider."""
         # Convert messages to prompt for DSPy
         lm = self._get_lm()

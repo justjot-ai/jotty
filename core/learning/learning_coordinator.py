@@ -85,7 +85,7 @@ class LearningManager:
     - Support domain-based learning retrieval
     """
 
-    def __init__(self, config, base_dir: str = None):
+    def __init__(self, config: Any, base_dir: str = None) -> None:
         """
         Initialize Learning Coordinator.
 
@@ -126,7 +126,7 @@ class LearningManager:
 
         logger.info(f"LearningManager initialized: {self.learning_dir}")
 
-    def _init_core_learners(self):
+    def _init_core_learners(self) -> Any:
         """Initialize Q-learner and TD(λ) learner."""
         # Initialize shared Q-learner
         try:
@@ -176,7 +176,7 @@ class LearningManager:
         except Exception as e:
             logger.warning(f"Could not load registry: {e}")
 
-    def _save_registry(self):
+    def _save_registry(self) -> Any:
         """Save learning session registry to disk."""
         data = {
             'sessions': {
@@ -645,12 +645,7 @@ class LearningManager:
     # Persistence
     # =========================================================================
 
-    def save_all(
-        self,
-        episode_count: int = 0,
-        avg_reward: float = 0.0,
-        domains: List[str] = None
-    ):
+    def save_all(self, episode_count: int = 0, avg_reward: float = 0.0, domains: List[str] = None) -> Any:
         """
         Save all learning state.
 
@@ -734,44 +729,44 @@ class LearningManager:
 class _NoOpLearner:
     """No-op learner for when Q-learning is unavailable."""
 
-    def add_experience(self, *args, **kwargs) -> None:
+    def add_experience(self, *args: Any, **kwargs: Any) -> None:
         pass
 
-    def record_outcome(self, *args, **kwargs) -> None:
+    def record_outcome(self, *args: Any, **kwargs: Any) -> None:
         pass
 
-    def predict_q_value(self, *args, **kwargs) -> Tuple:
+    def predict_q_value(self, *args: Any, **kwargs: Any) -> Tuple:
         return 0.5, 0.1, None
 
-    def get_learned_context(self, *args, **kwargs) -> str:
+    def get_learned_context(self, *args: Any, **kwargs: Any) -> str:
         return ""
 
     def get_q_table_stats(self) -> Dict:
         return {'size': 0, 'avg_q_value': 0}
 
-    def save_state(self, path) -> None:
+    def save_state(self, path: Any) -> None:
         pass
 
-    def load_state(self, path) -> None:
+    def load_state(self, path: Any) -> None:
         pass
 
 
 class _NoOpMemory:
     """No-op memory for when memory system is unavailable."""
 
-    def store(self, *args, **kwargs) -> None:
+    def store(self, *args: Any, **kwargs: Any) -> None:
         pass
 
-    def retrieve(self, *args, **kwargs) -> List:
+    def retrieve(self, *args: Any, **kwargs: Any) -> List:
         return []
 
     def get_statistics(self) -> Dict:
         return {'total_entries': 0}
 
-    def save(self, path) -> None:
+    def save(self, path: Any) -> None:
         pass
 
-    def load(self, path) -> None:
+    def load(self, path: Any) -> None:
         pass
 
 
@@ -782,7 +777,7 @@ class _NoOpMemory:
 _global_coordinator: Optional[LearningManager] = None
 
 
-def get_learning_coordinator(config=None, base_dir: str = None) -> LearningManager:
+def get_learning_coordinator(config: Any = None, base_dir: str = None) -> LearningManager:
     """Get or create global learning coordinator."""
     global _global_coordinator
 

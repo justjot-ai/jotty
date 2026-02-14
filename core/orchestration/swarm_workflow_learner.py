@@ -31,7 +31,7 @@ class SwarmWorkflowLearner:
     DRY Principle: Reuses existing SwarmMemory for storage.
     """
     
-    def __init__(self, swarm_memory=None):
+    def __init__(self, swarm_memory: Any = None) -> None:
         """
         Initialize SwarmWorkflowLearner.
         
@@ -42,15 +42,7 @@ class SwarmWorkflowLearner:
         self._patterns: Dict[str, WorkflowPattern] = {}
         self._pattern_index: Dict[str, List[str]] = {}  # task_type -> pattern_ids
     
-    def learn_from_execution(
-        self,
-        task_type: str,
-        operations: List[str],
-        tools_used: List[str],
-        success: bool,
-        execution_time: float,
-        metadata: Optional[Dict[str, Any]] = None
-    ):
+    def learn_from_execution(self, task_type: str, operations: List[str], tools_used: List[str], success: bool, execution_time: float, metadata: Optional[Dict[str, Any]] = None) -> Any:
         """
         Learn from a workflow execution.
         

@@ -55,14 +55,7 @@ class UnifiedLLM:
         response = llm.generate("What is Python?", fallback=True)
     """
 
-    def __init__(
-        self,
-        default_provider: str = "claude-cli",
-        default_model: str = DEFAULT_MODEL_ALIAS,
-        fallback_order: Optional[List[str]] = None,
-        timeout: int = LLM_TIMEOUT_SECONDS,
-        cost_tracker: Optional['CostTracker'] = None,
-    ):
+    def __init__(self, default_provider: str = 'claude-cli', default_model: str = DEFAULT_MODEL_ALIAS, fallback_order: Optional[List[str]] = None, timeout: int = LLM_TIMEOUT_SECONDS, cost_tracker: Optional['CostTracker'] = None) -> None:
         """
         Initialize UnifiedLLM.
 
@@ -79,16 +72,7 @@ class UnifiedLLM:
         self.timeout = timeout
         self.cost_tracker = cost_tracker
 
-    def generate(
-        self,
-        prompt: str,
-        provider: Optional[str] = None,
-        model: Optional[str] = None,
-        timeout: Optional[int] = None,
-        max_tokens: int = LLM_MAX_OUTPUT_TOKENS,
-        fallback: bool = False,
-        **kwargs
-    ) -> LLMResponse:
+    def generate(self, prompt: str, provider: Optional[str] = None, model: Optional[str] = None, timeout: Optional[int] = None, max_tokens: int = LLM_MAX_OUTPUT_TOKENS, fallback: bool = False, **kwargs: Any) -> LLMResponse:
         """
         Generate text using LLM.
 
@@ -164,13 +148,7 @@ class UnifiedLLM:
             model=model
         )
     
-    def _track_cost(
-        self,
-        response: LLMResponse,
-        provider: str,
-        model: str,
-        duration: float
-    ):
+    def _track_cost(self, response: LLMResponse, provider: str, model: str, duration: float) -> Any:
         """
         Track cost for an LLM call.
         
@@ -202,15 +180,7 @@ class UnifiedLLM:
             duration=duration
         )
 
-    def _call_provider(
-        self,
-        provider: str,
-        prompt: str,
-        model: str,
-        timeout: int,
-        max_tokens: int,
-        **kwargs
-    ) -> LLMResponse:
+    def _call_provider(self, provider: str, prompt: str, model: str, timeout: int, max_tokens: int, **kwargs: Any) -> LLMResponse:
         """Call a specific provider."""
         provider_class = get_provider(provider)
 
@@ -265,14 +235,7 @@ def get_llm() -> UnifiedLLM:
     return _default_llm
 
 
-def generate(
-    prompt: str,
-    provider: str = "claude-cli",
-    model: str = DEFAULT_MODEL_ALIAS,
-    timeout: int = LLM_TIMEOUT_SECONDS,
-    fallback: bool = False,
-    **kwargs
-) -> LLMResponse:
+def generate(prompt: str, provider: str = 'claude-cli', model: str = DEFAULT_MODEL_ALIAS, timeout: int = LLM_TIMEOUT_SECONDS, fallback: bool = False, **kwargs: Any) -> LLMResponse:
     """
     Convenience function for quick LLM calls.
 
@@ -293,14 +256,7 @@ def generate(
     )
 
 
-def generate_text(
-    prompt: str,
-    provider: str = "claude-cli",
-    model: str = DEFAULT_MODEL_ALIAS,
-    timeout: int = LLM_TIMEOUT_SECONDS,
-    fallback: bool = False,
-    **kwargs
-) -> str:
+def generate_text(prompt: str, provider: str = 'claude-cli', model: str = DEFAULT_MODEL_ALIAS, timeout: int = LLM_TIMEOUT_SECONDS, fallback: bool = False, **kwargs: Any) -> str:
     """
     Convenience function that returns just the text or raises an error.
 

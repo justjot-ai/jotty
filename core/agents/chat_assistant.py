@@ -32,7 +32,11 @@ class ChatAssistant:
     Returns A2UI widgets by default for rich rendering.
     """
 
-    def __init__(self, state_manager=None, config: Optional[Dict[str, Any]] = None):
+    def __init__(
+        self,
+        state_manager: Any = None,
+        config: Optional[Dict[str, Any]] = None,
+    ) -> None:
         """
         Initialize ChatAssistant.
 
@@ -44,7 +48,7 @@ class ChatAssistant:
         self.config = config or {}
         logger.info(" ChatAssistant initialized (A2UI enabled)")
 
-    async def run(self, **kwargs) -> Dict[str, Any]:
+    async def run(self, **kwargs: Any) -> Dict[str, Any]:
         """
         Process user query and return A2UI response.
 
@@ -112,7 +116,7 @@ class ChatAssistant:
         keywords = ['help', 'how', 'what can', 'capabilities']
         return any(keyword in query for keyword in keywords)
 
-    async def _handle_task_query(self, query: str, **kwargs) -> Dict[str, Any]:
+    async def _handle_task_query(self, query: str, **kwargs: Any) -> Dict[str, Any]:
         """
         Handle task-related queries with A2UI widgets.
 
@@ -240,7 +244,7 @@ class ChatAssistant:
         columns = status_mapper.create_kanban_columns()
 
         # Priority mapping: numeric (1,2,3,4) → string ('low','medium','high','urgent')
-        def map_priority(priority_value) -> str:
+        def map_priority(priority_value: Any) -> str:
             """Convert numeric priority to kanban string format."""
             if isinstance(priority_value, str):
                 # Already a string, validate it's correct
@@ -251,7 +255,7 @@ class ChatAssistant:
             priority_map = {1: 'low', 2: 'medium', 3: 'high', 4: 'urgent'}
             return priority_map.get(priority_value, 'medium')
 
-        def format_assignee(assignee_value) -> Dict:
+        def format_assignee(assignee_value: Any) -> Dict:
             """Convert assignee to kanban object format {name, avatar?, email?}."""
             if not assignee_value:
                 return None
@@ -643,7 +647,10 @@ class ChatAssistant:
 
 
 # Factory function for easy instantiation
-def create_chat_assistant(state_manager=None, config: Optional[Dict[str, Any]] = None):
+def create_chat_assistant(
+    state_manager: Any = None,
+    config: Optional[Dict[str, Any]] = None,
+) -> Any:
     """
     Create a ChatAssistant agent (V1 or V2 based on API key availability).
 

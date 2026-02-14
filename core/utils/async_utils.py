@@ -180,7 +180,7 @@ def sync_wrapper(async_func: Callable[..., Coroutine[Any, Any, T]]) -> Callable[
         result = my_async_function(1, 2)
     """
     @functools.wraps(async_func)
-    def wrapper(*args, **kwargs) -> T:
+    def wrapper(*args: Any, **kwargs: Any) -> T:
         return run_sync(async_func(*args, **kwargs))
     return wrapper
 
@@ -199,7 +199,7 @@ def ensure_async(func: Callable) -> Callable[..., Coroutine]:
         return func
 
     @functools.wraps(func)
-    async def wrapper(*args, **kwargs):
+    async def wrapper(*args: Any, **kwargs: Any) -> Any:
         return func(*args, **kwargs)
 
     return wrapper
@@ -218,7 +218,7 @@ async def gather_with_limit(coros: list, limit: int = 10) -> list:
     """
     semaphore = asyncio.Semaphore(limit)
 
-    async def limited(coro):
+    async def limited(coro: Any) -> Any:
         async with semaphore:
             return await coro
 
@@ -245,7 +245,7 @@ class AgentEvent:
     timestamp: float = field(default_factory=_time.time)
     agent_id: Optional[str] = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.type not in AGENT_EVENT_TYPES:
             _logger.debug("AgentEvent created with unknown type: %s", self.type)
 
@@ -264,7 +264,7 @@ class AgentEventBroadcaster:
     _instance: Optional["AgentEventBroadcaster"] = None
     _lock = threading.Lock()
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._listeners: Dict[str, List[Callable]] = {}
 
     @classmethod

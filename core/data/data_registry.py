@@ -106,7 +106,7 @@ class DataRegistry:
     Enables agent self-discovery and retrieval.
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         self.artifacts: Dict[str, DataArtifact] = {}
         self.index_by_type: Dict[str, List[str]] = {}
         self.index_by_tag: Dict[str, List[str]] = {}
@@ -217,10 +217,10 @@ class DataRegistry:
 class DataRegistryTool:
     """Tool that agents can use to discover and retrieve data."""
     
-    def __init__(self, registry: DataRegistry):
+    def __init__(self, registry: DataRegistry) -> None:
         self.registry = registry
     
-    def __call__(self, action: str, **kwargs) -> Any:
+    def __call__(self, action: str, **kwargs: Any) -> Any:
         """
         Main entry point for agents.
         

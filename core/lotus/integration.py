@@ -42,13 +42,7 @@ class LotusEnhancement:
     DRY: Composes with existing swarm without modifying its code.
     """
 
-    def __init__(
-        self,
-        config: Optional[LotusConfig] = None,
-        enable_cascade: bool = True,
-        enable_cache: bool = True,
-        enable_adaptive_validation: bool = True,
-    ):
+    def __init__(self, config: Optional[LotusConfig] = None, enable_cascade: bool = True, enable_cache: bool = True, enable_adaptive_validation: bool = True) -> None:
         """
         Initialize LOTUS enhancement.
 
@@ -140,12 +134,7 @@ def _enhance_agent_runner(runner: Any, enhancement: LotusEnhancement) -> Tuple:
         runner._original_architect_validator = original_architect
         original_validate = original_architect.validate
 
-        async def adaptive_architect_validate(
-            goal: str,
-            inputs: dict,
-            trajectory: list,
-            is_architect: bool = True,
-        ):
+        async def adaptive_architect_validate(goal: str, inputs: dict, trajectory: list, is_architect: bool = True) -> Any:
             """Wrapped architect validation with adaptive skipping."""
             agent_name = runner.agent_name
             decision = enhancement.adaptive_validator.should_validate(agent_name, "architect")
@@ -183,12 +172,7 @@ def _enhance_agent_runner(runner: Any, enhancement: LotusEnhancement) -> Tuple:
         runner._original_auditor_validator = original_auditor
         original_validate = original_auditor.validate
 
-        async def adaptive_auditor_validate(
-            goal: str,
-            inputs: dict,
-            trajectory: list,
-            is_architect: bool = False,
-        ):
+        async def adaptive_auditor_validate(goal: str, inputs: dict, trajectory: list, is_architect: bool = False) -> Any:
             """Wrapped auditor validation with adaptive skipping."""
             agent_name = runner.agent_name
             decision = enhancement.adaptive_validator.should_validate(agent_name, "auditor")
@@ -230,13 +214,7 @@ class CascadedLM:
     DRY: Wraps any DSPy LM with cascade logic.
     """
 
-    def __init__(
-        self,
-        base_lm: Any,
-        cascade: ModelCascade,
-        cache: Optional[SemanticCache] = None,
-        default_operation: str = "default",
-    ):
+    def __init__(self, base_lm: Any, cascade: ModelCascade, cache: Optional[SemanticCache] = None, default_operation: str = 'default') -> None:
         """
         Initialize cascaded LM.
 
@@ -256,7 +234,7 @@ class CascadedLM:
             if hasattr(base_lm, attr):
                 setattr(self, attr, getattr(base_lm, attr))
 
-    def __call__(self, prompt: Any, **kwargs) -> Any:
+    def __call__(self, prompt: Any, **kwargs: Any) -> Any:
         """
         Call LM with cascade optimization.
 
@@ -329,13 +307,7 @@ class LotusSwarmMixin:
         swarm = MySwarm(agents=[...], enable_lotus=True)
     """
 
-    def _init_lotus(
-        self,
-        config: Optional[LotusConfig] = None,
-        enable_cascade: bool = True,
-        enable_cache: bool = True,
-        enable_adaptive_validation: bool = True,
-    ):
+    def _init_lotus(self, config: Optional[LotusConfig] = None, enable_cascade: bool = True, enable_cache: bool = True, enable_adaptive_validation: bool = True) -> Any:
         """Initialize LOTUS optimization components."""
         self.lotus = LotusEnhancement(
             config=config,
@@ -362,7 +334,7 @@ class LotusSwarmMixin:
 
 
 # Convenience function to wrap DSPy signatures with caching
-def cached_signature(cache: SemanticCache):
+def cached_signature(cache: SemanticCache) -> Any:
     """
     Decorator to cache DSPy signature calls.
 
@@ -374,10 +346,10 @@ def cached_signature(cache: SemanticCache):
             query = dspy.InputField()
             answer = dspy.OutputField()
     """
-    def decorator(sig_class):
+    def decorator(sig_class: Any) -> Any:
         original_init = sig_class.__init__
 
-        def new_init(self, *args, **kwargs) -> None:
+        def new_init(self, *args: Any, **kwargs: Any) -> None:
             original_init(self, *args, **kwargs)
             self._cache = cache
 

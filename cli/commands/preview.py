@@ -9,7 +9,7 @@ import logging
 import subprocess
 import shutil
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional, Tuple
+from typing import TYPE_CHECKING, Optional, Tuple, Any
 
 from .base import BaseCommand, CommandResult, ParsedArgs
 
@@ -127,13 +127,7 @@ class PreviewCommand(BaseCommand):
         cli.renderer.print("[dim]" + "─" * 50 + "[/dim]")
         return CommandResult.ok()
 
-    async def _preview_file(
-        self,
-        cli: "JottyCLI",
-        path: Path,
-        max_lines: int = 50,
-        raw: bool = False
-    ):
+    async def _preview_file(self, cli: 'JottyCLI', path: Path, max_lines: int = 50, raw: bool = False) -> Any:
         """Preview a file with the best available tool."""
         tools = self.detect_tools()
         suffix = path.suffix.lower()
@@ -173,7 +167,7 @@ class PreviewCommand(BaseCommand):
 
         cli.renderer.print("[dim]" + "─" * 60 + "[/dim]")
 
-    async def _preview_markdown(self, cli: "JottyCLI", path: Path, tools: dict, raw: bool):
+    async def _preview_markdown(self, cli: 'JottyCLI', path: Path, tools: dict, raw: bool) -> Any:
         """Preview markdown with glow or rich."""
         if tools['glow'] and not raw:
             result = subprocess.run(
@@ -188,7 +182,7 @@ class PreviewCommand(BaseCommand):
         content = path.read_text()
         cli.renderer.markdown(content)
 
-    async def _preview_pdf(self, cli: "JottyCLI", path: Path, tools: dict, max_lines: int):
+    async def _preview_pdf(self, cli: 'JottyCLI', path: Path, tools: dict, max_lines: int) -> Any:
         """Preview PDF with pdftotext."""
         if tools['pdftotext']:
             result = subprocess.run(
@@ -219,7 +213,7 @@ class PreviewCommand(BaseCommand):
         # Show metadata at least
         await self._show_file_metadata(cli, path, tools)
 
-    async def _preview_docx(self, cli: "JottyCLI", path: Path, tools: dict, max_lines: int):
+    async def _preview_docx(self, cli: 'JottyCLI', path: Path, tools: dict, max_lines: int) -> Any:
         """Preview DOCX with catdoc or pandoc."""
         if tools['catdoc']:
             result = subprocess.run(
@@ -248,7 +242,7 @@ class PreviewCommand(BaseCommand):
         cli.renderer.warning("DOCX preview requires catdoc or pandoc")
         cli.renderer.info("  apt install catdoc  OR  apt install pandoc")
 
-    async def _preview_image(self, cli: "JottyCLI", path: Path, tools: dict):
+    async def _preview_image(self, cli: 'JottyCLI', path: Path, tools: dict) -> Any:
         """Preview image in terminal."""
         # Try chafa (best quality)
         if tools['chafa']:
@@ -285,7 +279,7 @@ class PreviewCommand(BaseCommand):
         # Show metadata
         await self._show_file_metadata(cli, path, tools)
 
-    async def _preview_json(self, cli: "JottyCLI", path: Path, tools: dict, max_lines: int):
+    async def _preview_json(self, cli: 'JottyCLI', path: Path, tools: dict, max_lines: int) -> Any:
         """Preview JSON with syntax highlighting."""
         if tools['jq']:
             result = subprocess.run(
@@ -317,7 +311,7 @@ class PreviewCommand(BaseCommand):
         for line in lines:
             print(line)
 
-    async def _preview_html(self, cli: "JottyCLI", path: Path, tools: dict, max_lines: int):
+    async def _preview_html(self, cli: 'JottyCLI', path: Path, tools: dict, max_lines: int) -> Any:
         """Preview HTML as text."""
         if tools['lynx']:
             result = subprocess.run(
@@ -355,7 +349,7 @@ class PreviewCommand(BaseCommand):
         # Raw HTML with bat
         await self._preview_code(cli, path, tools, max_lines, False)
 
-    async def _preview_csv(self, cli: "JottyCLI", path: Path, max_lines: int):
+    async def _preview_csv(self, cli: 'JottyCLI', path: Path, max_lines: int) -> Any:
         """Preview CSV as table."""
         import csv
 
@@ -385,7 +379,7 @@ class PreviewCommand(BaseCommand):
                                  for i, (c, w) in enumerate(zip(row + [''] * len(col_widths), col_widths)))
             print(row_str)
 
-    async def _preview_code(self, cli: "JottyCLI", path: Path, tools: dict, max_lines: int, raw: bool):
+    async def _preview_code(self, cli: 'JottyCLI', path: Path, tools: dict, max_lines: int, raw: bool) -> Any:
         """Preview code/text with syntax highlighting."""
         if tools['bat'] and not raw:
             result = subprocess.run(
@@ -400,7 +394,7 @@ class PreviewCommand(BaseCommand):
         # Fallback to raw
         await self._preview_raw(cli, path, max_lines)
 
-    async def _preview_binary(self, cli: "JottyCLI", path: Path, tools: dict):
+    async def _preview_binary(self, cli: 'JottyCLI', path: Path, tools: dict) -> Any:
         """Preview binary file with hexyl."""
         if tools['hexyl']:
             result = subprocess.run(
@@ -422,7 +416,7 @@ class PreviewCommand(BaseCommand):
 
         cli.renderer.print("[dim]Binary file - use hexyl for preview[/dim]")
 
-    async def _preview_raw(self, cli: "JottyCLI", path: Path, max_lines: int):
+    async def _preview_raw(self, cli: 'JottyCLI', path: Path, max_lines: int) -> Any:
         """Raw text preview."""
         try:
             with open(path, 'r', errors='replace') as f:
@@ -434,7 +428,7 @@ class PreviewCommand(BaseCommand):
         except Exception as e:
             cli.renderer.error(f"Cannot read file: {e}")
 
-    async def _show_file_metadata(self, cli: "JottyCLI", path: Path, tools: dict):
+    async def _show_file_metadata(self, cli: 'JottyCLI', path: Path, tools: dict) -> Any:
         """Show file metadata."""
         import os
         from datetime import datetime

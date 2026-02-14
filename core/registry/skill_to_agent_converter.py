@@ -55,7 +55,7 @@ class SkillToAgentConverter:
     4. Create AgentConfig
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize converter."""
         if not DSPY_AVAILABLE:
             raise RuntimeError("DSPy required for SkillToAgentConverter")
