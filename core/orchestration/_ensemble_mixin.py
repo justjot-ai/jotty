@@ -7,7 +7,7 @@ for multi-perspective analysis.
 """
 
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, Tuple
 
 logger = logging.getLogger(__name__)
 

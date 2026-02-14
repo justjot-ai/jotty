@@ -20,7 +20,7 @@ import asyncio
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional, Callable, TypeVar, Generic, Union
+from typing import List, Dict, Any, Optional, Callable, TypeVar, Generic, Union, Tuple
 import pandas as pd
 
 from .config import LotusConfig, ModelTier

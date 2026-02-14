@@ -22,7 +22,7 @@ Usage:
 
 import asyncio
 import logging
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Tuple
 from functools import wraps
 
 from .config import LotusConfig, ModelTier

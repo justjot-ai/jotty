@@ -348,10 +348,47 @@ class TierExecutor:
         start_time = time.time()
         config = config or self.config
 
-        # Pop GAIA-specific kwargs early so they don't leak to tiers that don't expect them
+        # FUNDAMENTAL FIX: Intent-based routing (replaces hacks)
+        # Classify task intent using semantic understanding
+        from Jotty.core.execution.intent_classifier import classify_task_intent
+
+        attachments = kwargs.get('attachments', [])
+        intent_analysis = classify_task_intent(goal, attachments)
+
+        logger.info(f"Intent classified: {intent_analysis.intent.value} "
+                   f"(confidence: {intent_analysis.confidence:.2f})")
+
+        # Route FACT_RETRIEVAL tasks directly to optimized executor
+        if intent_analysis.intent.value == 'fact_retrieval':
+            logger.info("Routing to FactRetrievalExecutor (optimized for Q&A)")
+            from Jotty.core.execution.fact_retrieval_executor import get_fact_retrieval_executor
+
+            fact_executor = get_fact_retrieval_executor()
+            answer = await fact_executor.execute(
+                question=goal,
+                attachments=attachments,
+                context=kwargs.get('context')
+            )
+
+            return ExecutionResult(
+                output=answer,
+                success=True,
+                tier=ExecutionTier.RESEARCH,  # Treated as research tier
+                execution_time=0.0,
+                metadata={
+                    'intent': intent_analysis.intent.value,
+                    'tools_used': intent_analysis.required_tools,
+                    'route': 'fact_retrieval_executor'
+                }
+            )
+
+        # Pop deprecated GAIA-specific hacks (no longer needed)
         _skip_complexity_gate = kwargs.pop('skip_complexity_gate', False)
         _hint_skills = kwargs.pop('hint_skills', [])
         _skip_swarm_selection = kwargs.pop('skip_swarm_selection', False)
+
+        if _skip_swarm_selection:
+            logger.warning("skip_swarm_selection is deprecated - using intent classification instead")
 
         # Auto-detect tier if not specified
         if config.tier is None:

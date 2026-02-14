@@ -17,7 +17,7 @@ import logging
 from datetime import datetime
 import dspy
 from dspy.clients.base_lm import BaseLM
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Tuple
 from pathlib import Path
 from Jotty.core.foundation.exceptions import InvalidConfigError, InputValidationError
 

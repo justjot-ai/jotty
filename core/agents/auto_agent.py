@@ -9,7 +9,7 @@ Refactored to inherit from AutonomousAgent for unified infrastructure.
 """
 import logging
 import inspect
-from typing import Dict, Any, List, Optional, Callable
+from typing import Dict, Any, List, Optional, Callable, Tuple
 from datetime import datetime
 
 from .agentic_planner import TaskPlanner

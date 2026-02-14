@@ -5,7 +5,7 @@ Demonstrates how to use the LOTUS optimization layer for cost-efficient LLM oper
 """
 
 import asyncio
-from typing import List
+from typing import List, Tuple
 
 
 # =============================================================================
