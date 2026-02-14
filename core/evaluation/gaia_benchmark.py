@@ -94,6 +94,12 @@ class GAIABenchmark(Benchmark):
                     with open(task_file) as f:
                         task_data = json.load(f)
                         task_data['split'] = split_name
+                        # Resolve attachment path so the agent can read the file (e.g. Excel, PDF, audio)
+                        attachment_path = task_data.get('attachment_path')
+                        if attachment_path:
+                            full_path = (split_dir / attachment_path).resolve()
+                            if full_path.exists():
+                                task_data['attachment_local_path'] = str(full_path)
                         # Apply level filter
                         if level is not None:
                             task_level = task_data.get('Level')
@@ -102,6 +108,9 @@ class GAIABenchmark(Benchmark):
                         tasks.append(task_data)
                 except Exception as e:
                     logger.warning(f"Failed to load {task_file}: {e}")
+
+        # Deterministic order so --max-tasks 10 always runs the same 10 tasks
+        tasks.sort(key=lambda t: (t.get('split', ''), t.get('task_id', t.get('file_name', ''))))
 
         logger.info(f"Loaded {len(tasks)} GAIA tasks")
         return tasks
@@ -129,14 +138,15 @@ class GAIABenchmark(Benchmark):
         task_id = task.get('task_id', task.get('file_name', 'unknown'))
         question = task.get('Question', '')
         expected_answer = task.get('Final answer', '')
+        attachment_paths = [task['attachment_local_path']] if task.get('attachment_local_path') else []
 
-        # Execute agent
+        # Execute agent (pass attachment paths so agent can use read_file / tools)
         start_time = time.time()
         try:
             if hasattr(agent, 'run'):
-                answer = agent.run(question, **kwargs)
+                answer = agent.run(question, attachment_paths=attachment_paths, **kwargs)
             elif hasattr(agent, 'execute'):
-                answer = agent.execute(question, **kwargs)
+                answer = agent.execute(question, attachment_paths=attachment_paths, **kwargs)
             else:
                 raise ValueError("Agent must have 'run' or 'execute' method")
 

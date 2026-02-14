@@ -6,11 +6,14 @@ Usage:
     # Quick validation (dry run)
     python Jotty/scripts/run_gaia.py --dry-run --max-tasks 5
 
-    # Run Level 1 with AGENTIC tier
-    python Jotty/scripts/run_gaia.py --split validation --level 1 --tier AGENTIC
+    # Run Level 1 (tier auto-detected from task)
+    python Jotty/scripts/run_gaia.py --split validation --level 1
 
-    # Run all levels, cheapest tier
-    python Jotty/scripts/run_gaia.py --split validation --tier DIRECT
+    # Force a specific tier (e.g. DIRECT or AGENTIC)
+    python Jotty/scripts/run_gaia.py --split validation --tier AGENTIC
+
+    # Smoke test: first 10 tasks (deterministic), then bulk when 10/10
+    python Jotty/scripts/run_gaia.py --split validation --level 1 --smoke 10
 
     # Single task debug
     python Jotty/scripts/run_gaia.py --task-id "some_task_id" --verbose
@@ -51,8 +54,8 @@ def parse_args(argv=None):
         help="GAIA difficulty level to filter (default: all)",
     )
     parser.add_argument(
-        "--tier", default="DIRECT",
-        help="Jotty execution tier: DIRECT, AGENTIC, LEARNING, RESEARCH, AUTONOMOUS (default: DIRECT)",
+        "--tier", default=None,
+        help="Jotty execution tier: DIRECT, AGENTIC, LEARNING, RESEARCH, AUTONOMOUS (default: auto-detect from task)",
     )
     parser.add_argument(
         "--model", default=None,
@@ -61,6 +64,10 @@ def parse_args(argv=None):
     parser.add_argument(
         "--max-tasks", type=int, default=None,
         help="Limit number of tasks to run",
+    )
+    parser.add_argument(
+        "--smoke", type=int, metavar="N", default=None,
+        help="Smoke test: run first N tasks (deterministic order). Example: --smoke 10 to get 10/10 before bulk run.",
     )
     parser.add_argument(
         "--task-id", default=None,
@@ -86,6 +93,10 @@ def parse_args(argv=None):
         "--verbose", action="store_true",
         help="Verbose output per task",
     )
+    parser.add_argument(
+        "--use-llm-doc-sources", action="store_true",
+        help="Add open-source LLM doc references (Microsoft, Hugging Face, etc.) to context",
+    )
     return parser.parse_args(argv)
 
 
@@ -104,6 +115,14 @@ def get_latest_run_id(store, benchmark="GAIA"):
         (benchmark,),
     ).fetchone()
     return row['id'] if row else None
+
+
+def make_live_progress_callback(idx, total, task_id, verbose):
+    """Return a (stage, detail) callback for real-time progress during a single task."""
+    def callback(stage, detail):
+        line = f"    [{idx}/{total}] {task_id[:18]:18s} | {stage:12s} | {detail}"
+        print(line, flush=True)
+    return callback
 
 
 def print_progress(idx, total, task_id, success, answer, expected, elapsed):
@@ -165,20 +184,27 @@ def run_benchmark(args):
             print(f"Task {args.task_id} not found.")
             return 1
 
-    # Limit
-    if args.max_tasks:
-        tasks = tasks[:args.max_tasks]
+    # Limit (--smoke N overrides --max-tasks for a reproducible first-N run)
+    if args.smoke is not None:
+        tasks = tasks[: args.smoke]
+        print(
+            f"Smoke test: running first {len(tasks)} tasks (deterministic order). "
+            f"Get {len(tasks)}/{len(tasks)} then run without --smoke for full run.\n"
+        )
+    elif args.max_tasks:
+        tasks = tasks[: args.max_tasks]
 
     # Setup adapter
     adapter = JottyGAIAAdapter(
         tier=args.tier,
         model=args.model,
         dry_run=args.dry_run,
+        use_llm_doc_sources=args.use_llm_doc_sources,
     )
 
     # Setup EvalStore
     store = EvalStore(db_path=args.db_path)
-    model_name = args.model or f"jotty-{args.tier.lower()}"
+    model_name = args.model or (f"jotty-{args.tier.lower()}" if args.tier else "jotty-auto")
 
     # Resume or start new run
     run_id = None
@@ -191,7 +217,7 @@ def run_benchmark(args):
 
     if not run_id:
         metadata = {
-            'tier': args.tier,
+            'tier': args.tier or "auto",
             'level': args.level,
             'split': args.split,
             'dry_run': args.dry_run,
@@ -203,9 +229,10 @@ def run_benchmark(args):
     level_str = f" Level {args.level}" if args.level else ""
     split_str = f" [{args.split}]" if args.split else ""
     mode_str = " (DRY RUN)" if args.dry_run else ""
+    tier_str = args.tier or "auto"
     print(
         f"Running {len(tasks)} tasks{level_str}{split_str} "
-        f"with tier={args.tier}{mode_str}"
+        f"with tier={tier_str}{mode_str}"
     )
     print(f"Run ID: {run_id}\n")
 
@@ -221,6 +248,12 @@ def run_benchmark(args):
             if args.verbose:
                 print(f"  [{idx}/{len(tasks)}] SKIP | {task_id[:20]} (already done)")
             continue
+
+        # Real-time progress for this task (stage/detail from Jotty)
+        adapter.progress_callback = make_live_progress_callback(
+            idx, len(tasks), task_id, args.verbose
+        )
+        print(f"  [{idx}/{len(tasks)}] Running {task_id[:50]} ...", flush=True)
 
         # Evaluate
         bench_result = benchmark.evaluate_task(task, adapter)
@@ -256,6 +289,8 @@ def run_benchmark(args):
         }
         results.append(result_dict)
 
+        adapter.progress_callback = None  # clear so next task gets fresh callback
+
         print_progress(
             idx, len(tasks), task_id, bench_result.success,
             bench_result.answer, expected, bench_result.execution_time,
@@ -269,6 +304,12 @@ def run_benchmark(args):
     # Finish run
     store.finish_run(run_id)
     print_summary(results, total_time, run_id)
+
+    # Stop adapter's event-loop thread so we don't leave it running
+    try:
+        adapter.shutdown()
+    except Exception:
+        pass
 
     # Save results JSON
     if args.output:

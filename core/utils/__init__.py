@@ -79,6 +79,14 @@ _LAZY_IMPORTS: dict[str, str] = {
 }
 
 
+_FACADE_IMPORTS = {
+    'get_budget_tracker',
+    'get_circuit_breaker',
+    'get_llm_cache',
+    'get_tokenizer',
+}
+
+
 def __getattr__(name: str):
     if name in _LAZY_IMPORTS:
         module_path = _LAZY_IMPORTS[name]
@@ -86,7 +94,17 @@ def __getattr__(name: str):
         value = getattr(module, name)
         globals()[name] = value
         return value
+    if name in _FACADE_IMPORTS:
+        from . import facade
+        value = getattr(facade, name)
+        globals()[name] = value
+        return value
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
-__all__ = list(_LAZY_IMPORTS.keys())
+__all__ = list(_LAZY_IMPORTS.keys()) + [
+    'get_budget_tracker',
+    'get_circuit_breaker',
+    'get_llm_cache',
+    'get_tokenizer',
+]

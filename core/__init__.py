@@ -172,6 +172,9 @@ _LAZY_IMPORTS: dict[str, str] = {
     # AgentConfig already imported eagerly
     # --- learning.q_learning ---
     "LLMQPredictor": ".learning.q_learning",
+    # --- capabilities ---
+    "capabilities": ".capabilities",
+    "explain": ".capabilities",
     # --- context.context_guard ---
     "LLMContextManager": ".context.context_guard",
     # --- learning.predictive_marl ---

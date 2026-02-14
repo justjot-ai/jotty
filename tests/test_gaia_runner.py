@@ -25,7 +25,11 @@ from dataclasses import dataclass
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.evaluation import GAIABenchmark, EvalStore
-from core.evaluation.gaia_adapter import JottyGAIAAdapter, GAIA_SYSTEM_PROMPT
+from core.evaluation.gaia_adapter import (
+    JottyGAIAAdapter,
+    GAIA_SYSTEM_PROMPT,
+    _extract_answer_from_output,
+)
 
 
 # =============================================================================
@@ -83,6 +87,62 @@ class FakeExecutionResult:
     llm_calls: int = 1
     latency_ms: float = 500.0
     success: bool = True
+
+
+# =============================================================================
+# 0. Answer extraction (GAIA scoring)
+# =============================================================================
+
+@pytest.mark.unit
+class TestExtractAnswerFromOutput:
+    """_extract_answer_from_output for Tier 4 AgenticExecutionResult and nested output."""
+
+    def test_none_empty(self):
+        assert _extract_answer_from_output(None) == ""
+        assert _extract_answer_from_output("") == ""
+
+    def test_plain_string(self):
+        assert _extract_answer_from_output("28") == "28"
+        assert _extract_answer_from_output("The adventurer died.") == "The adventurer died."
+
+    def test_agentic_final_output(self):
+        """AgenticExecutionResult.final_output is used when present."""
+        class MockAgentic:
+            final_output = "42"
+            outputs = {}
+        assert _extract_answer_from_output(MockAgentic()) == "42"
+
+    def test_agentic_outputs_last_step(self):
+        """When final_output is None, last step content from outputs is used."""
+        class MockAgentic:
+            final_output = None
+            outputs = {"step_0": {"path": "x"}, "step_1": {"content": "Paris"}}
+        assert _extract_answer_from_output(MockAgentic()) == "Paris"
+
+    def test_agentic_outputs_result_field(self):
+        class MockAgentic:
+            final_output = None
+            outputs = {"step_1": {"result": "28"}}
+        assert _extract_answer_from_output(MockAgentic()) == "28"
+
+    def test_nested_output(self):
+        """Nested object with .output is recursed."""
+        class Nested:
+            output = "nested answer"
+        assert _extract_answer_from_output(Nested()) == "nested answer"
+
+    def test_dict_content(self):
+        assert _extract_answer_from_output({"content": "from dict"}) == "from dict"
+        assert _extract_answer_from_output({"result": "42"}) == "42"
+
+    def test_avoids_object_repr(self):
+        """Object with no final_output/outputs/content returns summary or str, not full repr."""
+        class NoContent:
+            outputs = {}
+            final_output = None
+            def summary(self):
+                return "Task completed"
+        assert _extract_answer_from_output(NoContent()) == "Task completed"
 
 
 # =============================================================================
@@ -212,11 +272,12 @@ class TestJottyGAIAAdapterInit:
     """JottyGAIAAdapter initialization."""
 
     def test_default_init(self):
-        """Default init has no tier, no model, not dry run."""
+        """Default init has no tier, no model, not dry run, no llm doc sources."""
         adapter = JottyGAIAAdapter()
         assert adapter.tier is None
         assert adapter.model is None
         assert adapter.dry_run is False
+        assert adapter.use_llm_doc_sources is False
         assert adapter.last_result is None
         assert adapter._jotty is None
 
@@ -226,6 +287,14 @@ class TestJottyGAIAAdapterInit:
         assert adapter.tier == "DIRECT"
         assert adapter.model == "test-model"
         assert adapter.dry_run is True
+
+    def test_custom_init_use_llm_doc_sources(self):
+        """use_llm_doc_sources=True stores and prompt includes references."""
+        adapter = JottyGAIAAdapter(use_llm_doc_sources=True, dry_run=True)
+        assert adapter.use_llm_doc_sources is True
+        prompt = adapter._build_prompt("What is 2+2?")
+        assert "2+2" in prompt
+        assert "Relevant open-source" in prompt or "microsoft" in prompt.lower() or "huggingface" in prompt.lower()
 
 
 # =============================================================================
@@ -319,6 +388,15 @@ class TestGAIALoadTasksFiltering:
         bench = GAIABenchmark(benchmark_path=gaia_path)
         tasks = bench.load_tasks()
         assert len(tasks) > 0
+
+    def test_deterministic_order_for_smoke(self, tmp_path):
+        """Tasks are sorted by (split, task_id) so --smoke 10 runs same 10 every time."""
+        gaia_path = _make_gaia_dataset(tmp_path)
+        bench = GAIABenchmark(benchmark_path=gaia_path)
+        tasks = bench.load_tasks()
+        # Should be sorted: test before validation (split), then by task_id
+        pairs = [(t.get("split", ""), t.get("task_id", t.get("file_name", ""))) for t in tasks]
+        assert pairs == sorted(pairs), "load_tasks() must return deterministic order for --smoke"
 
 
 # =============================================================================
@@ -590,9 +668,10 @@ class TestRunGaiaCLI:
         assert args.data_dir == "./data/gaia"
         assert args.split is None
         assert args.level is None
-        assert args.tier == "DIRECT"
+        assert args.tier is None  # default: auto-detect
         assert args.model is None
         assert args.max_tasks is None
+        assert args.smoke is None
         assert args.task_id is None
         assert args.dry_run is False
         assert args.resume is False
@@ -627,6 +706,15 @@ class TestRunGaiaCLI:
         assert args.db_path == "/tmp/evals.db"
         assert args.output == "/tmp/results.json"
         assert args.verbose is True
+
+    def test_smoke_arg(self):
+        """--smoke N sets smoke test mode (first N tasks, deterministic)."""
+        from scripts.run_gaia import parse_args
+        args = parse_args(["--smoke", "10"])
+        assert args.smoke == 10
+        args2 = parse_args(["--smoke", "5", "--split", "validation"])
+        assert args2.smoke == 5
+        assert args2.split == "validation"
 
 
 # =============================================================================
@@ -918,6 +1006,47 @@ class TestDownloadGaia:
             importlib.reload(dg)
             result = dg.download_gaia(str(tmp_path / "output"))
             assert result == 1
+
+
+# =============================================================================
+# 13. Open-source LLM doc sources (Microsoft, Hugging Face, etc.)
+# =============================================================================
+
+@pytest.mark.unit
+class TestLLMDocSources:
+    """llm_doc_sources registry and helpers."""
+
+    def test_list_sources_returns_non_empty(self):
+        """list_sources() returns at least one source."""
+        from Jotty.core.evaluation.llm_doc_sources import list_sources
+        sources = list_sources()
+        assert len(sources) >= 1
+        assert hasattr(sources[0], "id")
+        assert hasattr(sources[0], "name")
+        assert hasattr(sources[0], "provider")
+
+    def test_get_sources_by_provider_microsoft(self):
+        """get_sources_by_provider('microsoft') returns Microsoft sources."""
+        from Jotty.core.evaluation.llm_doc_sources import get_sources_by_provider
+        ms = get_sources_by_provider("microsoft")
+        assert len(ms) >= 1
+        assert all(s.provider == "microsoft" for s in ms)
+
+    def test_get_source_by_id(self):
+        """get_source(id) returns the source or None."""
+        from Jotty.core.evaluation.llm_doc_sources import get_source, list_sources
+        first_id = list_sources()[0].id
+        s = get_source(first_id)
+        assert s is not None
+        assert s.id == first_id
+        assert get_source("nonexistent-id") is None
+
+    def test_to_context_snippet(self):
+        """to_context_snippet returns a string with URLs."""
+        from Jotty.core.evaluation.llm_doc_sources import list_sources, to_context_snippet
+        sources = list_sources()[:2]
+        snippet = to_context_snippet(sources, max_items=2)
+        assert "Relevant open-source" in snippet or "http" in snippet or "https" in snippet
 
 
 # =============================================================================

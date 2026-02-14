@@ -191,9 +191,10 @@ class TestZenApiKey:
 
     @pytest.mark.unit
     def test_missing_api_key_raises(self, provider, monkeypatch):
-        """No API key at all should raise ValueError."""
+        """No API key at all should raise InvalidConfigError."""
+        from Jotty.core.foundation.exceptions import InvalidConfigError
         monkeypatch.delenv("OPENCODE_ZEN_API_KEY", raising=False)
-        with pytest.raises(ValueError, match="API key required"):
+        with pytest.raises(InvalidConfigError, match="API key required"):
             provider._create_zen_lm(model="glm-4.7-free")
 
     @pytest.mark.unit

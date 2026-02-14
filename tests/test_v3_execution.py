@@ -7326,6 +7326,233 @@ class TestSkillSubstitution:
         assert step.skill_name == "web-search"
 
 
+# =============================================================================
+# Bug Fix Regression Tests (Context Poison, Param Leakage, Tool Upgrade)
+# =============================================================================
+
+@pytest.mark.unit
+class TestExtractOutputText:
+    """Regression tests for _extract_output_text (Bug 1: context accumulation poison)."""
+
+    def test_string_passthrough(self):
+        """Plain strings are returned as-is."""
+        from Jotty.core.orchestration.paradigm_executor import _extract_output_text
+        assert _extract_output_text("hello world") == "hello world"
+
+    def test_none_returns_empty(self):
+        """None returns empty string."""
+        from Jotty.core.orchestration.paradigm_executor import _extract_output_text
+        assert _extract_output_text(None) == ""
+
+    def test_agentic_execution_result_extracts_final_output(self):
+        """AgenticExecutionResult-like objects extract .final_output cleanly."""
+        from Jotty.core.orchestration.paradigm_executor import _extract_output_text
+        mock_result = Mock()
+        mock_result.final_output = "This is the clean analysis text."
+        mock_result.outputs = {}
+        assert _extract_output_text(mock_result) == "This is the clean analysis text."
+
+    def test_agentic_execution_result_extracts_from_outputs_dict(self):
+        """When final_output is None, extracts from .outputs dict values."""
+        from Jotty.core.orchestration.paradigm_executor import _extract_output_text
+        mock_result = Mock()
+        mock_result.final_output = None
+        mock_result.outputs = {"step_0": {"content": "The real content here"}}
+        # .output should not be checked before .outputs
+        mock_result.output = None
+        assert _extract_output_text(mock_result) == "The real content here"
+
+    def test_episode_result_unwraps_nested(self):
+        """EpisodeResult wrapping an AgenticExecutionResult is unwrapped."""
+        from Jotty.core.orchestration.paradigm_executor import _extract_output_text
+        inner = Mock()
+        inner.final_output = "Deep clean text"
+        inner.outputs = {}
+        outer = Mock(spec=[])  # No final_output/outputs attrs
+        outer.output = inner
+        assert _extract_output_text(outer) == "Deep clean text"
+
+    def test_dict_extracts_content_field(self):
+        """Dict output extracts 'content' field."""
+        from Jotty.core.orchestration.paradigm_executor import _extract_output_text
+        assert _extract_output_text({"content": "abc", "meta": "x"}) == "abc"
+
+    def test_does_not_produce_repr_string(self):
+        """Verify output never contains AgenticExecutionResult repr markers."""
+        from Jotty.core.orchestration.paradigm_executor import _extract_output_text
+        mock_result = Mock()
+        mock_result.final_output = "Clean output"
+        mock_result.outputs = {}
+        text = _extract_output_text(mock_result)
+        assert "AgenticExecutionResult" not in text
+        assert "Mock" not in text
+
+    def test_summary_fallback(self):
+        """Falls back to .summary when no other fields match."""
+        from Jotty.core.orchestration.paradigm_executor import _extract_output_text
+        obj = Mock(spec=['summary'])
+        obj.summary = "Summary text"
+        assert _extract_output_text(obj) == "Summary text"
+
+
+@pytest.mark.unit
+class TestSmartExtractFilenameResolution:
+    """Regression tests for _smart_extract filename handling (Bug 2: param leakage)."""
+
+    def test_filename_key_extracted(self):
+        """_smart_extract resolves 'filename' key from tool response."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        resolver = ParameterResolver({})
+        json_str = json.dumps({
+            "filename": "/tmp/output.py",
+            "content": "print('hello')",
+            "success": True,
+        })
+        result = resolver._smart_extract(json_str, "path")
+        assert result == "/tmp/output.py"
+
+    def test_filepath_key_extracted(self):
+        """_smart_extract resolves 'filepath' key."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        resolver = ParameterResolver({})
+        json_str = json.dumps({
+            "filepath": "/tmp/result.txt",
+            "data": "some data",
+        })
+        result = resolver._smart_extract(json_str, "path")
+        assert result == "/tmp/result.txt"
+
+    def test_file_path_param_scans_outputs(self):
+        """file_path param name scans outputs for path-like keys."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        resolver = ParameterResolver({
+            "step_0": {"filename": "/tmp/code.py", "success": True},
+        })
+        json_str = json.dumps({"filename": "/tmp/code.py", "success": True})
+        result = resolver._smart_extract(json_str, "file_path")
+        assert result == "/tmp/code.py"
+
+    def test_resolve_path_large_dict_extracts_field(self):
+        """resolve_path with a large dict extracts relevant field instead of full JSON."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        large_content = "x" * 600
+        resolver = ParameterResolver({
+            "step_0": {
+                "filename": "/tmp/output.py",
+                "content": large_content,
+                "success": True,
+            },
+        })
+        result = resolver.resolve_path("step_0")
+        # Should extract 'filename' (a relevant short field), not dump the whole thing
+        # The dict is >500 chars, so the guard should fire
+        assert result == "/tmp/output.py"
+
+    def test_resolve_path_small_dict_returns_json(self):
+        """resolve_path with a small dict returns full JSON (no extraction needed)."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        resolver = ParameterResolver({
+            "step_0": {"path": "/tmp/f.py", "ok": True},
+        })
+        result = resolver.resolve_path("step_0")
+        parsed = json.loads(result)
+        assert parsed["path"] == "/tmp/f.py"
+
+
+@pytest.mark.unit
+class TestClaudeCliUpgradeToolValidation:
+    """Regression tests for claude-cli-llm upgrade tool check (Bug 3)."""
+
+    @staticmethod
+    def _make_step(skill_name, tool_name, params=None):
+        step = Mock()
+        step.skill_name = skill_name
+        step.tool_name = tool_name
+        step.params = params or {}
+        step.description = "test step"
+        step.output_key = None
+        step.optional = False
+        step.depends_on = []
+        step.inputs_needed = {}
+        return step
+
+    @pytest.mark.asyncio
+    async def test_upgrade_skipped_when_tool_missing(self):
+        """Upgrade from cli to api is skipped when tool doesn't exist in api skill."""
+        from Jotty.core.agents.base.skill_plan_executor import SkillPlanExecutor
+
+        mock_registry = Mock()
+        api_skill = Mock()
+        api_skill.tools = {"generate_text_tool": Mock(), "generate_code_tool": Mock()}
+        api_skill.get_tool_schema = Mock(return_value=None)
+        cli_skill = Mock()
+        cli_skill.tools = {"summarize_text_tool": Mock(return_value={"success": True, "output": "summary"})}
+        cli_skill.get_tool_schema = Mock(return_value=None)
+
+        def get_skill(name):
+            if name == 'claude-api-llm':
+                return api_skill
+            if name == 'claude-cli-llm':
+                return cli_skill
+            return None
+
+        mock_registry.get_skill = Mock(side_effect=get_skill)
+
+        executor = SkillPlanExecutor(mock_registry)
+        step = self._make_step("claude-cli-llm", "summarize_text_tool", {"text": "test"})
+
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}):
+            result = await executor.execute_step(step, {})
+
+        # Skill should NOT have been upgraded because summarize_text_tool
+        # doesn't exist in claude-api-llm
+        assert step.skill_name == "claude-cli-llm"
+
+    @pytest.mark.asyncio
+    async def test_upgrade_proceeds_when_tool_exists(self):
+        """Upgrade from cli to api proceeds when tool exists in api skill."""
+        from Jotty.core.agents.base.skill_plan_executor import SkillPlanExecutor
+
+        mock_registry = Mock()
+        api_skill = Mock()
+        api_skill.tools = {
+            "generate_text_tool": Mock(return_value={"success": True, "content": "ok"}),
+            "generate_code_tool": Mock(),
+        }
+        api_skill.get_tool_schema = Mock(return_value=None)
+
+        mock_registry.get_skill = Mock(return_value=api_skill)
+
+        executor = SkillPlanExecutor(mock_registry)
+        step = self._make_step("claude-cli-llm", "generate_text_tool", {"prompt": "test"})
+
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}):
+            result = await executor.execute_step(step, {})
+
+        # Skill SHOULD be upgraded because generate_text_tool exists in claude-api-llm
+        assert step.skill_name == "claude-api-llm"
+
+    @pytest.mark.asyncio
+    async def test_upgrade_proceeds_when_no_tool_name(self):
+        """Upgrade proceeds when step has no specific tool_name."""
+        from Jotty.core.agents.base.skill_plan_executor import SkillPlanExecutor
+
+        mock_registry = Mock()
+        api_skill = Mock()
+        api_skill.tools = {"generate_text_tool": Mock(return_value={"success": True})}
+        api_skill.get_tool_schema = Mock(return_value=None)
+        mock_registry.get_skill = Mock(return_value=api_skill)
+
+        executor = SkillPlanExecutor(mock_registry)
+        step = self._make_step("claude-cli-llm", "", {})
+
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}):
+            result = await executor.execute_step(step, {})
+
+        # Empty tool_name should allow upgrade
+        assert step.skill_name == "claude-api-llm"
+
+
 if __name__ == "__main__":
     import sys
     if "--integration" in sys.argv:

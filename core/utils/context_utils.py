@@ -420,6 +420,10 @@ ENRICHMENT_MARKERS: tuple[str, ...] = (
     '\nPrevious success patterns:',
     '\nRelevant past experience:',
     '\n\n---\n',
+    # Paradigm executor injections (relay, refinement, debate)
+    "\n[Previous agent '",
+    '\n\nHere is the current draft. Improve it:\n',
+    '\nOther agents produced these solutions.',
 )
 
 

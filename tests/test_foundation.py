@@ -2078,8 +2078,12 @@ class TestTokenCounter:
     """Tests for core/foundation/token_counter.py."""
 
     def test_init_default_model(self):
+        from unittest.mock import patch
         from Jotty.core.foundation.token_counter import TokenCounter
-        counter = TokenCounter()
+        # Ensure dspy.settings.lm is None so TokenCounter uses its default
+        with patch("dspy.settings") as mock_settings:
+            mock_settings.lm = None
+            counter = TokenCounter()
         assert counter.model == "gpt-4.1"
 
     def test_init_custom_model(self):

@@ -68,11 +68,24 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
 }
 
 
+_FACADE_IMPORTS = {
+    'get_memory_system',
+    'get_brain_manager',
+    'get_consolidator',
+    'get_rag_retriever',
+}
+
+
 def __getattr__(name: str):
     if name in _LAZY_IMPORTS:
         module_path, attr_name = _LAZY_IMPORTS[name]
         module = _importlib.import_module(module_path, __name__)
         value = getattr(module, attr_name)
+        globals()[name] = value
+        return value
+    if name in _FACADE_IMPORTS:
+        from . import facade
+        value = getattr(facade, name)
         globals()[name] = value
         return value
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
@@ -123,4 +136,9 @@ __all__ = [
     # mongodb_backend
     'MongoDBMemoryBackend',
     'enable_mongodb_memory',
+    # facade
+    'get_memory_system',
+    'get_brain_manager',
+    'get_consolidator',
+    'get_rag_retriever',
 ]

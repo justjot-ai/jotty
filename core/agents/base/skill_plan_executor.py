@@ -559,8 +559,13 @@ class SkillPlanExecutor:
                 if is_api_key_available():
                     api_skill = self._skills_registry.get_skill('claude-api-llm')
                     if api_skill:
-                        step.skill_name = 'claude-api-llm'
-                        logger.info("Upgraded claude-cli-llm -> claude-api-llm (API key available)")
+                        # Only upgrade if the specific tool exists in claude-api-llm
+                        api_tool_names = set(api_skill.tools.keys()) if api_skill.tools else set()
+                        if not step.tool_name or step.tool_name in api_tool_names:
+                            step.skill_name = 'claude-api-llm'
+                            logger.info("Upgraded claude-cli-llm -> claude-api-llm (API key available)")
+                        else:
+                            logger.info(f"Skipped upgrade: {step.tool_name} not in claude-api-llm")
             except Exception:
                 pass  # Fallback to claude-cli-llm silently
 

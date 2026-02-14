@@ -775,6 +775,8 @@ class ExecutionEngine:
                 # Forward ensemble flag so AutoAgent doesn't auto-detect independently
                 if ensemble is not None:
                     kwargs['ensemble'] = ensemble
+                # Avoid duplicate kwarg: ensemble_context may already be in kwargs (line 748)
+                kwargs.pop('ensemble_context', None)
                 result = await self._execute_single_agent(
                     goal,
                     skip_validation=skip_val,

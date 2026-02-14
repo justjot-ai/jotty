@@ -22,6 +22,39 @@ from Jotty.core.utils.async_utils import safe_status
 logger = logging.getLogger(__name__)
 
 
+def _extract_output_text(output) -> str:
+    """Extract clean text content from an agent output, avoiding nested repr() strings."""
+    if output is None:
+        return ""
+    if isinstance(output, str):
+        return output
+    # AgenticExecutionResult has .final_output or .outputs
+    if hasattr(output, 'final_output') and output.final_output:
+        return _extract_output_text(output.final_output)
+    if hasattr(output, 'outputs') and isinstance(output.outputs, dict):
+        # Get the last step's output
+        for key in reversed(list(output.outputs.keys())):
+            val = output.outputs[key]
+            if isinstance(val, dict):
+                for field in ('content', 'response', 'text', 'output', 'article', 'code', 'result'):
+                    if field in val and val[field]:
+                        return str(val[field])
+            elif isinstance(val, str) and len(val) > 20:
+                return val
+    # EpisodeResult has .output
+    if hasattr(output, 'output') and output.output is not None:
+        return _extract_output_text(output.output)
+    # dict
+    if isinstance(output, dict):
+        for field in ('content', 'response', 'text', 'output', 'article', 'code', 'result'):
+            if field in output and output[field]:
+                return str(output[field])
+    # Last resort: summary if available, otherwise str()
+    if hasattr(output, 'summary'):
+        return output.summary
+    return str(output)
+
+
 class ParadigmExecutor:
     """
     Discussion paradigm implementations (relay, debate, refinement).
@@ -174,7 +207,7 @@ class ParadigmExecutor:
                 enriched_goal = (
                     f"{goal}\n\n"
                     f"[Previous agent '{agent_config.name}' output]:\n"
-                    f"{str(result.output)[:2000]}"
+                    f"{_extract_output_text(result.output)[:2000]}"
                 )
                 try:
                     cur_agent = getattr(runner, 'agent', None)
@@ -238,7 +271,7 @@ class ParadigmExecutor:
             name, result = item
             all_results[name] = result
             if result.success and result.output:
-                drafts[name] = str(result.output)[:1500]
+                drafts[name] = _extract_output_text(result.output)[:1500]
 
         if len(drafts) < 2:
             combined = self.aggregate_results(all_results, goal)
@@ -280,7 +313,7 @@ class ParadigmExecutor:
                 name, result = item
                 all_results[name] = result
                 if result.success and result.output:
-                    drafts[name] = str(result.output)[:1500]
+                    drafts[name] = _extract_output_text(result.output)[:1500]
 
         combined = self.aggregate_results(all_results, goal)
         sm._schedule_background_learning(combined, goal)
@@ -306,7 +339,7 @@ class ParadigmExecutor:
                 runner, sub_goal, first_agent.name, **kwargs
             )
 
-        current_draft = str(result.output)[:3000] if result.output else ""
+        current_draft = _extract_output_text(result.output)[:3000]
         all_results = {first_agent.name: result}
         prev_draft = ""
 
@@ -347,7 +380,7 @@ class ParadigmExecutor:
 
                 all_results[agent_config.name] = ref_result
                 if ref_result.success and ref_result.output:
-                    current_draft = str(ref_result.output)[:3000]
+                    current_draft = _extract_output_text(ref_result.output)[:3000]
 
         combined = self.aggregate_results(all_results, goal)
         sm._schedule_background_learning(combined, goal)

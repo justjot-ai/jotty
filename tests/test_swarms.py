@@ -3,7 +3,7 @@ Swarm Tests — Mocked Unit Tests
 =================================
 
 Tests for the swarm infrastructure:
-- SwarmTypes: SwarmConfig, SwarmResult, ExecutionTrace, enums
+- SwarmTypes: SwarmBaseConfig, SwarmResult, ExecutionTrace, enums
 - SwarmRegistry: register, get, list, create
 - AgentTeam: define, coordination patterns, merge strategies
 - PhaseExecutor: run_phase, run_parallel, build_error_result
@@ -31,7 +31,7 @@ from Jotty.core.swarms.swarm_types import (
     _safe_join,
     _safe_num,
 )
-from Jotty.core.foundation.data_structures import SwarmConfig
+from Jotty.core.swarms.swarm_types import SwarmBaseConfig
 from Jotty.core.swarms.registry import SwarmRegistry, register_swarm
 from Jotty.core.swarms.base.agent_team import (
     AgentTeam,
@@ -69,8 +69,8 @@ class TestSwarmTypes:
         assert ImprovementType.WORKFLOW_CHANGE.value == "workflow_change"
 
     def test_swarm_config_defaults(self):
-        """SwarmConfig has sensible defaults."""
-        config = SwarmConfig(name="Test", domain="test")
+        """SwarmBaseConfig has sensible defaults."""
+        config = SwarmBaseConfig(name="Test", domain="test")
         assert config.name == "Test"
         assert config.domain == "test"
         assert config.enable_learning is True
@@ -223,21 +223,18 @@ class TestSwarmRegistry:
         mock_class = Mock()
         SwarmRegistry.register("creator", mock_class)
 
-        config = SwarmConfig(name="creator", domain="test")
+        config = SwarmBaseConfig(name="creator", domain="test")
         SwarmRegistry.create("creator", config)
 
         mock_class.assert_called_once_with(config)
 
     def test_create_without_config(self):
-        """create() generates default config when none provided."""
+        """create() calls swarm class with no args when config not provided."""
         mock_class = Mock()
         SwarmRegistry.register("auto", mock_class)
 
         SwarmRegistry.create("auto")
-        call_args = mock_class.call_args
-        config = call_args[0][0]
-        assert config.name == "auto"
-        assert config.domain == "auto"
+        mock_class.assert_called_once_with()
 
     def test_create_nonexistent(self):
         """create() returns None for unregistered swarm."""
@@ -527,7 +524,7 @@ class TestPhaseExecutor:
                     execution_time=1.0,
                 )
 
-        config = SwarmConfig(name="TestSwarm", domain="test")
+        config = SwarmBaseConfig(name="TestSwarm", domain="test")
         swarm = TestSwarm(config)
         swarm._initialized = True
         swarm._traces = []
@@ -666,7 +663,7 @@ class TestDomainSwarm:
                     execution_time=1.0,
                 )
 
-        config = SwarmConfig(name="TestSwarm", domain="test")
+        config = SwarmBaseConfig(name="TestSwarm", domain="test")
         swarm = TestSwarm(config)
         swarm._initialized = True
         swarm._agents_initialized = True

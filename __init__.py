@@ -156,6 +156,23 @@ _LAZY_IMPORTS: dict[str, str] = {
     "SDKEvent": ".core.foundation.types.sdk_types",
     "ModeRouter": ".core.api.mode_router",
     "get_mode_router": ".core.api.mode_router",
+
+    # --- CAPABILITY DISCOVERY ---
+    "capabilities": ".core.capabilities",
+
+    # --- SUBSYSTEM FACADES ---
+    "MemorySystem": ".core.memory.memory_system",
+    "BudgetTracker": ".core.utils.budget_tracker",
+    "CircuitBreaker": ".core.utils.timeouts",
+    "LLMCallCache": ".core.utils.llm_cache",
+    "SmartTokenizer": ".core.utils.tokenizer",
+    "ChatExecutor": ".core.orchestration.unified_executor",
+
+    # --- ORCHESTRATION (hidden components surfaced) ---
+    "SwarmIntelligence": ".core.orchestration.swarm_intelligence",
+    "ParadigmExecutor": ".core.orchestration.paradigm_executor",
+    "EnsembleManager": ".core.orchestration.ensemble_manager",
+    "ModelTierRouter": ".core.orchestration.model_tier_router",
 }
 
 

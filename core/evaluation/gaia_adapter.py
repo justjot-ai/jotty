@@ -3,14 +3,57 @@ Jotty GAIA Adapter — sync→async bridge for GAIA benchmark evaluation.
 
 Wraps the async Jotty.run() behind the sync agent.run(question) interface
 that GAIABenchmark.evaluate_task() expects.
+
+Uses a single long-lived event loop in a dedicated thread so that multiple
+sequential tasks do not hit "Event loop is closed" (asyncio.run() per task
+would create/close a loop each time and leave Jotty internals with stale refs).
 """
 
 import asyncio
 import logging
-from concurrent.futures import ThreadPoolExecutor
-from typing import Optional
+import threading
+from typing import Callable, Optional
 
 logger = logging.getLogger(__name__)
+
+
+def _extract_answer_from_output(output) -> str:
+    """
+    Extract the answer string from ExecutionResult.output for GAIA scoring.
+
+    Tier 4/5 can set result.output to AgenticExecutionResult (has .final_output, .outputs)
+    or other nested structures. GAIA needs a single string to compare to expected.
+    """
+    if output is None:
+        return ""
+    if isinstance(output, str):
+        return output
+    # AgenticExecutionResult: use final_output, else last step content from outputs
+    if hasattr(output, "final_output") and output.final_output is not None:
+        return _extract_answer_from_output(output.final_output)
+    if hasattr(output, "outputs") and isinstance(output.outputs, dict):
+        for key in reversed(list(output.outputs.keys())):
+            val = output.outputs[key]
+            if isinstance(val, dict):
+                for field in ("content", "response", "text", "output", "result"):
+                    if field in val and val[field]:
+                        return str(val[field]).strip()
+            elif isinstance(val, str) and len(val) > 10:
+                return val.strip()
+    # Nested EpisodeResult or similar
+    if hasattr(output, "output") and output.output is not None:
+        return _extract_answer_from_output(output.output)
+    # Plain dict
+    if isinstance(output, dict):
+        for field in ("content", "response", "text", "output", "result"):
+            if field in output and output[field]:
+                return str(output[field]).strip()
+    # Avoid returning object repr (e.g. "AgenticExecutionResult(success=...")
+    if hasattr(output, "summary"):
+        summary = output.summary() if callable(output.summary) else output.summary
+        return (summary or "").strip()
+    return str(output).strip()
+
 
 # GAIA-optimized system prompt: forces concise answers for exact-match scoring.
 GAIA_SYSTEM_PROMPT = (
@@ -41,33 +84,77 @@ class JottyGAIAAdapter:
         tier: Optional[str] = None,
         model: Optional[str] = None,
         dry_run: bool = False,
+        use_llm_doc_sources: bool = False,
+        progress_callback: Optional[Callable[[str, str], None]] = None,
     ):
         """
         Args:
             tier: Execution tier name (DIRECT, AGENTIC, etc.). None = auto-detect.
             model: Model override (e.g. 'claude-sonnet-4-20250514').
             dry_run: If True, skip Jotty entirely and return placeholder.
+            use_llm_doc_sources: If True, append open-source LLM doc references (Microsoft, Hugging Face, etc.) to context.
+            progress_callback: Optional (stage, detail) callback for real-time progress; can also be set on .progress_callback before each run.
         """
         self.tier = tier
         self.model = model
         self.dry_run = dry_run
+        self.use_llm_doc_sources = use_llm_doc_sources
+        self.progress_callback = progress_callback  # (stage, detail) for live progress
         self.last_result = None  # ExecutionResult from last run
         self._jotty = None  # Lazy-initialized
+        self._loop = None
+        self._loop_thread = None
+        self._loop_ready = threading.Event()
 
     def _get_jotty(self):
-        """Lazy-initialize the Jotty instance."""
+        """Lazy-initialize the Jotty instance (call from main thread only for dry_run; else from loop thread)."""
         if self._jotty is None:
             from Jotty.jotty import Jotty
             self._jotty = Jotty()
         return self._jotty
 
-    def _build_prompt(self, question: str) -> str:
-        """Wrap question with GAIA-optimized prompt."""
-        return f"{GAIA_SYSTEM_PROMPT}\n\nQuestion: {question}"
+    def shutdown(self):
+        """Stop the dedicated event-loop thread. Safe to call multiple times."""
+        if self._loop is None:
+            return
+        try:
+            self._loop.call_soon_threadsafe(self._loop.stop)
+            if self._loop_thread and self._loop_thread.is_alive():
+                self._loop_thread.join(timeout=5.0)
+        except Exception as e:
+            logger.debug("GAIA adapter shutdown: %s", e)
+        finally:
+            self._loop = None
+            self._loop_thread = None
 
-    def run(self, question: str, **kwargs) -> str:
+    def _build_prompt(self, question: str, attachment_paths: Optional[list] = None) -> str:
+        """Wrap question with GAIA-optimized prompt; include attachment paths and optional LLM doc sources."""
+        parts = [GAIA_SYSTEM_PROMPT]
+        if self.use_llm_doc_sources:
+            try:
+                from Jotty.core.evaluation.llm_doc_sources import list_sources, to_context_snippet
+                sources = list_sources()
+                snippet = to_context_snippet(sources, max_items=6)
+                if snippet:
+                    parts.append("")
+                    parts.append(snippet)
+            except Exception:
+                pass
+        parts.append("")
+        parts.append(f"Question: {question}")
+        if attachment_paths:
+            paths_str = ", ".join(attachment_paths)
+            parts.append("")
+            parts.append(f"Attached file(s) (use read_file to read): {paths_str}")
+        return "\n".join(parts)
+
+    def run(self, question: str, attachment_paths: Optional[list] = None, **kwargs) -> str:
         """
         Synchronous entry point for GAIABenchmark.evaluate_task().
+
+        Args:
+            question: The GAIA question text.
+            attachment_paths: Optional list of absolute paths to attached files (Excel, PDF, etc.).
 
         Returns the agent's answer as a string.
         """
@@ -75,7 +162,7 @@ class JottyGAIAAdapter:
             self.last_result = None
             return "[DRY RUN]"
 
-        prompt = self._build_prompt(question)
+        prompt = self._build_prompt(question, attachment_paths=attachment_paths)
 
         # Build kwargs for Jotty.run()
         run_kwargs = {}
@@ -91,30 +178,65 @@ class JottyGAIAAdapter:
             from Jotty.core.execution.types import ExecutionConfig
             run_kwargs['config'] = ExecutionConfig(model=self.model)
 
+        if self.progress_callback:
+            run_kwargs['status_callback'] = self.progress_callback
+
         result = self._run_async(prompt, **run_kwargs)
         self.last_result = result
 
-        # Extract the text output
-        output = result.output if result else ""
-        return str(output) if output else ""
+        # Extract answer string (result.output can be AgenticExecutionResult, dict, or str)
+        raw = result.output if result else None
+        return _extract_answer_from_output(raw)
+
+    def _ensure_loop_thread(self):
+        """Start the dedicated event-loop thread if not already running."""
+        if self._loop is not None and self._loop_thread is not None and self._loop_thread.is_alive():
+            return
+
+        def _run_loop():
+            self._loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(self._loop)
+            self._loop_ready.set()
+            self._loop.run_forever()
+
+        self._loop_ready.clear()
+        self._loop_thread = threading.Thread(target=_run_loop, daemon=True)
+        self._loop_thread.start()
+        self._loop_ready.wait(timeout=10.0)
+        if self._loop is None:
+            raise RuntimeError("GAIA adapter: event loop thread failed to start")
 
     def _run_async(self, prompt: str, **kwargs):
-        """Run the async Jotty.run() from sync context."""
+        """Run the async Jotty.run() from sync context using a single long-lived loop."""
+        async def _exec():
+            # Lazy-init Jotty in the loop thread so it uses this loop (avoids "Event loop is closed").
+            jotty = self._get_jotty()
+            return await jotty.run(prompt, **kwargs)
+
+        # If we're already inside an event loop (e.g. Jupyter), run in a thread to avoid nested loop.
+        try:
+            running = asyncio.get_running_loop()
+        except RuntimeError:
+            running = None
+
+        if running is not None:
+            # Nested: run in a thread with a fresh loop (one-off).
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                future = pool.submit(self._run_async_standalone, prompt, **kwargs)
+                return future.result()
+
+        # Main thread, no existing loop: use a single long-lived loop so multiple
+        # tasks don't see "Event loop is closed" from Jotty internals.
+        self._ensure_loop_thread()
+        future = asyncio.run_coroutine_threadsafe(_exec(), self._loop)
+        return future.result(timeout=300)  # 5 min per task
+
+    def _run_async_standalone(self, prompt: str, **kwargs):
+        """Run in a fresh loop (used when already inside another loop)."""
         jotty = self._get_jotty()
 
         async def _exec():
             return await jotty.run(prompt, **kwargs)
 
-        # If there's already an event loop running (e.g. Jupyter),
-        # use a thread pool to avoid "cannot run nested event loop"
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            loop = None
-
-        if loop and loop.is_running():
-            with ThreadPoolExecutor(max_workers=1) as pool:
-                future = pool.submit(asyncio.run, _exec())
-                return future.result()
-        else:
-            return asyncio.run(_exec())
+        return asyncio.run(_exec())

@@ -249,16 +249,24 @@ class ParameterResolver:
                                 return str(url)
 
             # Common field mappings
-            for fk in ('path', 'output', 'content', 'stdout', 'result', 'response'):
+            for fk in ('path', 'filename', 'file_path', 'filepath', 'output', 'content', 'stdout', 'result', 'response'):
                 if param_name.lower() in (fk, f'file_{fk}', f'{fk}_path') and fk in obj:
                     return str(obj[fk])
 
+            # Path-like param: also check filename-related keys in the dict
+            if param_name.lower() in ('path', 'file_path', 'filepath', 'filename'):
+                for pk in ('path', 'filename', 'file_path', 'filepath'):
+                    if pk in obj:
+                        return str(obj[pk])
+
             # Path param: scan all outputs for most recent path
-            if param_name == 'path':
+            if param_name in ('path', 'file_path'):
                 for k in reversed(list(self._outputs.keys())):
                     sd = self._outputs[k]
-                    if isinstance(sd, dict) and 'path' in sd:
-                        return str(sd['path'])
+                    if isinstance(sd, dict):
+                        for pk in ('path', 'filename', 'file_path', 'filepath'):
+                            if pk in sd:
+                                return str(sd[pk])
 
         except (ValueError, KeyError):
             pass
@@ -612,7 +620,14 @@ class ParameterResolver:
             return self._resolve_missing_path(path)
 
         if isinstance(value, (dict, list)):
-            return json.dumps(value, default=str)
+            json_str = json.dumps(value, default=str)
+            # If result is suspiciously large, it's likely a full tool response
+            # not meant to be used as a single param value
+            if len(json_str) > 500 and isinstance(value, dict):
+                for fk in ('path', 'filename', 'content', 'output', 'result', 'text', 'response', 'code'):
+                    if fk in value and isinstance(value[fk], str):
+                        return value[fk]
+            return json_str
         return str(value)
 
     def _resolve_missing_path(self, path: str) -> str:

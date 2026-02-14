@@ -32,6 +32,7 @@ from .types import (
 )
 from .tier_detector import TierDetector
 from Jotty.core.observability.tracing import SpanStatus
+from Jotty.core.orchestration.paradigm_executor import _extract_output_text
 
 logger = logging.getLogger(__name__)
 
@@ -943,7 +944,7 @@ class TierExecutor:
             await self._store_memory(goal, result, validation, config)
 
         return ExecutionResult(
-            output=result.output,
+            output=_extract_output_text(result.output),
             tier=ExecutionTier.LEARNING,
             success=validation.success if validation else result.success,
             llm_calls=total_llm_calls,
@@ -988,7 +989,7 @@ class TierExecutor:
 
         # Wrap in ExecutionResult
         return ExecutionResult(
-            output=result.output if hasattr(result, 'output') else {'result': str(result)},
+            output=_extract_output_text(result.output) if hasattr(result, 'output') else {'result': str(result)},
             tier=ExecutionTier.RESEARCH,
             success=result.success if hasattr(result, 'success') else True,
             swarm_name=swarm.__class__.__name__,
@@ -1022,7 +1023,7 @@ class TierExecutor:
         )
 
         return ExecutionResult(
-            output=sm_result.output,
+            output=_extract_output_text(sm_result.output),
             tier=ExecutionTier.RESEARCH,
             success=sm_result.success,
             llm_calls=len(sm_result.trajectory) if sm_result.trajectory else 1,
@@ -1091,7 +1092,7 @@ class TierExecutor:
                 logger.warning("SwarmIntelligence not available, skipping paradigm")
 
         return ExecutionResult(
-            output=result.output if hasattr(result, 'output') else {'result': str(result)},
+            output=_extract_output_text(result.output) if hasattr(result, 'output') else {'result': str(result)},
             tier=ExecutionTier.AUTONOMOUS,
             success=result.success if hasattr(result, 'success') else True,
             swarm_name=swarm.__class__.__name__ if swarm else None,

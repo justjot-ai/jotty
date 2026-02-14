@@ -84,6 +84,18 @@ def __getattr__(name: str):
         globals()[name] = value
         return value
 
+    # Facade accessors
+    _facade_names = {
+        'get_swarm_intelligence', 'get_paradigm_executor', 'get_training_daemon',
+        'get_ensemble_manager', 'get_provider_manager', 'get_model_tier_router',
+        'get_swarm_router', 'list_components',
+    }
+    if name in _facade_names:
+        from . import facade
+        value = getattr(facade, name)
+        globals()[name] = value
+        return value
+
     # Pipeline utility functions (defined inline)
     if name == "sequential_pipeline":
         from ._pipeline_utils import sequential_pipeline
@@ -97,4 +109,15 @@ def __getattr__(name: str):
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
-__all__ = list(_LAZY_MAP.keys()) + ['sequential_pipeline', 'fanout_pipeline']
+__all__ = list(_LAZY_MAP.keys()) + [
+    'sequential_pipeline',
+    'fanout_pipeline',
+    # facade
+    'get_swarm_intelligence',
+    'get_paradigm_executor',
+    'get_training_daemon',
+    'get_ensemble_manager',
+    'get_provider_manager',
+    'get_model_tier_router',
+    'get_swarm_router',
+]

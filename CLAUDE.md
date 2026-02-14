@@ -4,6 +4,106 @@
 
 **Main Architecture Doc:** `docs/JOTTY_ARCHITECTURE.md` - READ THIS FIRST
 
+## Start Here: Discovery API
+
+**Don't know what Jotty can do? Start with `capabilities()`:**
+
+```python
+from Jotty import capabilities
+caps = capabilities()
+# Returns: execution_paths, subsystems, swarms, skills_count, providers, utilities
+
+from Jotty.core.capabilities import explain
+print(explain("memory"))    # human-readable description of any subsystem
+print(explain("learning"))
+```
+
+## Three Execution Paths
+
+```python
+from Jotty import Jotty
+j = Jotty()
+
+# 1. CHAT — conversational AI
+j.router                    # ModeRouter for chat/workflow routing
+
+# 2. WORKFLOW — multi-step automation
+j.chat_executor             # ChatExecutor (direct LLM tool-calling, no agents)
+
+# 3. SWARM — multi-agent coordination
+from Jotty.core.orchestration import Orchestrator
+swarm = Orchestrator(agents="Research AI startups")
+result = await swarm.run(goal="Research AI startups")
+```
+
+## Subsystem Facades (direct access to any subsystem)
+
+```python
+# MEMORY — 5-level brain-inspired memory
+from Jotty.core.memory import get_memory_system, get_brain_manager, get_rag_retriever
+memory = get_memory_system()          # zero-config entry point
+brain = get_brain_manager()           # BrainInspiredMemoryManager
+rag = get_rag_retriever()             # LLMRAGRetriever
+
+# LEARNING — RL, credit assignment, cooperation
+from Jotty.core.learning import get_td_lambda, get_credit_assigner, get_reward_manager
+td = get_td_lambda()                  # TDLambdaLearner (gamma=0.99)
+credit = get_credit_assigner()        # ReasoningCreditAssigner
+
+# CONTEXT — token management, compression, overflow protection
+from Jotty.core.context import get_context_manager, get_context_guard, get_content_gate
+
+# SKILLS — 164 skills, 8 providers
+from Jotty.core.skills import get_registry, list_providers, list_skills
+registry = get_registry()             # UnifiedRegistry
+providers = list_providers()          # [{name, description, installed}, ...]
+
+# ORCHESTRATION — hidden components surfaced
+from Jotty.core.orchestration import (
+    get_swarm_intelligence,            # SwarmIntelligence
+    get_paradigm_executor,             # relay/debate/refinement
+    get_ensemble_manager,              # ensemble methods
+    get_provider_manager,              # LLM provider rotation
+    get_swarm_router,                  # task→swarm routing
+)
+
+# UTILITIES — cost tracking, fault tolerance, caching
+from Jotty.core.utils import get_budget_tracker, get_circuit_breaker, get_llm_cache, get_tokenizer
+budget = get_budget_tracker()          # track LLM costs
+breaker = get_circuit_breaker("svc")   # fault tolerance
+cache = get_llm_cache()                # response caching
+tok = get_tokenizer()                  # accurate token counting
+```
+
+## Top-Level Imports (shortcuts)
+
+```python
+from Jotty import (
+    capabilities,         # discovery API
+    MemorySystem,         # memory
+    BudgetTracker,        # cost tracking
+    CircuitBreaker,       # fault tolerance
+    LLMCallCache,         # caching
+    SmartTokenizer,       # tokenization
+    ChatExecutor,         # direct LLM tool-calling
+    SwarmIntelligence,    # learning intelligence
+    ParadigmExecutor,     # relay/debate/refinement
+    EnsembleManager,      # ensemble methods
+    ModelTierRouter,      # model routing
+)
+```
+
+## Jotty Class Properties
+
+```python
+from Jotty import Jotty
+j = Jotty()
+j.capabilities()          # structured map of everything
+j.router                   # ModeRouter (chat/workflow/agent)
+j.chat_executor            # ChatExecutor (fast LLM tool-calling)
+j.registry                 # UnifiedRegistry (164 skills, 16 UI components)
+```
+
 ## Testing Requirements
 
 **MANDATORY**: Every code change to Jotty MUST include corresponding tests.
@@ -51,7 +151,7 @@ pytest tests/ -m "not requires_llm"         # All offline tests
 | **Web Gateway** | `python Jotty/web.py` | HTTP/WS server (port 8766) |
 | **Gateway Only** | `python -m Jotty.cli.gateway` | Webhooks for Telegram/Slack/etc |
 
-## Imports
+## Legacy Imports (still work, but prefer facades above)
 
 ```python
 from Jotty.core.registry import get_unified_registry
@@ -60,7 +160,7 @@ from Jotty.core.swarms import BaseSwarm, CodingSwarm
 from Jotty.core.learning import TDLambdaLearner
 from Jotty.core.api import JottyAPI
 from Jotty.core.foundation.exceptions import JottyError
-from Jotty.core.foundation.data_structures import SwarmConfig
+from Jotty.core.swarms.swarm_types import SwarmBaseConfig  # NOT SwarmConfig
 from Jotty.core.memory.cortex import SwarmMemory
 ```
 
@@ -137,9 +237,11 @@ def my_tool(params: dict) -> dict:
 
 ### New Swarm
 ```python
+from Jotty.core.swarms.swarm_types import SwarmBaseConfig
+
 class MySwarm(DomainSwarm):
     def __init__(self):
-        super().__init__(SwarmConfig(name="MySwarm", domain="my-domain"))
+        super().__init__(SwarmBaseConfig(name="MySwarm", domain="my-domain"))
         self._define_agents([...])
 ```
 
@@ -182,8 +284,9 @@ print(result)
 
 ### Get all skills
 ```python
-registry = get_unified_registry()
-skills = registry.list_skills()  # 126 skills
+from Jotty.core.skills import get_registry
+registry = get_registry()
+skills = registry.list_skills()  # 164 skills
 ```
 
 ### Discover for task
@@ -207,6 +310,13 @@ result = await agent.execute("Research X, create report, send via telegram")
 
 | File | Purpose |
 |------|---------|
+| `core/capabilities.py` | Discovery API — `capabilities()` and `explain()` |
+| `core/memory/facade.py` | Memory subsystem facade |
+| `core/learning/facade.py` | Learning subsystem facade |
+| `core/context/facade.py` | Context subsystem facade |
+| `core/skills/facade.py` | Skills/providers subsystem facade |
+| `core/orchestration/facade.py` | Orchestration subsystem facade |
+| `core/utils/facade.py` | Utilities subsystem facade |
 | `core/registry/unified_registry.py` | Single entry point for all capabilities |
 | `core/swarms/base_swarm.py` | Learning hooks (_pre/_post_execute_learning) |
 | `core/orchestration/swarm_intelligence.py` | Learning state management |

@@ -55,7 +55,17 @@ from .context_manager import (
     with_smart_context,
 )
 
+from .facade import (
+    get_context_manager,
+    get_context_guard,
+    get_content_gate,
+)
+
 __all__ = [
+    # facade
+    'get_context_manager',
+    'get_context_guard',
+    'get_content_gate',
     # chunker
     'ContextChunker',
     'ChunkingSignature',

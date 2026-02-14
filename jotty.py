@@ -357,6 +357,71 @@ class Jotty:
         return await self.run(goal, config=config, **kwargs)
 
     @staticmethod
+    def capabilities() -> dict:
+        """
+        Return a structured map of all Jotty capabilities.
+
+        Returns:
+            Dict with execution_paths, subsystems, swarms, skills_count,
+            providers, and utilities.
+
+        Example:
+            caps = Jotty.capabilities()
+            print(caps['subsystems'].keys())
+        """
+        from Jotty.core.capabilities import capabilities
+        return capabilities()
+
+    @property
+    def router(self):
+        """
+        Access the ModeRouter for direct chat/workflow/skill routing.
+
+        Returns:
+            ModeRouter instance.
+
+        Example:
+            result = await jotty.router.chat(message, context)
+        """
+        if not hasattr(self, '_router'):
+            from Jotty.core.api.mode_router import ModeRouter
+            self._router = ModeRouter()
+        return self._router
+
+    @property
+    def chat_executor(self):
+        """
+        Direct LLM tool-calling executor (fast path, no agents).
+
+        Returns:
+            ChatExecutor instance.
+
+        Example:
+            result = await jotty.chat_executor.execute(prompt, tools)
+        """
+        if not hasattr(self, '_chat_executor'):
+            from Jotty.core.orchestration.unified_executor import ChatExecutor
+            self._chat_executor = ChatExecutor()
+        return self._chat_executor
+
+    @property
+    def registry(self):
+        """
+        Access skills, UI components, and tools.
+
+        Returns:
+            UnifiedRegistry instance.
+
+        Example:
+            skills = jotty.registry.list_skills()
+            tools = jotty.registry.get_claude_tools(['web-search'])
+        """
+        if not hasattr(self, '_registry'):
+            from Jotty.core.registry import get_unified_registry
+            self._registry = get_unified_registry()
+        return self._registry
+
+    @staticmethod
     def list_swarms() -> List[str]:
         """List all available domain swarms.
 

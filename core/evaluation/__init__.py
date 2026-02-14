@@ -16,6 +16,15 @@ from .ablation_study import (
 from .gaia_benchmark import GAIABenchmark
 from .gaia_adapter import JottyGAIAAdapter
 from .eval_store import EvalStore
+from .llm_doc_sources import (
+    LLMDocSource,
+    OPEN_SOURCE_LLM_SOURCES,
+    list_sources,
+    get_source,
+    get_sources_by_provider,
+    to_context_snippet,
+    load_hf_dataset_info,
+)
 
 __all__ = [
     'ReproducibilityConfig',
@@ -40,4 +49,11 @@ __all__ = [
     'TuningResult',
     'DEFAULT_SEARCH_GROUPS',
     'EvalStore',
+    'LLMDocSource',
+    'OPEN_SOURCE_LLM_SOURCES',
+    'list_sources',
+    'get_source',
+    'get_sources_by_provider',
+    'to_context_snippet',
+    'load_hf_dataset_info',
 ]
