@@ -464,44 +464,67 @@ class TDLambdaLearner:
     
     def record_access(self, memory: MemoryEntry, step_reward: float = 0.0) -> float:
         """
-        Record memory access and update trace.
-        
+        Record memory access and update eligibility trace.
+
+        ELIGIBILITY TRACES EXPLAINED:
+        Traces track "credit eligibility" for each memory state. When a reward
+        arrives, states with higher traces get more credit. This solves the
+        temporal credit assignment problem: "which earlier decisions led to this reward?"
+
+        Math: e_t(s) = γλe_{t-1}(s) + 1_{s_t=s}
+        - γ (gamma): Discount factor (how much future matters)
+        - λ (lambda): Trace decay (how fast credit fades)
+        - Accumulating: Each access ADDS 1.0 to the trace (not replace)
+
+        Example: If we access memory A at t=1, then B at t=2, then get reward at t=3:
+        - e(A) at t=3 = (γλ)² (decayed twice)
+        - e(B) at t=3 = γλ (decayed once)
+        - e(C) at t=3 = 0 (never accessed)
+        So B gets more credit than A, and C gets none.
+
         Parameters:
             memory: The accessed memory
             step_reward: Intermediate reward at this step
-        
+
         Returns:
             Current trace value for this memory
         """
         key = memory.key
-        
-        # Decay all existing traces (γλ decay)
+
+        # STEP 1: Decay all existing traces by γλ
+        # This is the "forgetting" factor - recent accesses matter more
+        # Why γλ? Gamma is standard RL discount, lambda controls trace speed
         # A-TEAM FIX: Prune near-zero traces for computational efficiency
         traces_to_prune = []
         for k in self.traces:
-            self.traces[k] *= self.gamma * self.lambda_trace
+            self.traces[k] *= self.gamma * self.lambda_trace  # Decay by γλ
             # Prune traces below threshold (Shannon: negligible information content)
+            # Below 1e-8, the trace contributes < 0.00000001 to updates
             if self.traces[k] < 1e-8:
                 traces_to_prune.append(k)
-        
-        # Remove pruned traces
+
+        # Remove pruned traces (keeps dict size bounded)
         for k in traces_to_prune:
             del self.traces[k]
-        
-        # Accumulating trace (add 1, don't replace)
+
+        # STEP 2: Accumulating trace - ADD 1.0 to current memory's trace
+        # Why add instead of replace? Accumulating traces give more credit
+        # to states visited multiple times in an episode
+        # Example: If we access A twice, e(A) = 1 + γλ*1 = 1 + γλ (not just 1)
         self.traces[key] = self.traces.get(key, 0.0) + 1.0
-        
-        # Record value at access time
+
+        # STEP 3: Record current value estimate V(s) at access time
+        # We need this later to compute TD error: δ = R + γV(s') - V(s)
         self.values_at_access[key] = memory.get_value(self.current_goal)
-        
-        # Track access order
+
+        # STEP 4: Track access order for debugging/analysis
         if key not in self.access_sequence:
             self.access_sequence.append(key)
-        
-        # Record intermediate reward
+
+        # STEP 5: Record intermediate reward (partial success during episode)
         if step_reward != 0:
             self.intermediate_calc.step_rewards.append(step_reward)
-        
+
         return self.traces[key]
     
     def record_access_from_hierarchical_memory(
@@ -613,20 +636,44 @@ class TDLambdaLearner:
         # Include intermediate rewards
         total_reward = final_reward + self.intermediate_calc.get_discounted_intermediate_reward(self.gamma)
 
-        # DrZero HRPO: Get group baseline for variance reduction
+        # =====================================================================
+        # HRPO GROUP BASELINE COMPUTATION (DrZero-inspired variance reduction)
+        # =====================================================================
+        # PROBLEM: Raw rewards are noisy. Success on task X doesn't tell us if
+        # we did well or just got lucky. We need a baseline: "what's normal for
+        # tasks like this?"
+        #
+        # SOLUTION: Group similar tasks together and compute average reward.
+        # Then use advantage (reward - average) instead of raw reward.
+        #
+        # MATH: δ = (R - baseline) + γV(s') - V(s)
+        # At terminal state: δ = (R - baseline) - V(s)  [since V(s') = 0]
+        #
+        # BENEFIT: If baseline = 0.7 and we get R = 0.8, advantage = +0.1
+        # (slight improvement). But if baseline = 0.3 and R = 0.8, advantage = +0.5
+        # (huge success!). This gives more meaningful learning signal.
+        # =====================================================================
         group_baseline = self.grouped_baseline.get_baseline(
             self.current_task_type,
             self.current_domain
         )
 
         # Compute group-relative reward (HRPO insight: reduces variance)
+        # This is the "advantage" - how much better/worse than typical
         relative_reward = total_reward - group_baseline
 
         updates = []
         td_errors = []
 
-        # For terminal state, V(s') = 0
-        # HRPO TD error at terminal: δ = (R - baseline) + γ*0 - V(s)
+        # =====================================================================
+        # TD(λ) UPDATE LOOP - Apply credit to all accessed memories
+        # =====================================================================
+        # For each memory we accessed during the episode, update its value
+        # based on the final reward and its eligibility trace.
+        #
+        # TERMINAL STATE NOTE: At episode end, there's no next state, so
+        # V(s') = 0. This simplifies TD error to: δ = (R - baseline) - V(s)
+        # =====================================================================
 
         for key, trace in self.traces.items():
             if key not in memories:
@@ -634,21 +681,48 @@ class TDLambdaLearner:
 
             memory = memories[key]
 
-            # Get current value for this goal
+            # Get current value estimate V(s) for this goal
+            # This is what we thought this memory was worth when we accessed it
             old_value = self.values_at_access.get(key, memory.get_value(self.current_goal))
 
-            # HRPO TD error: uses group-relative reward
-            # δ = (R - baseline) - V(s) = relative_reward - V(s)
+            # =====================================================================
+            # TD ERROR COMPUTATION (the core of TD learning)
+            # =====================================================================
+            # TD error δ measures "surprise" - difference between what we expected
+            # and what we got.
+            #
+            # HRPO version: δ = (R - baseline) - V(s)
+            # - If δ > 0: We did better than expected → increase V(s)
+            # - If δ < 0: We did worse than expected → decrease V(s)
+            #
+            # Using group baseline reduces noise: we compare to "typical" not absolute
+            # =====================================================================
             td_error = relative_reward - old_value
 
-            # Value update: V(s) ← V(s) + αδe(s)
+            # =====================================================================
+            # VALUE UPDATE (the learning step)
+            # =====================================================================
+            # V(s) ← V(s) + α * δ * e(s)
+            #
+            # Breaking it down:
+            # - α (alpha): Learning rate - how much to trust this new evidence
+            # - δ (td_error): How wrong we were (positive = underestimated)
+            # - e(s) (trace): How "eligible" this state is for credit
+            #
+            # EXAMPLE: If we accessed state A early (trace = 0.3) and state B
+            # recently (trace = 0.9), and got reward +1.0, then:
+            # - State B gets most credit: ΔV(B) = α * 1.0 * 0.9 = 0.9α
+            # - State A gets less: ΔV(A) = α * 1.0 * 0.3 = 0.3α
+            # This makes sense: recent decisions matter more!
+            # =====================================================================
             delta_v = alpha * td_error * trace
             new_value = old_value + delta_v
 
-            # Clip to [0, 1]
+            # Clip to [0, 1] probability range (values are success likelihoods)
             new_value = max(0.0, min(1.0, new_value))
 
-            # Update memory's goal-conditioned value
+            # Update memory's goal-conditioned value (stored in memory itself)
+            # Goal-conditioned: same memory can have different values for different goals
             if self.current_goal not in memory.goal_values:
                 memory.goal_values[self.current_goal] = GoalValue()
 

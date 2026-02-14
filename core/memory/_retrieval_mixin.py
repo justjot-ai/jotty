@@ -363,62 +363,169 @@ class RetrievalMixin:
         context_hints: str = ""
     ) -> List[MemoryEntry]:
         """
-        A-Team Enhancement: Context-aware memory retrieval.
-        
-        Different context types prioritize different memory levels:
-        - validation: PROCEDURAL > META > SEMANTIC (how-to first)
-        - debugging: CAUSAL > EPISODIC > SEMANTIC (why first)
-        - planning: META > SEMANTIC > PROCEDURAL (wisdom first)
-        - exploration: EPISODIC > CAUSAL > SEMANTIC (examples first)
-        - transformation: PROCEDURAL > SEMANTIC > EPISODIC (steps first)
-        
+        5-LEVEL BRAIN-INSPIRED MEMORY RETRIEVAL (Context-Aware)
+
+        BRAIN ANALOGY:
+        Just like the human brain doesn't access all memory equally in all situations,
+        this system prioritizes different memory levels based on what you're doing:
+
+        MEMORY LEVELS (brain-inspired hierarchy):
+        1. EPISODIC: Specific past experiences ("I tried X and got Y")
+           - Like remembering "last Tuesday's meeting"
+           - Fast decay (3 days) - recent experiences fade
+           - High detail, low abstraction
+
+        2. SEMANTIC: General knowledge patterns ("X usually leads to Y")
+           - Like knowing "Paris is the capital of France"
+           - Medium decay (7 days) - knowledge persists longer
+           - Abstracted patterns extracted from multiple episodes
+
+        3. PROCEDURAL: How to do things ("Steps to achieve X")
+           - Like knowing how to ride a bike
+           - Medium decay (7 days) - skills stick around
+           - Action sequences and workflows
+
+        4. META: Learning wisdom ("When I see X, approach Y works best")
+           - Like meta-cognition: "I learn best in the morning"
+           - No decay - wisdom is permanent
+           - High-level insights about learning itself
+
+        5. CAUSAL: Why things work ("X causes Y because Z")
+           - Like understanding "heat causes water to boil because..."
+           - No decay - causal models are permanent
+           - Enables reasoning about new situations
+
+        CONTEXT-AWARE PRIORITIZATION:
+        Different tasks need different memory types first:
+
+        - VALIDATION: "Is this correct?"
+          Priority: PROCEDURAL > META > SEMANTIC > CAUSAL > EPISODIC
+          Why: Need to know the right steps (procedural) and wisdom (meta) first
+
+        - DEBUGGING: "Why did this fail?"
+          Priority: CAUSAL > EPISODIC > SEMANTIC > PROCEDURAL > META
+          Why: Need to understand cause (causal) and see past failures (episodic)
+
+        - PLANNING: "How should I approach this?"
+          Priority: META > SEMANTIC > PROCEDURAL > CAUSAL > EPISODIC
+          Why: Need strategic wisdom (meta) and general patterns (semantic) first
+
+        - EXPLORATION: "What happened before?"
+          Priority: EPISODIC > CAUSAL > SEMANTIC > PROCEDURAL > META
+          Why: Need concrete examples (episodic) and why they worked (causal)
+
+        - TRANSFORMATION: "How do I change X to Y?"
+          Priority: PROCEDURAL > SEMANTIC > EPISODIC > CAUSAL > META
+          Why: Need step-by-step instructions (procedural) and patterns (semantic)
+
+        RETRIEVAL MECHANICS:
+        1. Get context-specific level ordering (based on above priorities)
+        2. Search each level in priority order until budget is filled
+        3. Higher-priority levels get more "budget space"
+        4. Use LLM-based relevance scoring within each level
+        5. Return ranked memories that fit within token budget
+
+        EXAMPLE:
+        Query: "How to map bank_code column?"
+        Context: "transformation"
+        → Searches PROCEDURAL first (find exact mapping steps)
+        → Then SEMANTIC (find general mapping patterns)
+        → Then EPISODIC (find past bank_code mappings)
+        → Returns: Concrete steps + patterns + examples
+
         Usage:
             memories = memory.retrieve_for_context(
                 query="How to map bank_code column?",
                 goal="column_mapping",
-                context_type="transformation",
+                context_type="transformation",  # Determines priority order
                 budget_tokens=5000
             )
         """
         from ..foundation.data_structures import ContextType
-        
-        # Context-specific level priorities
+
+        # =====================================================================
+        # CONTEXT-SPECIFIC LEVEL PRIORITIES
+        # =====================================================================
+        # Each context type defines an ordered list of memory levels.
+        # The retrieval system searches these levels in order, allocating
+        # more "budget" to earlier (higher-priority) levels.
+        #
+        # This mimics how human memory works: when debugging, we naturally
+        # think "why did this break?" (causal) before "what are the steps?"
+        # (procedural). The brain prioritizes relevant memory types.
+        # =====================================================================
         context_level_priorities = {
             ContextType.VALIDATION.value: [
-                MemoryLevel.PROCEDURAL, MemoryLevel.META, MemoryLevel.SEMANTIC,
-                MemoryLevel.CAUSAL, MemoryLevel.EPISODIC
+                MemoryLevel.PROCEDURAL,  # First: "What are the validation steps?"
+                MemoryLevel.META,        # Second: "What validation wisdom do we have?"
+                MemoryLevel.SEMANTIC,    # Third: "What patterns indicate validity?"
+                MemoryLevel.CAUSAL,      # Fourth: "Why does validation fail?"
+                MemoryLevel.EPISODIC     # Last: "Past validation attempts"
             ],
             ContextType.DEBUGGING.value: [
-                MemoryLevel.CAUSAL, MemoryLevel.EPISODIC, MemoryLevel.SEMANTIC,
-                MemoryLevel.PROCEDURAL, MemoryLevel.META
+                MemoryLevel.CAUSAL,      # First: "WHY did this break?" (root cause)
+                MemoryLevel.EPISODIC,    # Second: "When did we see this before?" (examples)
+                MemoryLevel.SEMANTIC,    # Third: "What patterns match this error?"
+                MemoryLevel.PROCEDURAL,  # Fourth: "What debugging steps to try?"
+                MemoryLevel.META         # Last: "General debugging wisdom"
             ],
             ContextType.PLANNING.value: [
-                MemoryLevel.META, MemoryLevel.SEMANTIC, MemoryLevel.PROCEDURAL,
-                MemoryLevel.CAUSAL, MemoryLevel.EPISODIC
+                MemoryLevel.META,        # First: "What strategic wisdom applies?"
+                MemoryLevel.SEMANTIC,    # Second: "What general approach patterns exist?"
+                MemoryLevel.PROCEDURAL,  # Third: "What are the execution steps?"
+                MemoryLevel.CAUSAL,      # Fourth: "Why do certain approaches work?"
+                MemoryLevel.EPISODIC     # Last: "Specific past planning sessions"
             ],
             ContextType.EXPLORATION.value: [
-                MemoryLevel.EPISODIC, MemoryLevel.CAUSAL, MemoryLevel.SEMANTIC,
-                MemoryLevel.PROCEDURAL, MemoryLevel.META
+                MemoryLevel.EPISODIC,    # First: "What concrete examples exist?"
+                MemoryLevel.CAUSAL,      # Second: "Why did those examples work?"
+                MemoryLevel.SEMANTIC,    # Third: "What patterns emerge?"
+                MemoryLevel.PROCEDURAL,  # Fourth: "How to replicate?"
+                MemoryLevel.META         # Last: "Exploration strategies"
             ],
             ContextType.TRANSFORMATION.value: [
-                MemoryLevel.PROCEDURAL, MemoryLevel.SEMANTIC, MemoryLevel.EPISODIC,
-                MemoryLevel.CAUSAL, MemoryLevel.META
+                MemoryLevel.PROCEDURAL,  # First: "Exact transformation steps"
+                MemoryLevel.SEMANTIC,    # Second: "General transformation patterns"
+                MemoryLevel.EPISODIC,    # Third: "Past transformations"
+                MemoryLevel.CAUSAL,      # Fourth: "Why transformations succeed/fail"
+                MemoryLevel.META         # Last: "Transformation best practices"
             ],
-            ContextType.DEFAULT.value: list(MemoryLevel)
+            ContextType.DEFAULT.value: list(MemoryLevel)  # No prioritization
         }
-        
-        # Get prioritized levels
+
+        # =====================================================================
+        # SELECT PRIORITY ORDERING
+        # =====================================================================
+        # Get the level ordering for this context type.
+        # If context_type is unknown, fall back to searching all levels equally.
+        # =====================================================================
         levels = context_level_priorities.get(context_type, list(MemoryLevel))
-        
-        # Add context type hint
+
+        # =====================================================================
+        # ENHANCE CONTEXT HINTS
+        # =====================================================================
+        # Add context type to hints so the LLM retriever knows what we're
+        # trying to do. This helps with relevance scoring.
+        # Example: "CONTEXT TYPE: debugging" tells the LLM to prioritize
+        # error-related memories.
+        # =====================================================================
         enhanced_hints = f"CONTEXT TYPE: {context_type}\n{context_hints}"
-        
+
+        # =====================================================================
+        # DELEGATE TO MAIN RETRIEVE METHOD
+        # =====================================================================
+        # The actual retrieval logic is in retrieve(), which:
+        # 1. Collects memories from specified levels (in priority order)
+        # 2. Uses LLM-based scoring for relevance
+        # 3. Selects top-k within token budget
+        # 4. Updates access tracking for learning
+        # =====================================================================
         return self.retrieve(
             query=query,
             goal=goal,
             budget_tokens=budget_tokens,
-            levels=levels,
-            context_hints=enhanced_hints
+            levels=levels,              # Priority-ordered levels
+            context_hints=enhanced_hints  # Enhanced with context type
         )
     
     def retrieve_causal(self, query: str, context: Dict[str, Any]) -> List[CausalLink]:

@@ -174,6 +174,36 @@ class MetricsCollector:
         """Record error occurrence."""
         self.errors.labels(component=component, error_type=error_type).inc()
 
+    def record_execution(self, agent_name: str, task_type: str, duration_s: float,
+                        success: bool, input_tokens: int = 0, output_tokens: int = 0,
+                        cost: float = 0.0, error: Optional[str] = None) -> None:
+        """
+        Record execution metrics for an agent/tier.
+
+        Args:
+            agent_name: Name of the agent/tier
+            task_type: Type of task
+            duration_s: Duration in seconds
+            success: Whether execution succeeded
+            input_tokens: Input tokens used
+            output_tokens: Output tokens generated
+            cost: Cost in dollars
+            error: Error message if failed
+        """
+        if not self.enabled:
+            return
+
+        status = 'success' if success else 'error'
+        self.agent_executions.labels(agent_name=agent_name, status=status).inc()
+
+        if input_tokens or output_tokens:
+            model = 'claude'  # Default model name
+            self.llm_tokens.labels(model=model, type='input').inc(input_tokens)
+            self.llm_tokens.labels(model=model, type='output').inc(output_tokens)
+
+        if cost:
+            self.llm_cost.labels(model='claude').inc(cost)
+
     def export_metrics(self) -> bytes:
         """
         Export metrics in Prometheus format.
@@ -193,16 +223,22 @@ _metrics: Optional[MetricsCollector] = None
 def get_metrics(enabled: bool = True) -> MetricsCollector:
     """
     Get singleton metrics collector.
-    
+
     Args:
         enabled: Enable metrics
-    
+
     Returns:
         MetricsCollector instance
     """
     global _metrics
-    
+
     if _metrics is None:
         _metrics = MetricsCollector(enabled=enabled)
-    
+
     return _metrics
+
+
+def reset_metrics() -> None:
+    """Reset the singleton metrics collector (used in tests)."""
+    global _metrics
+    _metrics = None

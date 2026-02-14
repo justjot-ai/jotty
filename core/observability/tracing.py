@@ -34,6 +34,37 @@ except ImportError:
     logger.info("OpenTelemetry not installed. Install with: pip install opentelemetry-api opentelemetry-sdk")
 
 
+class SpanWrapper:
+    """Wrapper for OpenTelemetry spans to add custom methods."""
+    def __init__(self, span: Any):
+        self._span = span
+
+    def __enter__(self) -> "SpanWrapper":
+        self._span.__enter__()
+        return self
+
+    def __exit__(self, *args: Any) -> None:
+        self._span.__exit__(*args)
+
+    def set_attribute(self, key: str, value: Any) -> None:
+        if hasattr(self._span, 'set_attribute'):
+            self._span.set_attribute(key, value)
+
+    def set_status(self, status: str, description: str = "") -> None:
+        if hasattr(self._span, 'set_status'):
+            self._span.set_status(status)
+
+    def add_event(self, name: str, attributes: Optional[Dict] = None) -> None:
+        if hasattr(self._span, 'add_event'):
+            self._span.add_event(name, attributes=attributes)
+
+    def add_cost(self, input_tokens: int, output_tokens: int, cost: float) -> None:
+        """Add cost tracking as span attributes."""
+        self.set_attribute("llm.input_tokens", input_tokens)
+        self.set_attribute("llm.output_tokens", output_tokens)
+        self.set_attribute("llm.cost_usd", cost)
+
+
 class NoOpSpan:
     """No-op span when OpenTelemetry not available."""
     def __enter__(self) -> Any: return self
@@ -41,6 +72,7 @@ class NoOpSpan:
     def set_attribute(self, key: str, value: Any) -> None: pass
     def set_status(self, status: str, description: str = "") -> None: pass
     def add_event(self, name: str, attributes: Optional[Dict] = None) -> None: pass
+    def add_cost(self, input_tokens: int, output_tokens: int, cost: float) -> None: pass
 
 
 class NoOpTracer:
@@ -130,7 +162,7 @@ class JottyTracer:
         """Start a new trace with metadata."""
         return metadata or {}
 
-    def end_trace(self, trace: Any) -> None:
+    def end_trace(self, trace: Optional[Any] = None) -> None:
         """End a trace."""
         pass
 
@@ -140,7 +172,9 @@ class JottyTracer:
 
     def span(self, name: str, **attributes: Any) -> Any:
         """Create a span context manager."""
-        return self.tracer.start_as_current_span(name)
+        raw_span = self.tracer.start_as_current_span(name)
+        # Wrap the span to add custom methods like add_cost
+        return SpanWrapper(raw_span)
 
 
 _tracer: Optional[JottyTracer] = None
@@ -152,6 +186,12 @@ def get_tracer(enabled: bool = True, console_export: bool = False) -> JottyTrace
     if _tracer is None:
         _tracer = JottyTracer(enabled=enabled, console_export=console_export)
     return _tracer
+
+
+def reset_tracer() -> None:
+    """Reset the singleton tracer instance (used in tests)."""
+    global _tracer
+    _tracer = None
 
 
 def trace_skill(skill_name: str) -> Any:

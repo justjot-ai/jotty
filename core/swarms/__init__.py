@@ -7,6 +7,7 @@ trigger heavy dependency chains.  A swarm module is only loaded on
 first attribute access (e.g. ``from core.swarms import CodingSwarm``).
 
 Available Swarms:
+    PilotSwarm (autonomous goal-completion),
     ResearchSwarm, FundamentalSwarm, DataAnalysisSwarm,
     CodingSwarm, TestingSwarm, ReviewSwarm,
     IdeaWriterSwarm, DevOpsSwarm,
@@ -298,6 +299,21 @@ _LAZY_IMPORTS: dict[str, str] = {
     "RealWorldConnectorAgent": ".perspective_learning_swarm",
     "MultilingualAgent": ".perspective_learning_swarm",
     "NarrativeEditorAgent": ".perspective_learning_swarm",
+    # --- pilot_swarm ---
+    "PilotSwarm": ".pilot_swarm",
+    "PilotConfig": ".pilot_swarm",
+    "PilotResult": ".pilot_swarm",
+    "SubtaskType": ".pilot_swarm",
+    "SubtaskStatus": ".pilot_swarm",
+    "Subtask": ".pilot_swarm",
+    "pilot": ".pilot_swarm",
+    "pilot_sync": ".pilot_swarm",
+    "PilotPlannerAgent": ".pilot_swarm",
+    "PilotSearchAgent": ".pilot_swarm",
+    "PilotCoderAgent": ".pilot_swarm",
+    "PilotTerminalAgent": ".pilot_swarm",
+    "PilotSkillWriterAgent": ".pilot_swarm",
+    "PilotValidatorAgent": ".pilot_swarm",
     # --- learning_swarm ---
     "LearningSwarm": ".learning_swarm",
     "LearningConfig": ".learning_swarm",

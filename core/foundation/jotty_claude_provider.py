@@ -30,7 +30,7 @@ import subprocess
 import atexit
 import signal
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 import requests
 import dspy
 from Jotty.core.foundation.exceptions import LLMError

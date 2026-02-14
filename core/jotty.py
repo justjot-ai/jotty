@@ -11,7 +11,7 @@ Maps brain-inspired terminology to actual implementations:
 """
 
 import logging
-from typing import List, Dict, Any, Optional
+from typing import List, Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -195,15 +195,11 @@ from .use_cases import (
 from .use_cases.chat import (
     ChatContext,
     ChatMessage,
-    ChatExecutor,
-    ChatOrchestrator,
 )
 
 # Workflow Components
 from .use_cases.workflow import (
     WorkflowContext,
-    WorkflowExecutor,
-    WorkflowOrchestrator,
 )
 
 # API Layer (NEW)

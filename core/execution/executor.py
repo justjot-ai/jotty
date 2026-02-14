@@ -17,7 +17,7 @@ import logging
 import re
 import time
 from pathlib import Path
-from typing import Any, AsyncGenerator, Dict, Optional, List, Callable, Tuple
+from typing import Any, AsyncGenerator, Dict, Optional, List, Callable
 from datetime import datetime
 
 from .types import (
@@ -35,7 +35,7 @@ from .tier_detector import TierDetector
 from Jotty.core.observability.tracing import SpanStatus
 from Jotty.core.orchestration.paradigm_executor import _extract_output_text
 from Jotty.core.foundation.exceptions import (
-    ExecutionError, AgentExecutionError, LLMError, ConfigurationError,
+    ExecutionError, LLMError, ConfigurationError,
 )
 
 logger = logging.getLogger(__name__)

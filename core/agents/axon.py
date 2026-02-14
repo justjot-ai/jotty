@@ -20,11 +20,9 @@ import logging
 import time
 from typing import Any, Dict, List, Optional, Callable, Tuple
 from dataclasses import dataclass, field
-from datetime import datetime
 import dspy
 import json
 import sys
-import os
 
 from ..utils.tokenizer import SmartTokenizer
 
