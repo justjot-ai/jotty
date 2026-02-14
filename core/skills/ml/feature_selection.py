@@ -22,7 +22,7 @@ Techniques:
 """
 
 import time
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Tuple
 from collections import defaultdict
 import pandas as pd
 import numpy as np
@@ -212,7 +212,7 @@ class FeatureSelectionSkill(MLSkill):
         X_filtered = X.drop(columns=list(to_drop), errors='ignore')
         return X_filtered, to_drop
 
-    def _multi_model_importance(self, X: pd.DataFrame, y -> Tuple: pd.Series,
+    def _multi_model_importance(self, X: pd.DataFrame, y: pd.Series,
                                  problem_type: str, feature_scores: Dict):
         """Multi-model importance voting."""
         import lightgbm as lgb
@@ -381,7 +381,7 @@ class FeatureSelectionSkill(MLSkill):
 
         return feature_scores
 
-    def _shap_importance(self, X: pd.DataFrame, y -> Tuple: pd.Series,
+    def _shap_importance(self, X: pd.DataFrame, y: pd.Series,
                           problem_type: str, feature_scores: Dict):
         """SHAP-based importance (World-Class)."""
         import lightgbm as lgb
@@ -980,7 +980,7 @@ class FeatureSelectionSkill(MLSkill):
 
         return feature_scores
 
-    def _pasha_selection(self, X: pd.DataFrame, y -> Tuple: pd.Series,
+    def _pasha_selection(self, X: pd.DataFrame, y: pd.Series,
                          problem_type: str, feature_scores: Dict):
         """
         PASHA - Progressive Adaptive Successive Halving Algorithm.

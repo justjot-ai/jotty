@@ -44,7 +44,7 @@ Streaming Response + Tool Executions + A2UI Sections
 import os
 import asyncio
 import logging
-from typing import Dict, Any, Optional, Callable, List, AsyncGenerator, Union
+from typing import Dict, Any, Optional, Callable, List, AsyncGenerator, Tuple, Union
 from dataclasses import dataclass, field
 from datetime import datetime
 
