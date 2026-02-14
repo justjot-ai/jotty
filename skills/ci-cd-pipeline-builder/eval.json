@@ -1,0 +1,34 @@
+{
+  "skill": "ci-cd-pipeline-builder",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to building ci cd pipelines",
+      "expected_skill": "ci-cd-pipeline-builder",
+      "should_match": true,
+      "notes": "Should discover ci-cd-pipeline-builder in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "github_actions_tool",
+      "input": {
+        "language": "python",
+        "features": [
+          "test",
+          "lint"
+        ]
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of github_actions_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use ci-cd-pipeline-builder with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

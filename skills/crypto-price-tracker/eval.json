@@ -1,0 +1,30 @@
+{
+  "skill": "crypto-price-tracker",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to tracking crypto prices",
+      "expected_skill": "crypto-price-tracker",
+      "should_match": true,
+      "notes": "Should discover crypto-price-tracker in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "crypto_price_tool",
+      "input": {
+        "coin": "bitcoin"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of crypto_price_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use crypto-price-tracker with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

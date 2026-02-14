@@ -1,0 +1,30 @@
+{
+  "skill": "uptime-monitor",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to monitoring uptime",
+      "expected_skill": "uptime-monitor",
+      "should_match": true,
+      "notes": "Should discover uptime-monitor in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "check_endpoint_tool",
+      "input": {
+        "url": "https://example.com"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of check_endpoint_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use uptime-monitor with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "skill": "dockerfile-generator",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to generating dockerfiles",
+      "expected_skill": "dockerfile-generator",
+      "should_match": true,
+      "notes": "Should discover dockerfile-generator in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "generate_dockerfile_tool",
+      "input": {
+        "language": "python",
+        "framework": "fastapi"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of generate_dockerfile_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use dockerfile-generator with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

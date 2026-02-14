@@ -1,0 +1,33 @@
+{
+  "skill": "ab-test-analyzer",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to analyzing ab tests",
+      "expected_skill": "ab-test-analyzer",
+      "should_match": true,
+      "notes": "Should discover ab-test-analyzer in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "ab_test_tool",
+      "input": {
+        "visitors_a": 1000,
+        "conversions_a": 50,
+        "visitors_b": 1000,
+        "conversions_b": 65
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of ab_test_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use ab-test-analyzer with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

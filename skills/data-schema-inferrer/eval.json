@@ -1,0 +1,38 @@
+{
+  "skill": "data-schema-inferrer",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to inferring data schemas",
+      "expected_skill": "data-schema-inferrer",
+      "should_match": true,
+      "notes": "Should discover data-schema-inferrer in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "infer_schema_tool",
+      "input": {
+        "data": {
+          "name": "Alice",
+          "age": 30,
+          "active": true,
+          "tags": [
+            "a",
+            "b"
+          ]
+        }
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of infer_schema_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use data-schema-inferrer with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

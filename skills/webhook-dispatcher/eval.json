@@ -1,0 +1,33 @@
+{
+  "skill": "webhook-dispatcher",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to dispatching webhooks",
+      "expected_skill": "webhook-dispatcher",
+      "should_match": true,
+      "notes": "Should discover webhook-dispatcher in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "send_webhook_tool",
+      "input": {
+        "url": "https://httpbin.org/post",
+        "payload": {
+          "event": "test"
+        }
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of send_webhook_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use webhook-dispatcher with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

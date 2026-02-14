@@ -1,0 +1,50 @@
+{
+  "skill": "pivot-table-builder",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to building pivot tables",
+      "expected_skill": "pivot-table-builder",
+      "should_match": true,
+      "notes": "Should discover pivot-table-builder in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "pivot_table_tool",
+      "input": {
+        "data": [
+          {
+            "region": "North",
+            "product": "A",
+            "sales": 100
+          },
+          {
+            "region": "North",
+            "product": "B",
+            "sales": 150
+          },
+          {
+            "region": "South",
+            "product": "A",
+            "sales": 200
+          }
+        ],
+        "rows": "region",
+        "columns": "product",
+        "values": "sales",
+        "aggfunc": "sum"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of pivot_table_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use pivot-table-builder with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

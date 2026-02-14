@@ -1,0 +1,30 @@
+{
+  "skill": "log-analyzer",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to analyzing logs",
+      "expected_skill": "log-analyzer",
+      "should_match": true,
+      "notes": "Should discover log-analyzer in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "analyze_log_tool",
+      "input": {
+        "content": "2024-01-01 10:00:00 ERROR Database connection failed\\n2024-01-01 10:00:01 INFO Retrying...\\n2024-01-01 10:00:02 ERROR Database connection failed\\n2024-01-01 10:00:03 INFO Connected successfully"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of analyze_log_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use log-analyzer with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

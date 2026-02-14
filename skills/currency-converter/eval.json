@@ -1,0 +1,32 @@
+{
+  "skill": "currency-converter",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to converting currency",
+      "expected_skill": "currency-converter",
+      "should_match": true,
+      "notes": "Should discover currency-converter in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "convert_currency_tool",
+      "input": {
+        "amount": 100,
+        "from_currency": "USD",
+        "to_currency": "EUR"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of convert_currency_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use currency-converter with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

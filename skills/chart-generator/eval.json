@@ -1,0 +1,35 @@
+{
+  "skill": "chart-generator",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to generating charts",
+      "expected_skill": "chart-generator",
+      "should_match": true,
+      "notes": "Should discover chart-generator in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "bar_chart_tool",
+      "input": {
+        "data": {
+          "Python": 35,
+          "JavaScript": 28,
+          "Go": 15,
+          "Rust": 12
+        }
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of bar_chart_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use chart-generator with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

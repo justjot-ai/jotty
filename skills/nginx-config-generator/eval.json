@@ -1,0 +1,31 @@
+{
+  "skill": "nginx-config-generator",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to generating nginx config",
+      "expected_skill": "nginx-config-generator",
+      "should_match": true,
+      "notes": "Should discover nginx-config-generator in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "nginx_reverse_proxy_tool",
+      "input": {
+        "domain": "example.com",
+        "upstream_port": 3000
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of nginx_reverse_proxy_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use nginx-config-generator with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}
