@@ -212,18 +212,8 @@ class MemorySystem:
         """
         self._store_count += 1
 
-        # Trace the operation if enabled
-        span = None
-        if self.config.enable_tracing:
-            try:
-                from Jotty.core.observability import get_tracer
-                tracer = get_tracer()
-                active = tracer.get_active_span()
-                if active:
-                    # Only create child span if there's an active parent
-                    pass  # Will use contextmanager in caller
-            except ImportError:
-                pass
+        # Tracing is handled at the caller level if needed
+        # (Removed problematic get_active_span() call)
 
         if self._backend_type == MemoryBackend.FULL:
             return self._store_full(content, level, goal, metadata or {}, reward)
@@ -343,6 +333,76 @@ class MemorySystem:
         except Exception as e:
             logger.warning(f"Fallback retrieval failed: {e}")
             return []
+
+    def retrieve_with_latency_budget(
+        self,
+        query: str,
+        goal: str = "",
+        budget_tokens: int = 2000,
+        latency_budget_ms: Optional[float] = None,
+        top_k: int = 5,
+        level: Optional[str] = None,
+    ) -> List[MemoryResult]:
+        """
+        Latency-aware retrieval that auto-selects fast vs full path.
+
+        This method delegates to the backend's latency-aware retrieval when available.
+        Falls back to standard retrieval if backend doesn't support latency budgets.
+
+        Args:
+            query: Search query
+            goal: Goal context for relevance scoring
+            budget_tokens: Token budget for retrieved memories
+            latency_budget_ms: Latency budget in milliseconds (None = no constraint)
+            top_k: Maximum number of results
+            level: Filter by memory level (optional)
+
+        Returns:
+            List of MemoryResult
+        """
+        if self._backend_type == MemoryBackend.FULL:
+            try:
+                # SwarmMemory supports retrieve_with_latency_budget
+                from Jotty.core.foundation.data_structures import MemoryLevel
+
+                levels = None
+                if level:
+                    level_map = {
+                        'episodic': MemoryLevel.EPISODIC,
+                        'semantic': MemoryLevel.SEMANTIC,
+                        'procedural': MemoryLevel.PROCEDURAL,
+                        'meta': MemoryLevel.META,
+                        'causal': MemoryLevel.CAUSAL,
+                    }
+                    mem_level = level_map.get(level)
+                    if mem_level:
+                        levels = [mem_level]
+
+                results = self._backend.retrieve_with_latency_budget(
+                    query=query,
+                    goal=goal,
+                    budget_tokens=budget_tokens,
+                    latency_budget_ms=latency_budget_ms,
+                    levels=levels,
+                )
+
+                return [
+                    MemoryResult(
+                        content=getattr(r, 'content', str(r)),
+                        level=getattr(r, 'level', 'unknown') if not hasattr(r, 'level') or not hasattr(r.level, 'value') else r.level.value,
+                        relevance=getattr(r, 'relevance', 0.0),
+                        timestamp=getattr(r, 'timestamp', 0.0),
+                        metadata=getattr(r, 'metadata', {}),
+                    )
+                    for r in (results if isinstance(results, list) else [])
+                ]
+            except Exception as e:
+                logger.warning(f"Latency-aware retrieval failed: {e}, falling back to standard retrieval")
+                # Fall back to standard retrieval
+                return self.retrieve(query, goal, top_k, level)
+        else:
+            # Fallback backend doesn't support latency budgets
+            return self.retrieve(query, goal, top_k, level)
 
     async def consolidate(self) -> Dict[str, Any]:
         """

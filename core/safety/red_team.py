@@ -204,7 +204,7 @@ class EthicalRedTeam:
     # TEST 2: CREDIT ASSIGNMENT FAIRNESS
     # =========================================================================
 
-    def test_credit_fairness(
+    async def test_credit_fairness(
         self,
         credit_assigner: Any,
         num_trials: int = 50
@@ -241,7 +241,8 @@ class EthicalRedTeam:
                 agents = ['Agent_A', 'Agent_B']
 
                 # Assign credit (identical inputs)
-                results = credit_assigner.assign_credit(
+                # Note: assign_credit is async, so we await it
+                results = await credit_assigner.assign_credit(
                     agents=agents,
                     agent_capabilities={
                         'Agent_A': 'research',
@@ -431,7 +432,7 @@ class EthicalRedTeam:
     # COMPREHENSIVE AUDIT
     # =========================================================================
 
-    def run_full_audit(self, system_components: Dict[str, Any]) -> FairnessAudit:
+    async def run_full_audit(self, system_components: Dict[str, Any]) -> FairnessAudit:
         """
         Run all ethical tests and generate comprehensive report.
 
@@ -460,7 +461,7 @@ class EthicalRedTeam:
         # Test 2: Credit fairness
         if 'credit_assigner' in system_components:
             logger.info("Running credit fairness test...")
-            result = self.test_credit_fairness(
+            result = await self.test_credit_fairness(
                 system_components['credit_assigner'],
                 num_trials=50
             )
