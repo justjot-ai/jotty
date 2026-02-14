@@ -41,7 +41,6 @@ import logging
 import json
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, List, Type
-from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
@@ -83,7 +82,6 @@ from .improvement_agents import (
     LearnerAgent,
 )
 
-from .registry import (
     SwarmRegistry,
     register_swarm,
 )

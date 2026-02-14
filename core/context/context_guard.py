@@ -3,8 +3,6 @@ Context Guard for ReVal.
 
 Provides priority-based context management and compression.
 """
-import asyncio
-import time
 from typing import Dict, List, Tuple, Any, Optional
 import logging
 

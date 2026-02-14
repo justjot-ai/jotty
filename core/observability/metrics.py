@@ -176,7 +176,8 @@ class MetricsCollector:
 
     def record_execution(self, agent_name: str, task_type: str, duration_s: float,
                         success: bool, input_tokens: int = 0, output_tokens: int = 0,
-                        cost: float = 0.0, error: Optional[str] = None) -> None:
+                        cost: float = 0.0, cost_usd: float = 0.0, llm_calls: int = 0,
+                        error: Optional[str] = None, metadata: Optional[dict] = None) -> None:
         """
         Record execution metrics for an agent/tier.
 
@@ -187,8 +188,11 @@ class MetricsCollector:
             success: Whether execution succeeded
             input_tokens: Input tokens used
             output_tokens: Output tokens generated
-            cost: Cost in dollars
+            cost: Cost in dollars (legacy)
+            cost_usd: Cost in USD
+            llm_calls: Number of LLM calls
             error: Error message if failed
+            metadata: Additional metadata
         """
         if not self.enabled:
             return
@@ -201,8 +205,10 @@ class MetricsCollector:
             self.llm_tokens.labels(model=model, type='input').inc(input_tokens)
             self.llm_tokens.labels(model=model, type='output').inc(output_tokens)
 
-        if cost:
-            self.llm_cost.labels(model='claude').inc(cost)
+        # Use cost_usd if provided, otherwise fallback to cost
+        actual_cost = cost_usd or cost
+        if actual_cost:
+            self.llm_cost.labels(model='claude').inc(actual_cost)
 
     def export_metrics(self) -> bytes:
         """

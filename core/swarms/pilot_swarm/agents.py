@@ -130,12 +130,13 @@ class PilotSearchAgent(BaseOlympiadAgent):
         """Execute web searches using the web-search skill if available."""
         results = []
         try:
-            import sys
+            import importlib.util
             from pathlib import Path
-            skill_path = str(Path(__file__).parent.parent.parent.parent / "skills" / "web-search")
-            if skill_path not in sys.path:
-                sys.path.insert(0, skill_path)
-            from tools import search_web_tool
+            tools_path = str(Path(__file__).parent.parent.parent.parent / "skills" / "web-search" / "tools.py")
+            spec = importlib.util.spec_from_file_location("web_search_tools", tools_path)
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            search_web_tool = getattr(mod, 'search_web_tool')
 
             for query in queries[:3]:
                 sr = search_web_tool({'query': query, 'max_results': 5})

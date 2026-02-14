@@ -3,10 +3,7 @@
 import json
 import logging
 import re
-import asyncio
-import traceback
 from typing import Dict, Any, List, Optional, Union
-from dataclasses import dataclass, field
 
 from ._execution_types import ExecutionStep, TaskType, ToolSchema
 from Jotty.core.utils.context_utils import strip_enrichment_context

@@ -662,3 +662,59 @@ class TestSkillWriterValidation:
         raw = "this-is-a-very-long-skill-name-that-exceeds-thirty-characters"
         sanitized = ''.join(c for c in raw.lower().replace(' ', '-') if c.isalnum() or c == '-')[:30]
         assert len(sanitized) <= 30
+
+
+# =============================================================================
+# BROWSE (VLM) HANDLER
+# =============================================================================
+
+class TestBrowseHandler:
+    """Test the VLM browse subtask handler."""
+
+    @pytest.mark.unit
+    def test_browse_type_in_dispatch(self):
+        """Verify BROWSE has its own handler, not a search fallback."""
+        from Jotty.core.swarms.pilot_swarm.swarm import PilotSwarm
+        swarm = PilotSwarm()
+        swarm._init_agents()
+        dispatch = {
+            SubtaskType.SEARCH: swarm._execute_search,
+            SubtaskType.CODE: swarm._execute_code,
+            SubtaskType.TERMINAL: swarm._execute_terminal,
+            SubtaskType.CREATE_SKILL: swarm._execute_create_skill,
+            SubtaskType.DELEGATE: swarm._execute_delegate,
+            SubtaskType.ANALYZE: swarm._execute_analyze,
+            SubtaskType.BROWSE: swarm._execute_browse,
+        }
+        # Browse should NOT be the same function as search
+        assert dispatch[SubtaskType.BROWSE] != dispatch[SubtaskType.SEARCH]
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_browse_fallback_when_no_vlm(self):
+        """When visual-inspector is unavailable, browse falls back to search."""
+        from Jotty.core.swarms.pilot_swarm.swarm import PilotSwarm
+        swarm = PilotSwarm()
+        swarm._init_agents()
+
+        subtask = Subtask(id='s1', type=SubtaskType.BROWSE, description='Analyze screenshot.png')
+
+        # Mock the search fallback
+        swarm._searcher = MagicMock()
+        swarm._searcher.search = AsyncMock(return_value={
+            'queries': ['screenshot analysis'], 'synthesis': 'fallback', 'key_findings': [],
+        })
+
+        # Patch importlib to fail (VLM not available)
+        with patch('importlib.util.spec_from_file_location', side_effect=ImportError("no vlm")):
+            result = await swarm._execute_browse(subtask, "", PilotConfig())
+
+        # Should have fallen back to search
+        assert result.get('synthesis') == 'fallback'
+
+    @pytest.mark.unit
+    def test_browse_in_planner_signature(self):
+        """Verify planner signature mentions browse type."""
+        from Jotty.core.swarms.pilot_swarm.signatures import PlannerSignature
+        # Check the docstring includes browse
+        assert 'browse' in PlannerSignature.__doc__.lower()

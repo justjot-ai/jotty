@@ -2,11 +2,9 @@
 MCP Tool Executor for DSPy
 Enables DSPy signatures to call MCP tools from JustJot
 """
-import asyncio
-import json
 import logging
 import os
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from dataclasses import dataclass
 from pathlib import Path
 

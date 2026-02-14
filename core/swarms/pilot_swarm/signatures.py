@@ -19,7 +19,7 @@ class PlannerSignature(dspy.Signature):
     actionable subtasks that specialized agents can execute.
 
     RULES:
-    1. Each subtask has a TYPE: search, code, terminal, create_skill, delegate, analyze
+    1. Each subtask has a TYPE: search, code, terminal, create_skill, delegate, analyze, browse
     2. Use 'delegate' when a task clearly matches a specialized swarm (coding, research, etc.)
     3. Keep the plan MINIMAL — fewest subtasks to achieve the goal
     4. Be specific about what each subtask should PRODUCE (not vague "look into...")
@@ -29,10 +29,13 @@ class PlannerSignature(dspy.Signature):
     TYPE GUIDE:
     - search: find information on the web, look up documentation, research a topic
     - code: write code, create files, edit configurations, generate scripts
-    - terminal: run shell commands (install packages, check status, run tests)
+    - terminal: run shell commands (install packages, check status, run tests, execute scripts)
     - create_skill: create a new reusable Jotty skill (skill.yaml + tools.py)
     - delegate: hand off to a specialized swarm (coding, research, testing, etc.)
     - analyze: think through / synthesize information using LLM reasoning
+    - browse: open a specific URL to read its content, scrape a webpage, OR visually inspect
+      images/screenshots/PDFs/PPTX files. Put the URL or file path in tool_hint.
+      Use browse when you need the ACTUAL content of a specific URL or file.
     """
     goal: str = dspy.InputField(desc="The goal to accomplish")
     available_swarms: str = dspy.InputField(desc="Available specialized swarms for delegation")
@@ -40,7 +43,7 @@ class PlannerSignature(dspy.Signature):
 
     subtasks_json: str = dspy.OutputField(
         desc="JSON list of subtasks. Each MUST have: "
-        "{id (str, e.g. 's1'), type (str — search/code/terminal/create_skill/delegate/analyze), "
+        "{id (str, e.g. 's1'), type (str — search/code/terminal/create_skill/delegate/analyze/browse), "
         "description (2-3 sentences: what to do and what to produce), "
         "tool_hint (str — suggested tool/skill/swarm name, or empty), "
         "depends_on (list of subtask IDs that must complete first, e.g. ['s1'])}. "
@@ -107,11 +110,14 @@ class CoderSignature(dspy.Signature):
 class TerminalSignature(dspy.Signature):
     """Generate shell commands to accomplish a system task.
 
-    SAFETY FIRST:
-    - Mark commands as safe=true only if they are read-only or non-destructive
-    - NEVER generate: rm -rf, drop database, kill -9, format, dd, mkfs
-    - Prefer --dry-run flags where available
-    - For installs, use virtual environments where possible
+    SAFETY RULES:
+    - Mark commands as safe=true for MOST normal operations:
+      running Python scripts, pip install, curl, wget, git,
+      creating directories, writing files, running tests, etc.
+    - Mark commands as safe=false ONLY for truly DESTRUCTIVE operations:
+      rm -rf, drop database, kill -9, format, dd, mkfs, shutdown,
+      chmod 777, deleting git branches, force push
+    - NEVER generate destructive commands unless explicitly asked
     """
     task: str = dspy.InputField(desc="What to accomplish via terminal")
     context: str = dspy.InputField(desc="Relevant context (OS, previous output, working directory)")
@@ -120,9 +126,10 @@ class TerminalSignature(dspy.Signature):
         desc="JSON list of commands. Each MUST have: "
         "{command (str — the shell command to run), "
         "purpose (str — what this command does in plain English), "
-        "safe (bool — true if read-only/non-destructive, false if it modifies state)}. "
-        "Order matters — commands execute sequentially. "
-        "NEVER include commands that delete files, drop databases, or kill processes."
+        "safe (bool — true for normal operations like running scripts, installing packages, "
+        "creating files, git operations; false ONLY for destructive operations like rm -rf, "
+        "drop database, kill -9, format disk)}. "
+        "Order matters — commands execute sequentially."
     )
     safety_assessment: str = dspy.OutputField(
         desc="Safety assessment (1-2 sentences). List any risks. "

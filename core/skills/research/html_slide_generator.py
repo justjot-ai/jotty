@@ -11,9 +11,7 @@ Classes are split across modules:
 - _slide_renderers_mixin.py: Per-slide-type HTML renderers
 """
 
-import os
 import re
-import json
 import html
 import logging
 from typing import Dict, List, Any, Optional, Tuple

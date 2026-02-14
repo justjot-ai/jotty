@@ -1,38 +1,21 @@
 """TodoCreatorAgent — validates DAGs, assigns actors, manages todos."""
 
-from __future__ import annotations
-
-
-"""DAG Agents — extracted module."""
-
-
 import logging
-import re
-import hashlib
-from typing import List, Dict, Any, Optional, Tuple, Set
-from dataclasses import dataclass, field
+from typing import List, Dict, Any, Optional
 from datetime import datetime
-from enum import Enum
 
 import dspy
 
-from ..orchestration.swarm_roadmap import (
-    SubtaskState, SwarmTaskBoard, TaskStatus, AgenticState, TrajectoryStep
-)
+from ..orchestration.swarm_roadmap import SwarmTaskBoard
 from ..foundation.data_structures import SwarmConfig, MemoryLevel
 from ..foundation.exceptions import AgentExecutionError
-from ..memory.cortex import SwarmMemory
-from ..learning.learning import TDLambdaLearner, AdaptiveLearningRate
-from ..persistence.shared_context import SharedContext
-from .axon import SmartAgentSlack, MessageBus
-from .base import BaseAgent, AgentConfig, AgentResult, DomainAgent, DomainAgentConfig
+from .base import AgentResult
 
 logger = logging.getLogger(__name__)
 
 from .dag_types import (
-    DAGAgentMixin, SwarmResources, TaskType, ExecutableDAG, Actor,
-    ExtractTasksSignature, IdentifyDependenciesSignature,
-    OptimizeWorkflowSignature, ActorAssignmentSignature,
+    DAGAgentMixin, SwarmResources, Actor,
+    ActorAssignmentSignature,
     DAGValidationSignature, OptimizeDAGSignature,
 )
 

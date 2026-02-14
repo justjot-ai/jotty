@@ -1,12 +1,8 @@
 """SwarmMemory mixin — retrieval methods."""
 
-import json
-import hashlib
 import logging
 from typing import Dict, List, Any, Optional, Tuple, Set
-from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +11,6 @@ from ..foundation.data_structures import (
     GoalHierarchy, GoalNode, CausalLink, StoredEpisode
 )
 
-from .llm_rag import LLMRAGRetriever
 
 
 class RetrievalMixin:

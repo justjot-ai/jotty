@@ -167,51 +167,126 @@ class ShapleyValueEstimator:
         
         contributions = {agent: [] for agent in agents}
         
-        # Monte Carlo sampling of orderings
+        # =====================================================================
+        # MONTE CARLO SAMPLING OF AGENT ORDERINGS (Shapley approximation)
+        # =====================================================================
+        # PROBLEM: Exact Shapley computation requires evaluating all n! orderings
+        # of agents. For n=5 agents, that's 120 orderings. For n=10, it's 3.6M!
+        #
+        # SOLUTION: Monte Carlo approximation - sample random orderings and
+        # average the marginal contributions.
+        #
+        # WHY THIS WORKS: By Central Limit Theorem, the sample mean converges
+        # to the true Shapley value as we add more samples.
+        #
+        # EXAMPLE: 3 agents {A, B, C}
+        # - Sample ordering 1: [A, B, C]
+        #   - A joins empty set: marginal = v({A}) - v({})
+        #   - B joins {A}: marginal = v({A,B}) - v({A})
+        #   - C joins {A,B}: marginal = v({A,B,C}) - v({A,B})
+        # - Sample ordering 2: [C, A, B]
+        #   - C joins empty set: marginal = v({C}) - v({})
+        #   - A joins {C}: marginal = v({C,A}) - v({C})
+        #   - B joins {C,A}: marginal = v({C,A,B}) - v({C,A})
+        # - ... repeat for more samples ...
+        # - Agent A's Shapley = average of A's marginals across all samples
+        # =====================================================================
         for sample_idx in range(num_samples):
-            # Random ordering (deterministic for reproducibility)
+            # STEP 1: Generate a random ordering of agents
+            # We use deterministic seeding (42 + sample_idx) for reproducibility
+            # This ensures the same task always gets the same Shapley estimates
             random.seed(42 + sample_idx)
             ordering = random.sample(agents, n)
-            
-            # Compute marginal contribution for each agent
+
+            # STEP 2: For each agent in this ordering, compute marginal contribution
+            # "Marginal contribution" = how much value does this agent ADD when
+            # they join the coalition formed by agents that came before them?
             for i, agent in enumerate(ordering):
+                # Coalition BEFORE this agent joins (agents that came earlier)
                 coalition_before = frozenset(ordering[:i])
+
+                # Coalition WITH this agent (agents up to and including current)
                 coalition_with = frozenset(ordering[:i+1])
-                
-                # Get coalition values (use cache)
+
+                # STEP 3: Evaluate both coalitions using LLM
+                # v(S) = "What value would this coalition of agents achieve?"
+                # We cache results because same coalitions appear in multiple orderings
+                # Example: Coalition {A, B} appears in orderings [A,B,C] and [B,A,C]
                 v_before = await self._get_coalition_value(
                     coalition_before, agent_capabilities, task, trajectory
                 )
                 v_with = await self._get_coalition_value(
                     coalition_with, agent_capabilities, task, trajectory
                 )
-                
-                # Marginal contribution
+
+                # STEP 4: Compute marginal contribution
+                # marginal = v(S ∪ {i}) - v(S)
+                # "How much better is the coalition WITH this agent vs WITHOUT?"
+                #
+                # EXAMPLE: If v({A,B}) = 0.7 and v({A,B,C}) = 0.9
+                # Then C's marginal contribution in this ordering = 0.9 - 0.7 = 0.2
+                # (C added 0.2 value by joining)
                 marginal = v_with - v_before
+
+                # Store this sample for averaging later
                 contributions[agent].append(marginal)
         
-        # Compute Shapley values with variance/CI
+        # =====================================================================
+        # COMPUTE FINAL SHAPLEY VALUES WITH STATISTICAL CONFIDENCE
+        # =====================================================================
+        # Now that we have multiple marginal contribution samples for each agent,
+        # we compute:
+        # 1. Shapley value = mean of marginal contributions
+        # 2. Variance = how much the samples vary
+        # 3. Confidence Interval = range where true value likely falls
+        # 4. Confidence score = how certain we are (based on CI width)
+        # =====================================================================
         results = {}
         for agent in agents:
             samples = contributions[agent]
             n_samples = len(samples)
-            
-            # Mean (Shapley estimate)
+
+            # STEP 1: Compute Shapley value (mean of samples)
+            # φᵢ = (1/n) Σ marginal_contributions
+            #
+            # EXAMPLE: Agent A's marginals across 3 samples: [0.2, 0.3, 0.25]
+            # Shapley value = (0.2 + 0.3 + 0.25) / 3 = 0.25
             shapley = sum(samples) / n_samples if n_samples > 0 else 0.0
-            
-            # Variance and standard error
+
+            # STEP 2: Compute variance and standard error
+            # Variance measures "how spread out" the samples are
+            # Standard Error = how much the mean would vary if we resampled
+            #
+            # WHY THIS MATTERS: Low variance = consistent marginals across orderings
+            # = high confidence. High variance = marginals depend heavily on
+            # ordering = low confidence.
             if n_samples > 1:
+                # Sample variance: σ² = (1/(n-1)) Σ(xᵢ - μ)²
                 variance = sum((x - shapley) ** 2 for x in samples) / (n_samples - 1)
+
+                # Standard error of the mean: SE = σ / √n
+                # This is the uncertainty in our Shapley estimate
                 std_error = math.sqrt(variance / n_samples)
-                # 95% CI: ±1.96 * SE
+
+                # 95% Confidence Interval: μ ± 1.96 * SE
+                # "We're 95% confident the true Shapley is within this range"
+                # EXAMPLE: If shapley=0.25, SE=0.05, then:
+                # CI = 0.25 ± (1.96 * 0.05) = 0.25 ± 0.098 = [0.15, 0.35]
                 ci_half_width = 1.96 * std_error
             else:
+                # Only 1 sample = maximum uncertainty
                 variance = 0.0
                 std_error = 0.0
                 ci_half_width = 1.0  # Max uncertainty
-            
-            # Confidence based on CI width (narrower = higher confidence)
-            # CI width of 0.1 → confidence ~0.9; width of 1.0 → confidence ~0.0
+
+            # STEP 3: Convert CI width to confidence score
+            # Narrow CI = high confidence, Wide CI = low confidence
+            # Formula: confidence = 1 - CI_width
+            #
+            # EXAMPLES:
+            # - CI width = 0.1 → confidence = 0.9 (90% confident)
+            # - CI width = 0.5 → confidence = 0.5 (50% confident)
+            # - CI width = 1.0 → confidence = 0.0 (no confidence)
             confidence = max(0.0, min(1.0, 1.0 - ci_half_width))
             
             results[agent] = AgentContribution(

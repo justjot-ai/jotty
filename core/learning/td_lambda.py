@@ -6,11 +6,9 @@ Core temporal-difference learning:
 - GroupedValueBaseline: Task-type grouped baselines for variance reduction
 """
 
-import math
 import hashlib
 import logging
 from typing import Dict, List, Any, Optional, Tuple, TYPE_CHECKING
-from dataclasses import dataclass, field
 from datetime import datetime
 logger = logging.getLogger(__name__)
 

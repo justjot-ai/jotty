@@ -294,7 +294,7 @@ class PilotSwarm(DomainSwarm):
             SubtaskType.CREATE_SKILL: self._execute_create_skill,
             SubtaskType.DELEGATE: self._execute_delegate,
             SubtaskType.ANALYZE: self._execute_analyze,
-            SubtaskType.BROWSE: self._execute_search,  # fallback to search
+            SubtaskType.BROWSE: self._execute_browse,
         }
 
         handler = dispatch.get(subtask.type, self._execute_analyze)
@@ -437,6 +437,154 @@ class PilotSwarm(DomainSwarm):
         """Execute an analysis subtask using LLM reasoning."""
         return await self._searcher.search(task=subtask.description, context=context)
 
+    async def _execute_browse(self, subtask: Subtask, context: str, config: PilotConfig) -> Dict[str, Any]:
+        """Execute a browse subtask — smart dispatch based on target type.
+
+        - URLs → web scraper / fetch_webpage to get content
+        - File paths → visual-inspector VLM for image/PDF/code analysis
+        - General → browser-automation screenshot + extract
+        """
+        import re
+
+        target = subtask.tool_hint or ''
+        if not target:
+            # Extract URL or file path from description
+            url_match = re.search(r'https?://[^\s\'"<>]+', subtask.description)
+            if url_match:
+                target = url_match.group(0)
+            else:
+                path_match = re.search(r'[/~][\w./\-]+\.\w+', subtask.description)
+                if path_match:
+                    target = path_match.group(0)
+
+        is_url = target.startswith('http://') or target.startswith('https://')
+
+        # URL → fetch webpage content
+        if is_url:
+            return await self._browse_url(target, subtask.description, context)
+
+        # File path → VLM visual inspection
+        if target and not is_url:
+            return await self._browse_file(target, subtask.description, context)
+
+        # No clear target → try to extract from description with browser
+        return await self._browse_url_fallback(subtask.description, context)
+
+    async def _browse_url(self, url: str, task: str, context: str) -> Dict[str, Any]:
+        """Fetch and analyze a URL using web-search/fetch_webpage_tool or web-scraper."""
+        skills_root = Path(__file__).parent.parent.parent.parent / "skills"
+
+        # Try web-search fetch_webpage_tool first (lighter weight)
+        fetch_tool = self._load_skill_tool(skills_root / "web-search" / "tools.py", "web_search_skill",
+                                           "fetch_webpage_tool")
+        if fetch_tool:
+            try:
+                result = fetch_tool({'url': url, 'max_length': 15000})
+                if isinstance(result, dict) and result.get('success'):
+                    logger.info(f"    Fetched URL: {url} ({result.get('length', 0)} chars)")
+                    return {
+                        'url': url,
+                        'title': result.get('title', ''),
+                        'content': result.get('content', '')[:5000],
+                        'synthesis': result.get('content', '')[:3000],
+                        'fetched_via': result.get('fetched_via', 'fetch_webpage'),
+                    }
+            except Exception as e:
+                logger.debug(f"    fetch_webpage_tool failed: {e}")
+
+        # Try web-scraper
+        scrape_tool = self._load_skill_tool(skills_root / "web-scraper" / "tools.py", "web_scraper_skill",
+                                            "scrape_website_tool")
+        if scrape_tool:
+            try:
+                result = scrape_tool({'url': url, 'output_format': 'markdown'})
+                if isinstance(result, dict) and result.get('success'):
+                    logger.info(f"    Scraped URL: {url} ({result.get('content_length', 0)} chars)")
+                    return {
+                        'url': url,
+                        'title': result.get('title', ''),
+                        'content': result.get('content', '')[:5000],
+                        'synthesis': result.get('content', '')[:3000],
+                        'fetched_via': 'web-scraper',
+                    }
+            except Exception as e:
+                logger.debug(f"    scrape_website_tool failed: {e}")
+
+        # Try browser-automation as last resort
+        browser_tool = self._load_skill_tool(skills_root / "browser-automation" / "tools.py",
+                                             "browser_automation_skill", "browser_navigate_tool")
+        if browser_tool:
+            try:
+                result = browser_tool({'url': url, 'extract_text': True, 'screenshot': False})
+                if isinstance(result, dict) and result.get('success'):
+                    logger.info(f"    Browsed URL: {url}")
+                    return {
+                        'url': url,
+                        'title': result.get('title', ''),
+                        'content': result.get('text', '')[:5000],
+                        'synthesis': result.get('text', '')[:3000],
+                        'fetched_via': 'browser-automation',
+                    }
+            except Exception as e:
+                logger.debug(f"    browser_navigate_tool failed: {e}")
+
+        logger.warning(f"    No web tool available for {url}, falling back to search")
+        return await self._searcher.search(task=f"Fetch content from {url}: {task}", context=context)
+
+    async def _browse_file(self, file_path: str, task: str, context: str) -> Dict[str, Any]:
+        """Inspect a local file using VLM visual-inspector."""
+        skills_root = Path(__file__).parent.parent.parent.parent / "skills"
+        tool = self._load_skill_tool(skills_root / "visual-inspector" / "tools.py",
+                                     "visual_inspector_skill",
+                                     "inspect_file_visually_tool", "visual_inspect_tool")
+        if tool:
+            try:
+                result = tool({
+                    'image_path': file_path,
+                    'question': task,
+                    'task_context': context,
+                })
+                logger.info(f"    VLM analyzed: {file_path}")
+                return {
+                    'visual_analysis': result.get('visual_state', result.get('result', str(result))),
+                    'model': result.get('model', 'unknown'),
+                    'file_path': file_path,
+                    'synthesis': result.get('visual_state', ''),
+                }
+            except Exception as e:
+                logger.error(f"    VLM inspection failed: {e}")
+
+        # Fallback: just read the file as text
+        try:
+            p = Path(file_path)
+            if p.exists() and p.stat().st_size < 50000:
+                content = p.read_text(errors='replace')[:5000]
+                return {'file_path': file_path, 'content': content, 'synthesis': content[:3000]}
+        except Exception:
+            pass
+
+        return await self._searcher.search(task=task, context=context)
+
+    async def _browse_url_fallback(self, task: str, context: str) -> Dict[str, Any]:
+        """No clear target — fall back to search with browse intent."""
+        return await self._searcher.search(task=f"Browse and find: {task}", context=context)
+
+    @staticmethod
+    def _load_skill_tool(tools_path: Path, module_name: str, *func_names: str):
+        """Load a tool function from a skill's tools.py by absolute path."""
+        try:
+            import importlib.util
+            spec = importlib.util.spec_from_file_location(module_name, str(tools_path))
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            for name in func_names:
+                tool = getattr(mod, name, None)
+                if tool:
+                    return tool
+        except Exception:
+            pass
+        return None
+
     # =========================================================================
     # HELPERS
     # =========================================================================
@@ -450,13 +598,26 @@ class PilotSwarm(DomainSwarm):
         for sid, result in all_results.items():
             if isinstance(result, dict):
                 summary_parts = []
+
+                # Direct keys
                 for key in ['synthesis', 'explanation', 'assessment', 'key_findings',
-                            'stdout', 'skill_name', 'output']:
+                            'content', 'visual_analysis', 'skill_name', 'output', 'title']:
                     if key in result and result[key]:
                         val = result[key]
                         if isinstance(val, list):
-                            val = '; '.join(str(v) for v in val[:3])
-                        summary_parts.append(f"{key}: {str(val)[:300]}")
+                            val = '; '.join(str(v) for v in val[:5])
+                        summary_parts.append(f"{key}: {str(val)[:500]}")
+
+                # Terminal command outputs
+                for cmd_out in result.get('command_outputs', []):
+                    if isinstance(cmd_out, dict):
+                        cmd = cmd_out.get('command', '')
+                        stdout = cmd_out.get('stdout', '')
+                        if stdout:
+                            summary_parts.append(f"$ {cmd}\n{stdout[:500]}")
+                        elif cmd_out.get('error'):
+                            summary_parts.append(f"$ {cmd} — ERROR: {cmd_out['error'][:200]}")
+
                 if summary_parts:
                     parts.append(f"[{sid}] {'; '.join(summary_parts)}")
 
@@ -472,11 +633,23 @@ class PilotSwarm(DomainSwarm):
                 r = all_results[st.id]
                 if isinstance(r, dict):
                     if r.get('error'):
-                        result_preview = f" — ERROR: {r['error'][:200]}"
+                        result_preview = f" — ERROR: {r['error'][:300]}"
+                    elif r.get('command_outputs'):
+                        # Terminal results: show actual command output
+                        cmd_summaries = []
+                        for co in r['command_outputs']:
+                            if isinstance(co, dict) and co.get('stdout'):
+                                cmd_summaries.append(f"$ {co.get('command','')}: {co['stdout'][:300]}")
+                        if cmd_summaries:
+                            result_preview = f" — {'; '.join(cmd_summaries)}"
+                    elif r.get('content'):
+                        result_preview = f" — {str(r['content'])[:400]}"
                     elif r.get('synthesis'):
-                        result_preview = f" — {str(r['synthesis'])[:200]}"
+                        result_preview = f" — {str(r['synthesis'])[:400]}"
+                    elif r.get('visual_analysis'):
+                        result_preview = f" — {str(r['visual_analysis'])[:400]}"
                     elif r.get('explanation'):
-                        result_preview = f" — {str(r['explanation'])[:200]}"
+                        result_preview = f" — {str(r['explanation'])[:400]}"
                     elif r.get('skill_name'):
                         result_preview = f" — Created skill: {r['skill_name']}"
             parts.append(f"[{st.id}] {st.type.value} ({status}): {st.description[:100]}{result_preview}")

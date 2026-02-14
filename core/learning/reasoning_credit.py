@@ -8,13 +8,8 @@ See MODULE_STATUS.md for details.
 Credit assignment using reasoning quality analysis.
 """
 
-import math
-import hashlib
 import logging
 from typing import Dict, List, Any, Optional, Tuple, TYPE_CHECKING
-from dataclasses import dataclass, field
-from datetime import datetime
-from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 

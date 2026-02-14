@@ -1,11 +1,9 @@
 """SwarmMemory mixin — consolidation, serialization, and statistics."""
-from __future__ import annotations
 
 import json
 import hashlib
 import logging
 from typing import Dict, List, Any, Optional, Tuple, Set
-from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from collections import defaultdict
 
@@ -16,7 +14,6 @@ from ..foundation.data_structures import (
     GoalHierarchy, GoalNode, CausalLink, StoredEpisode
 )
 
-from .llm_rag import LLMRAGRetriever, DeduplicationEngine, CausalExtractor
 
 _consolidation_loaded = False
 _consolidation_cache = {}

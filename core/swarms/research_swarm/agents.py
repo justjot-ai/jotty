@@ -2,21 +2,13 @@
 
 import asyncio
 import logging
-import os
 import json
-import re
-import glob
-import gzip
 from typing import Dict, Any, Optional, List, Tuple
-from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
 
-import dspy
 
 from Jotty.core.agents.base import DomainAgent, DomainAgentConfig, BaseSwarmAgent
-from .types import RatingType, ResearchConfig, ResearchResult
-from .signatures import (
     StockAnalysisSignature, SentimentAnalysisSignature,
     PeerSelectionSignature, SocialSentimentSignature,
     TechnicalSignalsSignature,

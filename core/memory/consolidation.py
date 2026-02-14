@@ -1,12 +1,9 @@
 """Memory consolidation components — Signatures, Validator, Classifier, MemoryCluster."""
 
 import json
-import hashlib
 import logging
 from typing import Dict, List, Any, Optional, Tuple, Set
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 

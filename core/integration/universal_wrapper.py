@@ -16,17 +16,14 @@ No required prompts, no required tools - sensible defaults provided.
 """
 
 import asyncio
-import functools
 import warnings
-from typing import Union, Callable, Dict, Any, List, Optional, TypeVar
+from typing import Union, Callable, Dict, Any, List
 from pathlib import Path
-from dataclasses import dataclass
-import inspect
 import yaml
 import dspy
 
-from ..foundation.data_structures import SwarmConfig, ValidationResult
-from .framework_decorators import ContextGuard, EmptyPromptHandler
+from ..foundation.data_structures import SwarmConfig
+from .framework_decorators import ContextGuard
 
 
 # =============================================================================

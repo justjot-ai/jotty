@@ -5,11 +5,8 @@ Adaptive learning rate, intermediate rewards, and exploration strategies.
 """
 
 import math
-import hashlib
 import logging
 from typing import Dict, List, Any, Optional, Tuple, TYPE_CHECKING
-from dataclasses import dataclass, field
-from datetime import datetime
 from collections import defaultdict
 
 logger = logging.getLogger(__name__)
@@ -91,33 +88,123 @@ class AdaptiveLearningRate:
             return self.alpha
         
         recent_errors = self.td_errors[-self.window_size:]
-        
-        # Compute variance
+
+        # =====================================================================
+        # STEP 1: ANALYZE TD ERROR STATISTICS
+        # =====================================================================
+        # TD errors tell us "how wrong our predictions are"
+        # - Large errors = we're learning a lot (good!) or unstable (bad!)
+        # - Small errors = we've learned well OR learning too slowly
+        #
+        # We need to distinguish:
+        # - High variance + high mean = unstable learning → SLOW DOWN (↓ α)
+        # - Low variance + low mean = converged → KEEP CURRENT RATE
+        # - Low variance + medium mean = learning steadily → KEEP CURRENT RATE
+        # - High variance + low mean = confused → SLOW DOWN (↓ α)
+        # - Low mean across board = stagnant → SPEED UP (↑ α)
+        # =====================================================================
+
+        # Compute mean and variance of recent TD errors
+        # Mean = average prediction error
+        # Variance = how much errors fluctuate
         mean_error = sum(recent_errors) / len(recent_errors)
         variance = sum((e - mean_error) ** 2 for e in recent_errors) / len(recent_errors)
         std_dev = math.sqrt(variance)
-        
-        # Adaptation decision
+
+        # =====================================================================
+        # STEP 2: DECIDE ON LEARNING RATE ADJUSTMENT
+        # =====================================================================
+        # We'll compute an adjustment factor (positive = increase α, negative = decrease α)
+        # Then apply it multiplicatively: α_new = α_old * (1 + adjustment)
+        # =====================================================================
         adjustment = 0.0
-        
-        # High variance → unstable → decrease α
-        if std_dev > mean_error * self.config.instability_threshold_multiplier: # STANFORD FIX
-            adjustment -= self.adaptation_rate
-        
-        # Low mean error → slow learning → boost α by learning_boost_factor
-        elif mean_error < self.config.slow_learning_threshold: # STANFORD FIX
+
+        # =====================================================================
+        # RULE 1: HIGH VARIANCE → UNSTABLE LEARNING → DECREASE α
+        # =====================================================================
+        # If std_dev > mean * threshold, errors are wildly inconsistent
+        # This means learning is UNSTABLE (bouncing around, not converging)
+        #
+        # EXAMPLE:
+        # - Mean error = 0.2, Std dev = 0.3
+        # - Ratio = 0.3 / 0.2 = 1.5 (high variance)
+        # - If threshold = 1.2, then 1.5 > 1.2 → TOO UNSTABLE
+        # - ACTION: Decrease α to make updates smaller and more stable
+        #
+        # WHY: Large learning rate with high variance = overshooting
+        # Smaller α = smoother convergence
+        # =====================================================================
+        if std_dev > mean_error * self.config.instability_threshold_multiplier:
+            adjustment -= self.adaptation_rate  # Decrease α
+            # Example: adjustment = -0.1 → α_new = α * 0.9 (10% smaller)
+
+        # =====================================================================
+        # RULE 2: LOW MEAN ERROR → SLOW LEARNING → INCREASE α
+        # =====================================================================
+        # If mean error is very small, we might be learning too slowly
+        # (or we might have converged - but if success rate is bad, we haven't)
+        #
+        # EXAMPLE:
+        # - Mean error = 0.05 (very small)
+        # - Threshold = 0.1
+        # - 0.05 < 0.1 → Learning is STAGNANT
+        # - ACTION: Increase α to learn faster
+        #
+        # WHY: Small errors + low success = we're stuck in a plateau
+        # Need a bigger push to escape
+        #
+        # NOTE: We use learning_boost_factor (default 2.0) to increase more
+        # aggressively when stagnant
+        # =====================================================================
+        elif mean_error < self.config.slow_learning_threshold:
             _boost = getattr(self.config, 'learning_boost_factor', 2.0)
-            adjustment += self.adaptation_rate * _boost
-        
-        # Check success rate trend
+            adjustment += self.adaptation_rate * _boost  # Increase α (boosted)
+            # Example: adjustment = +0.2 → α_new = α * 1.2 (20% larger)
+
+        # =====================================================================
+        # RULE 3: DECLINING SUCCESS RATE → INCREASE α TO ADAPT FASTER
+        # =====================================================================
+        # If success rate is getting WORSE over time, we need to learn faster
+        # to adapt to changing conditions or escape bad policy
+        #
+        # EXAMPLE:
+        # - Recent 10 episodes: 6/10 success = 60%
+        # - Older 10 episodes: 8/10 success = 80%
+        # - Trend: 60% < 80% - 10% = 70% → DECLINING
+        # - ACTION: Increase α to adapt to new conditions faster
+        #
+        # WHY: Declining performance suggests environment changed or we're
+        # stuck in a local optimum. Larger α helps escape.
+        # =====================================================================
         if len(self.success_rates) >= 20:
-            recent = sum(self.success_rates) / 10
-            older = sum(self.success_rates[-20:-10]) / 10
-            
-            if recent < older - 0.1:  # Declining
-                adjustment += self.adaptation_rate * 0.5
-        
-        # Apply adjustment with bounds
+            # Compare recent vs older success rates
+            recent_success = sum(self.success_rates[-10:]) / 10  # Last 10 episodes
+            older_success = sum(self.success_rates[-20:-10]) / 10  # Episodes 11-20
+
+            if recent_success < older_success - 0.1:  # Declining by >10%
+                adjustment += self.adaptation_rate * 0.5  # Moderate increase
+                # Example: adjustment = +0.05 → α_new = α * 1.05 (5% larger)
+
+        # =====================================================================
+        # STEP 3: APPLY ADJUSTMENT WITH SAFETY BOUNDS
+        # =====================================================================
+        # Update α multiplicatively (not additively, to keep it proportional)
+        # α_new = α_old * (1 + adjustment)
+        #
+        # EXAMPLES:
+        # - adjustment = -0.1 → α_new = α * 0.9 (decrease 10%)
+        # - adjustment = +0.2 → α_new = α * 1.2 (increase 20%)
+        # - adjustment = 0 → α_new = α * 1.0 (no change)
+        #
+        # SAFETY BOUNDS:
+        # - α must stay within [min_alpha, max_alpha]
+        # - Prevents α from becoming too small (no learning) or too large (unstable)
+        #
+        # TYPICAL VALUES:
+        # - min_alpha = 0.001 (minimum learning still happens)
+        # - max_alpha = 0.5 (prevents massive updates)
+        # - alpha = 0.1 (typical starting point)
+        # =====================================================================
         self.alpha = self.alpha * (1 + adjustment)
         self.alpha = max(self.min_alpha, min(self.max_alpha, self.alpha))
         

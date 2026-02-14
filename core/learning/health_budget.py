@@ -4,23 +4,15 @@ Learning health monitoring and dynamic budget management.
 Detects pathological learning behaviors and manages context budgets.
 """
 
-import math
-import hashlib
 import logging
-from typing import Dict, List, Any, Optional, Tuple, TYPE_CHECKING
-from dataclasses import dataclass, field
-from datetime import datetime
+from typing import Dict, List, Any, Optional, Tuple
 from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
 from ..foundation.data_structures import (
-    SwarmConfig, MemoryEntry, MemoryLevel, GoalValue,
-    ValidationResult, AgentContribution, StoredEpisode,
-    LearningMetrics, AlertType, GoalHierarchy, CausalLink
+    SwarmConfig, MemoryEntry, LearningMetrics, AlertType
 )
-if TYPE_CHECKING:
-    from ..memory.cortex import SwarmMemory
 
 
 

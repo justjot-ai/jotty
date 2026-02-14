@@ -174,81 +174,241 @@ class SmartContextManager:
     # CONTEXT BUILDING
     # =========================================================================
     
-    def build_context(self, 
+    def build_context(self,
                       system_prompt: str,
                       user_input: str,
                       additional_context: Dict[str, str] = None) -> Dict[str, Any]:
         """
         Build context that fits within limits while preserving critical info.
-        
+
         Returns dict with:
         - context: The built context string
         - truncated: Whether truncation occurred
         - preserved: What critical info was preserved
         - stats: Compression statistics
         """
-        # Calculate fixed costs
+        # =====================================================================
+        # TOKEN BUDGET ALLOCATION EXPLAINED
+        # =====================================================================
+        # PROBLEM: LLMs have limited context windows (e.g., 128K tokens for GPT-4).
+        # We need to fit:
+        # - System prompt (instructions)
+        # - User input (current question/task)
+        # - Historical context (previous actions, memories, trajectory)
+        # - Critical state (TODO list, current goal, critical memories)
+        #
+        # CHALLENGES:
+        # 1. Some info is CRITICAL (losing TODO = total failure)
+        # 2. Some info is NICE-TO-HAVE (old trajectory = helpful but not essential)
+        # 3. Total tokens must stay under model limit (or API call fails)
+        # 4. We want to use as much context as possible (more context = better decisions)
+        #
+        # SOLUTION: Priority-based budget allocation with guaranteed preservation
+        #
+        # BUDGET ALLOCATION STRATEGY:
+        # 1. FIXED COST (cannot change):
+        #    - System prompt (e.g., 2000 tokens)
+        #    - User input (e.g., 500 tokens)
+        #    Total fixed: ~2500 tokens
+        #
+        # 2. RESERVED COST (guaranteed to include):
+        #    - TODO list (e.g., 1000 tokens) → NEVER truncate
+        #    - Current goal (e.g., 200 tokens) → NEVER truncate
+        #    - Critical memories (e.g., 3 × 300 = 900 tokens) → NEVER truncate
+        #    Total reserved: ~2100 tokens
+        #
+        # 3. AVAILABLE BUDGET (for other context):
+        #    available = effective_limit - fixed_cost - reserved_cost
+        #    Example: 24000 - 2500 - 2100 = 19400 tokens
+        #
+        # 4. FILL AVAILABLE BUDGET by priority:
+        #    - CRITICAL chunks: Include ALL (compress if needed)
+        #    - HIGH chunks: Include if space (compress if needed)
+        #    - MEDIUM chunks: Include if space (no compression)
+        #    - LOW chunks: Include only if abundant space
+        #
+        # EXAMPLE BUDGET BREAKDOWN:
+        # Model limit: 28000 tokens
+        # Safety margin: 85% → effective_limit = 23800 tokens
+        #
+        # Fixed costs:
+        # - System prompt: 2000 tokens
+        # - User input: 500 tokens
+        # Total fixed: 2500 tokens
+        #
+        # Reserved costs:
+        # - TODO: 1000 tokens (contains 5 pending tasks)
+        # - Goal: 200 tokens ("Research AI trends and create report")
+        # - Critical memories: 3 × 300 = 900 tokens
+        # Total reserved: 2100 tokens
+        #
+        # Available: 23800 - 2500 - 2100 = 19200 tokens
+        #
+        # Context chunks to fit:
+        # - Trajectory (MEDIUM): 5000 tokens → FITS
+        # - Recent memory (HIGH): 3000 tokens → FITS
+        # - Tool results (HIGH): 2000 tokens → FITS
+        # - Old memories (LOW): 8000 tokens → FITS
+        # - Verbose logs (LOW): 10000 tokens → SKIPPED (would exceed budget)
+        #
+        # Final: 2500 (fixed) + 2100 (reserved) + 18000 (included) = 22600 tokens
+        # Budget remaining: 23800 - 22600 = 1200 tokens (10% safety buffer)
+        # =====================================================================
+
+        # =====================================================================
+        # STEP 1: CALCULATE FIXED COSTS
+        # =====================================================================
+        # Fixed costs are immutable - we MUST include system prompt and user input
+        # These cannot be compressed or removed without breaking the LLM call
+        # =====================================================================
         system_tokens = self.estimate_tokens(system_prompt)
         input_tokens = self.estimate_tokens(user_input)
         fixed_cost = system_tokens + input_tokens
-        
-        # Reserved space for CRITICAL items
+
+        # =====================================================================
+        # STEP 2: CALCULATE RESERVED COSTS
+        # =====================================================================
+        # Reserved costs are for CRITICAL items that MUST be preserved
+        # If we lose TODO list, the agent forgets what it's working on → total failure
+        # If we lose goal, the agent forgets why it exists → total failure
+        # If we lose critical memories, the agent makes wrong decisions → partial failure
+        #
+        # These are GUARANTEED to be included in the final context, even if it means
+        # compressing or removing everything else
+        # =====================================================================
         todo_cost = self.estimate_tokens(self._current_todo or "")
         goal_cost = self.estimate_tokens(self._current_goal or "")
         critical_mem_cost = sum(self.estimate_tokens(m) for m in self._critical_memories)
         reserved_cost = todo_cost + goal_cost + critical_mem_cost
-        
-        # Available budget for other context
+
+        # =====================================================================
+        # STEP 3: CALCULATE AVAILABLE BUDGET
+        # =====================================================================
+        # Available budget is what's left after fixed and reserved costs
+        # This is the "flexible" space we can allocate to context chunks
+        #
+        # If available budget is very small (<500 tokens), we're in trouble:
+        # - Can't fit much history
+        # - May need to compress even CRITICAL chunks
+        # - Agent will have limited context awareness
+        #
+        # In this case, we set a floor of 500 tokens to at least fit SOMETHING
+        # =====================================================================
         available = self.effective_limit - fixed_cost - reserved_cost
-        
+
         if available < 500:
             # Not enough space - need aggressive compression
             logger.warning(f" Very limited context budget: {available} tokens")
             available = max(500, available)
-        
-        # Sort chunks by priority (CRITICAL first)
+
+        # =====================================================================
+        # STEP 4: SORT CHUNKS BY PRIORITY
+        # =====================================================================
+        # Priority-based allocation: CRITICAL chunks first, LOW chunks last
+        # ContextPriority enum values:
+        # - CRITICAL = 1 (highest priority)
+        # - HIGH = 2
+        # - MEDIUM = 3
+        # - LOW = 4 (lowest priority)
+        #
+        # Why sort by priority?
+        # If we run out of budget, we want to drop LOW-priority chunks first,
+        # not randomly drop chunks based on insertion order
+        # =====================================================================
         sorted_chunks = sorted(self.current_chunks, key=lambda c: c.priority.value)
-        
-        # Build context
+
+        # =====================================================================
+        # STEP 5: FILL BUDGET WITH HIGHEST PRIORITY CHUNKS
+        # =====================================================================
+        # Greedy algorithm: Iterate through sorted chunks, include as many as fit
+        #
+        # THREE CASES:
+        # 1. Chunk fits perfectly → Include as-is
+        # 2. Chunk doesn't fit BUT is CRITICAL → COMPRESS and include
+        # 3. Chunk doesn't fit AND is HIGH priority → COMPRESS if >200 tokens left
+        # 4. Chunk doesn't fit AND is MEDIUM/LOW → SKIP
+        #
+        # WHY COMPRESS CRITICAL CHUNKS?
+        # Losing a CRITICAL chunk is worse than compressing it. Even a compressed
+        # version of TODO list is better than no TODO list at all.
+        #
+        # EXAMPLE:
+        # Available: 5000 tokens
+        # Chunks:
+        # - Chunk A (CRITICAL, 2000 tokens) → FITS, include as-is, 3000 left
+        # - Chunk B (CRITICAL, 4000 tokens) → DOESN'T FIT, compress to 3000, include
+        # - Chunk C (HIGH, 2000 tokens) → DOESN'T FIT (0 left), SKIP
+        # - Chunk D (LOW, 1000 tokens) → DOESN'T FIT, SKIP
+        #
+        # Result: Included A (full) + B (compressed), skipped C + D
+        # =====================================================================
         included_chunks = []
         tokens_used = 0
-        
+
         for chunk in sorted_chunks:
             if tokens_used + chunk.tokens <= available:
+                # Case 1: Chunk fits perfectly → include as-is
                 included_chunks.append(chunk)
                 tokens_used += chunk.tokens
             elif chunk.priority == ContextPriority.CRITICAL:
-                # MUST include critical - compress others
+                # Case 2: CRITICAL chunk doesn't fit → COMPRESS and include
+                # We MUST include this, so compress it to fit remaining budget
                 compressed = self._compress_chunk(chunk, available - tokens_used)
                 included_chunks.append(compressed)
                 tokens_used += compressed.tokens
             elif chunk.priority == ContextPriority.HIGH and available - tokens_used > 200:
-                # Try to fit HIGH priority with compression
+                # Case 3: HIGH priority chunk doesn't fit → COMPRESS if >200 tokens left
+                # If we have at least 200 tokens left, try to fit a compressed version
+                # Cap at 1000 tokens to avoid over-compressing (losing too much info)
                 compressed = self._compress_chunk(chunk, min(1000, available - tokens_used))
                 included_chunks.append(compressed)
                 tokens_used += compressed.tokens
-        
-        # Build final context
+            # Case 4: MEDIUM/LOW priority → SKIP (implicit, no else clause)
+
+        # =====================================================================
+        # STEP 6: BUILD FINAL CONTEXT STRING
+        # =====================================================================
+        # Assemble the final context in a structured format:
+        # 1. TODO (if exists)
+        # 2. Goal (if exists)
+        # 3. Critical memories (if any)
+        # 4. Other included chunks (sorted by priority)
+        #
+        # Each section gets a markdown header for readability
+        # =====================================================================
         context_parts = []
-        
+
         # Always include TODO
         if self._current_todo:
             context_parts.append(f"## Current TODO\n{self._current_todo}")
-        
+
         # Always include goal
         if self._current_goal:
             context_parts.append(f"## Goal\n{self._current_goal}")
-        
+
         # Include critical memories
         for mem in self._critical_memories:  # Max 5
             context_parts.append(f"## Critical Memory\n{mem}")
-        
+
         # Include other chunks
         for chunk in included_chunks:
             context_parts.append(f"## {chunk.category}\n{chunk.content}")
-        
+
         final_context = "\n\n".join(context_parts)
-        
+
+        # =====================================================================
+        # STEP 7: RETURN RESULT WITH STATS
+        # =====================================================================
+        # Return dict contains:
+        # - system_prompt, user_input: The inputs (unchanged)
+        # - context: The built context string
+        # - truncated: True if some chunks were dropped
+        # - preserved: What critical info was successfully preserved
+        # - stats: Token usage breakdown for debugging
+        #
+        # Caller can check 'truncated' to know if context was lossy
+        # Caller can check 'budget_remaining' to know if we're close to limit
+        # =====================================================================
         return {
             'system_prompt': system_prompt,
             'user_input': user_input,

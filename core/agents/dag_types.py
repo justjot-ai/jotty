@@ -1,30 +1,20 @@
 """DAG Agent types — enums, signatures, data structures."""
 
-from __future__ import annotations
-
-
-"""DAG Agents — extracted module."""
-
-
 import logging
-import re
-import hashlib
-from typing import List, Dict, Any, Optional, Tuple, Set
-from dataclasses import dataclass, field
+from typing import List, Dict, Any, Optional
+from dataclasses import field
 from datetime import datetime
 from enum import Enum
 
 import dspy
 
-from ..orchestration.swarm_roadmap import (
-    SubtaskState, SwarmTaskBoard, TaskStatus, AgenticState, TrajectoryStep
-)
-from ..foundation.data_structures import SwarmConfig, MemoryLevel
+from ..orchestration.swarm_roadmap import SwarmTaskBoard
+from ..foundation.data_structures import SwarmConfig
 from ..memory.cortex import SwarmMemory
 from ..learning.learning import TDLambdaLearner, AdaptiveLearningRate
 from ..persistence.shared_context import SharedContext
-from .axon import SmartAgentSlack, MessageBus
-from .base import BaseAgent, AgentConfig, AgentResult, DomainAgent, DomainAgentConfig
+from .axon import MessageBus
+from .base import AgentConfig
 
 logger = logging.getLogger(__name__)
 
