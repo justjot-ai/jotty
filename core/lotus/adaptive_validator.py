@@ -53,7 +53,7 @@ class ValidationHistory:
             return 0.0
         return sum(self.recent_results) / len(self.recent_results)
 
-    def add_result(self, success: bool):
+    def add_result(self, success: bool) -> None:
         """Record a validation result."""
         self.total_validations += 1
         self.last_validation_time = time.time()
@@ -286,7 +286,7 @@ class AdaptiveValidator:
             },
         }
 
-    def reset_agent(self, agent: str):
+    def reset_agent(self, agent: str) -> None:
         """Reset history for an agent (e.g., after code change)."""
         keys_to_remove = [k for k in self._history if k[0] == agent]
         for key in keys_to_remove:
@@ -325,7 +325,7 @@ class AdaptiveValidator:
             for (agent, operation), history in self._history.items()
         }
 
-    def import_history(self, data: Dict[str, Any]):
+    def import_history(self, data: Dict[str, Any]) -> None:
         """Import history from persistence."""
         for key_str, history_data in data.items():
             agent, operation = key_str.split(":", 1)

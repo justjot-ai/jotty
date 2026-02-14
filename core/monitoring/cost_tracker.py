@@ -165,7 +165,7 @@ class CostTracker:
         self.pricing_table = PRICING_TABLE.copy()
         self.default_pricing = DEFAULT_PRICING.copy()
     
-    def update_pricing(self, model: str, input_price: float, output_price: float):
+    def update_pricing(self, model: str, input_price: float, output_price: float) -> None:
         """
         Update pricing for a specific model.
         
@@ -368,13 +368,13 @@ class CostTracker:
             "success_rate": success_count / max(metrics.total_calls, 1),
         }
     
-    def reset(self):
+    def reset(self) -> None:
         """Reset cost tracking (start fresh)."""
         self.calls.clear()
         self.start_time = time.time()
         logger.info("Cost tracker reset")
     
-    def save_to_file(self, filepath: str):
+    def save_to_file(self, filepath: str) -> None:
         """
         Save cost tracking data to file.
         
@@ -395,7 +395,7 @@ class CostTracker:
         
         logger.info(f"Cost tracking data saved to {filepath}")
     
-    def load_from_file(self, filepath: str):
+    def load_from_file(self, filepath: str) -> None:
         """
         Load cost tracking data from file.
         

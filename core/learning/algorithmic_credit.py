@@ -296,7 +296,7 @@ class ShapleyValueEstimator:
         
         return 0.5  # Default
     
-    def clear_cache(self):
+    def clear_cache(self) -> None:
         """Clear coalition value cache."""
         self.coalition_cache.clear()
 
@@ -522,7 +522,7 @@ class AlgorithmicCreditAssigner:
         
         return results
     
-    def clear_caches(self):
+    def clear_caches(self) -> None:
         """Clear all caches."""
         self.shapley_estimator.clear_cache()
 

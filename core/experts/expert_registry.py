@@ -27,7 +27,7 @@ class ExpertRegistry:
         self._experts: Dict[str, ExpertAgent] = {}
         self._initialized = False
     
-    def register(self, name: str, expert: ExpertAgent):
+    def register(self, name: str, expert: ExpertAgent) -> None:
         """Register an expert agent."""
         self._experts[name] = expert
         logger.info(f"Registered expert agent: {name}")
@@ -109,7 +109,7 @@ class ExpertRegistry:
         
         return expert
     
-    def ensure_trained(self, name: str):
+    def ensure_trained(self, name: str) -> None:
         """Ensure an expert agent is trained."""
         expert = self.get(name)
         if expert and not expert.trained:

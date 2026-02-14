@@ -30,7 +30,7 @@ class ErrorAnalysisMixin:
     Intended to be used via multiple inheritance alongside the base report class.
     """
 
-    def add_error_analysis(self, X: pd.DataFrame, y_true, y_pred, y_prob=None, top_n: int = 10):
+    def add_error_analysis(self, X: pd.DataFrame, y_true, y_pred, y_prob=None, top_n: int = 10) -> None:
         """
         Add error analysis including:
         - Misclassification breakdown

@@ -601,7 +601,7 @@ class UIRegistry:
     # UTILITY
     # =========================================================================
 
-    def clear(self):
+    def clear(self) -> None:
         """Clear all components (useful for testing)."""
         self._components.clear()
         self._by_category.clear()
@@ -809,7 +809,7 @@ def _load_builtin_components(registry: UIRegistry):
         logger.debug(f"Failed to load supervisor widgets: {e}")
 
 
-def reset_ui_registry():
+def reset_ui_registry() -> None:
     """Reset the global UI registry (for testing)."""
     global _global_ui_registry
     _global_ui_registry = None

@@ -362,7 +362,7 @@ CONDITIONS: {', '.join(causal_link.conditions) if causal_link.conditions else 'N
     # PROTECTION
     # =========================================================================
     
-    def protect_high_value(self, threshold: float = None):
+    def protect_high_value(self, threshold: float = None) -> None:
         """Mark high-value memories as protected."""
         threshold = threshold or self.config.protected_memory_threshold
         

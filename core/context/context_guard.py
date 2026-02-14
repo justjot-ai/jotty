@@ -48,12 +48,12 @@ class LLMContextManager:
         """Estimate token count using SmartTokenizer."""
         return SmartTokenizer.get_instance().count_tokens(text)
     
-    def register(self, key: str, content: str, priority: int):
+    def register(self, key: str, content: str, priority: int) -> None:
         """Register content with priority."""
         tokens = self.estimate_tokens(content)
         self.buffers[priority].append((key, content, tokens))
     
-    def register_critical(self, key: str, content: str):
+    def register_critical(self, key: str, content: str) -> None:
         """Register CRITICAL content (goal, current task)."""
         self.register(key, content, self.CRITICAL)
     
@@ -154,7 +154,7 @@ class LLMContextManager:
             'utilization': total_tokens / self.usable_tokens
         }
     
-    def clear(self):
+    def clear(self) -> None:
         """Clear all buffers."""
         for priority in self.buffers:
             self.buffers[priority] = []

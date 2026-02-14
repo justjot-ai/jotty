@@ -418,7 +418,7 @@ class ProfessionalMLReport(VisualizationMixin, InterpretabilityMixin, DriftMixin
         except Exception as e:
             logger.debug(f"Could not setup plot style: {e}")
 
-    def restore_plot_style(self):
+    def restore_plot_style(self) -> None:
         """Restore matplotlib rcParams to their state before report initialization."""
         try:
             import matplotlib as mpl
@@ -807,7 +807,7 @@ class ProfessionalMLReport(VisualizationMixin, InterpretabilityMixin, DriftMixin
 
         return ""
 
-    def set_metadata(self, title: str, subtitle: str = "", author: str = "Jotty ML",
+    def set_metadata(self, title: str, subtitle: str = "", author -> None: str = "Jotty ML",
                     dataset: str = "", problem_type: str = "Classification"):
         """Set report metadata."""
         self._metadata = {

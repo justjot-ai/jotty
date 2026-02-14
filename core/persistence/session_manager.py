@@ -228,7 +228,7 @@ class SessionManager:
     # SAVING
     # =========================================================================
     
-    def save_state(self, state: Dict[str, Any]):
+    def save_state(self, state: Dict[str, Any]) -> None:
         """
         Save complete ReVal state.
         
@@ -295,7 +295,7 @@ class SessionManager:
     # RESULTS & LOGS
     # =========================================================================
     
-    def save_results(self, results: Dict[str, Any]):
+    def save_results(self, results: Dict[str, Any]) -> None:
         """Save query execution results."""
         result_file = self.session_dir / "results" / "query_results.json"
         with open(result_file, 'w') as f:
@@ -319,7 +319,7 @@ class SessionManager:
     # CLEANUP
     # =========================================================================
     
-    def cleanup_old_runs(self):
+    def cleanup_old_runs(self) -> None:
         """Remove old run folders beyond max_runs_to_keep."""
         if not self.config.max_runs_to_keep:
             return

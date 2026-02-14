@@ -84,7 +84,7 @@ class MethodChecker(ast.NodeVisitor):
         self.allowed_imports = allowed_imports
         self.errors: List[str] = []
     
-    def visit_Call(self, node):
+    def visit_Call(self, node) -> None:
         """Check function calls."""
         if isinstance(node.func, ast.Name):
             if node.func.id in self.DANGEROUS_METHODS:
@@ -98,7 +98,7 @@ class MethodChecker(ast.NodeVisitor):
                 )
         self.generic_visit(node)
     
-    def visit_Import(self, node):
+    def visit_Import(self, node) -> None:
         """Check imports."""
         for alias in node.names:
             if alias.name not in self.allowed_imports:
@@ -107,7 +107,7 @@ class MethodChecker(ast.NodeVisitor):
                 )
         self.generic_visit(node)
     
-    def visit_ImportFrom(self, node):
+    def visit_ImportFrom(self, node) -> None:
         """Check from imports."""
         if node.module not in self.allowed_imports:
             self.errors.append(
@@ -496,7 +496,7 @@ class ToolGuard:
 
         return (True, "")
 
-    def record_use(self, tool_name: str, trust_level: str = "safe"):
+    def record_use(self, tool_name: str, trust_level: str = "safe") -> None:
         """Record a successful tool use (call after execution)."""
         if trust_level in ("side_effect", "destructive"):
             self._side_effect_used_this_turn = True
@@ -504,12 +504,12 @@ class ToolGuard:
         if trust_level == "destructive":
             self._destructive_count_session += 1
 
-    def reset_turn(self):
+    def reset_turn(self) -> None:
         """Reset per-turn state. Call at the start of each agent turn."""
         self._side_effect_used_this_turn = False
         self._last_tool = None
 
-    def reset_session(self):
+    def reset_session(self) -> None:
         """Full reset (new task/session)."""
         self.reset_turn()
         self._destructive_count_session = 0

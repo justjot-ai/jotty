@@ -69,11 +69,11 @@ class DAGAgentMixin:
         self._post_hooks = []
         self._initialized = False
 
-    def add_pre_hook(self, hook):
+    def add_pre_hook(self, hook) -> None:
         """Add a pre-execution hook (BaseAgent-compatible)."""
         self._pre_hooks.append(hook)
 
-    def add_post_hook(self, hook):
+    def add_post_hook(self, hook) -> None:
         """Add a post-execution hook (BaseAgent-compatible)."""
         self._post_hooks.append(hook)
 
@@ -108,7 +108,7 @@ class DAGAgentMixin:
             metrics["avg_execution_time"] = 0.0
         return metrics
 
-    def reset_metrics(self):
+    def reset_metrics(self) -> None:
         """Reset all metrics to zero (BaseAgent-compatible)."""
         self._metrics = {
             "total_executions": 0,
@@ -193,7 +193,7 @@ class SwarmResources:
         return cls(config)
 
     @classmethod
-    def reset(cls):
+    def reset(cls) -> None:
         """Reset singleton (for testing)."""
         cls._instance = None
 

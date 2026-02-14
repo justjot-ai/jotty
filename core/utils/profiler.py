@@ -29,7 +29,7 @@ class ExecutionTimer:
         self.enabled = True
         self.profiling_report: Optional[ProfilingReport] = None
 
-    def record(self, operation: str, duration: float):
+    def record(self, operation: str, duration: float) -> None:
         """Record a timing for an operation."""
         if not self.enabled:
             return
@@ -56,7 +56,7 @@ class ExecutionTimer:
         """Get statistics for all operations."""
         return {op: self.get_stats(op) for op in self.timings.keys()}
 
-    def print_summary(self):
+    def print_summary(self) -> None:
         """Print a formatted summary of all timings."""
         if not self.timings:
             logger.info("⏱ No timing data collected")
@@ -83,13 +83,13 @@ class ExecutionTimer:
 
         logger.info("=" * 70)
 
-    def reset(self):
+    def reset(self) -> None:
         """Clear all timing data."""
         self.timings.clear()
         if self.profiling_report:
             self.profiling_report.entries.clear()
 
-    def set_profiling_report(self, report: 'ProfilingReport'):
+    def set_profiling_report(self, report: 'ProfilingReport') -> None:
         """Set the profiling report for detailed tracking."""
         self.profiling_report = report
 
@@ -103,21 +103,21 @@ def get_timer() -> ExecutionTimer:
     return _global_timer
 
 
-def set_output_dir(output_dir: str):
+def set_output_dir(output_dir: str) -> None:
     """Initialize ProfilingReport with output directory."""
     if PROFILING_REPORT_AVAILABLE:
         _global_timer.profiling_report = ProfilingReport(output_dir)
         logger.debug(f"⏱ Profiling report initialized: {output_dir}")
 
 
-def set_overall_timing(start_time: float, end_time: float):
+def set_overall_timing(start_time: float, end_time: float) -> None:
     """Set overall execution timing for the profiling report."""
     if _global_timer.profiling_report:
         _global_timer.profiling_report.set_overall_timing(start_time, end_time)
 
 
 @contextmanager
-def timed_block(operation: str, component: str = "Other", enabled: bool = True, **metadata):
+def timed_block(operation: str, component: str = "Other", enabled: bool = True, **metadata) -> None:
     """
     Context manager for timing a block of code.
 
@@ -204,19 +204,19 @@ def timed(operation: Optional[str] = None, enabled: bool = True):
     return decorator
 
 
-def enable_profiling():
+def enable_profiling() -> None:
     """Enable global profiling."""
     _global_timer.enabled = True
     logger.info("⏱ Profiling enabled")
 
 
-def disable_profiling():
+def disable_profiling() -> None:
     """Disable global profiling."""
     _global_timer.enabled = False
     logger.info("⏱ Profiling disabled")
 
 
-def print_profile_summary():
+def print_profile_summary() -> None:
     """Print the global profiling summary."""
     _global_timer.print_summary()
 
@@ -234,6 +234,6 @@ def save_profiling_reports():
         return None
 
 
-def reset_profiling():
+def reset_profiling() -> None:
     """Reset all profiling data."""
     _global_timer.reset()

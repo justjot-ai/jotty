@@ -100,7 +100,7 @@ class EvalStore:
         )
         self._conn.commit()
 
-    def finish_run(self, run_id: str):
+    def finish_run(self, run_id: str) -> None:
         """Mark a run as finished."""
         self._conn.execute(
             "UPDATE runs SET finished_at=?, status='finished' WHERE id=?",
@@ -170,5 +170,5 @@ class EvalStore:
         ).fetchall()
         return [dict(r) for r in rows]
 
-    def close(self):
+    def close(self) -> None:
         self._conn.close()

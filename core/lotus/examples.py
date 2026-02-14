@@ -203,7 +203,7 @@ async def example_adaptive_validation():
 # Example 6: Enhancing Existing Orchestrator
 # =============================================================================
 
-def example_enhance_swarm():
+def example_enhance_swarm() -> None:
     """
     Shows how to add LOTUS optimization to existing Orchestrator.
     """

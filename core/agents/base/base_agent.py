@@ -516,11 +516,11 @@ class BaseAgent(ABC):
     # HOOK MANAGEMENT
     # =========================================================================
 
-    def add_pre_hook(self, hook: Callable):
+    def add_pre_hook(self, hook: Callable) -> None:
         """Add a pre-execution hook."""
         self._pre_hooks.append(hook)
 
-    def add_post_hook(self, hook: Callable):
+    def add_post_hook(self, hook: Callable) -> None:
         """Add a post-execution hook."""
         self._post_hooks.append(hook)
 
@@ -610,7 +610,7 @@ class BaseAgent(ABC):
     # CONTEXT HELPERS
     # =========================================================================
 
-    def register_context(self, key: str, value: Any):
+    def register_context(self, key: str, value: Any) -> None:
         """Register data in shared context for other agents."""
         if self.context is not None:
             self.context.set(key, value)
@@ -821,7 +821,7 @@ class BaseAgent(ABC):
             metrics["avg_execution_time"] = 0.0
         return metrics
 
-    def reset_metrics(self):
+    def reset_metrics(self) -> None:
         """Reset all metrics to zero."""
         self._metrics = {
             "total_executions": 0,

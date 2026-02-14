@@ -359,7 +359,7 @@ class ExecutionTrajectory:
 
         return "\n".join(parts)
 
-    def add_step(self, step: Dict[str, Any], output: Any = None):
+    def add_step(self, step: Dict[str, Any], output: Any = None) -> None:
         """Add a completed step to trajectory."""
         step_record = {
             'description': step.get('description', ''),

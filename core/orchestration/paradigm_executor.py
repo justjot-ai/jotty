@@ -446,7 +446,7 @@ class ParadigmExecutor:
             agent_contributions=merged_contributions
         )
 
-    def assign_cooperative_credit(self, results: Dict[str, EpisodeResult], goal: str):
+    def assign_cooperative_credit(self, results: Dict[str, EpisodeResult], goal: str) -> None:
         """
         Compute cooperative reward decomposition across agents.
 

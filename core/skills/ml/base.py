@@ -270,7 +270,7 @@ class SkillRegistry:
     _skills: Dict[str, type] = {}
 
     @classmethod
-    def register(cls, skill_class: type):
+    def register(cls, skill_class: type) -> None:
         """Register a skill class."""
         cls._skills[skill_class.name] = skill_class
         logger.debug(f"Registered skill: {skill_class.name}")

@@ -302,7 +302,7 @@ class SwarmTemplate:
     # Learning Lifecycle Hooks (inherited by ALL templates)
     # =========================================================================
 
-    def set_learning(self, mas_learning):
+    def set_learning(self, mas_learning) -> None:
         """Attach learning system (called by Swarm before execution)."""
         self._learning = mas_learning
 
@@ -343,7 +343,7 @@ class SwarmTemplate:
         except Exception as e:
             logger.debug(f"Post-execution learning failed: {e}")
 
-    def on_stage_complete(self, stage_name: str, results: Dict[str, Any]):
+    def on_stage_complete(self, stage_name: str, results: Dict[str, Any]) -> None:
         """
         Called after each pipeline stage. Records experience for Q-learning.
         Override in subclass for custom reward shaping.
@@ -630,6 +630,6 @@ class TemplateExecutor:
 
         return True
 
-    def set_progress_callback(self, callback: Callable):
+    def set_progress_callback(self, callback: Callable) -> None:
         """Set callback for progress updates."""
         self._progress_callback = callback

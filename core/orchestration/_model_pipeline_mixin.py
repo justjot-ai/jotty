@@ -205,7 +205,7 @@ class ModelPipelineMixin:
         trial_count = [0]
         current_model = ['']
 
-        def progress_callback(study, trial):
+        def progress_callback(study, trial) -> None:
             trial_count[0] += 1
             if trial.value and trial.value > best_score_so_far[0]:
                 best_score_so_far[0] = trial.value

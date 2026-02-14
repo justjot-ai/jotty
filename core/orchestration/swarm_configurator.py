@@ -197,7 +197,7 @@ class SwarmConfigurator:
         """Get saved configuration for service."""
         return self._config_store.get(service)
     
-    def set_config(self, service: str, config: Dict[str, Any]):
+    def set_config(self, service: str, config: Dict[str, Any]) -> None:
         """Manually set configuration."""
         self._config_store[service] = config
         self._save_configs()

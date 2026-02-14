@@ -277,7 +277,7 @@ class AgentEventBroadcaster:
         return cls._instance
 
     @classmethod
-    def reset_instance(cls):
+    def reset_instance(cls) -> None:
         """Reset the singleton instance (for testing)."""
         with cls._lock:
             cls._instance = None

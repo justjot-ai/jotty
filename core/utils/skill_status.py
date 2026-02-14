@@ -46,7 +46,7 @@ class SkillStatus:
         self.skill_name = skill_name
         self._callback: Optional[Callable] = None
 
-    def set_callback(self, callback: Optional[Callable]):
+    def set_callback(self, callback: Optional[Callable]) -> None:
         """
         Set the status callback.
 
@@ -58,7 +58,7 @@ class SkillStatus:
         """
         self._callback = callback
 
-    def emit(self, stage: str, detail: str = ""):
+    def emit(self, stage: str, detail: str = "") -> None:
         """
         Emit a status update.
 
@@ -73,39 +73,39 @@ class SkillStatus:
                 pass
         logger.debug(f"[{self.skill_name}] {stage}: {detail}")
 
-    def searching(self, target: str):
+    def searching(self, target: str) -> None:
         """Emit searching status."""
         self.emit("Searching", f" Searching {target}...")
 
-    def fetching(self, url: str):
+    def fetching(self, url: str) -> None:
         """Emit fetching status."""
         # Truncate long URLs
         display_url = url[:60] + "..." if len(url) > 60 else url
         self.emit("Fetching", f" {display_url}")
 
-    def processing(self, item: str = ""):
+    def processing(self, item: str = "") -> None:
         """Emit processing status."""
         msg = f" Processing {item}..." if item else " Processing..."
         self.emit("Processing", msg)
 
-    def analyzing(self, item: str = ""):
+    def analyzing(self, item: str = "") -> None:
         """Emit analyzing status."""
         msg = f" Analyzing {item}..." if item else " Analyzing..."
         self.emit("Analyzing", msg)
 
-    def creating(self, item: str):
+    def creating(self, item: str) -> None:
         """Emit creating status."""
         self.emit("Creating", f" Creating {item}...")
 
-    def sending(self, destination: str):
+    def sending(self, destination: str) -> None:
         """Emit sending status."""
         self.emit("Sending", f" Sending to {destination}...")
 
-    def done(self, message: str = "Complete"):
+    def done(self, message: str = "Complete") -> None:
         """Emit completion status."""
         self.emit("Done", f" {message}")
 
-    def error(self, message: str):
+    def error(self, message: str) -> None:
         """Emit error status."""
         self.emit("Error", f" {message}")
 

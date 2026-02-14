@@ -465,7 +465,7 @@ class IOManager:
             return actor_output.output_fields.copy()
         return {}
 
-    def clear(self):
+    def clear(self) -> None:
         """Clear all outputs."""
         self.outputs.clear()
         self.execution_order.clear()

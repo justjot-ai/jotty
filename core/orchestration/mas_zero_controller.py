@@ -57,7 +57,7 @@ class MASZeroController:
             self._experience_library = ExperienceLibrary()
         return self._experience_library
 
-    def reset_experience(self):
+    def reset_experience(self) -> None:
         """Reset experience library for a new problem."""
         if self._experience_library:
             self._experience_library.clear()

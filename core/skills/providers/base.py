@@ -410,7 +410,7 @@ class SkillProvider(ABC):
             stats['avg_execution_time'] = 0.0
         return stats
 
-    def record_execution(self, result: ProviderResult):
+    def record_execution(self, result: ProviderResult) -> None:
         """Record execution statistics."""
         self._stats['total_calls'] += 1
         self._stats['total_execution_time'] += result.execution_time
@@ -918,7 +918,7 @@ class JottyDefaultProvider(SkillProvider):
             retryable=True,
         )
 
-    def update_skill_score(self, skill_name: str, success: bool, execution_time: float):
+    def update_skill_score(self, skill_name: str, success: bool, execution_time: float) -> None:
         """Update cached skill score based on execution result (for learning)."""
         current = self._skill_score_cache.get(skill_name, 0.5)
 

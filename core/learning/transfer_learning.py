@@ -948,7 +948,7 @@ class TransferableLearningStore:
             'similar_sessions': len(relevant)
         }
 
-    def save(self, path: str):
+    def save(self, path: str) -> None:
         """Save transferable learnings to disk."""
         data = {
             'experiences': self.experiences[-500:],  # Keep recent

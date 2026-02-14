@@ -73,6 +73,6 @@ def load_project_rules(workspace_dir: str) -> str:
     return "\n\n".join(parts)
 
 
-def clear_rules_cache():
+def clear_rules_cache() -> None:
     """Clear the rules cache (call when workspace changes)."""
     load_project_rules.cache_clear()

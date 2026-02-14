@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class TelegramMixin:
-    def init_telegram(self, config: "TelegramConfig" = None):
+    def init_telegram(self, config: "TelegramConfig" = None) -> None:
         """
         Initialize Telegram notifications.
 

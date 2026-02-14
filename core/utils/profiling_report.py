@@ -60,7 +60,7 @@ class ProfilingReport:
         )
         self.entries.append(entry)
 
-    def set_overall_timing(self, start_time: float, end_time: float):
+    def set_overall_timing(self, start_time: float, end_time: float) -> None:
         """Set overall execution timing."""
         self.start_time = start_time
         self.end_time = end_time

@@ -244,7 +244,7 @@ class JottyGAIAAdapter:
             self._jotty = Jotty()
         return self._jotty
 
-    def shutdown(self):
+    def shutdown(self) -> None:
         """Stop the dedicated event-loop thread. Safe to call multiple times."""
         if self._loop is None:
             return

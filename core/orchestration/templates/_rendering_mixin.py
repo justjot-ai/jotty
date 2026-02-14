@@ -909,7 +909,7 @@ header-includes:
                 def __init__(self, toc_obj):
                     self._toc = toc_obj
 
-                def afterFlowable(self, flowable):
+                def afterFlowable(self, flowable) -> None:
                     if isinstance(flowable, Paragraph):
                         style_name = flowable.style.name
                         if style_name == 'ReportH1':

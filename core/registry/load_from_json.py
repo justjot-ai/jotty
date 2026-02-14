@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.registry.justjot_loader import load_justjot_tools_and_widgets
 
 
-def main():
+def main() -> None:
     if len(sys.argv) < 3:
         logger.error("Usage: python3 load_from_json.py <tools_json> <widgets_json>")
         sys.exit(1)

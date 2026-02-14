@@ -211,7 +211,7 @@ class ExecutionContext:
             stream_callback=self.stream_callback,
         )
 
-    def emit_event(self, event_type: SDKEventType, data: Any = None):
+    def emit_event(self, event_type: SDKEventType, data: Any = None) -> None:
         """Emit an event if callback is registered."""
         if self.event_callback:
             event = SDKEvent(
@@ -310,7 +310,7 @@ class SDKSession:
     # Metadata
     metadata: Dict[str, Any] = field(default_factory=dict)
 
-    def add_message(self, role: str, content: str, metadata: Optional[Dict] = None):
+    def add_message(self, role: str, content: str, metadata: Optional[Dict] = None) -> None:
         """Add message to history, maintaining max size."""
         self.messages.append({
             "role": role,
@@ -328,7 +328,7 @@ class SDKSession:
         """Get recent message history."""
         return self.messages[-limit:]
 
-    def link_channel(self, channel: ChannelType, channel_id: str):
+    def link_channel(self, channel: ChannelType, channel_id: str) -> None:
         """Link a channel to this session."""
         self.channels[channel.value] = channel_id
         if self.primary_channel is None:

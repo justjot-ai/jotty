@@ -461,7 +461,7 @@ class MemorySystem:
 
         return result
 
-    def clear(self):
+    def clear(self) -> None:
         """Clear all memories (use with caution)."""
         if self._backend_type == MemoryBackend.FULL:
             from Jotty.core.foundation.data_structures import MemoryLevel

@@ -643,7 +643,7 @@ Return ONLY the JSON, no other text."""
         """Generate hash for query (for cache keys)."""
         return hashlib.md5(query.encode()).hexdigest()
     
-    def clear_cache(self):
+    def clear_cache(self) -> None:
         """Clear all cached results."""
         with self._cache_lock:
             cleared_count = len(self._cache)

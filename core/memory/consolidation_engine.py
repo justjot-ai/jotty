@@ -635,7 +635,7 @@ class BrainStateMachine:
 
         return result
     
-    def force_sleep(self):
+    def force_sleep(self) -> None:
         """Force immediate transition to sleep mode."""
         self.episodes_since_sleep = self.config.sleep_interval
     
@@ -693,7 +693,7 @@ class AgentAbstractor:
         
         logger.info(f" AgentAbstractor initialized (detail_threshold={self.detail_threshold})")
     
-    def update_agent(self, agent: str, success: bool, task_type: str = ""):
+    def update_agent(self, agent: str, success: bool, task_type: str = "") -> None:
         """Update agent statistics."""
         if agent not in self.agent_stats:
             self.agent_stats[agent] = {

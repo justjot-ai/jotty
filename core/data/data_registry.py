@@ -114,7 +114,7 @@ class DataRegistry:
         
         logger.info(" DataRegistry initialized")
     
-    def register(self, artifact: DataArtifact):
+    def register(self, artifact: DataArtifact) -> None:
         """Register a new data artifact."""
         self.artifacts[artifact.id] = artifact
         

@@ -237,7 +237,7 @@ class AgentFactory:
     def __init__(self, manager: 'Orchestrator'):
         self._manager = manager
 
-    def ensure_runners(self):
+    def ensure_runners(self) -> None:
         """Build AgentRunners on first run() call (not in __init__)."""
         sm = self._manager
         if sm._runners_built:
@@ -368,7 +368,7 @@ class AgentFactory:
             sm._zero_config_factory = ZeroConfigAgentFactory()
         return sm._zero_config_factory.create_agents(task, status_callback)
 
-    def init_lotus_optimization(self):
+    def init_lotus_optimization(self) -> None:
         """
         Initialize LOTUS optimization layer.
 
@@ -2017,7 +2017,7 @@ class Orchestrator:
             'checkpoint': checkpoint_path,  # rollback with self.learning.restore_checkpoint(path)
         }
 
-    def record_agent_result(self, agent_name, task_type, success, time_taken, output_quality=0.0):
+    def record_agent_result(self, agent_name, task_type, success, time_taken, output_quality=0.0) -> None:
         self._learning_ops.record_agent_result(agent_name, task_type, success, time_taken, output_quality)
 
     def record_session_result(self, task_description, agent_performances,
@@ -2272,7 +2272,7 @@ class Orchestrator:
         """Get MASLearning instance for ML pipeline integration."""
         return self.mas_learning
 
-    def record_report_section_outcome(self, section_name: str, success: bool, error: str = None):
+    def record_report_section_outcome(self, section_name: str, success: bool, error: str = None) -> None:
         """Record report section outcome for cross-run learning."""
         try:
             if self.learning_manager and hasattr(self.learning_manager, 'record_experience'):

@@ -640,7 +640,7 @@ class BrainInspiredMemoryManager:
         
         logger.info(f" BrainInspiredMemoryManager initialized (sleep_interval={sleep_interval})")
     
-    def store_experience(self, experience: Dict[str, Any], reward: float):
+    def store_experience(self, experience: Dict[str, Any], reward: float) -> None:
         """
         Store new experience in hippocampus (encoding).
         
@@ -673,7 +673,7 @@ class BrainInspiredMemoryManager:
         """Check if it's time to consolidate (enter "sleep")."""
         return self.episodes_since_sleep >= self.sleep_interval
     
-    def trigger_consolidation(self):
+    def trigger_consolidation(self) -> None:
         """
         Trigger sleep-like consolidation (Sharp-Wave Ripples).
         

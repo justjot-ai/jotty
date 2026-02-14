@@ -195,7 +195,7 @@ class SkillsManifest:
 
             logger.info(f"Auto-discovered {len(discovered)} new skills: {discovered}")
 
-    def refresh(self):
+    def refresh(self) -> None:
         """Refresh manifest (reload + rediscover)."""
         self.categories.clear()
         self.skills.clear()

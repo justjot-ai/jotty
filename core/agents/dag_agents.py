@@ -42,6 +42,6 @@ def create_todo_creator_agent(config=None, resources=None) -> TodoCreatorAgent:
     return TodoCreatorAgent(resources=resources or get_swarm_resources(config))
 
 
-def reset_swarm_resources():
+def reset_swarm_resources() -> None:
     """Reset shared resources (for testing)."""
     SwarmResources._instance = None

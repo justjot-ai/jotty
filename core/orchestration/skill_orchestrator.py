@@ -629,7 +629,7 @@ def get_skill_orchestrator() -> SkillOrchestrator:
     return _orchestrator_instance
 
 
-def reset_skill_orchestrator():
+def reset_skill_orchestrator() -> None:
     """Reset the singleton skill orchestrator (for testing)."""
     global _orchestrator_instance
     _orchestrator_instance = None

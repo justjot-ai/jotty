@@ -103,7 +103,7 @@ class LLMQPredictor:
             'staleness': 0.1      # Penalty for old memories
         })
     
-    def add_experience(self, state: Dict, action: Dict, reward: float, next_state: Dict = None, done: bool = False):
+    def add_experience(self, state: Dict, action: Dict, reward: float, next_state: Dict = None, done: bool = False) -> None:
         """
         Add experience to buffer AND update Q-table.
         
@@ -151,7 +151,7 @@ class LLMQPredictor:
         # REAL Q-LEARNING UPDATE
         self._update_q_value(state_desc, action_desc, reward, next_state_desc, done)
     
-    def record_outcome(self, state: Dict, action: Any, reward: float, next_state: Dict = None, done: bool = False):
+    def record_outcome(self, state: Dict, action: Any, reward: float, next_state: Dict = None, done: bool = False) -> None:
         """Record outcome - alias for add_experience() for backwards compat."""
         action_dict = action if isinstance(action, dict) else {'actor': str(action)}
         self.add_experience(state, action_dict, reward, next_state, done)
@@ -1395,7 +1395,7 @@ class LLMQPredictor:
             self.tier3_archive.remove(key)
             # They'll be re-clustered in next _cluster_tier2 call
     
-    def prune_tier3_by_causal_impact(self, sample_rate: float = 0.1):
+    def prune_tier3_by_causal_impact(self, sample_rate: float = 0.1) -> None:
         """
         Prune Tier 3 using causal impact scoring.
         
@@ -1519,7 +1519,7 @@ class LLMQPredictor:
     
     # ===== PERSISTENCE METHODS =====
     
-    def save_state(self, path: str):
+    def save_state(self, path: str) -> None:
         """
         Save Q-table and learning state for persistence across runs.
         

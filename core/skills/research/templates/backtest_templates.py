@@ -1168,7 +1168,7 @@ th {{
 
 
 # Register all backtest templates
-def register_backtest_templates():
+def register_backtest_templates() -> None:
     """Register all backtest templates with the registry."""
     templates = [
         TwoSigmaTemplate(),

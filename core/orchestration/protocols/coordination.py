@@ -143,7 +143,7 @@ class CoordinationMixin:
     # HIERARCHICAL SUPERVISOR TREE (SwarmSys O(log n) Pattern)
     # =========================================================================
 
-    def build_supervisor_tree(self, agents: List[str] = None, branching_factor: int = 3):
+    def build_supervisor_tree(self, agents: List[str] = None, branching_factor: int = 3) -> None:
         """
         Build hierarchical supervisor tree for O(log n) coordination.
 
@@ -651,7 +651,7 @@ class CoordinationMixin:
 
 
 
-    def dissolve_coalition(self, coalition_id: str):
+    def dissolve_coalition(self, coalition_id: str) -> None:
         """Dissolve a coalition after task completion."""
         coalition = self.coalitions.pop(coalition_id, None)
         if coalition:
@@ -669,7 +669,7 @@ class CoordinationMixin:
 
 
 
-    def coalition_broadcast(self, coalition_id: str, message: Dict[str, Any]):
+    def coalition_broadcast(self, coalition_id: str, message: Dict[str, Any]) -> None:
         """Broadcast message to all coalition members."""
         coalition = self.coalitions.get(coalition_id)
         if not coalition:

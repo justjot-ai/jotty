@@ -39,7 +39,7 @@ class ToolManager:
         self._deactivated_tools: Dict[str, List[str]] = {}   # swarm_name -> [removed tools]
         self._tool_registry: Dict[str, Any] = {}             # name -> ToolSchema
 
-    def register_tool_schema(self, schema):
+    def register_tool_schema(self, schema) -> None:
         """Register a tool schema for capability-based replacement."""
         self._tool_registry[schema.name] = schema
 
@@ -183,7 +183,7 @@ class ToolManager:
         active -= set(self._deactivated_tools.get(swarm_name, []))
         return list(active)
 
-    def update_assignments(self, swarm_name: str, add: List[str] = None, remove: List[str] = None):
+    def update_assignments(self, swarm_name: str, add: List[str] = None, remove: List[str] = None) -> None:
         """
         Track tool additions/removals per swarm.
 
@@ -206,7 +206,7 @@ class ToolManager:
                 if tool not in self._deactivated_tools[swarm_name]:
                     self._deactivated_tools[swarm_name].append(tool)
 
-    def auto_register_from_rates(self, tool_rates: Dict[str, Any]):
+    def auto_register_from_rates(self, tool_rates: Dict[str, Any]) -> None:
         """
         Auto-populate registry from tracked tool success rates.
 

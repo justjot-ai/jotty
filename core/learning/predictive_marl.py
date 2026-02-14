@@ -293,7 +293,7 @@ class LLMTrajectoryPredictor:
             learning=learning
         )
     
-    def update_from_divergence(self, divergence: Divergence):
+    def update_from_divergence(self, divergence: Divergence) -> None:
         """
         Update predictor based on divergence.
         
@@ -503,7 +503,7 @@ class DivergenceMemory:
         self.max_size = max_size
         self.memories: List[Divergence] = []
     
-    def store(self, divergence: Divergence):
+    def store(self, divergence: Divergence) -> None:
         """Store divergence, prioritizing high-information ones."""
         self.memories.append(divergence)
         
@@ -652,7 +652,7 @@ class CooperativeCreditAssigner:
                     return 0.0
         return 0.0
 
-    def save_state(self, path: str):
+    def save_state(self, path: str) -> None:
         """
         Save adaptive weights for persistence across runs.
 

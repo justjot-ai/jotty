@@ -147,7 +147,7 @@ class WorkflowContext:
         visited = set()
         temp_visited = set()
         
-        def visit(task_id: str):
+        def visit(task_id: str) -> None:
             if task_id in temp_visited:
                 # Circular dependency detected
                 logger.warning(f"Circular dependency detected involving task: {task_id}")

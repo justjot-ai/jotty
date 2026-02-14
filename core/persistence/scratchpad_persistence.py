@@ -76,7 +76,7 @@ class ScratchpadPersistence:
 
         return session_file
 
-    def save_message(self, session_file: Path, message: AgentMessage):
+    def save_message(self, session_file: Path, message: AgentMessage) -> None:
         """
         Append message to scratchpad file.
 
@@ -102,7 +102,7 @@ class ScratchpadPersistence:
         with session_file.open('a') as f:
             f.write(json.dumps(message_dict) + '\n')
 
-    def save_scratchpad(self, session_file: Path, scratchpad: SharedScratchpad):
+    def save_scratchpad(self, session_file: Path, scratchpad: SharedScratchpad) -> None:
         """
         Save entire scratchpad state to file.
 

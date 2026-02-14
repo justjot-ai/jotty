@@ -43,7 +43,7 @@ def get_cost_tracker():
     return _cost_tracker
 
 
-def reset_cost_tracker():
+def reset_cost_tracker() -> None:
     """Reset the singleton CostTracker (for testing)."""
     global _cost_tracker
     _cost_tracker = None

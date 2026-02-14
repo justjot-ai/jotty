@@ -157,7 +157,7 @@ def get_prompt_selector() -> PromptSelector:
     return _selector_instance
 
 
-def reset_prompt_selector():
+def reset_prompt_selector() -> None:
     """Reset the singleton prompt selector (for testing)."""
     global _selector_instance
     _selector_instance = None

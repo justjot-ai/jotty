@@ -249,14 +249,14 @@ Provide:
             class _ReActStreamCallback(BaseCallback):
                 """Hooks into DSPy ReAct to broadcast intermediate reasoning."""
 
-                def on_module_start(self, call_id, instance, inputs):
+                def on_module_start(self, call_id, instance, inputs) -> None:
                     broadcaster.emit(AgentEvent(
                         type="step_start",
                         data={"module": type(instance).__name__, "inputs_keys": list(inputs.keys())},
                         agent_id=agent_id,
                     ))
 
-                def on_module_end(self, call_id, outputs, exception):
+                def on_module_end(self, call_id, outputs, exception) -> None:
                     # Extract ReAct internals from DSPy _store
                     store = getattr(outputs, '_store', {}) if outputs else {}
                     data = {}
@@ -270,14 +270,14 @@ Provide:
                         agent_id=agent_id,
                     ))
 
-                def on_tool_start(self, call_id, tool_name, tool_input):
+                def on_tool_start(self, call_id, tool_name, tool_input) -> None:
                     broadcaster.emit(AgentEvent(
                         type="tool_start",
                         data={"tool": tool_name, "input_preview": str(tool_input)[:200]},
                         agent_id=agent_id,
                     ))
 
-                def on_tool_end(self, call_id, tool_output):
+                def on_tool_end(self, call_id, tool_output) -> None:
                     broadcaster.emit(AgentEvent(
                         type="tool_end",
                         data={"output_length": len(str(tool_output))},

@@ -248,7 +248,7 @@ class SwarmIntelligence:
 
         raise AttributeError(f"'{type(self).__name__}' has no attribute '{name}'")
 
-    def connect_td_learner(self, td_learner):
+    def connect_td_learner(self, td_learner) -> None:
         """
         Connect a TD-Lambda learner for RL-informed routing.
 
@@ -261,7 +261,7 @@ class SwarmIntelligence:
         self._td_learner = td_learner
         logger.debug("TD-Lambda learner connected for RL-informed routing")
 
-    def enable_training_mode(self, enabled: bool = True, memory_system=None):
+    def enable_training_mode(self, enabled: bool = True, memory_system=None) -> None:
         """
         Enable/disable curriculum-based training mode.
 
@@ -353,7 +353,7 @@ class SwarmIntelligence:
     # EMERGENT SPECIALIZATION
     # =========================================================================
 
-    def register_agent(self, agent_name: str):
+    def register_agent(self, agent_name: str) -> None:
         """Register an agent for tracking. Thread-safe (lock acquired by callers or here)."""
         # Avoid nested lock acquisition: check-then-set is safe because
         # _state_lock is already held by callers like record_task_result.
@@ -609,7 +609,7 @@ class SwarmIntelligence:
     # STIGMERGY INTEGRATION
     # =========================================================================
 
-    def deposit_success_signal(self, agent: str, task_type: str, execution_time: float = 0.0):
+    def deposit_success_signal(self, agent: str, task_type: str, execution_time: float = 0.0) -> None:
         """
         Deposit success signal so other agents can learn from this success.
 
@@ -636,7 +636,7 @@ class SwarmIntelligence:
 
         logger.debug(f"Stigmergy: Deposited success signal for {agent} on {task_type}")
 
-    def deposit_warning_signal(self, agent: str, task_type: str, warning: str):
+    def deposit_warning_signal(self, agent: str, task_type: str, warning: str) -> None:
         """Deposit warning signal so other agents can avoid mistakes."""
         self.stigmergy.deposit(
             signal_type='warning',
@@ -861,7 +861,7 @@ class SwarmIntelligence:
     # PERSISTENCE
     # =========================================================================
 
-    def save(self, path: str):
+    def save(self, path: str) -> None:
         """Save swarm intelligence state."""
         import json
 

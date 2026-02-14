@@ -369,7 +369,7 @@ SQL:"""
         except Exception as e:
             return {"valid": False, "error": str(e)}
 
-    def set_connection(self, **connection_params):
+    def set_connection(self, **connection_params) -> None:
         """
         Set database connection parameters for query execution.
 

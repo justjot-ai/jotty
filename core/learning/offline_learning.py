@@ -95,7 +95,7 @@ class PrioritizedEpisodeBuffer:
         self.episodes: List[StoredEpisode] = []
         self.priorities: List[float] = []
     
-    def add(self, episode: StoredEpisode, td_error: float = None):
+    def add(self, episode: StoredEpisode, td_error: float = None) -> None:
         """Add episode with priority."""
         # Compute priority
         if td_error is not None:
@@ -165,7 +165,7 @@ class PrioritizedEpisodeBuffer:
             return filtered[-n:]
         return filtered
     
-    def update_priority(self, episode_id: int, new_priority: float):
+    def update_priority(self, episode_id: int, new_priority: float) -> None:
         """Update priority for an episode."""
         for i, ep in enumerate(self.episodes):
             if ep.episode_id == episode_id:
@@ -450,7 +450,7 @@ class OfflineLearner:
         self.patterns_discovered = []
         self.counterfactual_lessons = []
     
-    def store_episode(self, episode: StoredEpisode, td_error: float = None):
+    def store_episode(self, episode: StoredEpisode, td_error: float = None) -> None:
         """Store episode in buffer."""
         self.buffer.add(episode, td_error)
     

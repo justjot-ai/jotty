@@ -92,7 +92,7 @@ class MockLLM:
 
         return response, confidence
 
-    def reset(self):
+    def reset(self) -> None:
         self.calls = []
         self.total_cost = 0.0
         self.total_latency = 0.0

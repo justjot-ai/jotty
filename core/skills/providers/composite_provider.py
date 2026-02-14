@@ -64,7 +64,7 @@ class ResearchAndAnalyzeProvider(SkillProvider):
         self._code_provider = None
         self._registry = None
 
-    def set_registry(self, registry):
+    def set_registry(self, registry) -> None:
         """Set the provider registry for accessing other providers."""
         self._registry = registry
 
@@ -176,7 +176,7 @@ class AutomateWorkflowProvider(SkillProvider):
 
         self._registry = None
 
-    def set_registry(self, registry):
+    def set_registry(self, registry) -> None:
         self._registry = registry
 
     async def initialize(self) -> bool:
@@ -334,10 +334,10 @@ class FullStackAgentProvider(SkillProvider):
         self._registry = None
         self._swarm_intelligence = None
 
-    def set_registry(self, registry):
+    def set_registry(self, registry) -> None:
         self._registry = registry
 
-    def set_swarm_intelligence(self, si):
+    def set_swarm_intelligence(self, si) -> None:
         self._swarm_intelligence = si
 
     async def initialize(self) -> bool:

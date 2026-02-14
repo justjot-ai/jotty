@@ -88,7 +88,7 @@ class ExecutionOrchestrator:
         except Exception:
             return default
 
-    def wire_coordination(self, paradigm: str, goal: str, agent_names: List[str]):
+    def wire_coordination(self, paradigm: str, goal: str, agent_names: List[str]) -> None:
         """Wire coordination protocols based on paradigm.
 
         Args:

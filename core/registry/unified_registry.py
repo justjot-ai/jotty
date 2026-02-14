@@ -413,7 +413,7 @@ def get_unified_registry() -> UnifiedRegistry:
     return _global_unified_registry
 
 
-def reset_unified_registry():
+def reset_unified_registry() -> None:
     """Reset the global unified registry (for testing)."""
     global _global_unified_registry
     _global_unified_registry = None

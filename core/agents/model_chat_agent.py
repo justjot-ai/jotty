@@ -609,6 +609,6 @@ Provide a helpful response about ML models for stock prediction."""
 
         return table
 
-    def clear_history(self):
+    def clear_history(self) -> None:
         """Clear conversation history."""
         self.conversation_history = []

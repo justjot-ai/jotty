@@ -48,7 +48,7 @@ class TemplateRegistry:
     _initialized: bool = False
 
     @classmethod
-    def register(cls, template_class: Type[SwarmTemplate], name: str = None):
+    def register(cls, template_class: Type[SwarmTemplate], name: str = None) -> None:
         """
         Register a template class.
 
@@ -279,7 +279,7 @@ class TemplateRegistry:
         return False
 
     @classmethod
-    def reset(cls):
+    def reset(cls) -> None:
         """Reset the registry (mainly for testing)."""
         cls._templates.clear()
         cls._initialized = False

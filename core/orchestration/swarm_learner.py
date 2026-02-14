@@ -177,7 +177,7 @@ class SwarmLearner:
         """Get version history for a prompt."""
         return self.prompt_versions.get(prompt_name, [])
 
-    def clear_buffer(self):
+    def clear_buffer(self) -> None:
         """Clear episode buffer without updating prompts."""
         self.episode_buffer = []
 

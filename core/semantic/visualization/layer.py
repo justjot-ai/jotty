@@ -101,7 +101,7 @@ class ChartResult:
     library: ChartLibrary = None
     raw_chart: Any = None
 
-    def save_image(self, path: str):
+    def save_image(self, path: str) -> None:
         """Save chart image to file."""
         if self.raster:
             # Handle both bytes and base64 string
@@ -122,7 +122,7 @@ class ChartResult:
             return base64.b64encode(self.raster).decode('utf-8')
         return None
 
-    def display(self):
+    def display(self) -> None:
         """Display chart in Jupyter/IPython."""
         try:
             from IPython.display import display, Image, SVG

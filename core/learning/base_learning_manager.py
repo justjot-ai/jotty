@@ -43,7 +43,7 @@ class BaseLearningManager(ABC):
         self.config = config
     
     @abstractmethod
-    def reset(self):
+    def reset(self) -> None:
         """
         Reset learning state for new episode.
         
@@ -52,7 +52,7 @@ class BaseLearningManager(ABC):
         pass
     
     @abstractmethod
-    def start_episode(self, goal: str):
+    def start_episode(self, goal: str) -> None:
         """
         Initialize new learning episode.
         
@@ -136,7 +136,7 @@ class BaseLearningManager(ABC):
             "config": self.config.to_flat_dict()
         }
     
-    def save_state(self, path: str):
+    def save_state(self, path: str) -> None:
         """
         Save learned knowledge to file.
         

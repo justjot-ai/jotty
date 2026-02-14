@@ -384,7 +384,7 @@ class OpenInterpreterProvider(SkillProvider):
             context={'data': data}
         )
 
-    def reset(self):
+    def reset(self) -> None:
         """Reset the interpreter state."""
         if self._interpreter:
             self._interpreter.reset()

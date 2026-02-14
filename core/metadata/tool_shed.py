@@ -210,7 +210,7 @@ class CapabilityIndex:
         
         logger.info(" CapabilityIndex initialized")
     
-    def register_tool(self, schema: ToolShedSchema):
+    def register_tool(self, schema: ToolShedSchema) -> None:
         """Register a tool's capabilities."""
         # What it produces
         for output in schema.producer_of:
@@ -549,7 +549,7 @@ class ToolShed:
         
         return list(set(matching_tools)) or list(self.tools.values())
     
-    def clear_cache(self):
+    def clear_cache(self) -> None:
         """Clear all cached results."""
         self.cache.clear()
         logger.info(" ToolShed cache cleared")

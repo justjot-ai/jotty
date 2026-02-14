@@ -46,7 +46,7 @@ class SharedContext:
         
         logger.info(" SharedContext initialized (simple dict store)")
     
-    def set(self, key: str, value: Any):
+    def set(self, key: str, value: Any) -> None:
         """
         Store data in shared context.
         
@@ -119,7 +119,7 @@ class SharedContext:
         with self._lock:
             return key in self.data
     
-    def clear(self):
+    def clear(self) -> None:
         """
         Clear all data from shared context.
         

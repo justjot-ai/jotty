@@ -111,14 +111,14 @@ class ProgressTracker:
         self.completed_weight = 0
         self.total_weight = sum(self.STAGE_WEIGHTS.values())
 
-    def start_stage(self, stage_name: str):
+    def start_stage(self, stage_name: str) -> None:
         """Start a new stage."""
         self.current_stage += 1
         self.current_stage_name = stage_name
         self.stage_start_time = time.time()
         self._print_progress()
 
-    def complete_stage(self, stage_name: str, metrics: Dict = None):
+    def complete_stage(self, stage_name: str, metrics: Dict = None) -> None:
         """Complete current stage."""
         weight = self.STAGE_WEIGHTS.get(stage_name.upper(), 5)
         self.completed_weight += weight
@@ -152,7 +152,7 @@ class ProgressTracker:
 
         logger.info(f'[{bar}] {pct:5.1f}% | Done: {stage_name:<25} ({elapsed:.1f}s){metric_str}')
 
-    def finish(self, final_score: float):
+    def finish(self, final_score: float) -> None:
         """Log final summary."""
         total_time = time.time() - self.start_time
         logger.info(f'{"="*60}')

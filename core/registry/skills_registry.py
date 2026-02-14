@@ -171,7 +171,7 @@ class BaseSkill:
         """Set execution context (session_id, user_id, metadata, etc.)."""
         self._context.update(context)
 
-    def status(self, stage: str, detail: str = ""):
+    def status(self, stage: str, detail: str = "") -> None:
         """
         Emit a status update for progress reporting.
 
@@ -186,14 +186,14 @@ class BaseSkill:
                 pass
         logger.debug(f"[{self.name}] {stage}: {detail}")
 
-    def setup(self):
+    def setup(self) -> None:
         """
         Setup hook called before execution.
         Override in subclasses for initialization.
         """
         pass
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """
         Cleanup hook called after execution.
         Override in subclasses for resource cleanup.
@@ -429,14 +429,14 @@ class SkillDefinition:
         return self._tools
 
     @tools.setter
-    def tools(self, value: Dict[str, Callable]):
+    def tools(self, value: Dict[str, Callable]) -> None:
         self._tools = value
 
     def get_tool_metadata(self, tool_name: str) -> Optional[ToolMetadata]:
         """Get metadata for a specific tool."""
         return self._tool_metadata.get(tool_name)
 
-    def set_tool_metadata(self, tool_name: str, metadata: ToolMetadata):
+    def set_tool_metadata(self, tool_name: str, metadata: ToolMetadata) -> None:
         """Set metadata for a specific tool."""
         self._tool_metadata[tool_name] = metadata
 

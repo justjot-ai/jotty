@@ -315,7 +315,7 @@ class PersistentClaudeCLI(dspy.BaseLM):
         return self.history[-n:] if self.history else []
 
     @classmethod
-    def reset(cls):
+    def reset(cls) -> None:
         """Reset the singleton (for testing)."""
         with cls._lock:
             if cls._instance and cls._instance._process:

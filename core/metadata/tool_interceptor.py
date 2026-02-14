@@ -176,7 +176,7 @@ class ToolInterceptor:
         with self._lock:
             return [call for call in self._calls if not call.success]
     
-    def clear(self):
+    def clear(self) -> None:
         """Clear all recorded calls (useful for multi-episode scenarios)."""
         with self._lock:
             self._calls.clear()
@@ -318,7 +318,7 @@ class ToolCallRegistry:
                 'by_actor': actor_summaries
             }
     
-    def clear_all(self):
+    def clear_all(self) -> None:
         """Clear all interceptors."""
         with self._lock:
             for interceptor in self._interceptors.values():

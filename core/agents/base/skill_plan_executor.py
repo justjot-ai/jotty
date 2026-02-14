@@ -1320,11 +1320,11 @@ class SkillPlanExecutor:
     # EXCLUSION MANAGEMENT
     # =========================================================================
 
-    def exclude_skill(self, skill_name: str):
+    def exclude_skill(self, skill_name: str) -> None:
         """Add a skill to the exclusion set (e.g. after repeated failures)."""
         self._excluded_skills.add(skill_name)
 
-    def clear_exclusions(self):
+    def clear_exclusions(self) -> None:
         """Clear all skill exclusions."""
         self._excluded_skills.clear()
 

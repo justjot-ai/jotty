@@ -291,7 +291,7 @@ class DirectClaudeCLI(dspy.BaseLM):
             'model': self.model
         }
 
-    def reset_metrics(self):
+    def reset_metrics(self) -> None:
         """Reset call metrics."""
         self.total_calls = 0
         self.successful_calls = 0

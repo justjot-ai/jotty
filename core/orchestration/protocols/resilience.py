@@ -119,7 +119,7 @@ class ResilienceMixin:
 
 
 
-    def record_circuit_failure(self, agent: str, threshold: int = 3, cooldown: float = 60.0):
+    def record_circuit_failure(self, agent: str, threshold: int = 3, cooldown: float = 60.0) -> None:
         """
         Record failure for circuit breaker.
 
@@ -141,7 +141,7 @@ class ResilienceMixin:
 
 
 
-    def record_circuit_success(self, agent: str):
+    def record_circuit_success(self, agent: str) -> None:
         """Record success - resets circuit breaker."""
         self.__init_circuit_breakers()
 

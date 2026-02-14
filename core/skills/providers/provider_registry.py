@@ -67,7 +67,7 @@ class ProviderPerformance:
     def avg_execution_time(self) -> float:
         return self.total_execution_time / max(1, self.total_calls)
 
-    def update(self, success: bool, execution_time: float, reward: float = None):
+    def update(self, success: bool, execution_time: float, reward: float = None) -> None:
         """Update metrics after execution."""
         self.total_calls += 1
         self.total_execution_time += execution_time
@@ -296,7 +296,7 @@ class ProviderSelector:
 
         return summary
 
-    def save_state(self, path: str):
+    def save_state(self, path: str) -> None:
         """Save learned state to file."""
         data = {
             'epsilon': self.epsilon,
@@ -527,13 +527,13 @@ class ProviderRegistry:
         """Get trust level for a provider."""
         return self._trust_levels.get(provider_name)
 
-    def set_trust_level(self, provider_name: str, level: str):
+    def set_trust_level(self, provider_name: str, level: str) -> None:
         """Set trust level for a provider."""
         if provider_name in self._providers:
             self._trust_levels[provider_name] = self._get_trust_level_enum(level)
             logger.info(f"Updated trust level for {provider_name}: {level}")
 
-    def unregister(self, provider_name: str):
+    def unregister(self, provider_name: str) -> None:
         """Unregister a provider."""
         if provider_name in self._providers:
             provider = self._providers[provider_name]
@@ -803,7 +803,7 @@ class ProviderRegistry:
             'learning': self.selector.get_learning_summary(),
         }
 
-    def save_state(self, path: str):
+    def save_state(self, path: str) -> None:
         """Save registry and selector state."""
         self.selector.save_state(path)
 

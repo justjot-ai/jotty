@@ -484,7 +484,7 @@ class SimpleExperienceBuffer:
         """Get experiences with negative reward."""
         return [e for e in self.experiences if e.reward <= 0]
 
-    def clear(self):
+    def clear(self) -> None:
         """Clear all experiences."""
         self.experiences = []
 

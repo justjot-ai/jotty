@@ -98,7 +98,7 @@ class SmartTokenizer:
         return cls._instances[encoding]
 
     @classmethod
-    def reset_instances(cls):
+    def reset_instances(cls) -> None:
         """Reset all cached instances (for testing)."""
         cls._instances.clear()
 

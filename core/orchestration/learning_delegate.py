@@ -58,7 +58,7 @@ class LearningDelegate:
     def agents(self) -> List['AgentConfig']:
         return self._get_agents()
 
-    def auto_load_learnings(self):
+    def auto_load_learnings(self) -> None:
         """Load all persisted learnings."""
         self.learning.auto_load()
         # Log MAS stats

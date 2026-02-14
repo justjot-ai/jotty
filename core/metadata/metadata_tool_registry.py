@@ -346,7 +346,7 @@ class MetadataToolRegistry:
         """
         return self._usage_stats.copy()
     
-    def clear_cache(self):
+    def clear_cache(self) -> None:
         """Clear all cached tool results."""
         self._cache.clear()
         logger.info(f" Cleared tool cache")

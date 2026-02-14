@@ -128,7 +128,7 @@ class GroupedValueBaseline:
         # Default baseline
         return 0.5
 
-    def update_group(self, task_type: str, reward: float, domain: str = None,
+    def update_group(self, task_type: str, reward: float, domain -> None: str = None,
                      action_type: str = None):
         """
         Update group baseline from new sample.
@@ -377,7 +377,7 @@ class TDLambdaLearner:
         # DrZero HRPO-style grouped learning
         self.grouped_baseline = GroupedValueBaseline(config)
     
-    def start_episode(self, goal: str, task_type: str = "", domain: str = ""):
+    def start_episode(self, goal: str, task_type: str = "", domain: str = "") -> None:
         """
         Initialize for new episode.
 
@@ -394,7 +394,7 @@ class TDLambdaLearner:
         self.current_domain = domain
         self.intermediate_calc.reset()
     
-    def update(self, state: Dict[str, Any], action: Dict[str, Any], reward: float, next_state: Dict[str, Any]):
+    def update(self, state: Dict[str, Any], action: Dict[str, Any], reward: float, next_state: Dict[str, Any]) -> None:
         """
         Single-step TD(0) update for compatibility with agent runners.
 

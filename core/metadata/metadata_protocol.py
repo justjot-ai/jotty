@@ -423,7 +423,7 @@ class JottyMetadataBase:
         self._tools = None
         self._validated = False
     
-    def load_from_directory(self, data_dir: str):
+    def load_from_directory(self, data_dir: str) -> None:
         """
         Helper: Load metadata from directory.
         

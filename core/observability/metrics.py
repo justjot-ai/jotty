@@ -331,7 +331,7 @@ class MetricsCollector:
                 for r in errors[:limit]
             ]
 
-    def reset(self):
+    def reset(self) -> None:
         """Reset all metrics."""
         with self._lock:
             self._records.clear()
@@ -361,7 +361,7 @@ def get_metrics() -> MetricsCollector:
     return _global_metrics
 
 
-def reset_metrics():
+def reset_metrics() -> None:
     """Reset the global metrics collector (for testing)."""
     global _global_metrics
     with _metrics_lock:

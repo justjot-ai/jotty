@@ -238,7 +238,7 @@ class TierDetector:
 
         return explanation.strip()
 
-    def clear_cache(self):
+    def clear_cache(self) -> None:
         """Clear detection cache."""
         self.detection_cache.clear()
         logger.debug("Tier detection cache cleared")

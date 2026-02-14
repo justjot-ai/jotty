@@ -52,7 +52,7 @@ class LearningDelegationMixin:
             agent_types=agent_types or [a.name for a in self.agents],
         )
 
-    def record_agent_result(self, agent_name: str, task_type: str, success: bool,
+    def record_agent_result(self, agent_name: str, task_type: str, success -> None: bool,
                             time_taken: float, output_quality: float = 0.0):
         """Record an agent's task result for learning."""
         if hasattr(self, 'mas_learning') and self.mas_learning:
@@ -61,7 +61,7 @@ class LearningDelegationMixin:
                 success=success, time_taken=time_taken, output_quality=output_quality,
             )
 
-    def record_session_result(self, task_description: str,
+    def record_session_result(self, task_description -> None: str,
                               agent_performances: Dict[str, Dict[str, Any]],
                               total_time: float, success: bool,
                               fixes_applied: List[Dict[str, Any]] = None,

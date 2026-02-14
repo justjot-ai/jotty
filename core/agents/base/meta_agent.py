@@ -357,7 +357,7 @@ class MetaAgent(BaseAgent):
             return states.get(agent_name)
         return None
 
-    def publish_state(self, state: Dict[str, Any]):
+    def publish_state(self, state: Dict[str, Any]) -> None:
         """
         Publish this agent's state to shared context.
 

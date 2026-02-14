@@ -224,7 +224,7 @@ class BudgetTracker:
         return cls._instances[name]
 
     @classmethod
-    def reset_instances(cls):
+    def reset_instances(cls) -> None:
         """Reset all cached instances (for testing)."""
         cls._instances.clear()
 

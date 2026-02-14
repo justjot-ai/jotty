@@ -361,7 +361,7 @@ class LotusOptimizer:
             "validator": self.validator.get_stats(),
         }
 
-    def reset_stats(self):
+    def reset_stats(self) -> None:
         """Reset all statistics."""
         self.stats = OptimizationStats()
         self.cascade.reset_stats()

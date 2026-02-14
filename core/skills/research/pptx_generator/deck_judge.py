@@ -887,7 +887,7 @@ class AutoImprovementLoop:
 
         return plan
 
-    def record_iteration(self, iteration: int, score: DeckScore):
+    def record_iteration(self, iteration: int, score: DeckScore) -> None:
         """Record iteration results for tracking progress."""
         self.history.append((iteration, score))
         logger.info(f" Iteration {iteration}: {score.overall:.1f}/10 "

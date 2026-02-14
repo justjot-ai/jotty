@@ -57,7 +57,7 @@ class AgentProfile:
     # Trust score (how reliable is this agent)
     trust_score: float = 0.5
 
-    def update_task_result(self, task_type: str, success: bool, execution_time: float):
+    def update_task_result(self, task_type: str, success: bool, execution_time: float) -> None:
         """Update profile after task completion."""
         if task_type not in self.task_success:
             self.task_success[task_type] = (0, 0)
@@ -166,7 +166,7 @@ class AgentSession:
     created_at: float = field(default_factory=time.time)
     last_active: float = field(default_factory=time.time)
 
-    def add_message(self, from_agent: str, content: str, metadata: Dict = None):
+    def add_message(self, from_agent: str, content: str, metadata: Dict = None) -> None:
         """Add message to session."""
         self.messages.append({
             'from': from_agent,
@@ -204,7 +204,7 @@ class HandoffContext:
     handoff_chain: List[str] = field(default_factory=list)  # Previous agents
     timestamp: float = field(default_factory=time.time)
 
-    def add_to_chain(self, agent: str):
+    def add_to_chain(self, agent: str) -> None:
         """Track handoff history."""
         if agent not in self.handoff_chain:
             self.handoff_chain.append(agent)
@@ -226,13 +226,13 @@ class Coalition:
     active: bool = True
     shared_context: Dict[str, Any] = field(default_factory=dict)
 
-    def add_member(self, agent: str, role: str = "worker"):
+    def add_member(self, agent: str, role: str = "worker") -> None:
         """Add agent to coalition with role."""
         if agent not in self.members:
             self.members.append(agent)
             self.roles[agent] = role
 
-    def remove_member(self, agent: str):
+    def remove_member(self, agent: str) -> None:
         """Remove agent from coalition."""
         if agent in self.members:
             self.members.remove(agent)

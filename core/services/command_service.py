@@ -245,7 +245,7 @@ class CommandService:
 
             # Capture tree output
             original_tree = getattr(cli.renderer, 'tree', None)
-            def capture_tree(data, **kwargs):
+            def capture_tree(data, **kwargs) -> None:
                 title = kwargs.get('title', 'Data')
                 if isinstance(data, dict):
                     lines = [f" {title}:"]
@@ -258,7 +258,7 @@ class CommandService:
 
             # Capture table output
             original_print_table = cli.renderer.tables.print_table
-            def capture_table(table):
+            def capture_table(table) -> None:
                 try:
                     from rich.console import Console
                     string_io = io.StringIO()

@@ -48,7 +48,7 @@ class TimeWindow:
         self.max_points = max_points
         self._points: deque = deque(maxlen=max_points)
 
-    def add(self, value: float, labels: Dict[str, str] = None):
+    def add(self, value: float, labels: Dict[str, str] = None) -> None:
         """Add a data point."""
         self._points.append(MetricPoint(
             timestamp=time.time(),
@@ -263,7 +263,7 @@ class MetricsCollector:
             'message': message[:100],
         })
 
-    def record_memory(self, operation: str, count: int = 1):
+    def record_memory(self, operation: str, count: int = 1) -> None:
         """Record memory operation (retrieve, store, consolidate)."""
         if operation == 'retrieve':
             self.memory_retrievals.add(float(count))

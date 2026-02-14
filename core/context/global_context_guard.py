@@ -301,7 +301,7 @@ class GlobalContextGuard:
 
         logger.info(f" GlobalContextGuard initialized (max_tokens={max_tokens})")
     
-    def register(self, key: str, content: str, priority: int = None):
+    def register(self, key: str, content: str, priority: int = None) -> None:
         """
         Register content with a priority level for context building.
         
@@ -322,7 +322,7 @@ class GlobalContextGuard:
         self.buffers[priority].append({'key': key, 'content': content})
         logger.debug(f"Registered '{key}' with priority {priority}")
     
-    def clear_buffers(self):
+    def clear_buffers(self) -> None:
         """Clear all registered content buffers."""
         for priority in self.buffers:
             self.buffers[priority] = []
@@ -522,7 +522,7 @@ def patch_dspy_with_guard(guard: GlobalContextGuard):
     logger.info(" DSPy patched with GlobalContextGuard")
 
 
-def unpatch_dspy():
+def unpatch_dspy() -> None:
     """Restore original DSPy LM call."""
     if DSPY_AVAILABLE and hasattr(dspy, '_original_lm_call'):
         dspy.LM.__call__ = dspy._original_lm_call

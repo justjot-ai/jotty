@@ -377,7 +377,7 @@ def cached_signature(cache: SemanticCache):
     def decorator(sig_class):
         original_init = sig_class.__init__
 
-        def new_init(self, *args, **kwargs):
+        def new_init(self, *args, **kwargs) -> None:
             original_init(self, *args, **kwargs)
             self._cache = cache
 

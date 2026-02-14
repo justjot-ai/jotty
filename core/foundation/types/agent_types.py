@@ -91,7 +91,7 @@ class SharedScratchpad:
     tool_cache: Dict[str, Any] = field(default_factory=dict)  # Cache tool results
     shared_insights: List[str] = field(default_factory=list)
 
-    def add_message(self, message: AgentMessage):
+    def add_message(self, message: AgentMessage) -> None:
         self.messages.append(message)
 
         # Cache tool results
@@ -108,7 +108,7 @@ class SharedScratchpad:
         """Get all messages for a specific agent."""
         return [m for m in self.messages if m.receiver in (receiver, "*")]
 
-    def clear(self):
+    def clear(self) -> None:
         self.messages.clear()
         self.tool_cache.clear()
         self.shared_insights.clear()

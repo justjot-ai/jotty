@@ -61,7 +61,7 @@ class SwarmBenchmarks:
         # Iteration history for self-improvement tracking
         self.iteration_history: List[Dict] = []
 
-    def record_iteration(self, iteration_id: str, task_type: str,
+    def record_iteration(self, iteration_id: str, task_type -> None: str,
                          score: float, execution_time: float, success: bool):
         """Record a self-improvement iteration."""
         self.iteration_history.append({
@@ -97,7 +97,7 @@ class SwarmBenchmarks:
                 'avg_earlier': avg_first, 'iterations': len(recent),
                 'stddev': stddev, 'threshold': threshold}
 
-    def record_single_agent_run(self, task_type: str, execution_time: float, success: bool = True):
+    def record_single_agent_run(self, task_type: str, execution_time: float, success: bool = True) -> None:
         """Record single-agent baseline run."""
         self.single_agent_runs[task_type].append((execution_time, success))
 
@@ -105,7 +105,7 @@ class SwarmBenchmarks:
         if len(self.single_agent_runs[task_type]) > 100:
             self.single_agent_runs[task_type] = self.single_agent_runs[task_type][-100:]
 
-    def record_multi_agent_run(self, task_type: str, execution_time: float,
+    def record_multi_agent_run(self, task_type: str, execution_time -> None: float,
                                agents_count: int, success: bool = True):
         """Record multi-agent run."""
         self.multi_agent_runs[task_type].append((execution_time, agents_count, success))
@@ -114,7 +114,7 @@ class SwarmBenchmarks:
         if len(self.multi_agent_runs[task_type]) > 100:
             self.multi_agent_runs[task_type] = self.multi_agent_runs[task_type][-100:]
 
-    def record_communication(self, from_agent: str, to_agent: str, message_size: int = 0):
+    def record_communication(self, from_agent: str, to_agent: str, message_size: int = 0) -> None:
         """Record inter-agent communication event."""
         self.communication_events.append({
             'from': from_agent,
@@ -127,7 +127,7 @@ class SwarmBenchmarks:
         if len(self.communication_events) > 1000:
             self.communication_events = self.communication_events[-1000:]
 
-    def record_cooperation(self, helper: str, helped: str, task_type: str, success: bool):
+    def record_cooperation(self, helper: str, helped: str, task_type: str, success: bool) -> None:
         """Record cooperation event between agents."""
         self.cooperation_events.append({
             'helper': helper,
@@ -352,7 +352,7 @@ class MASBenchRunner:
         self.tasks: List[Dict[str, Any]] = []
         self.results: List[MASBenchResult] = []
 
-    def add_task(self, task_id: str, description: str,
+    def add_task(self, task_id: str, description -> None: str,
                  app: str = "", optimal_steps: int = 1,
                  difficulty: int = 1, cross_app: bool = False):
         """Register a task for evaluation.

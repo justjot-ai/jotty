@@ -212,7 +212,7 @@ class ProxyRotator:
         proxy = self._proxies[0]
         return {'http': proxy, 'https': proxy}
 
-    def mark_failed(self, proxy_url: str):
+    def mark_failed(self, proxy_url: str) -> None:
         """Mark a proxy as failed."""
         self._failed.add(proxy_url)
 

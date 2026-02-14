@@ -404,7 +404,7 @@ class ToolCollection:
                                 "mcp_tool": tool_info
                             })
                 
-                def run_event_loop():
+                def run_event_loop() -> None:
                     """Run asyncio event loop in thread."""
                     nonlocal event_loop
                     event_loop = asyncio.new_event_loop()

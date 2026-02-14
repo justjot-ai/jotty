@@ -232,7 +232,7 @@ class LLMCache:
         self.misses += 1
         return None
     
-    def set(self, prompt: str, response: Any):
+    def set(self, prompt: str, response: Any) -> None:
         """
         Cache a response.
         
@@ -271,7 +271,7 @@ class LLMCache:
             "total_requests": total
         }
     
-    def clear(self):
+    def clear(self) -> None:
         """Clear cache."""
         self.cache.clear()
         self.hits = 0

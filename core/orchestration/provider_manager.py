@@ -40,7 +40,7 @@ class ProviderManager:
     def swarm_intelligence(self):
         return self._get_si()
 
-    def init_provider_registry(self):
+    def init_provider_registry(self) -> None:
         """Initialize the skill provider registry with all available providers."""
         from .swarm_manager import _load_providers, _provider_cache
 

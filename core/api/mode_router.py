@@ -298,7 +298,7 @@ class ModeRouter:
             )
 
         # Status callback to emit events during execution
-        def status_callback(stage: str, detail: str = ""):
+        def status_callback(stage: str, detail: str = "") -> None:
             context.emit_event(SDKEventType.THINKING, {"status": stage, "message": detail})
 
         try:
@@ -508,7 +508,7 @@ class ModeRouter:
         event_queue: asyncio.Queue[Optional[SDKEvent]] = asyncio.Queue()
         original_callback = context.event_callback
 
-        def queue_event(event: SDKEvent):
+        def queue_event(event: SDKEvent) -> None:
             event_queue.put_nowait(event)
             if original_callback:
                 original_callback(event)

@@ -121,7 +121,7 @@ class PatternCrystallizer:
         sorted_patterns = sorted(content_patterns)
         return hashlib.md5("|".join(sorted_patterns).encode()).hexdigest()[:12]
 
-    def record(self, content_patterns: List[str], component: str, meta_schema: str):
+    def record(self, content_patterns: List[str], component: str, meta_schema: str) -> None:
         """Record a content→component mapping."""
         pattern_names = [p.name if hasattr(p, 'name') else str(p) for p in content_patterns]
         key = f"{self._hash_patterns(pattern_names)}_{component}"
@@ -148,7 +148,7 @@ class PatternCrystallizer:
 
         self._save()
 
-    def feedback(self, content_patterns: List[str], component: str, success: bool):
+    def feedback(self, content_patterns: List[str], component: str, success: bool) -> None:
         """Provide feedback on a component selection."""
         pattern_names = [p.name if hasattr(p, 'name') else str(p) for p in content_patterns]
         key = f"{self._hash_patterns(pattern_names)}_{component}"
@@ -372,7 +372,7 @@ class ComponentMapper:
             "cards": ["FEATURE_CARDS", "ICON_GRID", "ADVANTAGES"],
         }
 
-    def reset(self):
+    def reset(self) -> None:
         self.used_components = []
 
     def map_to_component(
@@ -441,7 +441,7 @@ class ComponentMapper:
 
         return selected, transformed
 
-    def provide_feedback(self, content_patterns: List['ContentPattern'], component: str, success: bool):
+    def provide_feedback(self, content_patterns: List['ContentPattern'], component: str, success: bool) -> None:
         """Provide feedback on a component selection to improve learning."""
         if self.crystallizer:
             self.crystallizer.feedback(content_patterns, component, success)

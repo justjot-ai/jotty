@@ -62,13 +62,13 @@ class AdaptiveLearningRate:
         self.success_rates: List[float] = []
         self.window_size = config.adaptive_window_size # STANFORD FIX
     
-    def record_td_error(self, td_error: float):
+    def record_td_error(self, td_error: float) -> None:
         """Record a TD error for variance analysis."""
         self.td_errors.append(abs(td_error))
         if len(self.td_errors) > self.window_size * 2:
             self.td_errors = self.td_errors[-self.window_size:]
     
-    def record_success(self, success: bool):
+    def record_success(self, success: bool) -> None:
         """Record episode outcome."""
         self.success_rates.append(1.0 if success else 0.0)
         if len(self.success_rates) > self.window_size * 2:
@@ -123,7 +123,7 @@ class AdaptiveLearningRate:
         
         return self.alpha
     
-    def reset(self):
+    def reset(self) -> None:
         """Reset tracking."""
         self.alpha = self.config.alpha
         self.td_errors.clear()
@@ -149,7 +149,7 @@ class IntermediateRewardCalculator:
         self.config = _ensure_swarm_config(config)
         self.step_rewards: List[float] = []
     
-    def reset(self):
+    def reset(self) -> None:
         """Reset for new episode."""
         self.step_rewards.clear()
     
@@ -249,11 +249,11 @@ class AdaptiveExploration:
         self.epsilon = base_epsilon
         return self.epsilon
     
-    def record_goal_visit(self, goal: str):
+    def record_goal_visit(self, goal: str) -> None:
         """Record visit to a goal."""
         self.goal_visit_counts[goal] += 1
     
-    def record_value_change(self, delta: float):
+    def record_value_change(self, delta: float) -> None:
         """Record value change for stall detection."""
         self.recent_values.append(abs(delta))
         if len(self.recent_values) > self.config.stall_detection_window:

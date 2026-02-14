@@ -68,7 +68,7 @@ class ChatContext:
                 content=system_prompt
             ))
     
-    def add_message(self, role: str, content: str, metadata: Optional[Dict[str, Any]] = None):
+    def add_message(self, role: str, content: str, metadata: Optional[Dict[str, Any]] = None) -> None:
         """Add a message to the conversation."""
         message = ChatMessage(
             role=role,
@@ -103,7 +103,7 @@ class ChatContext:
         non_system = [m for m in self.messages if m.role != "system"]
         return non_system[-count:]
     
-    def clear(self):
+    def clear(self) -> None:
         """Clear conversation history (keeps system message)."""
         system_msgs = [m for m in self.messages if m.role == "system"]
         self.messages = system_msgs

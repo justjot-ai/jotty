@@ -1,7 +1,7 @@
 """
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 image-generator Skill Tools
 """
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 @tool_wrapper()
 def image_generator_tool(params: dict) -> dict:

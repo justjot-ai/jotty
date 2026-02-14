@@ -146,7 +146,7 @@ class HTMLSlideGenerator(SlideAssetsMixin, SlideRenderersMixin):
         self.colors = self.THEME_COLORS.get(config.theme, self.THEME_COLORS["navy"])
         self.slides: List[SlideConfig] = []
 
-    def add_slide(self, slide_type: SlideType, data: Dict[str, Any],
+    def add_slide(self, slide_type: SlideType, data -> None: Dict[str, Any],
                   animation: str = "slide_up", delay_start: float = 0.1):
         """Add a slide to the presentation"""
         self.slides.append(SlideConfig(
@@ -1015,7 +1015,7 @@ class LearningSlideBuilder:
 
         return self.generator.generate()
 
-    def save(self, html_content: str, output_path: str):
+    def save(self, html_content: str, output_path: str) -> None:
         """Save the generated HTML to a file"""
         with open(output_path, 'w', encoding='utf-8') as f:
             f.write(html_content)

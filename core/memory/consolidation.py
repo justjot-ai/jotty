@@ -555,7 +555,7 @@ class MemoryCluster:
     extracted_pattern: Optional[str] = None
     pattern_confidence: float = 0.0
     
-    def compute_statistics(self):
+    def compute_statistics(self) -> None:
         """
         Compute cluster statistics.
         

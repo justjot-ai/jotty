@@ -88,7 +88,7 @@ class PerformanceProfiler:
         self.start_time = time.time()
     
     @contextmanager
-    def profile(self, name: str, metadata: Optional[Dict[str, Any]] = None):
+    def profile(self, name: str, metadata: Optional[Dict[str, Any]] = None) -> None:
         """
         Profile a code segment.
         
@@ -173,7 +173,7 @@ class PerformanceProfiler:
         # Flatten all segments (including nested)
         all_segments = []
         
-        def collect_segments(segments: List[ProfileSegment]):
+        def collect_segments(segments: List[ProfileSegment]) -> None:
             for segment in segments:
                 all_segments.append(segment)
                 if segment.children:
@@ -200,7 +200,7 @@ class PerformanceProfiler:
             call_counts=call_counts
         )
     
-    def print_report(self, top_n: int = 10):
+    def print_report(self, top_n: int = 10) -> None:
         """Print profiling report."""
         report = self.get_report(top_n)
 
@@ -227,7 +227,7 @@ class PerformanceProfiler:
             stats.print_stats(20)  # Top 20
             logger.info(s.getvalue())
     
-    def reset(self):
+    def reset(self) -> None:
         """Reset profiler."""
         self.segments = []
         self.current_segment = None

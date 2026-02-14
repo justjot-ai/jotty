@@ -101,7 +101,7 @@ class SharedScratchpad:
         self.messages: List[AgentMessage] = []
         self._tool_cache: Dict[str, Any] = {}
 
-    def add_message(self, message: AgentMessage):
+    def add_message(self, message: AgentMessage) -> None:
         """Add a message to the scratchpad."""
         self.messages.append(message)
 
@@ -117,12 +117,12 @@ class SharedScratchpad:
         cache_key = f"{tool_name}:{json.dumps(args, sort_keys=True, default=str)}"
         return self._tool_cache.get(cache_key)
 
-    def cache_result(self, tool_name: str, args: Dict, result: Any):
+    def cache_result(self, tool_name: str, args: Dict, result: Any) -> None:
         """Cache a tool result."""
         cache_key = f"{tool_name}:{json.dumps(args, sort_keys=True, default=str)}"
         self._tool_cache[cache_key] = result
 
-    def clear(self):
+    def clear(self) -> None:
         """Clear the scratchpad."""
         self.messages.clear()
         self._tool_cache.clear()
@@ -202,7 +202,7 @@ class ValidationAgent(MetaAgent):
     # INTER-AGENT COMMUNICATION
     # =========================================================================
 
-    def share_insight(self, insight: str, confidence: float = 0.7):
+    def share_insight(self, insight: str, confidence: float = 0.7) -> None:
         """Share an insight with other agents."""
         message = AgentMessage(
             sender=self.config.name,
@@ -214,7 +214,7 @@ class ValidationAgent(MetaAgent):
         )
         self.scratchpad.add_message(message)
 
-    def share_warning(self, warning: str):
+    def share_warning(self, warning: str) -> None:
         """Share a warning with other agents."""
         message = AgentMessage(
             sender=self.config.name,

@@ -81,7 +81,7 @@ class MessageBus:
         self.message_count = 0
         logger.info(" [MESSAGE BUS] Initialized")
         
-    def subscribe(self, agent_name: str, callback: Callable):
+    def subscribe(self, agent_name: str, callback: Callable) -> None:
         """Subscribe agent to messages."""
         self.subscribers[agent_name] = callback
         logger.debug(f" [MESSAGE BUS] Subscribed: {agent_name}")
@@ -112,7 +112,7 @@ class FormatRegistry:
         self.registry: Dict[str, AgentCapabilities] = {}
         logger.info(" [FORMAT REGISTRY] Initialized")
         
-    def register(self, agent_name: str, capabilities: AgentCapabilities):
+    def register(self, agent_name: str, capabilities: AgentCapabilities) -> None:
         """Register agent's capabilities."""
         self.registry[agent_name] = capabilities
         logger.debug(f" [FORMAT REGISTRY] Registered: {agent_name}")
@@ -655,7 +655,7 @@ class SmartAgentSlack:
             }
         }
     
-    def reset_context(self, agent_name: Optional[str] = None):
+    def reset_context(self, agent_name: Optional[str] = None) -> None:
         """Reset context budget for agent(s)."""
         if agent_name:
             self.context_budget_tracker[agent_name] = 0

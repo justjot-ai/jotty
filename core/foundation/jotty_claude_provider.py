@@ -64,7 +64,7 @@ class JottyClaudeProvider:
         return cls._instance
 
     @classmethod
-    def reset_instance(cls):
+    def reset_instance(cls) -> None:
         """Reset the singleton instance (for testing)."""
         cls._instance = None
         cls._server_process = None

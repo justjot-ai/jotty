@@ -123,7 +123,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
     _semaphore_lock = None  # Initialized lazily as class-level threading.Lock
 
     @classmethod
-    def set_max_concurrent_llm_calls(cls, max_calls: int):
+    def set_max_concurrent_llm_calls(cls, max_calls: int) -> None:
         """Set maximum concurrent LLM calls across all planner instances."""
         cls._max_concurrent_llm_calls = max(1, max_calls)
         cls._llm_semaphore = None  # Reset to recreate with new limit

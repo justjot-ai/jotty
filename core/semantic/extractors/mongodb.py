@@ -393,7 +393,7 @@ class MongoDBExtractor(BaseExtractor):
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-    def close(self):
+    def close(self) -> None:
         """Close MongoDB connection."""
         if self._client:
             self._client.close()

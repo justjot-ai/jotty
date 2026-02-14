@@ -38,7 +38,7 @@ class ExecutionMetrics:
     error: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
     
-    def finish(self, status: ExecutionStatus = ExecutionStatus.SUCCESS, error: Optional[str] = None):
+    def finish(self, status: ExecutionStatus = ExecutionStatus.SUCCESS, error: Optional[str] = None) -> None:
         """Mark execution as finished."""
         self.end_time = time.time()
         self.duration = self.end_time - self.start_time
@@ -324,7 +324,7 @@ class MonitoringFramework:
             "errors_by_agent": errors_by_agent,
         }
     
-    def reset(self):
+    def reset(self) -> None:
         """Reset monitoring (start fresh)."""
         self.executions.clear()
         self.start_time = time.time()

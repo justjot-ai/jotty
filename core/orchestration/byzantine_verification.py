@@ -406,7 +406,7 @@ class ByzantineVerifier:
             'inconsistent_count': self.inconsistent_count,
         }
 
-    def restore_from_dict(self, data: Dict):
+    def restore_from_dict(self, data: Dict) -> None:
         """Restore state from persistence. Requires existing SI reference."""
         self.claim_history = data.get('claim_history', [])
         self.verified_count = data.get('verified_count', 0)

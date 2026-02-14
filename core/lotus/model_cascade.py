@@ -331,7 +331,7 @@ class ModelCascade:
             "cost_savings": self.stats.cost_savings,
         }
 
-    def reset_stats(self):
+    def reset_stats(self) -> None:
         """Reset statistics."""
         self.stats = CascadeStats()
 

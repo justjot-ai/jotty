@@ -290,7 +290,7 @@ class ValidationGate:
             was_sampled=was_sampled,
         )
 
-    def record_outcome(self, mode: ValidationMode, success: bool):
+    def record_outcome(self, mode: ValidationMode, success: bool) -> None:
         """
         Record task outcome for drift detection.
 

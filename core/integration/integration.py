@@ -98,11 +98,11 @@ class JottyIntegration:
         return cls._instance
 
     @classmethod
-    def reset_instance(cls):
+    def reset_instance(cls) -> None:
         """Reset the singleton instance (for testing)."""
         cls._instance = None
     
-    def patch_dspy(self):
+    def patch_dspy(self) -> None:
         """
         Patch DSPy to protect all LLM calls from context overflow.
         
@@ -115,7 +115,7 @@ class JottyIntegration:
         patch_dspy_with_guard(self.context_guard)
         logger.info(" DSPy patched with GlobalContextGuard")
     
-    def unpatch_dspy(self):
+    def unpatch_dspy(self) -> None:
         """Remove DSPy patch."""
         unpatch_dspy()
         logger.info(" DSPy unpatched")

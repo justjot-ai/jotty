@@ -526,7 +526,7 @@ class MASLearning:
         self._load_fix_database()
         self._load_sessions()
 
-    def save_all(self):
+    def save_all(self) -> None:
         """Save all learning data to disk."""
         self._save_fix_database()
         self._save_sessions()

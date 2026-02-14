@@ -64,7 +64,7 @@ class EffectivenessTracker:
         # Global (all task types combined)
         self._global: deque = deque(maxlen=recent_window + historical_window)
 
-    def record(self, task_type: str, success: bool, quality: float = 0.0,
+    def record(self, task_type: str, success: bool, quality -> None: float = 0.0,
                agent: str = ""):
         """Record a task outcome. Call after every execution."""
         entry = (_time.time(), success, max(0.0, min(1.0, quality)), agent)
@@ -458,7 +458,7 @@ class SwarmLearningPipeline:
     # Auto-load / Auto-save
     # =========================================================================
 
-    def auto_load(self):
+    def auto_load(self) -> None:
         """Load previous learnings at startup."""
         # Q-learner state
         learning_path = self._get_learning_path()
@@ -541,7 +541,7 @@ class SwarmLearningPipeline:
             except Exception as e:
                 logger.warning(f"Could not auto-load stigmergy: {e}")
 
-    def auto_save(self, mas_learning=None, swarm_terminal=None, provider_registry=None):
+    def auto_save(self, mas_learning=None, swarm_terminal=None, provider_registry=None) -> None:
         """Save learnings after execution."""
         # Q-learner state
         learning_path = self._get_learning_path()
@@ -1130,7 +1130,7 @@ class SwarmLearningPipeline:
         """How many training tasks are waiting."""
         return len(self._pending_training_tasks)
 
-    def learn_from_result(self, result: EpisodeResult, agent_config: AgentConfig, workflow_learner=None, goal: str = ''):
+    def learn_from_result(self, result: EpisodeResult, agent_config: AgentConfig, workflow_learner=None, goal: str = '') -> None:
         """Learn from a successful execution result."""
         if not result.success:
             return

@@ -238,7 +238,7 @@ class BaseMetadataProvider:
             'caching_enabled': self._enable_caching
         }
     
-    def reset_tool_stats(self):
+    def reset_tool_stats(self) -> None:
         """Reset tool usage statistics (useful for testing)."""
         self._tokens_used = 0
         self._tool_call_count = 0
@@ -442,7 +442,7 @@ class BaseMetadataProvider:
     # HELPER: Register fields for simple providers
     # =========================================================================
     
-    def register_field(self, field_name: str, field_value: Any):
+    def register_field(self, field_name: str, field_value: Any) -> None:
         """
         Register a metadata field that can be accessed by actors.
         

@@ -140,7 +140,7 @@ class AgenticState:
         content = f"{self.agent_name}:{self.task_description}:{len(self.trajectory)}"
         return hashlib.md5(content.encode()).hexdigest()
     
-    def add_trajectory_step(self, 
+    def add_trajectory_step(self,
                            action_type: str,
                            action_content: str,
                            observation: str,
@@ -161,12 +161,12 @@ class AgenticState:
         self.trajectory.append(step)
         self.last_updated = datetime.now()
     
-    def add_reasoning_step(self, thought: str):
+    def add_reasoning_step(self, thought: str) -> None:
         """Add a CoT reasoning step."""
         self.reasoning_trace.append(thought)
         self.last_updated = datetime.now()
     
-    def add_tool_call(self, tool_name: str, args: Dict, result: Any, success: bool):
+    def add_tool_call(self, tool_name: str, args: Dict, result: Any, success: bool) -> None:
         """Record a tool call."""
         self.tool_calls.append({
             'tool': tool_name,
@@ -339,7 +339,7 @@ class DecomposedQFunction:
                 self.weights['causal'] * q_c +
                 self.weights['safety'] * q_s)
     
-    def update(self, 
+    def update(self,
                state: AgenticState, 
                action: str,
                reward_decomposition: Dict[str, float],
@@ -383,7 +383,7 @@ class DecomposedQFunction:
         # In practice, this would query the action space
         return ['proceed', 'retry', 'refine', 'escalate']
     
-    def adjust_weights(self, phase: str):
+    def adjust_weights(self, phase: str) -> None:
         """Adjust weights based on learning phase."""
         if phase == 'exploration':
             self.weights = {'task': 0.3, 'explore': 0.4, 'causal': 0.2, 'safety': 0.1}
@@ -490,21 +490,21 @@ class SubtaskState:
         """Check if all dependencies are satisfied."""
         return all(dep in completed_tasks for dep in self.depends_on)
     
-    def start(self):
+    def start(self) -> None:
         """Mark task as started."""
         self.status = TaskStatus.IN_PROGRESS
         self.started_at = datetime.now()
         self.attempts += 1
         logger.info(f"▶ Task {self.task_id} STARTED (attempt {self.attempts}/{self.max_attempts})")
     
-    def complete(self, result: Dict = None):
+    def complete(self, result: Dict = None) -> None:
         """Mark task as completed."""
         self.status = TaskStatus.COMPLETED
         self.completed_at = datetime.now()
         self.progress = 1.0
         self.result = result
     
-    def fail(self, error: str):
+    def fail(self, error: str) -> None:
         """Mark task as failed."""
         if self.attempts >= self.max_attempts:
             self.status = TaskStatus.FAILED
@@ -711,13 +711,13 @@ class SwarmTaskBoard:
                 unblocked += 1
         return unblocked
     
-    def start_task(self, task_id: str):
+    def start_task(self, task_id: str) -> None:
         """Start a task."""
         if task_id in self.subtasks:
             self.subtasks[task_id].start()
             self.current_task_id = task_id
     
-    def complete_task(self, task_id: str, result: Dict = None):
+    def complete_task(self, task_id: str, result: Dict = None) -> None:
         """Mark task as completed."""
         if task_id in self.subtasks:
             self.subtasks[task_id].complete(result)
@@ -732,7 +732,7 @@ class SwarmTaskBoard:
                 key = (prev_task, task_id)
                 self.transition_probs[key] = self.transition_probs.get(key, 0) + 1
     
-    def fail_task(self, task_id: str, error: str):
+    def fail_task(self, task_id: str, error: str) -> None:
         """Mark task as failed."""
         if task_id in self.subtasks:
             task = self.subtasks[task_id]
@@ -777,7 +777,7 @@ class SwarmTaskBoard:
         self.last_checkpoint = datetime.now()
         return checkpoint
     
-    def restore_from_checkpoint(self, checkpoint: Dict):
+    def restore_from_checkpoint(self, checkpoint: Dict) -> None:
         """Restore state from checkpoint."""
         self.current_task_id = checkpoint.get('current_task_id')
         self.completed_tasks = set(checkpoint.get('completed_tasks', []))
@@ -965,7 +965,7 @@ class SwarmTaskBoard:
         
         return summary
     
-    def update_q_value(self, task_id: str, q_value: float, confidence: float):
+    def update_q_value(self, task_id: str, q_value: float, confidence: float) -> None:
         """
         Update Q-value for a task.
         
@@ -975,7 +975,7 @@ class SwarmTaskBoard:
             self.subtasks[task_id].estimated_reward = max(0.0, min(1.0, q_value))
             self.subtasks[task_id].confidence = max(0.0, min(1.0, confidence))
     
-    def record_intermediary_values(self, task_id: str, values: Dict[str, Any]):
+    def record_intermediary_values(self, task_id: str, values: Dict[str, Any]) -> None:
         """
         Record intermediary runtime values (LLM calls, time, etc).
         
@@ -985,7 +985,7 @@ class SwarmTaskBoard:
         if task_id in self.subtasks:
             self.subtasks[task_id].intermediary_values.update(values)
     
-    def predict_next(self, task_id: str, next_task_id: Optional[str], 
+    def predict_next(self, task_id: str, next_task_id -> None: Optional[str],
                     duration: Optional[float] = None, reward: Optional[float] = None):
         """
         Record predictions for trajectory planning.

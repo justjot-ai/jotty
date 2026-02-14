@@ -135,17 +135,17 @@ class TaskProgress:
         })
         return idx
 
-    def start_step(self, idx: int):
+    def start_step(self, idx: int) -> None:
         if 0 <= idx < len(self.steps):
             self.steps[idx]['status'] = 'in_progress'
             self.steps[idx]['started_at'] = _time.time()
 
-    def complete_step(self, idx: int):
+    def complete_step(self, idx: int) -> None:
         if 0 <= idx < len(self.steps):
             self.steps[idx]['status'] = 'done'
             self.steps[idx]['finished_at'] = _time.time()
 
-    def fail_step(self, idx: int):
+    def fail_step(self, idx: int) -> None:
         if 0 <= idx < len(self.steps):
             self.steps[idx]['status'] = 'failed'
             self.steps[idx]['finished_at'] = _time.time()

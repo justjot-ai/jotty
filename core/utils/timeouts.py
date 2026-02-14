@@ -95,7 +95,7 @@ class CircuitBreaker:
         
         return False, "Unknown circuit state"
     
-    def record_success(self):
+    def record_success(self) -> None:
         """Record successful call."""
         if self.state == CircuitState.HALF_OPEN:
             self.success_count += 1
@@ -107,7 +107,7 @@ class CircuitBreaker:
             # Reset failure count on success
             self.failure_count = max(0, self.failure_count - 1)
     
-    def record_failure(self, error: Exception):
+    def record_failure(self, error: Exception) -> None:
         """Record failed call."""
         self.failure_count += 1
         self.total_failures += 1
@@ -205,7 +205,7 @@ def timeout(seconds: float, error_message: str = "Operation timed out"):
             if asyncio.iscoroutinefunction(func):
                 raise ValueError(f"Use async_timeout for async function {func.__name__}")
             
-            def timeout_handler(signum, frame):
+            def timeout_handler(signum, frame) -> None:
                 raise TimeoutError(f"{error_message} (after {seconds}s)")
             
             # Set timeout (Unix only)
@@ -421,7 +421,7 @@ class AdaptiveTimeout:
         self.latencies: Dict[str, List[float]] = {}
         self.max_samples = 100  # Keep last 100 samples
     
-    def record_latency(self, operation: str, latency: float):
+    def record_latency(self, operation: str, latency: float) -> None:
         """Record observed latency for an operation."""
         if operation not in self.latencies:
             self.latencies[operation] = []

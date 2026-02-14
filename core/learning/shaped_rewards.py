@@ -353,7 +353,7 @@ class ShapedRewardManager:
         """Get total accumulated shaped reward."""
         return self.total_shaped_reward
     
-    def reset(self):
+    def reset(self) -> None:
         """Reset all conditions for new episode."""
         for condition in self.conditions:
             condition.triggered = False
@@ -373,7 +373,7 @@ class ShapedRewardManager:
             'condition_status': {c.name: c.triggered for c in self.conditions},
         }
     
-    def add_condition(self, condition: RewardCondition):
+    def add_condition(self, condition: RewardCondition) -> None:
         """Add a custom condition at runtime."""
         self.conditions.append(condition)
         logger.info(f" Added custom condition: {condition.name}")

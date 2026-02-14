@@ -79,7 +79,7 @@ class AgentStateTracker:
             'failed_tool_calls': 0
         }
     
-    def record_output(self, output: Any, output_type: str = None):
+    def record_output(self, output: Any, output_type: str = None) -> None:
         """Record agent output."""
         self.outputs.append({
             'output': output,
@@ -89,7 +89,7 @@ class AgentStateTracker:
         self.stats['total_executions'] += 1
         self.stats['successful_executions'] += 1
     
-    def record_error(self, error: str, error_type: str = None, context: Dict = None):
+    def record_error(self, error: str, error_type: str = None, context: Dict = None) -> None:
         """Record agent error."""
         self.errors.append({
             'error': error,
@@ -100,7 +100,7 @@ class AgentStateTracker:
         self.stats['total_executions'] += 1
         self.stats['failed_executions'] += 1
     
-    def record_tool_call(self, tool_name: str, success: bool, metadata: Dict = None):
+    def record_tool_call(self, tool_name: str, success: bool, metadata: Dict = None) -> None:
         """Record tool usage."""
         if success:
             self.tool_usage['successful'][tool_name] = self.tool_usage['successful'].get(tool_name, 0) + 1
@@ -110,13 +110,13 @@ class AgentStateTracker:
             self.stats['failed_tool_calls'] += 1
         self.stats['total_tool_calls'] += 1
     
-    def record_trajectory_step(self, step: Dict[str, Any]):
+    def record_trajectory_step(self, step: Dict[str, Any]) -> None:
         """Record trajectory step."""
         step['timestamp'] = datetime.now().isoformat()
         step['agent'] = self.agent_name
         self.trajectory.append(step)
     
-    def record_validation(self, validation_type: str, passed: bool, confidence: float = None, feedback: str = None):
+    def record_validation(self, validation_type: str, passed: bool, confidence: float = None, feedback: str = None) -> None:
         """Record validation result."""
         self.validation_results.append({
             'type': validation_type,  # 'architect' or 'auditor'
@@ -456,7 +456,7 @@ class SwarmStateManager:
         
         return summary
     
-    def record_swarm_step(self, step: Dict[str, Any]):
+    def record_swarm_step(self, step: Dict[str, Any]) -> None:
         """Record swarm-level trajectory step."""
         step['timestamp'] = datetime.now().isoformat()
         self.swarm_trajectory.append(step)
@@ -477,7 +477,7 @@ class SwarmStateManager:
             })
         return actions
     
-    def save_state(self, file_path: Path):
+    def save_state(self, file_path: Path) -> None:
         """Save swarm and agent state to file."""
         state_data = {
             'swarm_state': {
@@ -497,7 +497,7 @@ class SwarmStateManager:
         
         logger.info(f" Saved swarm state to {file_path}")
     
-    def load_state(self, file_path: Path):
+    def load_state(self, file_path: Path) -> None:
         """Load swarm and agent state from file."""
         with open(file_path, 'r') as f:
             state_data = json.load(f)

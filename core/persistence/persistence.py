@@ -85,7 +85,7 @@ class Vault:
     # MARKOVIAN TODO PERSISTENCE (NO HARDCODING)
     # =========================================================================
     
-    def save_markovian_todo(self, todo: 'SwarmTaskBoard'):
+    def save_markovian_todo(self, todo: 'SwarmTaskBoard') -> None:
         """
         Save Markovian TODO state (JSON + rich markdown).
         
@@ -321,7 +321,7 @@ class Vault:
     # Q-TABLE PERSISTENCE (NO HARDCODING)
     # =========================================================================
     
-    def save_q_predictor(self, q_predictor: 'LLMQPredictor'):
+    def save_q_predictor(self, q_predictor: 'LLMQPredictor') -> None:
         """
         Save Q-predictor experience buffer.
         
@@ -342,7 +342,7 @@ class Vault:
     # MEMORY PERSISTENCE (NO HARDCODING)
     # =========================================================================
     
-    def save_memory(self, memory: 'SwarmMemory', name: str = "shared", 
+    def save_memory(self, memory: 'SwarmMemory', name -> None: str = "shared",
                    max_per_level: int = 100):
         """
         Save hierarchical memory.
@@ -395,7 +395,7 @@ class Vault:
     # EPISODE PERSISTENCE (NO HARDCODING)
     # =========================================================================
     
-    def save_episode(self, episode_num: int, trajectory: List, metadata: Dict):
+    def save_episode(self, episode_num: int, trajectory: List, metadata: Dict) -> None:
         """
         Save episode history.
         
@@ -418,7 +418,7 @@ class Vault:
     # BRAIN STATE PERSISTENCE (NO HARDCODING)
     # =========================================================================
     
-    def save_brain_state(self, brain: 'SimpleBrain'):
+    def save_brain_state(self, brain: 'SimpleBrain') -> None:
         """
         Save brain consolidated memories.
         
@@ -465,7 +465,7 @@ class Vault:
     # COMPLETE STATE SAVE (NO HARDCODING)
     # =========================================================================
     
-    def save_all(self, conductor):
+    def save_all(self, conductor) -> None:
         """
         Save complete JOTTY Orchestrator state.
         

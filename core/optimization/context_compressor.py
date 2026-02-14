@@ -267,6 +267,6 @@ class ContextManager:
         """Get current context."""
         return '\n\n'.join(self.context_history)
     
-    def clear(self):
+    def clear(self) -> None:
         """Clear context."""
         self.context_history = []

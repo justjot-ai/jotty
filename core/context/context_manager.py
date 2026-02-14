@@ -125,22 +125,22 @@ class SmartContextManager:
     # CONTEXT REGISTRATION
     # =========================================================================
     
-    def register_todo(self, todo_content: str):
+    def register_todo(self, todo_content: str) -> None:
         """Register current TODO for preservation (NEVER compressed)."""
         self._current_todo = todo_content
         logger.debug(f" Registered TODO ({len(todo_content)} chars)")
     
-    def register_goal(self, goal: str):
+    def register_goal(self, goal: str) -> None:
         """Register current goal for preservation."""
         self._current_goal = goal
         logger.debug(f" Registered goal: {goal}...")
     
-    def register_critical_memory(self, memory: str):
+    def register_critical_memory(self, memory: str) -> None:
         """Register a critical memory that must be preserved."""
         self._critical_memories.append(memory)
         logger.debug(f" Registered critical memory ({len(memory)} chars)")
     
-    def add_chunk(self, content: str, category: str, priority: ContextPriority = None):
+    def add_chunk(self, content: str, category: str, priority: ContextPriority = None) -> None:
         """Add a context chunk with auto-detected priority."""
         if priority is None:
             priority = self._auto_detect_priority(category, content)
@@ -384,7 +384,7 @@ class SmartContextManager:
             return 0
         return SmartTokenizer.get_instance().count_tokens(text)
     
-    def clear_chunks(self):
+    def clear_chunks(self) -> None:
         """Clear non-persistent chunks."""
         self.current_chunks = []
     

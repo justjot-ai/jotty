@@ -223,7 +223,7 @@ class DatabaseExtractor(BaseExtractor):
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-    def close(self):
+    def close(self) -> None:
         """Close database connection."""
         if self._engine:
             self._engine.dispose()

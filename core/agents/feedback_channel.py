@@ -360,7 +360,7 @@ class FeedbackChannel:
         )
         return None
 
-    def clear_all(self):
+    def clear_all(self) -> None:
         """Clear all pending messages (but keep history)."""
         self.messages.clear()
         logger.info(" FeedbackChannel: All pending messages cleared")

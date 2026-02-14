@@ -375,7 +375,7 @@ class JustJotIdea:
     template_name: str = "Blank"
     status: str = "Draft"
 
-    def add_section(self, section: JustJotSection):
+    def add_section(self, section: JustJotSection) -> None:
         self.sections.append(section)
 
     def to_dict(self) -> Dict:

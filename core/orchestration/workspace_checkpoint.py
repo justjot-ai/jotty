@@ -156,7 +156,7 @@ class WorkspaceCheckpoint:
         except Exception:
             return []
 
-    def cleanup(self, keep_latest: int = 5):
+    def cleanup(self, keep_latest: int = 5) -> None:
         """Remove old checkpoints, keeping the N most recent."""
         cps = self.list_checkpoints()
         if len(cps) <= keep_latest:

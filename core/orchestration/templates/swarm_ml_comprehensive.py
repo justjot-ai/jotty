@@ -628,7 +628,7 @@ JSON only:""",
         except Exception as e:
             logger.warning(f"Post-execution learning failed: {e}")
 
-    def on_stage_complete(self, stage_name: str, results: Dict[str, Any]):
+    def on_stage_complete(self, stage_name: str, results: Dict[str, Any]) -> None:
         """
         ML-specific stage completion with custom reward shaping.
 

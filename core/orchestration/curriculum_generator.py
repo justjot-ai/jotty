@@ -314,7 +314,7 @@ class CurriculumGenerator:
             'command': f"process_{random.choice(domains)}",
         }
 
-    def update_from_result(self, task: SyntheticTask, success: bool, execution_time: float):
+    def update_from_result(self, task: SyntheticTask, success: bool, execution_time: float) -> None:
         """
         Update curriculum based on task result.
 
@@ -352,7 +352,7 @@ class CurriculumGenerator:
     # Agent0 Enhancements: Tool-awareness & Memory Integration
     # =========================================================================
 
-    def connect_state_manager(self, state_manager):
+    def connect_state_manager(self, state_manager) -> None:
         """
         Connect to SwarmStateManager for tool success tracking.
 
@@ -361,7 +361,7 @@ class CurriculumGenerator:
         self._state_manager = state_manager
         logger.debug("CurriculumGenerator connected to SwarmStateManager")
 
-    def connect_memory(self, memory_system):
+    def connect_memory(self, memory_system) -> None:
         """
         Connect to memory system for weakness detection.
 

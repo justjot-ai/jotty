@@ -85,7 +85,7 @@ class ToolsRegistry:
         
         logger.debug(f" Registered tool: {name} ({category})")
     
-    def register_batch(self, tools: List[Dict[str, Any]]):
+    def register_batch(self, tools: List[Dict[str, Any]]) -> None:
         """Register multiple tools at once."""
         for tool_data in tools:
             self.register(**tool_data)
@@ -124,7 +124,7 @@ class ToolsRegistry:
             'mcp_enabled_count': sum(1 for t in self._tools.values() if t.mcp_enabled),
         }
     
-    def clear(self):
+    def clear(self) -> None:
         """Clear all tools (useful for testing)."""
         self._tools.clear()
         self._by_category.clear()

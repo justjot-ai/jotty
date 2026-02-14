@@ -186,7 +186,7 @@ class CausalLink:
 
         return True
 
-    def update_confidence(self, supported: bool):
+    def update_confidence(self, supported: bool) -> None:
         """Update confidence based on new evidence."""
         if supported:
             self.confidence = self.confidence + 0.1 * (1 - self.confidence)

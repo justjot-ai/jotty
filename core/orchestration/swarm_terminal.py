@@ -299,7 +299,7 @@ class SwarmTerminal:
         except Exception as e:
             logger.warning(f"Could not load fix database: {e}")
 
-    def save_fix_database(self):
+    def save_fix_database(self) -> None:
         """Save fix database to disk."""
         try:
             self._fix_db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -341,7 +341,7 @@ class SwarmTerminal:
         except Exception as e:
             logger.warning(f"Could not save fix database: {e}")
 
-    def record_fix(self, error: str, commands: List[str], description: str, source: str, success: bool):
+    def record_fix(self, error: str, commands: List[str], description: str, source: str, success: bool) -> None:
         """Record a fix for future use."""
         self._fix_history.append({
             'error': error,
@@ -918,7 +918,7 @@ Auto-generated skill to solve: {problem[:100]}
         """Get history of applied fixes."""
         return self._fix_history.copy()
 
-    def clear_cache(self):
+    def clear_cache(self) -> None:
         """Clear fix cache."""
         self._fix_cache.clear()
         logger.info("Fix cache cleared")

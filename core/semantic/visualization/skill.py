@@ -93,7 +93,7 @@ class BaseSkill(ABC):
         """
         pass
 
-    def add_hook(self, event: str, callback: Callable):
+    def add_hook(self, event: str, callback: Callable) -> None:
         """Add a hook callback for an event."""
         if event in self._hooks:
             self._hooks[event].append(callback)

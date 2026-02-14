@@ -734,10 +734,10 @@ class LearningManager:
 class _NoOpLearner:
     """No-op learner for when Q-learning is unavailable."""
 
-    def add_experience(self, *args, **kwargs):
+    def add_experience(self, *args, **kwargs) -> None:
         pass
 
-    def record_outcome(self, *args, **kwargs):
+    def record_outcome(self, *args, **kwargs) -> None:
         pass
 
     def predict_q_value(self, *args, **kwargs):
@@ -749,17 +749,17 @@ class _NoOpLearner:
     def get_q_table_stats(self):
         return {'size': 0, 'avg_q_value': 0}
 
-    def save_state(self, path):
+    def save_state(self, path) -> None:
         pass
 
-    def load_state(self, path):
+    def load_state(self, path) -> None:
         pass
 
 
 class _NoOpMemory:
     """No-op memory for when memory system is unavailable."""
 
-    def store(self, *args, **kwargs):
+    def store(self, *args, **kwargs) -> None:
         pass
 
     def retrieve(self, *args, **kwargs):
@@ -768,10 +768,10 @@ class _NoOpMemory:
     def get_statistics(self):
         return {'total_entries': 0}
 
-    def save(self, path):
+    def save(self, path) -> None:
         pass
 
-    def load(self, path):
+    def load(self, path) -> None:
         pass
 
 
@@ -808,7 +808,7 @@ def get_learning_coordinator(config=None, base_dir: str = None) -> LearningManag
     return _global_coordinator
 
 
-def reset_learning_coordinator():
+def reset_learning_coordinator() -> None:
     """Reset global learning coordinator."""
     global _global_coordinator
     _global_coordinator = None

@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class ReportMixin:
-    def init_report(self, config: "ReportConfig" = None):
+    def init_report(self, config: "ReportConfig" = None) -> None:
         """
         Initialize PDF report generation.
 
@@ -67,7 +67,7 @@ class ReportMixin:
         except Exception as e:
             logger.warning(f"Report initialization failed: {e}")
 
-    def add_executive_summary(self, results: Dict[str, Any], context: str = ""):
+    def add_executive_summary(self, results: Dict[str, Any], context: str = "") -> None:
         """Add executive summary section to report."""
         if not self._report_available:
             return
@@ -87,7 +87,7 @@ class ReportMixin:
         }
         self._report_data['sections'].append(summary)
 
-    def add_data_profile(self, eda_insights: Dict[str, Any]):
+    def add_data_profile(self, eda_insights: Dict[str, Any]) -> None:
         """Add data profiling section to report."""
         if not self._report_available or not self._report_config.include_data_profile:
             return
@@ -106,7 +106,7 @@ class ReportMixin:
         }
         self._report_data['sections'].append(profile)
 
-    def add_feature_importance(self, importance: Dict[str, float], top_n: int = None):
+    def add_feature_importance(self, importance: Dict[str, float], top_n: int = None) -> None:
         """Add feature importance section to report."""
         if not self._report_available or not self._report_config.include_feature_importance:
             return
@@ -128,7 +128,7 @@ class ReportMixin:
         # Create importance figure
         self._create_importance_figure(sorted_imp)
 
-    def add_model_benchmarking(self, model_scores: Dict[str, Dict[str, float]]):
+    def add_model_benchmarking(self, model_scores: Dict[str, Dict[str, float]]) -> None:
         """Add model benchmarking comparison to report."""
         if not self._report_available or not self._report_config.include_model_benchmarking:
             return
@@ -143,7 +143,7 @@ class ReportMixin:
         }
         self._report_data['sections'].append(section)
 
-    def add_confusion_matrix_report(self, y_true, y_pred, labels=None):
+    def add_confusion_matrix_report(self, y_true, y_pred, labels=None) -> None:
         """Add confusion matrix to report."""
         if not self._report_available or not self._report_config.include_confusion_matrix:
             return
@@ -171,7 +171,7 @@ class ReportMixin:
         except Exception as e:
             logger.debug(f"Failed to add confusion matrix: {e}")
 
-    def add_roc_analysis(self, y_true, y_prob, pos_label=1):
+    def add_roc_analysis(self, y_true, y_prob, pos_label=1) -> None:
         """Add ROC curve analysis to report."""
         if not self._report_available or not self._report_config.include_roc_curves:
             return
@@ -200,7 +200,7 @@ class ReportMixin:
         except Exception as e:
             logger.debug(f"Failed to add ROC analysis: {e}")
 
-    def add_precision_recall_analysis(self, y_true, y_prob, pos_label=1):
+    def add_precision_recall_analysis(self, y_true, y_prob, pos_label=1) -> None:
         """Add precision-recall curve analysis to report."""
         if not self._report_available or not self._report_config.include_precision_recall:
             return
@@ -228,7 +228,7 @@ class ReportMixin:
         except Exception as e:
             logger.debug(f"Failed to add precision-recall analysis: {e}")
 
-    def add_shap_analysis(self, shap_values, feature_names: List[str], X_sample=None):
+    def add_shap_analysis(self, shap_values, feature_names: List[str], X_sample=None) -> None:
         """Add SHAP analysis to report."""
         if not self._report_available or not self._report_config.include_shap_analysis:
             return
@@ -261,7 +261,7 @@ class ReportMixin:
         except Exception as e:
             logger.debug(f"Failed to add SHAP analysis: {e}")
 
-    def add_baseline_comparison(self, baseline_score: float, final_score: float,
+    def add_baseline_comparison(self, baseline_score: float, final_score -> None: float,
                                baseline_model: str = "DummyClassifier"):
         """Add baseline vs final model comparison."""
         if not self._report_available or not self._report_config.include_baseline_comparison:
@@ -283,7 +283,7 @@ class ReportMixin:
         }
         self._report_data['sections'].append(section)
 
-    def add_recommendations(self, recommendations: List[str]):
+    def add_recommendations(self, recommendations: List[str]) -> None:
         """Add recommendations section to report."""
         if not self._report_available or not self._report_config.include_recommendations:
             return

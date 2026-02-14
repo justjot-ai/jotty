@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class MLflowMixin:
-    def init_mlflow(self, config: "MLflowConfig" = None):
+    def init_mlflow(self, config: "MLflowConfig" = None) -> None:
         """
         Initialize MLflow tracking for this swarm execution.
 
@@ -56,7 +56,7 @@ class MLflowMixin:
         except Exception as e:
             logger.warning(f"MLflow initialization failed: {e}")
 
-    def log_params(self, params: Dict[str, Any]):
+    def log_params(self, params: Dict[str, Any]) -> None:
         """Log parameters to MLflow."""
         if not self._mlflow_available or not self._mlflow_run:
             return
@@ -72,7 +72,7 @@ class MLflowMixin:
         except Exception as e:
             logger.debug(f"Failed to log params: {e}")
 
-    def log_metrics(self, metrics: Dict[str, float], step: int = None):
+    def log_metrics(self, metrics: Dict[str, float], step: int = None) -> None:
         """Log metrics to MLflow."""
         if not self._mlflow_available or not self._mlflow_run:
             return
@@ -84,7 +84,7 @@ class MLflowMixin:
         except Exception as e:
             logger.debug(f"Failed to log metrics: {e}")
 
-    def log_model(self, model, artifact_path: str = "model", input_example=None):
+    def log_model(self, model, artifact_path: str = "model", input_example=None) -> None:
         """Log trained model to MLflow."""
         if not self._mlflow_available or not self._mlflow_run:
             return
@@ -132,7 +132,7 @@ class MLflowMixin:
         except Exception as e:
             logger.debug(f"Failed to log model: {e}")
 
-    def log_feature_importance(self, importance: Dict[str, float], top_n: int = 30):
+    def log_feature_importance(self, importance: Dict[str, float], top_n: int = 30) -> None:
         """Log feature importance as artifact and metrics."""
         if not self._mlflow_available or not self._mlflow_run:
             return
@@ -156,7 +156,7 @@ class MLflowMixin:
         except Exception as e:
             logger.debug(f"Failed to log feature importance: {e}")
 
-    def log_shap_values(self, shap_values, feature_names: List[str], X_sample=None):
+    def log_shap_values(self, shap_values, feature_names: List[str], X_sample=None) -> None:
         """Log SHAP values and summary plot."""
         if not self._mlflow_available or not self._mlflow_run:
             return
@@ -181,7 +181,7 @@ class MLflowMixin:
         except Exception as e:
             logger.debug(f"Failed to log SHAP values: {e}")
 
-    def log_confusion_matrix(self, y_true, y_pred, labels=None):
+    def log_confusion_matrix(self, y_true, y_pred, labels=None) -> None:
         """Log confusion matrix as artifact."""
         if not self._mlflow_available or not self._mlflow_run:
             return
@@ -206,7 +206,7 @@ class MLflowMixin:
         except Exception as e:
             logger.debug(f"Failed to log confusion matrix: {e}")
 
-    def log_roc_curve(self, y_true, y_prob, pos_label=1):
+    def log_roc_curve(self, y_true, y_prob, pos_label=1) -> None:
         """Log ROC curve as artifact."""
         if not self._mlflow_available or not self._mlflow_run:
             return
@@ -240,7 +240,7 @@ class MLflowMixin:
         except Exception as e:
             logger.debug(f"Failed to log ROC curve: {e}")
 
-    def end_mlflow_run(self, status: str = "FINISHED"):
+    def end_mlflow_run(self, status: str = "FINISHED") -> None:
         """End the current MLflow run."""
         if not self._mlflow_available or not self._mlflow_run:
             return

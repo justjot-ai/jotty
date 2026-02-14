@@ -49,7 +49,7 @@ class SlideTypeSelector:
         self.rhythm_index = 0
         self.rotation_indices = {"TEXT": 0, "VISUAL": 0, "DATA": 0, "SPECIAL": 0}
 
-    def reset(self):
+    def reset(self) -> None:
         """Reset state for a new presentation."""
         self.used_types = []
         self.rhythm_index = 0
@@ -251,7 +251,7 @@ class LLMSlideSelector:
         # Fallback heuristic selector
         self._heuristic_selector = SlideTypeSelector()
 
-    def reset(self):
+    def reset(self) -> None:
         """Reset state for a new presentation."""
         self.used_types = []
         self.content_type_mapping = {}

@@ -98,7 +98,7 @@ class LifecycleMixin:
 
 
 
-    def escalate_priority(self, task_id: str, new_priority: int):
+    def escalate_priority(self, task_id: str, new_priority: int) -> None:
         """Escalate task priority (reposition in queue)."""
         self.__init_priority_queue()
 
@@ -349,7 +349,7 @@ class LifecycleMixin:
 
 
 
-    def retire_agent(self, agent: str):
+    def retire_agent(self, agent: str) -> None:
         """Remove agent from swarm."""
         if agent in self.agent_profiles:
             del self.agent_profiles[agent]
@@ -512,7 +512,7 @@ class LifecycleMixin:
 
 
 
-    def cache_result(self, key: str, result: Any, ttl: float = 3600.0):
+    def cache_result(self, key: str, result: Any, ttl: float = 3600.0) -> None:
         """
         Cache a result with TTL.
 
@@ -568,7 +568,7 @@ class LifecycleMixin:
 
 
 
-    def clear_cache(self, pattern: str = None):
+    def clear_cache(self, pattern: str = None) -> None:
         """Clear cache entries (optionally matching pattern)."""
         self.__init_cache()
         if pattern:

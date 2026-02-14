@@ -167,6 +167,6 @@ class BaseExtractor(ABC):
         """Extract indexes. Optional - default returns empty list."""
         return []
 
-    def clear_cache(self):
+    def clear_cache(self) -> None:
         """Clear cached schema."""
         self._schema_cache = None

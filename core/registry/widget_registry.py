@@ -86,7 +86,7 @@ class WidgetRegistry:
         
         logger.debug(f" Registered widget: {value} ({category})")
     
-    def register_batch(self, widgets: List[Dict[str, Any]]):
+    def register_batch(self, widgets: List[Dict[str, Any]]) -> None:
         """Register multiple widgets at once."""
         for widget_data in widgets:
             self.register(**widget_data)
@@ -120,7 +120,7 @@ class WidgetRegistry:
             'count': len(self._widgets),
         }
     
-    def clear(self):
+    def clear(self) -> None:
         """Clear all widgets (useful for testing)."""
         self._widgets.clear()
         self._by_category.clear()

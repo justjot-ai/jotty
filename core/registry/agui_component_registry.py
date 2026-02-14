@@ -206,7 +206,7 @@ class AGUIComponentRegistry:
 
         logger.debug(f" Registered AGUI adapter: {section_type} from {client_id}")
 
-    def register_batch(self, adapters: List[Dict[str, Any]]):
+    def register_batch(self, adapters: List[Dict[str, Any]]) -> None:
         """
         Register multiple adapters at once.
 
@@ -339,7 +339,7 @@ class AGUIComponentRegistry:
             'count': len(adapters),
         }
 
-    def clear(self):
+    def clear(self) -> None:
         """Clear all adapters (useful for testing)."""
         self._adapters.clear()
         self._by_category.clear()

@@ -227,7 +227,7 @@ class Schema:
                 return table
         return None
 
-    def infer_relationships(self):
+    def infer_relationships(self) -> None:
         """Infer relationships from foreign keys."""
         for table in self.tables:
             for fk in table.foreign_keys:

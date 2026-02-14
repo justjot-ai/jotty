@@ -220,7 +220,7 @@ class AdaptiveThreshold:
         self.count = 0
         self.m2 = 0  # For Welford's algorithm
     
-    def update(self, value: float):
+    def update(self, value: float) -> None:
         """Update running statistics (Welford's algorithm)."""
         self.count += 1
         delta = value - self.mean
@@ -353,7 +353,7 @@ class AdaptiveWeight:
     learning_rate: float = 0.01
     updates: int = 0
 
-    def update(self, gradient: float, reward: float = 0.0):
+    def update(self, gradient: float, reward: float = 0.0) -> None:
         """
         Update weight using momentum-based gradient descent.
 
@@ -436,7 +436,7 @@ class AdaptiveWeightGroup:
         """Get all weight values."""
         return {name: w.value for name, w in self._weights.items()}
 
-    def update_from_feedback(self, name: str, gradient: float, reward: float = 0.0):
+    def update_from_feedback(self, name: str, gradient: float, reward: float = 0.0) -> None:
         """
         Update one weight and renormalize all to sum to 1.0.
 
