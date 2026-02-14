@@ -568,8 +568,89 @@ class CoordinationMixin:
         Returns:
             Coalition if successfully formed
         """
+        # =====================================================================
+        # COALITION FORMATION EXPLAINED
+        # =====================================================================
+        # PROBLEM: Some tasks are too complex for a single agent.
+        #
+        # EXAMPLES:
+        # - "Research quantum computing AND write a 10-page report"
+        #   → Needs: Researcher + Writer
+        # - "Find bugs in code AND fix them AND write tests"
+        #   → Needs: Analyzer + Coder + Tester
+        # - "Analyze financial data AND create visualizations AND present findings"
+        #   → Needs: DataAnalyst + Visualizer + Presenter
+        #
+        # CHALLENGES:
+        # 1. Which agents should work together?
+        # 2. How many agents are needed?
+        # 3. Who should lead the coalition?
+        # 4. How to ensure complementary skills?
+        # 5. How to avoid assigning same agent to multiple coalitions?
+        #
+        # SOLUTION: Multi-Criteria Team Selection Algorithm
+        #
+        # ALGORITHM OVERVIEW:
+        # 1. Filter available agents (not already in other coalitions)
+        # 2. Score each agent using weighted criteria:
+        #    - Success rate on this task type (40% weight)
+        #    - Trust score (30% weight)
+        #    - Role match (30% weight)
+        # 3. Select team:
+        #    a. First fill required roles (e.g., MUST have analyzer)
+        #    b. Then add highest-scored agents up to max_agents
+        # 4. Choose leader (agent with highest trust)
+        # 5. Register coalition and broadcast formation
+        #
+        # SCORING FORMULA:
+        # score = success_rate × 0.4 + trust × 0.3 + role_match × 0.3
+        #
+        # Where:
+        # - success_rate: Historical success on this task type (0-1)
+        # - trust: Overall trust score from past interactions (0-1)
+        # - role_match: 1.0 if has required role, 0.5 otherwise
+        #
+        # EXAMPLE:
+        # Task: "Research and write report"
+        # Required roles: ["researcher", "writer"]
+        # Available agents:
+        #
+        # Agent A (Researcher):
+        #   - Success rate on research: 0.8
+        #   - Trust score: 0.9
+        #   - Role: researcher (required) → 1.0
+        #   - Score: 0.8 × 0.4 + 0.9 × 0.3 + 1.0 × 0.3 = 0.32 + 0.27 + 0.3 = 0.89
+        #
+        # Agent B (Writer):
+        #   - Success rate on writing: 0.7
+        #   - Trust score: 0.8
+        #   - Role: writer (required) → 1.0
+        #   - Score: 0.7 × 0.4 + 0.8 × 0.3 + 1.0 × 0.3 = 0.28 + 0.24 + 0.3 = 0.82
+        #
+        # Agent C (Coder):
+        #   - Success rate on coding: 0.9
+        #   - Trust score: 0.7
+        #   - Role: coder (not required) → 0.5
+        #   - Score: 0.9 × 0.4 + 0.7 × 0.3 + 0.5 × 0.3 = 0.36 + 0.21 + 0.15 = 0.72
+        #
+        # Selection process:
+        # 1. Fill required roles first: A (researcher), B (writer)
+        # 2. Still have space (max_agents=5, current=2)
+        # 3. Add highest-scored remaining: C (coder, score=0.72)
+        # 4. Final team: [A, B, C]
+        # 5. Leader: A (highest trust=0.9)
+        #
+        # WHY THIS WORKS:
+        # 1. Required roles guaranteed (task won't fail due to missing skills)
+        # 2. Best performers selected (40% weight on success rate)
+        # 3. Trustworthy agents lead (reduces coordination overhead)
+        # 4. Flexible team size (adapts to task complexity)
+        # 5. No double-booking (agents can only join one coalition at a time)
+        # =====================================================================
+
         import random
 
+        # STEP 1: Filter available agents (not in other coalitions)
         available = [a for a in self.agent_profiles.keys()
                     if a not in self.agent_coalitions]
 
@@ -577,24 +658,68 @@ class CoordinationMixin:
             logger.warning(f"Not enough agents for coalition: {len(available)} < {min_agents}")
             return None
 
-        # Score agents for this task type
+        # =====================================================================
+        # STEP 2: SCORE AGENTS USING MULTI-CRITERIA FORMULA
+        # =====================================================================
+        # Each agent gets a score based on three weighted factors:
+        #
+        # Factor 1: Success rate on this task type (40% weight)
+        #   - How well has this agent performed on similar tasks?
+        #   - Range: 0.0 (never succeeded) to 1.0 (always succeeded)
+        #   - Example: Agent with 8/10 success rate → 0.8
+        #
+        # Factor 2: Trust score (30% weight)
+        #   - Overall reliability and cooperation
+        #   - Tracks: response time, error rate, handoff quality
+        #   - Range: 0.0 (unreliable) to 1.0 (highly reliable)
+        #
+        # Factor 3: Role match (30% weight)
+        #   - Does agent's specialization match required role?
+        #   - 1.0 if exact match (required)
+        #   - 0.5 if not required (can still contribute)
+        #
+        # WEIGHTS RATIONALE:
+        # - Success rate (40%): Most important - we want agents that succeed
+        # - Trust (30%): Important - unreliable agents slow down coalition
+        # - Role (30%): Important - ensures skill coverage
+        # =====================================================================
         scored = []
         for agent in available:
             profile = self.agent_profiles[agent]
             score = (
-                profile.get_success_rate(task_type) * 0.4 +
-                profile.trust_score * 0.3 +
-                (1.0 if profile.specialization.value in (required_roles or []) else 0.5) * 0.3
+                profile.get_success_rate(task_type) * 0.4 +  # Past performance
+                profile.trust_score * 0.3 +                  # Reliability
+                (1.0 if profile.specialization.value in (required_roles or []) else 0.5) * 0.3  # Role fit
             )
             scored.append((agent, score, profile.specialization.value))
 
+        # Sort by score (highest first)
         scored.sort(key=lambda x: x[1], reverse=True)
 
-        # Select team
+        # =====================================================================
+        # STEP 3: SELECT TEAM MEMBERS
+        # =====================================================================
+        # Two-phase selection:
+        #
+        # Phase 1: Fill required roles (MUST-HAVE)
+        #   - Ensures critical skills are covered
+        #   - Example: Can't do "write tests" without a Tester
+        #   - Picks first agent matching each required role
+        #
+        # Phase 2: Add highest-scored agents (NICE-TO-HAVE)
+        #   - Fills remaining slots up to max_agents
+        #   - Adds complementary skills
+        #   - Example: Adding a Reviewer improves output quality
+        #
+        # WHY TWO PHASES:
+        # If we only did Phase 2, we might fill the team with high-scoring
+        # generalists but miss critical specialists. Phase 1 guarantees
+        # we have essential skills before optimizing for score.
+        # =====================================================================
         selected = []
         roles_filled = {}
 
-        # First, fill required roles
+        # Phase 1: Fill required roles first
         for role in (required_roles or []):
             for agent, score, spec in scored:
                 if agent not in selected and spec == role:
@@ -602,7 +727,7 @@ class CoordinationMixin:
                     roles_filled[agent] = role
                     break
 
-        # Then add highest-scored until max
+        # Phase 2: Add highest-scored agents until we hit max_agents
         for agent, score, spec in scored:
             if len(selected) >= max_agents:
                 break
@@ -610,10 +735,24 @@ class CoordinationMixin:
                 selected.append(agent)
                 roles_filled[agent] = spec
 
+        # Verify minimum team size
         if len(selected) < min_agents:
             return None
 
-        # Pick leader (highest trust)
+        # =====================================================================
+        # STEP 4: SELECT LEADER
+        # =====================================================================
+        # Leader is the agent with highest trust score among selected members.
+        #
+        # WHY TRUST SCORE FOR LEADERSHIP:
+        # - High trust = reliable, responsive, cooperative
+        # - Leader coordinates coalition (hands off tasks, aggregates results)
+        # - Unreliable leader = coalition fails even if members are good
+        #
+        # EXAMPLE:
+        # Team: [AgentA (trust=0.9), AgentB (trust=0.7), AgentC (trust=0.8)]
+        # Leader: AgentA (highest trust)
+        # =====================================================================
         leader = max(selected, key=lambda a: self.agent_profiles[a].trust_score)
 
         coalition_id = hashlib.md5(f"coalition:{task_type}:{time.time()}".encode()).hexdigest()[:12]
@@ -626,12 +765,28 @@ class CoordinationMixin:
             roles=roles_filled
         )
 
-        # Register coalition
+        # =====================================================================
+        # STEP 5: REGISTER COALITION
+        # =====================================================================
+        # Register in two places:
+        # 1. self.coalitions[id] → Lookup by coalition ID
+        # 2. self.agent_coalitions[agent] → Prevent double-booking
+        #
+        # This ensures no agent can be in two coalitions simultaneously.
+        # =====================================================================
         self.coalitions[coalition_id] = coalition
         for agent in selected:
             self.agent_coalitions[agent] = coalition_id
 
-        # Announce via gossip
+        # =====================================================================
+        # STEP 6: BROADCAST FORMATION VIA GOSSIP
+        # =====================================================================
+        # Announce coalition formation to all agents via gossip protocol.
+        # This allows:
+        # - Other agents to know who's busy (avoid routing tasks to them)
+        # - Monitoring systems to track active coalitions
+        # - Learning systems to observe successful team compositions
+        # =====================================================================
         self.gossip_broadcast(
             origin_agent=leader,
             message_type="coalition",

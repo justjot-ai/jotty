@@ -305,31 +305,48 @@ class PilotSwarm(DomainSwarm):
         return await self._searcher.search(task=subtask.description, context=context)
 
     async def _execute_code(self, subtask: Subtask, context: str, config: PilotConfig) -> Dict[str, Any]:
-        """Execute a coding subtask — generates code and writes files."""
+        """Execute a coding subtask — generates code, reads, edits, or writes files."""
         result = await self._coder.code(task=subtask.description, context=context)
 
-        if config.allow_file_write and result.get('file_operations'):
+        if result.get('file_operations'):
             for op in result['file_operations']:
-                if isinstance(op, dict):
-                    file_path = op.get('file_path', '')
-                    content = op.get('content', '')
-                    action = op.get('action', 'create')
+                if not isinstance(op, dict):
+                    continue
 
-                    if file_path and content:
-                        try:
-                            path = Path(file_path)
-                            path.parent.mkdir(parents=True, exist_ok=True)
+                file_path = op.get('file_path', '')
+                content = op.get('content', '')
+                action = op.get('action', 'create')
 
-                            if action == 'append' and path.exists():
-                                with open(path, 'a') as f:
-                                    f.write('\n' + content)
-                            else:
-                                with open(path, 'w') as f:
-                                    f.write(content)
+                if action == 'read' and file_path:
+                    op['read_content'] = self._read_file(file_path)
+                    logger.info(f"    Read: {file_path}")
+                    continue
 
-                            logger.info(f"    Wrote: {file_path} ({len(content)} chars)")
-                        except Exception as e:
-                            logger.warning(f"    Failed to write {file_path}: {e}")
+                if action == 'edit' and file_path and config.allow_file_write:
+                    old_content = op.get('old_content', '')
+                    if old_content and content:
+                        success = self._edit_file(file_path, old_content, content)
+                        op['edit_success'] = success
+                    else:
+                        op['edit_success'] = False
+                        logger.warning(f"    Edit skipped — missing old_content or content for {file_path}")
+                    continue
+
+                if file_path and content and config.allow_file_write:
+                    try:
+                        path = Path(file_path)
+                        path.parent.mkdir(parents=True, exist_ok=True)
+
+                        if action == 'append' and path.exists():
+                            with open(path, 'a') as f:
+                                f.write('\n' + content)
+                        else:
+                            with open(path, 'w') as f:
+                                f.write(content)
+
+                        logger.info(f"    Wrote: {file_path} ({len(content)} chars)")
+                    except Exception as e:
+                        logger.warning(f"    Failed to write {file_path}: {e}")
 
         return result
 
@@ -584,6 +601,174 @@ class PilotSwarm(DomainSwarm):
         except Exception:
             pass
         return None
+
+    # =========================================================================
+    # SUBTASK RETRY WRAPPER
+    # =========================================================================
+
+    _TRANSIENT_ERRORS = (TimeoutError, ConnectionError, OSError)
+    _TRANSIENT_STRINGS = ("rate limit", "rate_limit", "429", "503", "timeout", "connection reset")
+
+    async def _execute_subtask_with_retry(
+        self,
+        subtask: Subtask,
+        context: str,
+        config: PilotConfig,
+        max_retries: int = 2,
+    ) -> Dict[str, Any]:
+        """Execute a subtask with retry on transient errors.
+
+        Retries on: TimeoutError, ConnectionError, OSError, rate-limit strings.
+        Does NOT retry on: ValueError, KeyError, TypeError, or other logic errors.
+        Backoff: 1s after first failure, 3s after second.
+        """
+        backoff = [1, 3]
+        last_exc: Optional[Exception] = None
+
+        for attempt in range(max_retries + 1):
+            try:
+                return await self._execute_subtask(subtask, context, config)
+            except self._TRANSIENT_ERRORS as e:
+                last_exc = e
+                if attempt < max_retries:
+                    logger.warning(f"  [{subtask.id}] Transient error (attempt {attempt + 1}): {e}, retrying...")
+                    await asyncio.sleep(backoff[min(attempt, len(backoff) - 1)])
+                    continue
+                raise
+            except Exception as e:
+                err_str = str(e).lower()
+                if any(s in err_str for s in self._TRANSIENT_STRINGS) and attempt < max_retries:
+                    last_exc = e
+                    logger.warning(f"  [{subtask.id}] Transient error (attempt {attempt + 1}): {e}, retrying...")
+                    await asyncio.sleep(backoff[min(attempt, len(backoff) - 1)])
+                    continue
+                raise
+
+        raise last_exc  # pragma: no cover — defensive
+
+    # =========================================================================
+    # PARALLEL WAVE COMPUTATION
+    # =========================================================================
+
+    @staticmethod
+    def _compute_waves(subtasks: List[Subtask]) -> List[List[Subtask]]:
+        """Compute execution waves from subtask dependencies.
+
+        Wave 0: subtasks with no depends_on.
+        Wave N: subtasks whose deps are all in waves 0..N-1.
+        Circular deps: dumped into the final wave as a defensive fallback.
+        """
+        if not subtasks:
+            return []
+
+        # Map id -> subtask for lookup
+        by_id = {st.id: st for st in subtasks}
+        assigned: Dict[str, int] = {}  # subtask_id -> wave number
+        waves: List[List[Subtask]] = []
+
+        remaining = list(subtasks)
+        max_iterations = len(subtasks) + 1  # safety cap
+
+        for _ in range(max_iterations):
+            if not remaining:
+                break
+
+            current_wave = []
+            still_remaining = []
+
+            for st in remaining:
+                deps = [d for d in st.depends_on if d in by_id]
+                if all(d in assigned for d in deps):
+                    current_wave.append(st)
+                    assigned[st.id] = len(waves)
+                else:
+                    still_remaining.append(st)
+
+            if current_wave:
+                waves.append(current_wave)
+                remaining = still_remaining
+            else:
+                # Circular deps — dump all remaining into final wave
+                waves.append(still_remaining)
+                break
+
+        return waves
+
+    # =========================================================================
+    # FILE READ/EDIT HELPERS
+    # =========================================================================
+
+    @staticmethod
+    def _read_file(file_path: str, max_chars: int = 5000) -> str:
+        """Read a file's content, returning the text or an error message."""
+        try:
+            p = Path(file_path)
+            if not p.exists():
+                return f"[ERROR] File not found: {file_path}"
+            content = p.read_text(errors='replace')
+            if len(content) > max_chars:
+                return content[:max_chars] + f"\n... [truncated at {max_chars} chars, total {len(content)}]"
+            return content
+        except Exception as e:
+            return f"[ERROR] Could not read {file_path}: {e}"
+
+    @staticmethod
+    def _edit_file(file_path: str, old_content: str, new_content: str) -> bool:
+        """Surgically replace old_content with new_content in a file.
+
+        Returns True on success, False if old_content not found or file missing.
+        """
+        try:
+            p = Path(file_path)
+            if not p.exists():
+                logger.warning(f"    Edit failed — file not found: {file_path}")
+                return False
+            text = p.read_text(errors='replace')
+            if old_content not in text:
+                logger.warning(f"    Edit failed — old_content not found in {file_path}")
+                return False
+            text = text.replace(old_content, new_content, 1)
+            p.write_text(text)
+            logger.info(f"    Edited: {file_path}")
+            return True
+        except Exception as e:
+            logger.warning(f"    Edit failed for {file_path}: {e}")
+            return False
+
+    # =========================================================================
+    # REPLAN CONTEXT BUILDER
+    # =========================================================================
+
+    @staticmethod
+    def _build_replan_context(
+        goal: str,
+        subtasks: List[Subtask],
+        all_results: Dict[str, Any],
+        remaining_gaps: List[str],
+    ) -> str:
+        """Build enriched context for re-planning after validation failure."""
+        parts = [f"ORIGINAL GOAL: {goal}", "", "COMPLETED WORK:"]
+
+        for st in subtasks:
+            status = st.status.value
+            result_preview = ""
+            if st.id in all_results:
+                r = all_results[st.id]
+                if isinstance(r, dict):
+                    for key in ['synthesis', 'explanation', 'content', 'assessment']:
+                        if r.get(key):
+                            result_preview = f" — {str(r[key])[:300]}"
+                            break
+            parts.append(f"  [{st.id}] {st.type.value} ({status}): {st.description[:80]}{result_preview}")
+
+        parts.append("")
+        parts.append("REMAINING GAPS (must be addressed):")
+        for gap in remaining_gaps:
+            parts.append(f"  - {gap}")
+
+        parts.append("")
+        parts.append("Re-plan to address ONLY the remaining gaps. Do NOT repeat completed work.")
+        return '\n'.join(parts)
 
     # =========================================================================
     # HELPERS

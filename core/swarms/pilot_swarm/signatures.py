@@ -39,7 +39,8 @@ class PlannerSignature(dspy.Signature):
     """
     goal: str = dspy.InputField(desc="The goal to accomplish")
     available_swarms: str = dspy.InputField(desc="Available specialized swarms for delegation")
-    context: str = dspy.InputField(desc="Previous results or context (empty if first attempt)")
+    context: str = dspy.InputField(desc="Previous results or context (empty if first attempt). "
+                                        "On re-planning after validation failure, includes completed work and remaining gaps.")
 
     subtasks_json: str = dspy.OutputField(
         desc="JSON list of subtasks. Each MUST have: "
@@ -97,9 +98,12 @@ class CoderSignature(dspy.Signature):
     file_operations_json: str = dspy.OutputField(
         desc="JSON list of file operations. Each MUST have: "
         "{file_path (str — full path), "
-        "action (str — 'create' or 'append'), "
-        "content (str — complete file content or content to append), "
-        "description (str — what this file does)}. "
+        "action (str — 'create', 'append', 'read', or 'edit'), "
+        "content (str — file content for create/append, new content for edit), "
+        "old_content (str — required for 'edit': the exact text to replace), "
+        "description (str — what this operation does)}. "
+        "Use 'read' to load existing file content for context. "
+        "Use 'edit' for surgical replacement of specific text in existing files. "
         "Include ALL necessary files. Code must be complete — no stubs."
     )
     explanation: str = dspy.OutputField(

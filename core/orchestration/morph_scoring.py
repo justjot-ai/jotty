@@ -338,32 +338,164 @@ class MorphScorer:
         use_llm: bool = True
     ) -> Tuple[float, Dict[str, float]]:
         """
-        Compute Task-Role Alignment Score.
+        Compute Task-Role Alignment Score (TRAS).
 
         MorphAgent TRAS measures how well an agent matches a task.
         Formula: TRAS = alpha*S_sim + (1-alpha)*S_cap
         """
+        # =====================================================================
+        # TRAS (TASK-ROLE ALIGNMENT SCORE) EXPLAINED
+        # =====================================================================
+        # PROBLEM: How do we decide which agent is best suited for a task?
+        #
+        # CHALLENGES:
+        # 1. Agents don't have hardcoded capabilities (zero-config design)
+        # 2. Same agent might be great at one task, poor at another
+        # 3. Natural language tasks are hard to match to agents
+        # 4. We want both statistical evidence (past performance) AND semantic understanding
+        #
+        # SOLUTION: Hybrid scoring combining two dimensions
+        #
+        # TRAS FORMULA:
+        # TRAS = α × S_semantic + (1 - α) × S_capability
+        #
+        # Where:
+        # - S_semantic: How well the task description matches agent's expertise (LLM-based)
+        # - S_capability: How well the agent has performed on this task type (stats-based)
+        # - α (alpha): Weight parameter (default 0.6 = favor semantic over stats)
+        #
+        # WHY TWO COMPONENTS:
+        # - Semantic alone: Understands nuance but ignores actual performance
+        # - Capability alone: Ignores task details, only looks at task type
+        # - Combined: Best of both worlds
+        #
+        # EXAMPLE 1: Task with strong statistical evidence
+        # Task: "Analyze sales data"
+        # Task type: "analysis"
+        #
+        # Agent A (DataAnalyst):
+        #   - Semantic alignment: 0.9 (LLM says "perfect match for analysis")
+        #   - Capability match: 0.8 (8/10 past analysis tasks succeeded)
+        #   - TRAS = 0.6 × 0.9 + 0.4 × 0.8 = 0.54 + 0.32 = 0.86
+        #
+        # Agent B (Writer):
+        #   - Semantic alignment: 0.3 (LLM says "not a good fit")
+        #   - Capability match: 0.5 (5/10 past analysis tasks succeeded)
+        #   - TRAS = 0.6 × 0.3 + 0.4 × 0.5 = 0.18 + 0.20 = 0.38
+        #
+        # Result: Agent A selected (0.86 > 0.38)
+        #
+        # EXAMPLE 2: Task with no statistical evidence (first time)
+        # Task: "Translate Python code to Rust"
+        # Task type: "transformation"
+        #
+        # Agent A (Coder):
+        #   - Semantic alignment: 0.95 (LLM says "expert in code translation")
+        #   - Capability match: 0.5 (no past transformation tasks, use default)
+        #   - TRAS = 0.6 × 0.95 + 0.4 × 0.5 = 0.57 + 0.20 = 0.77
+        #
+        # Agent B (DataAnalyst):
+        #   - Semantic alignment: 0.2 (LLM says "not qualified for coding")
+        #   - Capability match: 0.5 (no past transformation tasks, use default)
+        #   - TRAS = 0.6 × 0.2 + 0.4 × 0.5 = 0.12 + 0.20 = 0.32
+        #
+        # Result: Agent A selected (0.77 > 0.32)
+        # → Semantic component (0.6 weight) dominated decision (good!)
+        #
+        # WHY α = 0.6 (60% semantic, 40% capability):
+        # - Natural language tasks need semantic understanding
+        # - But we don't want to ignore proven track records
+        # - 60/40 split balances both concerns
+        #
+        # FALLBACK STRATEGY:
+        # If LLM unavailable (no API key, offline, etc.):
+        # - Use keyword-based semantic matching instead
+        # - Less accurate but still better than capability-only
+        #
+        # BENEFITS:
+        # 1. Works on first task (semantic guides even with no stats)
+        # 2. Improves over time (capability component grows with experience)
+        # 3. Robust (fallback when LLM unavailable)
+        # 4. Explainable (returns component scores for debugging)
+        # =====================================================================
+
         components = {}
 
-        # 1. Capability matching (always computed)
+        # =====================================================================
+        # COMPONENT 1: CAPABILITY MATCH (Stats-based)
+        # =====================================================================
+        # Measures how well the agent has performed on this task type historically.
+        #
+        # Computation:
+        # 1. Look up agent's success rate on this task type
+        #    - Example: 8 successes / 10 attempts = 0.8
+        # 2. If no history for this type, use overall success rate
+        # 3. Consider task complexity vs agent capability
+        #
+        # Output range: 0.0 (never succeeded) to 1.0 (always succeeded)
+        # =====================================================================
         capability_match = self._compute_capability_match(task_type, profile)
         components['capability_match'] = capability_match
 
-        # 2. Semantic alignment (LLM-based if available)
+        # =====================================================================
+        # COMPONENT 2: SEMANTIC ALIGNMENT (LLM-based or keyword fallback)
+        # =====================================================================
+        # Measures how well the natural language task description matches
+        # the agent's expertise and past work.
+        #
+        # METHOD 1: LLM-based (preferred)
+        #   - Feed task description + agent profile to LLM
+        #   - LLM analyzes semantic fit
+        #   - Example: "Analyze sales data" + DataAnalyst profile → 0.9
+        #   - Advantage: Understands nuance, context, implicit requirements
+        #
+        # METHOD 2: Keyword-based (fallback when LLM unavailable)
+        #   - Match task keywords to agent's past successful tasks
+        #   - Example: "sales data" matches agent's "revenue analysis" history → 0.7
+        #   - Advantage: Works offline, fast, no API cost
+        #
+        # Output range: 0.0 (no match) to 1.0 (perfect match)
+        # =====================================================================
         if use_llm and DSPY_AVAILABLE:
             try:
                 semantic_align = self._compute_llm_alignment(task, profile)
                 components['semantic_alignment'] = semantic_align
             except Exception as e:
                 logger.debug(f"LLM alignment failed, using fallback: {e}")
-                semantic_align = capability_match  # Fallback
+                semantic_align = capability_match  # Fallback to capability
                 components['semantic_alignment'] = semantic_align
         else:
             # Fallback: use keyword matching
             semantic_align = self._compute_keyword_alignment(task, task_type, profile)
             components['semantic_alignment'] = semantic_align
 
-        # Weighted combination
+        # =====================================================================
+        # FINAL TRAS SCORE: WEIGHTED COMBINATION
+        # =====================================================================
+        # Combine both components using alpha (default 0.6):
+        #
+        # TRAS = α × semantic + (1-α) × capability
+        #      = 0.6 × semantic + 0.4 × capability
+        #
+        # INTERPRETATION:
+        # - TRAS = 0.9+: Excellent fit (both semantic and capability high)
+        # - TRAS = 0.7-0.9: Good fit (at least one component strong)
+        # - TRAS = 0.5-0.7: Acceptable fit (may work, not optimal)
+        # - TRAS < 0.5: Poor fit (consider other agents)
+        #
+        # EXAMPLE CALCULATIONS:
+        # 1. Expert agent, perfect match:
+        #    semantic=0.95, capability=0.90
+        #    TRAS = 0.6×0.95 + 0.4×0.90 = 0.57 + 0.36 = 0.93
+        #
+        # 2. Good agent, moderate match:
+        #    semantic=0.70, capability=0.75
+        #    TRAS = 0.6×0.70 + 0.4×0.75 = 0.42 + 0.30 = 0.72
+        #
+        # 3. Wrong agent for task:
+        #    semantic=0.20, capability=0.30
+        #    TRAS = 0.6×0.20 + 0.4×0.30 = 0.12 + 0.12 = 0.24
+        # =====================================================================
         tras = (
             self.tras_alpha * semantic_align +
             (1 - self.tras_alpha) * capability_match

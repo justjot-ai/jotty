@@ -163,33 +163,46 @@ def _looks_like_refusal(text: str) -> bool:
 
 
 def _required_skills_for_gaia(question: str, attachment_paths: list) -> list:
-    """Return explicit skill names for GAIA task based on content analysis."""
+    """
+    Return explicit skill names for GAIA task based on content analysis.
+
+    KISS: Simple keyword matching for common GAIA task patterns.
+    DRY: Reusable skill hints based on question type.
+    """
     skills = ["web-search"]  # Always useful for GAIA
     q_lower = question.lower()
 
+    # Attachment-based skills
     for path in (attachment_paths or []):
         ext = ('.' + path.rsplit('.', 1)[-1].lower()) if '.' in path else ''
         if ext in AUDIO_EXTENSIONS:
             skills.extend(["voice", "openai-whisper-api"])
-        elif ext in {'.xlsx', '.xls'}:
+        elif ext in {'.xlsx', '.xls', '.csv'}:
             skills.append("xlsx-tools")
         elif ext == '.pdf':
             skills.append("pdf-tools")
+        elif ext in {'.jpg', '.jpeg', '.png', '.gif', '.bmp'}:
+            skills.append("image-enhancer")  # For image analysis
         else:
             skills.append("file-operations")
 
-    # Force calculator for ANY numerical/math question
+    # Calculator for numerical/math questions
     if any(kw in q_lower for kw in [
         'calculat', 'how many', 'sum', 'average', 'comput', 'count',
         'number', 'year', 'p-value', 'newton', 'round to', 'what is the',
-        'statistical', 'stock', 'price', 'when was', 'first year'
+        'statistical', 'stock', 'price', 'when was', 'first year',
+        'total', 'percentage', 'multiply', 'divide', 'subtract'
     ]):
         skills.append("calculator")
 
-    # YouTube transcript for video questions (CRITICAL for Task 5!)
-    if any(kw in q_lower for kw in ['youtube', 'video', 'vr video', '360 video']):
+    # YouTube transcript for video questions (CRITICAL for narrated content!)
+    if any(kw in q_lower for kw in ['youtube', 'video', 'vr video', '360 video',
+                                     'narrated', 'narrator', 'mentioned in the video']):
         skills.append("downloading-youtube")
-        logger.info("[Skills] Added youtube-downloader for video question")
+        logger.info("[Skills] Added youtube-downloader for video/narration question")
+
+    # Browser automation for interactive content (already in fact_retrieval curated list)
+    # Web scraper for structured data extraction (already in fact_retrieval curated list)
 
     return skills
 

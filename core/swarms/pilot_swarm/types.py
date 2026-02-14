@@ -80,6 +80,7 @@ class PilotResult(SwarmResult):
     artifacts: List[str] = field(default_factory=list)
     skills_created: List[str] = field(default_factory=list)
     delegated_to: List[str] = field(default_factory=list)
+    retry_count: int = 0
 
 
 # Available swarms for delegation

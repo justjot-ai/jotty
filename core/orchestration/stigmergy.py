@@ -212,37 +212,136 @@ class StigmergyLayer:
             List of (agent_name, score) sorted by score descending.
             Empty list if no signals exist for this task type.
         """
+        # =====================================================================
+        # STIGMERGY-BASED AGENT ROUTING EXPLAINED
+        # =====================================================================
+        # INSPIRATION: Ant colony optimization
+        #
+        # Real ants find optimal paths using pheromones:
+        # 1. Ants deposit pheromones as they walk
+        # 2. Other ants sense pheromones and prefer stronger trails
+        # 3. Pheromones decay over time (forgotten if not reinforced)
+        # 4. Successful paths get more traffic → more pheromones → positive feedback
+        # 5. Emergent behavior: optimal path discovered without central planning
+        #
+        # OUR ADAPTATION:
+        # - "Pheromones" = Signals deposited after task execution
+        # - "Ants" = Agents executing tasks
+        # - "Trails" = Agent-task pairings (e.g., "Researcher + research tasks")
+        # - "Optimal path" = Best agent for each task type
+        #
+        # PROBLEM: How do we route new tasks to the best agent WITHOUT:
+        # 1. Hardcoded rules ("Researcher always does research")
+        # 2. Expensive training (no need for millions of episodes)
+        # 3. Central coordinator (agents self-organize)
+        #
+        # SOLUTION: Stigmergic coordination
+        # - After each task: Agent deposits signal (strength based on success)
+        # - Before new task: Read signals to find best agent
+        # - Signals decay: Old experience becomes less relevant
+        # - Signals reinforce: Repeated success accumulates stronger signal
+        #
+        # EXAMPLE SCENARIO:
+        # Task history:
+        # - "Researcher" did 5 research tasks: 4 success, 1 failure
+        # - "Coder" did 2 research tasks: 1 success, 1 failure
+        # - "Writer" did 1 research task: 0 success, 1 failure
+        #
+        # Signals deposited:
+        # - Researcher: 4 route signals (strength ~0.8 each) + 1 warning (strength 0.3)
+        # - Coder: 1 route signal (strength 0.8) + 1 warning (strength 0.3)
+        # - Writer: 1 warning signal (strength 0.3)
+        #
+        # Net scores (after decay and penalties):
+        # - Researcher: 4 × 0.8 - 1 × 0.15 = 3.2 - 0.15 = 3.05
+        # - Coder: 1 × 0.8 - 1 × 0.15 = 0.8 - 0.15 = 0.65
+        # - Writer: 0 - 1 × 0.15 = -0.15 (filtered out, net <= 0)
+        #
+        # Recommendation: [('Researcher', 3.05), ('Coder', 0.65)]
+        # → Route new research task to Researcher (highest score)
+        #
+        # WHY THIS WORKS:
+        # 1. Self-organizing: No manual configuration needed
+        # 2. Adaptive: If Researcher starts failing, its score drops automatically
+        # 3. Emergent specialization: Agents naturally gravitate to tasks they're good at
+        # 4. Decentralized: No single point of failure
+        # 5. Memory-efficient: Only stores recent signals (old ones decay)
+        # =====================================================================
+
+        # STEP 1: Apply time-based decay to all signals
+        # Older signals fade away, recent performance matters more
         self._apply_decay()
 
-        scores: Dict[str, float] = defaultdict(float)
-        penalties: Dict[str, float] = defaultdict(float)
+        # STEP 2: Initialize score accumulators
+        scores: Dict[str, float] = defaultdict(float)      # Positive evidence
+        penalties: Dict[str, float] = defaultdict(float)   # Negative evidence
 
-        # Accumulate positive signals from route signals
+        # =====================================================================
+        # STEP 3: ACCUMULATE SIGNALS
+        # =====================================================================
+        # Iterate through all signals and sum up:
+        # - Route signals (success): Add to agent's score
+        # - Warning signals (failure): Add to agent's penalties
+        #
+        # Signal strength represents confidence:
+        # - Strong signal (0.8-1.0): High quality success, reinforced multiple times
+        # - Medium signal (0.5-0.8): Regular success
+        # - Weak signal (0.1-0.5): Old success (decayed) or low quality
+        #
+        # Why penalties are weighted 0.5×?
+        # We want to be forgiving - one failure shouldn't erase many successes.
+        # Net score = positive_signals - (0.5 × negative_signals)
+        # =====================================================================
         for signal in self.signals.values():
+            # Skip non-dict signals (malformed)
             if not isinstance(signal.content, dict):
                 continue
+
+            # Skip signals for different task types
             if signal.content.get('task_type') != task_type:
                 continue
 
             agent = signal.content.get('agent', '')
             if not agent:
                 continue
+
+            # Skip agents not in candidate whitelist
             if candidates and agent not in candidates:
                 continue
 
+            # Accumulate positive signals (successful executions)
             if signal.signal_type == 'route' and signal.content.get('success'):
                 scores[agent] += signal.strength
+
+            # Accumulate negative signals (failures), weighted 0.5×
             elif signal.signal_type == 'warning':
                 penalties[agent] += signal.strength * 0.5
 
-        # Net score = positive - penalties
+        # =====================================================================
+        # STEP 4: COMPUTE NET SCORES
+        # =====================================================================
+        # Net score = successes - (0.5 × failures)
+        #
+        # EXAMPLES:
+        # Agent A: 4 successes (strength 0.8 each) + 1 failure (strength 0.3)
+        # → Net = 4 × 0.8 - 0.5 × 0.3 = 3.2 - 0.15 = 3.05
+        #
+        # Agent B: 1 success (strength 0.8) + 3 failures (strength 0.3 each)
+        # → Net = 1 × 0.8 - 0.5 × 0.9 = 0.8 - 0.45 = 0.35
+        #
+        # Agent C: 0 successes + 2 failures (strength 0.3 each)
+        # → Net = 0 - 0.5 × 0.6 = -0.3 (filtered out)
+        #
+        # Only agents with net > 0 are recommended (at least some success)
+        # =====================================================================
         result = []
         all_agents = set(scores.keys()) | set(penalties.keys())
         for agent in all_agents:
             net = scores.get(agent, 0.0) - penalties.get(agent, 0.0)
-            if net > 0:
+            if net > 0:  # Filter out agents with net negative reputation
                 result.append((agent, net))
 
+        # STEP 5: Sort by score (highest first)
         result.sort(key=lambda x: x[1], reverse=True)
         return result
 
