@@ -2,12 +2,14 @@ import requests
 from typing import Dict, Any
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("weather-checker")
 
 
 
+@tool_wrapper()
 def check_weather_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Check current weather for a location using wttr.in API.
@@ -74,6 +76,7 @@ def check_weather_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
+@tool_wrapper()
 def get_weather_forecast_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Get weather forecast for a location using wttr.in API.

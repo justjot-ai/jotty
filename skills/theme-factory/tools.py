@@ -12,6 +12,7 @@ from datetime import datetime
 import os
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -191,6 +192,7 @@ except ImportError:
     logger.warning("python-docx not available, DOCX theming disabled")
 
 
+@async_tool_wrapper()
 async def apply_theme_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Apply a theme to an artifact.

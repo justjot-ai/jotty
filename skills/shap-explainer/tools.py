@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("shap-explainer")
@@ -19,6 +20,7 @@ status = SkillStatus("shap-explainer")
 logger = logging.getLogger(__name__)
 
 
+@async_tool_wrapper()
 async def shap_explain_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Generate SHAP explanations for a model.
@@ -94,6 +96,7 @@ async def shap_explain_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def shap_importance_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Get feature importance based on SHAP values.
@@ -163,6 +166,7 @@ async def shap_importance_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def shap_local_explain_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Explain individual predictions using SHAP.
@@ -250,6 +254,7 @@ async def shap_local_explain_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def shap_interaction_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Compute SHAP interaction values to understand feature interactions.

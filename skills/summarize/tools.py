@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("summarize")
@@ -366,6 +367,7 @@ Key Points (up to {max_points}):"""
 _service = SummarizationService()
 
 
+@tool_wrapper()
 def summarize_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Summarize text content using Claude CLI.
@@ -409,6 +411,7 @@ def summarize_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': f'Summarization failed: {str(e)}'}
 
 
+@tool_wrapper()
 def summarize_url_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Summarize webpage content from a URL using Claude CLI.
@@ -481,6 +484,7 @@ def summarize_url_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': f'URL summarization failed: {str(e)}'}
 
 
+@tool_wrapper()
 def summarize_file_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Summarize file content (txt, md, pdf) using Claude CLI.
@@ -557,6 +561,7 @@ def summarize_file_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': f'File summarization failed: {str(e)}'}
 
 
+@tool_wrapper()
 def extract_key_points_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Extract key points from text using Claude CLI.

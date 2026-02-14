@@ -16,6 +16,7 @@ from typing import Dict, Any
 from datetime import datetime
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("last30days-to-epub-telegram")
@@ -88,6 +89,7 @@ def _json_to_markdown(data: Dict[str, Any], topic: str) -> str:
     return "\n".join(lines)
 
 
+@async_tool_wrapper()
 async def last30days_to_epub_telegram_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Research topic using last30days, generate EPUB, and send to Telegram.

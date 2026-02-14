@@ -12,6 +12,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("latex-generator")
@@ -369,6 +370,7 @@ class LatexGenerator:
             raise
 
 
+@tool_wrapper()
 def generate_latex_document_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Generate a LaTeX document from structured content.

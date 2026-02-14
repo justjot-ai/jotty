@@ -8,6 +8,7 @@ import logging
 from typing import Dict, Any, List, Optional
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("skill-discovery")
@@ -16,6 +17,7 @@ status = SkillStatus("skill-discovery")
 logger = logging.getLogger(__name__)
 
 
+@tool_wrapper()
 def list_categories_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     List all skill categories.
@@ -55,6 +57,7 @@ def list_categories_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {"success": False, "error": str(e)}
 
 
+@tool_wrapper()
 def list_skills_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     List skills with optional filtering.
@@ -118,6 +121,7 @@ def list_skills_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {"success": False, "error": str(e)}
 
 
+@tool_wrapper()
 def get_skill_info_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Get detailed information about a specific skill.
@@ -184,6 +188,7 @@ def get_skill_info_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {"success": False, "error": str(e)}
 
 
+@tool_wrapper()
 def get_discovery_summary_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Get a summary of all skills for agent discovery.
@@ -219,6 +224,7 @@ def get_discovery_summary_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {"success": False, "error": str(e)}
 
 
+@tool_wrapper()
 def refresh_manifest_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Refresh the skills manifest (reload + discover new skills).
@@ -251,6 +257,7 @@ def refresh_manifest_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {"success": False, "error": str(e)}
 
 
+@tool_wrapper()
 def categorize_skill_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Categorize a skill (move to a category).
@@ -296,6 +303,7 @@ def categorize_skill_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {"success": False, "error": str(e)}
 
 
+@tool_wrapper()
 def find_skills_for_task_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Find relevant skills for a given task description.

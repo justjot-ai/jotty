@@ -14,6 +14,7 @@ import os
 import random
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("canvas-design")
@@ -37,6 +38,7 @@ except ImportError:
     logger.warning("reportlab not available, PDF creation will be limited")
 
 
+@async_tool_wrapper()
 async def create_design_artwork_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create visual artwork based on design philosophy.

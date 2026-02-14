@@ -10,6 +10,7 @@ import math
 from typing import Dict, Any, List, Tuple
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("gif-creator")
@@ -58,6 +59,7 @@ class GIFCreator:
             return ImageFont.load_default()
 
 
+@tool_wrapper()
 def create_gif_from_images_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create an animated GIF from a list of image files.
@@ -136,6 +138,7 @@ def create_gif_from_images_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': f'GIF creation failed: {str(e)}'}
 
 
+@tool_wrapper()
 def create_text_animation_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create an animated text GIF with various effects.
@@ -283,6 +286,7 @@ def create_text_animation_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': f'Text animation creation failed: {str(e)}'}
 
 
+@tool_wrapper()
 def create_loading_spinner_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create a loading spinner GIF animation.
@@ -424,6 +428,7 @@ def create_loading_spinner_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': f'Loading spinner creation failed: {str(e)}'}
 
 
+@tool_wrapper()
 def resize_gif_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Resize a GIF for specific platforms like Slack.
@@ -533,6 +538,7 @@ def resize_gif_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': f'GIF resize failed: {str(e)}'}
 
 
+@tool_wrapper()
 def optimize_gif_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Optimize GIF file size by reducing colors and frame rate.
@@ -641,6 +647,7 @@ def optimize_gif_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': f'GIF optimization failed: {str(e)}'}
 
 
+@tool_wrapper()
 def extract_frames_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Extract individual frames from a GIF file.

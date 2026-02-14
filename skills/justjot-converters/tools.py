@@ -11,6 +11,7 @@ from typing import Dict, Any, Optional
 from pathlib import Path
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +62,7 @@ def _ensure_justjot_path():
 # ArXiv Converter Tools
 # ============================================================================
 
+@tool_wrapper()
 def arxiv_to_markdown_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Convert an arXiv paper to formatted markdown or PDF.
@@ -137,6 +139,7 @@ def arxiv_to_markdown_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 # YouTube Converter Tools
 # ============================================================================
 
+@tool_wrapper()
 def youtube_to_markdown_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Convert a YouTube video transcript to formatted markdown or PDF.
@@ -221,6 +224,7 @@ def youtube_to_markdown_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 # HTML Converter Tools
 # ============================================================================
 
+@tool_wrapper()
 def html_to_markdown_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Convert an HTML page to clean markdown.
@@ -303,6 +307,7 @@ def html_to_markdown_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 # Kindle Email Tools
 # ============================================================================
 
+@tool_wrapper()
 def send_to_kindle_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Send a document to Kindle via email.
@@ -362,6 +367,7 @@ def send_to_kindle_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': str(e)}
 
 
+@tool_wrapper()
 def kindle_configure_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Configure Kindle email delivery settings.
@@ -424,6 +430,7 @@ def kindle_configure_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': str(e)}
 
 
+@tool_wrapper()
 def kindle_status_tool(params: Dict[str, Any] = None) -> Dict[str, Any]:
     """
     Check Kindle email configuration status.
@@ -461,6 +468,7 @@ def kindle_status_tool(params: Dict[str, Any] = None) -> Dict[str, Any]:
 # reMarkable Sync Tools
 # ============================================================================
 
+@tool_wrapper()
 def sync_to_remarkable_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Upload a document to reMarkable device via cloud.
@@ -524,6 +532,7 @@ def sync_to_remarkable_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': str(e)}
 
 
+@tool_wrapper()
 def remarkable_register_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Register device with reMarkable cloud.
@@ -573,6 +582,7 @@ def remarkable_register_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': str(e)}
 
 
+@tool_wrapper()
 def remarkable_status_tool(params: Dict[str, Any] = None) -> Dict[str, Any]:
     """
     Check reMarkable cloud registration status.

@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("feature-engineer")
@@ -19,6 +20,7 @@ status = SkillStatus("feature-engineer")
 logger = logging.getLogger(__name__)
 
 
+@async_tool_wrapper()
 async def feature_engineer_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Automatic feature engineering for tabular data.
@@ -170,6 +172,7 @@ def _engineer_general(df: pd.DataFrame, target: str = None) -> tuple:
     return df, new_features
 
 
+@async_tool_wrapper()
 async def feature_select_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Select best features using importance scores.

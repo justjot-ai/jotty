@@ -2,12 +2,14 @@ from typing import Dict, Any
 import re
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("mindmap-generator")
 
 
 
+@tool_wrapper()
 def generate_mindmap_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Generate a Mermaid mindmap diagram from text content.

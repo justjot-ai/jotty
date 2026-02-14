@@ -15,6 +15,7 @@ import json
 import logging
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -121,6 +122,7 @@ def _make_request(url: str, use_proxy: bool = True, max_retries: int = 3) -> Opt
     return None
 
 
+@tool_wrapper()
 def search_company_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Search for a company on screener.in.
@@ -223,6 +225,7 @@ def search_company_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
+@tool_wrapper()
 def get_company_financials_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Fetch financial data for a company from screener.in.
@@ -729,6 +732,7 @@ def _format_as_csv(data: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+@tool_wrapper()
 def get_company_ratios_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Fetch key financial ratios for a company.

@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("pycaret")
@@ -19,6 +20,7 @@ status = SkillStatus("pycaret")
 logger = logging.getLogger(__name__)
 
 
+@async_tool_wrapper()
 async def pycaret_classify_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     AutoML classification using PyCaret.
@@ -91,6 +93,7 @@ async def pycaret_classify_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def pycaret_regress_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     AutoML regression using PyCaret.
@@ -161,6 +164,7 @@ async def pycaret_regress_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def pycaret_tune_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Tune a model using PyCaret's hyperparameter optimization.
@@ -231,6 +235,7 @@ async def pycaret_tune_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def pycaret_ensemble_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create ensemble models using PyCaret.
@@ -301,6 +306,7 @@ async def pycaret_ensemble_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def pycaret_predict_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Generate predictions using a trained PyCaret model.

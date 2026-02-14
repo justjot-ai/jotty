@@ -13,6 +13,7 @@ from datetime import datetime
 import os
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("notion-research-documentation")
@@ -21,6 +22,7 @@ status = SkillStatus("notion-research-documentation")
 logger = logging.getLogger(__name__)
 
 
+@async_tool_wrapper()
 async def research_and_document_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Research topic in Notion and create documentation.

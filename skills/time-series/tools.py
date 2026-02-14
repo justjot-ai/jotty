@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("time-series")
@@ -19,6 +20,7 @@ status = SkillStatus("time-series")
 logger = logging.getLogger(__name__)
 
 
+@async_tool_wrapper()
 async def timeseries_decompose_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Decompose a time series into trend, seasonal, and residual components.
@@ -76,6 +78,7 @@ async def timeseries_decompose_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def timeseries_forecast_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Forecast time series using ARIMA/SARIMA.
@@ -156,6 +159,7 @@ async def timeseries_forecast_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': str(e)}
 
 
+@async_tool_wrapper()
 async def timeseries_features_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Extract features from time series data.
@@ -236,6 +240,7 @@ async def timeseries_features_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def timeseries_anomaly_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Detect anomalies in time series data.
@@ -319,6 +324,7 @@ async def timeseries_anomaly_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def timeseries_crossval_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Time series cross-validation for model evaluation.

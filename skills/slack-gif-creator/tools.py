@@ -13,6 +13,7 @@ import os
 import math
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("slack-gif-creator")
@@ -29,6 +30,7 @@ except ImportError:
     logger.warning("PIL/imageio not available, GIF creation will be limited")
 
 
+@async_tool_wrapper()
 async def create_slack_gif_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create a Slack-optimized animated GIF.

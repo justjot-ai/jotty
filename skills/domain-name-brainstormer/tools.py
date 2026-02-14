@@ -13,6 +13,7 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("domain-name-brainstormer")
@@ -21,6 +22,7 @@ status = SkillStatus("domain-name-brainstormer")
 logger = logging.getLogger(__name__)
 
 
+@async_tool_wrapper()
 async def brainstorm_domains_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Generate domain name suggestions and check availability.

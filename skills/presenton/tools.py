@@ -12,6 +12,7 @@ from typing import Dict, Any, Optional
 import os
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper, async_tool_wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +86,7 @@ class PresentonClient:
         return self._make_request('GET', f'/api/v1/ppt/presentation/{presentation_id}')
 
 
+@tool_wrapper()
 def check_presenton_status_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Check if Presenton Docker container is running and API is accessible.
@@ -154,6 +156,7 @@ def check_presenton_status_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
+@tool_wrapper()
 def start_presenton_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Start the Presenton Docker container.
@@ -320,6 +323,7 @@ def start_presenton_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': f'Failed to start container: {str(e)}'}
 
 
+@tool_wrapper()
 def stop_presenton_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Stop the Presenton Docker container.
@@ -378,6 +382,7 @@ def stop_presenton_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': f'Failed to stop container: {str(e)}'}
 
 
+@tool_wrapper()
 def generate_presentation_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Generate an AI-powered presentation using Presenton.
@@ -484,6 +489,7 @@ def generate_presentation_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@tool_wrapper()
 def list_templates_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     List available presentation templates in Presenton.
@@ -517,6 +523,7 @@ def list_templates_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def generate_presentation_from_research_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Generate a presentation from web research on a topic.
@@ -621,6 +628,7 @@ async def generate_presentation_from_research_tool(params: Dict[str, Any]) -> Di
         }
 
 
+@tool_wrapper()
 def download_presentation_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Download a generated presentation file.

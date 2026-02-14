@@ -12,6 +12,7 @@ from datetime import datetime
 import sys
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Add parent directory to path to import other skills
 
@@ -30,6 +31,7 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
+@async_tool_wrapper()
 async def generate_transformer_paper_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Generate a transformer paper using Claude CLI LLM, convert to LaTeX PDF, and send to Telegram.

@@ -4,6 +4,7 @@ Search → Summarize → PDF → Telegram (Generic Pipeline Version)
 Demonstrates generic Source → Processor → Sink pipeline pattern.
 Uses declarative pipeline configuration.
 """
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 try:
     from Jotty.core.registry.pipeline_skill import create_pipeline_skill, StepType
 except ImportError:
@@ -140,6 +141,7 @@ _pipeline_skill = create_pipeline_skill(
 )
 
 
+@async_tool_wrapper()
 async def search_summarize_pdf_telegram_v2_tool(params: dict) -> dict:
     """
     Execute pipeline workflow.

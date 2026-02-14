@@ -14,6 +14,7 @@ from datetime import datetime
 import os
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("raffle-winner-picker")
@@ -29,6 +30,7 @@ except ImportError:
     logger.warning("pandas not available, CSV reading will be limited")
 
 
+@async_tool_wrapper()
 async def pick_raffle_winner_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Pick random winner(s) from a list or file.

@@ -9,6 +9,7 @@ import requests
 from typing import Dict, Any, Optional
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("trello")
@@ -141,6 +142,7 @@ class TrelloClient:
 _client = TrelloClient()
 
 
+@tool_wrapper()
 def list_boards_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     List all boards accessible to the authenticated user.
@@ -183,6 +185,7 @@ def list_boards_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@tool_wrapper()
 def get_board_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Get board details including its lists.
@@ -274,6 +277,7 @@ def get_board_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     return response
 
 
+@tool_wrapper()
 def list_cards_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     List cards in a list or board.
@@ -331,6 +335,7 @@ def list_cards_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@tool_wrapper()
 def create_card_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create a new card in a Trello list.
@@ -409,6 +414,7 @@ def create_card_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@tool_wrapper()
 def update_card_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Update an existing card (move, rename, change description, etc.).
@@ -491,6 +497,7 @@ def update_card_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@tool_wrapper()
 def add_comment_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Add a comment to a card.

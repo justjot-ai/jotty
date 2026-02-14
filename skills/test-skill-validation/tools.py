@@ -8,6 +8,7 @@ import logging
 from typing import Dict, Any
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("test-skill-validation")
@@ -16,6 +17,7 @@ status = SkillStatus("test-skill-validation")
 logger = logging.getLogger(__name__)
 
 
+@async_tool_wrapper()
 async def tool_name_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     [Tool description]

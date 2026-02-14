@@ -2,12 +2,14 @@ from typing import Dict, Any, List
 import re
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("content-repurposer")
 
 
 
+@tool_wrapper()
 def repurpose_content_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Repurpose content for different platforms.

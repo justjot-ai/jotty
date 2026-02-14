@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 from Jotty.core.utils.skill_status import SkillStatus
-from Jotty.core.utils.tool_helpers import tool_response, tool_error
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -282,6 +282,7 @@ class LintGate:
 # TOOL 1: generate_code_tool
 # =============================================================================
 
+@tool_wrapper()
 def generate_code_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Generate code using Anthropic API tool_use for structured output.
@@ -412,6 +413,7 @@ def generate_code_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 # TOOL 2: generate_text_tool
 # =============================================================================
 
+@tool_wrapper()
 def generate_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Generate text using Anthropic API (drop-in replacement for claude-cli-llm).
@@ -479,6 +481,7 @@ class AgenticToolExecutor:
         self.execution_output: List[str] = []
         self.tool_call_history: List[Dict[str, Any]] = []
 
+    @tool_wrapper()
     def execute_tool(self, tool_name: str, tool_input: Dict[str, Any]) -> str:
         """Execute a tool call and return the result as a string."""
         result = None
@@ -922,6 +925,7 @@ class ContextBuilder:
         return "\n".join(context_parts)
 
 
+@tool_wrapper()
 def agentic_generate_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Multi-step agentic code generation with tool loop.
@@ -1079,6 +1083,7 @@ def agentic_generate_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 # TOOL 4: structured_output_tool
 # =============================================================================
 
+@tool_wrapper()
 def structured_output_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Generate structured JSON output using API tool_use with schema enforcement.

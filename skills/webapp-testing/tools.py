@@ -12,6 +12,7 @@ from datetime import datetime
 import os
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("webapp-testing")
@@ -27,6 +28,7 @@ except ImportError:
     logger.warning("playwright not available, webapp testing will be limited")
 
 
+@async_tool_wrapper()
 async def test_webapp_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Test a local web application.

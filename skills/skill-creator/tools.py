@@ -13,6 +13,7 @@ from datetime import datetime
 import os
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("skill-creator")
@@ -21,6 +22,7 @@ status = SkillStatus("skill-creator")
 logger = logging.getLogger(__name__)
 
 
+@async_tool_wrapper()
 async def create_skill_template_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create a new skill template with proper structure.
@@ -131,6 +133,7 @@ from Jotty.core.utils.skill_status import SkillStatus
 logger = logging.getLogger(__name__)
 
 
+@async_tool_wrapper()
 async def tool_name_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     [Tool description]
@@ -200,6 +203,7 @@ async def tool_name_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
+@async_tool_wrapper()
 async def validate_skill_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Validate an existing skill's structure and metadata.

@@ -15,6 +15,7 @@ from typing import Dict, Any
 from pathlib import Path
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("media-production-pipeline")
@@ -23,6 +24,7 @@ status = SkillStatus("media-production-pipeline")
 logger = logging.getLogger(__name__)
 
 
+@async_tool_wrapper()
 async def media_production_pipeline_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Complete media production workflow: enhance → design → GIF.

@@ -6,6 +6,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("obsidian")
@@ -71,6 +72,7 @@ def _extract_links(content: str) -> List[str]:
     return wiki_links
 
 
+@tool_wrapper()
 def list_notes_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     List notes in an Obsidian vault.
@@ -145,6 +147,7 @@ def list_notes_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
+@tool_wrapper()
 def read_note_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Read the content of an Obsidian note.
@@ -235,6 +238,7 @@ def read_note_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
+@tool_wrapper()
 def create_note_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create a new note in the Obsidian vault.
@@ -336,6 +340,7 @@ def create_note_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
+@tool_wrapper()
 def update_note_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Update an existing note in the Obsidian vault.
@@ -429,6 +434,7 @@ def update_note_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
+@tool_wrapper()
 def search_notes_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Search notes in the vault by content.
@@ -536,6 +542,7 @@ def search_notes_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
+@tool_wrapper()
 def get_backlinks_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Find notes that link to a specific note (backlinks).

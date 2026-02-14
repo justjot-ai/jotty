@@ -18,6 +18,7 @@ from typing import Dict, Any
 from datetime import datetime
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("search-summarize-pdf-telegram")
@@ -50,6 +51,7 @@ def _format_search_results_for_summary(results: list, topic: str) -> str:
     return "\n".join(lines)
 
 
+@async_tool_wrapper()
 async def search_summarize_pdf_telegram_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Search topic, summarize with Claude CLI LLM, generate PDF, and send to Telegram.

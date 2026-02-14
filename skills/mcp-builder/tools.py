@@ -11,6 +11,7 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 import os
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("mcp-builder")
@@ -19,6 +20,7 @@ status = SkillStatus("mcp-builder")
 logger = logging.getLogger(__name__)
 
 
+@async_tool_wrapper()
 async def create_mcp_server_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create a new MCP server project.
@@ -295,6 +297,7 @@ npm start
     return files_created
 
 
+@async_tool_wrapper()
 async def validate_mcp_server_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Validate an MCP server structure.

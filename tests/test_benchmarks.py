@@ -158,7 +158,8 @@ class TestEndToEndTierExecution:
 
         assert result.success is True
         assert result.tier == ExecutionTier.RESEARCH
-        assert result.output == {'result': 'Swarm output here'}
+        # _extract_output_text extracts the 'result' field from dict output
+        assert result.output == 'Swarm output here'
         mock_swarm.execute.assert_called_once()
 
     @pytest.mark.asyncio
@@ -1211,7 +1212,9 @@ class TestEdgeCases:
             )
 
         assert result.success is False
-        assert result.output == {'error': 'Swarm failed internally'}
+        # _extract_output_text doesn't extract 'error' field (not in allowed list)
+        # so it returns str(dict)
+        assert result.output == "{'error': 'Swarm failed internally'}"
 
     @pytest.mark.asyncio
     async def test_config_override_tier(self, v3_executor):

@@ -20,6 +20,7 @@ import io
 import base64
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("financial-visualization")
@@ -104,6 +105,7 @@ CHART_STYLE = {
 }
 
 
+@async_tool_wrapper()
 async def extract_financial_data_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Extract structured financial data from research content using AI and pattern matching.
@@ -317,6 +319,7 @@ If data is not available, use null. Return ONLY the JSON, no other text."""
     }
 
 
+@async_tool_wrapper()
 async def generate_intelligent_charts_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Intelligently generate financial charts with AI-powered selection, analysis, and insights.
@@ -463,6 +466,7 @@ async def generate_intelligent_charts_tool(params: Dict[str, Any]) -> Dict[str, 
     }
 
 
+@async_tool_wrapper()
 async def generate_financial_charts_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Generate financial charts from extracted data.
@@ -926,6 +930,7 @@ async def _generate_chart(
     return chart_path, description
 
 
+@async_tool_wrapper()
 async def generate_financial_tables_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Generate formatted financial tables from extracted data.

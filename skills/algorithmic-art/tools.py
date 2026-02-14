@@ -6,6 +6,7 @@ from typing import Dict, Any, List, Tuple, Optional
 import logging
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("algorithmic-art")
@@ -116,6 +117,7 @@ class NoiseGenerator:
         return value / max_value
 
 
+@tool_wrapper()
 def create_noise_art_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create Perlin/Simplex noise-based generative art.
@@ -195,6 +197,7 @@ def create_noise_art_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
+@tool_wrapper()
 def create_flow_field_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create flow field visualization art.
@@ -299,6 +302,7 @@ def create_flow_field_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
+@tool_wrapper()
 def create_geometric_pattern_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create geometric pattern art.
@@ -438,6 +442,7 @@ def create_geometric_pattern_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
+@tool_wrapper()
 def create_fractal_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create fractal images (Mandelbrot, Julia sets).
@@ -571,6 +576,7 @@ def create_fractal_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
+@tool_wrapper()
 def create_generative_landscape_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create generative landscape art.
@@ -724,6 +730,7 @@ def create_generative_landscape_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
+@tool_wrapper()
 def apply_artistic_filter_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Apply artistic effects to an existing image.
@@ -880,6 +887,7 @@ def apply_artistic_filter_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
+@tool_wrapper()
 def list_color_palettes_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     List all available color palettes for generative art.

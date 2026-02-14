@@ -2,12 +2,14 @@ from typing import Dict, Any, List, Optional
 import re
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("text-chunker")
 
 
 
+@tool_wrapper()
 def chunk_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Split text into semantic chunks for RAG systems.

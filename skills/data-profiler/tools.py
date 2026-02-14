@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("data-profiler")
@@ -19,6 +20,7 @@ status = SkillStatus("data-profiler")
 logger = logging.getLogger(__name__)
 
 
+@async_tool_wrapper()
 async def profile_data_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Generate comprehensive data profile.
@@ -140,6 +142,7 @@ async def profile_data_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def detect_outliers_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Detect outliers in numeric columns.
@@ -214,6 +217,7 @@ async def detect_outliers_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def analyze_correlations_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Analyze correlations between features and optionally with target.

@@ -13,6 +13,7 @@ from datetime import datetime
 import os
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("notion-meeting-intelligence")
@@ -21,6 +22,7 @@ status = SkillStatus("notion-meeting-intelligence")
 logger = logging.getLogger(__name__)
 
 
+@async_tool_wrapper()
 async def prepare_meeting_materials_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Prepare meeting materials from Notion context.

@@ -10,6 +10,7 @@ import re
 from typing import Dict, Any, List, Optional, Tuple
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,7 @@ COLORS = {
 }
 
 
+@tool_wrapper()
 def read_docx_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Read text content from a Word document.
@@ -96,6 +98,7 @@ def read_docx_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': f'Failed to read document: {str(e)}'}
 
 
+@tool_wrapper()
 def create_docx_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create a new Word document with proper markdown formatting.
@@ -285,6 +288,7 @@ def _add_formatted_text(paragraph, text: str):
         paragraph.add_run(text[last_end:])
 
 
+@tool_wrapper()
 def create_professional_checklist_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create a beautifully formatted professional checklist document.
@@ -715,6 +719,7 @@ def _set_cell_bg_color(cell, color: Tuple[int, int, int]):
     cell._tc.get_or_add_tcPr().append(shading)
 
 
+@tool_wrapper()
 def add_paragraph_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Add a paragraph to an existing Word document.
@@ -782,6 +787,7 @@ def add_paragraph_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': f'Failed to add paragraph: {str(e)}'}
 
 
+@tool_wrapper()
 def add_table_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Add a table to an existing Word document.
@@ -871,6 +877,7 @@ def add_table_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': f'Failed to add table: {str(e)}'}
 
 
+@tool_wrapper()
 def add_image_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Add an image to an existing Word document.
@@ -935,6 +942,7 @@ def add_image_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': f'Failed to add image: {str(e)}'}
 
 
+@tool_wrapper()
 def replace_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Find and replace text in a Word document.
@@ -1017,6 +1025,7 @@ def replace_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': f'Failed to replace text: {str(e)}'}
 
 
+@tool_wrapper()
 def get_styles_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     List available styles in a Word document.

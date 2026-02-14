@@ -13,6 +13,7 @@ from sklearn.model_selection import cross_val_predict, KFold, StratifiedKFold
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score, mean_squared_error, r2_score
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("ensemble-builder")
@@ -21,6 +22,7 @@ status = SkillStatus("ensemble-builder")
 logger = logging.getLogger(__name__)
 
 
+@async_tool_wrapper()
 async def ensemble_stack_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create a stacking ensemble with meta-learner.
@@ -121,6 +123,7 @@ async def ensemble_stack_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def ensemble_blend_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create a blending ensemble with holdout validation.
@@ -223,6 +226,7 @@ async def ensemble_blend_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def ensemble_vote_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create a voting ensemble.
@@ -310,6 +314,7 @@ async def ensemble_vote_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def ensemble_weighted_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create a weighted average ensemble with automatic weight optimization.
@@ -390,6 +395,7 @@ async def ensemble_weighted_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def ensemble_diversity_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Analyze diversity of ensemble models.

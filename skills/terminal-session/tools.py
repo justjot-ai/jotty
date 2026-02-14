@@ -14,6 +14,7 @@ import logging
 from typing import Dict, Any, Optional
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -167,6 +168,7 @@ class TerminalSessionManager:
             }
 
 
+@tool_wrapper()
 def terminal_create_session_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create a new persistent terminal session.
@@ -203,6 +205,7 @@ def terminal_create_session_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': str(e)}
 
 
+@tool_wrapper()
 def terminal_execute_command_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Execute a command in an existing terminal session.
@@ -244,6 +247,7 @@ def terminal_execute_command_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': str(e)}
 
 
+@tool_wrapper()
 def terminal_ssh_connect_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Connect to SSH server and create a session.
@@ -339,6 +343,7 @@ def terminal_ssh_connect_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': str(e)}
 
 
+@tool_wrapper()
 def terminal_expect_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Wait for a pattern in session output.
@@ -393,6 +398,7 @@ def terminal_expect_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': str(e)}
 
 
+@tool_wrapper()
 def terminal_send_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Send input to session without waiting for output.
@@ -440,6 +446,7 @@ def terminal_send_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': str(e)}
 
 
+@tool_wrapper()
 def terminal_close_session_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Close a terminal session.
@@ -472,6 +479,7 @@ def terminal_close_session_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': str(e)}
 
 
+@tool_wrapper()
 def terminal_list_sessions_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     List all active terminal sessions.
@@ -661,6 +669,7 @@ class AutoTerminalSession:
         return {"status": "success", "message": "Auto terminal closed"}
 
 
+@tool_wrapper()
 def terminal_auto_command_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Send a command to an auto-managed terminal session.
@@ -688,6 +697,7 @@ def terminal_auto_command_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
+@tool_wrapper()
 def terminal_get_state_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Get current state of the auto-managed terminal.
@@ -705,6 +715,7 @@ def terminal_get_state_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
+@tool_wrapper()
 def terminal_get_incremental_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Get incremental output from auto-managed terminal (new output since last read).

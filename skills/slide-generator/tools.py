@@ -9,6 +9,7 @@ from typing import Dict, Any, List
 from datetime import datetime
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("slide-generator")
@@ -17,6 +18,7 @@ status = SkillStatus("slide-generator")
 logger = logging.getLogger(__name__)
 
 
+@tool_wrapper()
 def generate_slides_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Generate PDF slides directly using reportlab (slide-style pages).
@@ -205,6 +207,7 @@ def generate_slides_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': f'PDF generation failed: {str(e)}'}
 
 
+@tool_wrapper()
 def generate_slides_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Generate PowerPoint slides from structured content.
@@ -483,6 +486,7 @@ def generate_slides_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
+@async_tool_wrapper()
 async def generate_slides_from_topic_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Generate PowerPoint slides from a topic using AI.

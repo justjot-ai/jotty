@@ -8,6 +8,7 @@ No agent/LLM dependencies.
 import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -475,6 +476,7 @@ def get_latest_indicators(df: 'pd.DataFrame') -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
+@tool_wrapper()
 def technical_analysis_tool(params: dict) -> dict:
     """Run multi-timeframe technical analysis on a stock.
 

@@ -21,6 +21,7 @@ from pathlib import Path
 import pandas as pd
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("lida-to-justjot")
@@ -524,6 +525,7 @@ def _get_skill() -> LidaToJustJotSkill:
     return _skill_instance
 
 
+@async_tool_wrapper()
 async def visualize_to_idea_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Generate LIDA visualization and create JustJot idea.
@@ -579,6 +581,7 @@ async def visualize_to_idea_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     )
 
 
+@async_tool_wrapper()
 async def create_dashboard_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create multi-chart dashboard idea.
@@ -622,6 +625,7 @@ async def create_dashboard_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     )
 
 
+@async_tool_wrapper()
 async def create_custom_idea_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create idea with custom sections using any section type.
@@ -668,6 +672,7 @@ async def create_custom_idea_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     )
 
 
+@tool_wrapper()
 def get_section_types_tool(params: Dict[str, Any] = None) -> Dict[str, Any]:
     """
     Get all available JustJot section types.
@@ -696,6 +701,7 @@ def get_section_types_tool(params: Dict[str, Any] = None) -> Dict[str, Any]:
     }
 
 
+@tool_wrapper()
 def get_section_context_tool(params: Dict[str, Any] = None) -> Dict[str, Any]:
     """
     Get LLM context for section type selection.

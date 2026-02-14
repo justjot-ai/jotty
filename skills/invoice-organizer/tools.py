@@ -16,6 +16,7 @@ import os
 import shutil
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("invoice-organizer")
@@ -24,6 +25,7 @@ status = SkillStatus("invoice-organizer")
 logger = logging.getLogger(__name__)
 
 
+@async_tool_wrapper()
 async def organize_invoices_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Organize invoices and receipts automatically.

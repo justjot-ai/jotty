@@ -12,6 +12,7 @@ import logging
 from typing import Dict, Any, List, Optional
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("search-to-justjot-idea")
@@ -20,6 +21,7 @@ status = SkillStatus("search-to-justjot-idea")
 logger = logging.getLogger(__name__)
 
 
+@async_tool_wrapper()
 async def search_and_create_idea_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Search for information on a topic and create a JustJot idea.

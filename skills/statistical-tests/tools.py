@@ -12,6 +12,7 @@ import pandas as pd
 from scipy import stats
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("statistical-tests")
@@ -20,6 +21,7 @@ status = SkillStatus("statistical-tests")
 logger = logging.getLogger(__name__)
 
 
+@async_tool_wrapper()
 async def ttest_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Perform t-test for mean comparison.
@@ -99,6 +101,7 @@ async def ttest_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def anova_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Perform ANOVA (Analysis of Variance).
@@ -198,6 +201,7 @@ async def anova_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def chisquare_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Perform Chi-square test for independence or goodness of fit.
@@ -269,6 +273,7 @@ async def chisquare_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def normality_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Test for normality using multiple tests.
@@ -352,6 +357,7 @@ async def normality_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def correlation_test_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Test correlation significance between variables.
@@ -438,6 +444,7 @@ async def correlation_test_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def mannwhitney_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Mann-Whitney U test (non-parametric alternative to t-test).

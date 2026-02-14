@@ -14,6 +14,7 @@ from datetime import datetime
 import os
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("lead-research-assistant")
@@ -22,6 +23,7 @@ status = SkillStatus("lead-research-assistant")
 logger = logging.getLogger(__name__)
 
 
+@async_tool_wrapper()
 async def research_leads_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Research and identify potential leads for your product/service.

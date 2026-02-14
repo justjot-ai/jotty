@@ -8,6 +8,7 @@ import logging
 from typing import Dict, Any
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -231,6 +232,7 @@ def _get_client() -> WhisperAPIClient:
     return _client
 
 
+@tool_wrapper()
 def transcribe_audio_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Transcribe audio file to text using OpenAI Whisper API.
@@ -269,6 +271,7 @@ def transcribe_audio_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
+@tool_wrapper()
 def translate_audio_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Translate audio to English using OpenAI Whisper API.

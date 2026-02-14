@@ -12,6 +12,7 @@ from datetime import datetime
 import os
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("image-enhancer")
@@ -28,6 +29,7 @@ except ImportError:
     logger.warning("PIL/Pillow not available, image enhancement will be limited")
 
 
+@async_tool_wrapper()
 async def enhance_image_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Enhance image quality.

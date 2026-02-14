@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 import pytz
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
+@tool_wrapper()
 def time_converter_tool(params: dict) -> dict:
     """Convert time between timezones and formats"""
     try:
@@ -43,6 +45,7 @@ def time_converter_tool(params: dict) -> dict:
     except Exception as e:
         return {'success': False, 'error': str(e)}
 
+@tool_wrapper()
 def get_current_time_tool(params: dict) -> dict:
     """Get current time in specified timezone"""
     try:
@@ -66,6 +69,7 @@ def get_current_time_tool(params: dict) -> dict:
     except Exception as e:
         return {'success': False, 'error': str(e)}
 
+@tool_wrapper()
 def list_timezones_tool(params: dict) -> dict:
     """List available timezones"""
     try:

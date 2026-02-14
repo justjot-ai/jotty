@@ -14,6 +14,7 @@ from typing import Dict, Any
 from datetime import datetime
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("reddit-trending-to-justjot")
@@ -56,6 +57,7 @@ def _format_reddit_results_as_markdown(results: list, topic: str) -> str:
     return "\n".join(lines)
 
 
+@async_tool_wrapper()
 async def reddit_trending_to_justjot_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Search Reddit for trending topics, format as markdown, and create JustJot idea.

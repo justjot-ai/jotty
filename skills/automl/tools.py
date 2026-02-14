@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("automl")
@@ -22,6 +23,7 @@ status = SkillStatus("automl")
 logger = logging.getLogger(__name__)
 
 
+@async_tool_wrapper()
 async def automl_classify_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Automatic classifier selection and training.
@@ -152,6 +154,7 @@ async def automl_classify_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def automl_ensemble_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create ensemble from trained models.
@@ -235,6 +238,7 @@ async def automl_ensemble_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def automl_evaluate_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Evaluate model on test data.

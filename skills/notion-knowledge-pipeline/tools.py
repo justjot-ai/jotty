@@ -14,6 +14,7 @@ import inspect
 from typing import Dict, Any
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("notion-knowledge-pipeline")
@@ -22,6 +23,7 @@ status = SkillStatus("notion-knowledge-pipeline")
 logger = logging.getLogger(__name__)
 
 
+@async_tool_wrapper()
 async def notion_knowledge_pipeline_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Complete Notion knowledge management workflow: capture → research → implement.

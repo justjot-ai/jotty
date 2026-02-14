@@ -18,6 +18,7 @@ import logging
 from typing import Dict, Any, List
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("multi-source-aggregator")
@@ -26,6 +27,7 @@ status = SkillStatus("multi-source-aggregator")
 logger = logging.getLogger(__name__)
 
 
+@async_tool_wrapper()
 async def aggregate_sources_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Aggregate data from multiple sources.

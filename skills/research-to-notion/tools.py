@@ -15,6 +15,7 @@ from typing import Dict, Any
 from datetime import datetime
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("research-to-notion")
@@ -23,6 +24,7 @@ status = SkillStatus("research-to-notion")
 logger = logging.getLogger(__name__)
 
 
+@async_tool_wrapper()
 async def research_to_notion_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Complete research workflow: research → write content → document in Notion.

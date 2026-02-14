@@ -3,12 +3,14 @@ import os
 from typing import Dict, Any, List
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("process-manager")
 
 
 
+@tool_wrapper()
 def list_processes_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     List running processes on the system.
@@ -76,6 +78,7 @@ def list_processes_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
+@tool_wrapper()
 def get_process_info_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Get detailed information about a specific process.
@@ -153,6 +156,7 @@ def get_process_info_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
+@tool_wrapper()
 def kill_process_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Terminate a process.

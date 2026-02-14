@@ -13,6 +13,7 @@ import os
 import json
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,7 @@ except ImportError:
         logger.warning("Neither yt-dlp nor youtube-dl available")
 
 
+@async_tool_wrapper()
 async def download_video_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Download video from URL.

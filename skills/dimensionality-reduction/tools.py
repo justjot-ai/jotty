@@ -13,6 +13,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("dimensionality-reduction")
@@ -21,6 +22,7 @@ status = SkillStatus("dimensionality-reduction")
 logger = logging.getLogger(__name__)
 
 
+@async_tool_wrapper()
 async def pca_reduce_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Principal Component Analysis for dimensionality reduction.
@@ -86,6 +88,7 @@ async def pca_reduce_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def tsne_reduce_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     t-SNE for visualization (2D/3D embedding).
@@ -149,6 +152,7 @@ async def tsne_reduce_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def umap_reduce_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     UMAP for dimensionality reduction and visualization.
@@ -214,6 +218,7 @@ async def umap_reduce_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def variance_analysis_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Analyze feature variance and determine optimal components.
@@ -272,6 +277,7 @@ async def variance_analysis_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def svd_reduce_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Truncated SVD for dimensionality reduction (works with sparse data).

@@ -127,6 +127,7 @@ def _save_image_from_b64(b64_data: str, output_dir: str, prefix: str = "generate
     return file_path
 
 
+@tool_wrapper()
 def generate_image_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Generate an image from a text prompt using DALL-E 3.
@@ -217,6 +218,7 @@ def generate_image_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {"success": False, "error": f"Image generation failed: {str(e)}"}
 
 
+@tool_wrapper()
 def edit_image_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Edit an existing image with a text prompt using DALL-E 2.
@@ -315,6 +317,7 @@ def edit_image_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {"success": False, "error": f"Image edit failed: {str(e)}"}
 
 
+@tool_wrapper()
 def create_variation_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create variations of an existing image using DALL-E 2.

@@ -8,6 +8,7 @@ import logging
 from typing import Dict, Any, List, Optional, Union
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("xlsx-tools")
@@ -48,6 +49,7 @@ class ExcelToolkit:
         return None
 
 
+@tool_wrapper()
 def read_excel_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Read Excel file to dictionary or dataframe representation.
@@ -120,6 +122,7 @@ def read_excel_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': f'Error reading Excel file: {str(e)}'}
 
 
+@tool_wrapper()
 def write_excel_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Write data to Excel file.
@@ -201,6 +204,7 @@ def write_excel_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': f'Error writing Excel file: {str(e)}'}
 
 
+@tool_wrapper()
 def get_sheets_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     List all sheets in an Excel workbook.
@@ -247,6 +251,7 @@ def get_sheets_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': f'Error getting sheets: {str(e)}'}
 
 
+@tool_wrapper()
 def add_sheet_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Add a new sheet to an existing Excel workbook.
@@ -332,6 +337,7 @@ def add_sheet_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': f'Error adding sheet: {str(e)}'}
 
 
+@tool_wrapper()
 def update_cells_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Update specific cells in an Excel workbook.
@@ -401,6 +407,7 @@ def update_cells_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': f'Error updating cells: {str(e)}'}
 
 
+@tool_wrapper()
 def add_formula_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Add a formula to a cell in an Excel workbook.
@@ -478,6 +485,7 @@ def add_formula_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': f'Error adding formula: {str(e)}'}
 
 
+@tool_wrapper()
 def create_chart_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create a chart in an Excel workbook.

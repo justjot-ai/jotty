@@ -6,12 +6,14 @@ import platform
 import requests
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("remarkable-upload")
 
 
 
+@tool_wrapper()
 def upload_to_remarkable_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Upload PDF to reMarkable cloud.
@@ -97,6 +99,7 @@ def upload_to_remarkable_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
+@tool_wrapper()
 def register_remarkable_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Register device with reMarkable cloud.
@@ -170,6 +173,7 @@ def register_remarkable_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
+@tool_wrapper()
 def check_remarkable_status_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Check reMarkable connection status.

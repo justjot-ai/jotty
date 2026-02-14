@@ -9,6 +9,7 @@ import requests
 from typing import Dict, Any, Optional, List
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("notion")
@@ -116,6 +117,7 @@ class NotionClient:
 _client = NotionClient()
 
 
+@tool_wrapper()
 def search_pages_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Search for pages and databases in Notion.
@@ -176,6 +178,7 @@ def search_pages_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@tool_wrapper()
 def get_page_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Get a page's properties and optionally its content blocks.
@@ -234,6 +237,7 @@ def get_page_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     return response
 
 
+@tool_wrapper()
 def create_page_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create a new page in Notion.
@@ -323,6 +327,7 @@ def create_page_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@tool_wrapper()
 def update_page_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Update a page's properties in Notion.
@@ -384,6 +389,7 @@ def update_page_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@tool_wrapper()
 def query_database_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Query a Notion database with filters and sorts.
@@ -455,6 +461,7 @@ def query_database_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@tool_wrapper()
 def create_database_item_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Add a new item (page) to a Notion database.

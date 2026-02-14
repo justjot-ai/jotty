@@ -9,6 +9,7 @@ import logging
 from typing import Any, Dict, List, Optional, Union
 import numpy as np
 import pandas as pd
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 from sklearn.metrics import (
     accuracy_score, precision_score, recall_score, f1_score,
     roc_auc_score, average_precision_score, log_loss,
@@ -27,6 +28,7 @@ status = SkillStatus("model-metrics")
 logger = logging.getLogger(__name__)
 
 
+@async_tool_wrapper()
 async def metrics_classify_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Calculate comprehensive classification metrics.
@@ -111,6 +113,7 @@ async def metrics_classify_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def metrics_regress_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Calculate comprehensive regression metrics.
@@ -171,6 +174,7 @@ async def metrics_regress_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def metrics_crossval_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Perform cross-validation and return metrics.
@@ -253,6 +257,7 @@ async def metrics_crossval_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def metrics_calibration_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Analyze and improve probability calibration.
@@ -323,6 +328,7 @@ async def metrics_calibration_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def metrics_threshold_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Find optimal classification threshold.

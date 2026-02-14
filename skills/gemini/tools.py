@@ -11,6 +11,7 @@ import logging
 from typing import Dict, Any, List, Optional
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -209,6 +210,7 @@ def _read_image_as_base64(image_path: str) -> str:
         return base64.b64encode(f.read()).decode('utf-8')
 
 
+@tool_wrapper()
 def generate_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Generate text using Google Gemini API.
@@ -291,6 +293,7 @@ def generate_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
+@tool_wrapper()
 def generate_with_image_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Generate text from an image and prompt using Gemini vision capabilities.
@@ -387,6 +390,7 @@ def generate_with_image_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
+@tool_wrapper()
 def chat_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Multi-turn chat conversation using Google Gemini API.
@@ -484,6 +488,7 @@ def chat_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
+@tool_wrapper()
 def list_models_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     List available Gemini models and their capabilities.

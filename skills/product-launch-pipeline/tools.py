@@ -15,6 +15,7 @@ import inspect
 from typing import Dict, Any
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("product-launch-pipeline")
@@ -23,6 +24,7 @@ status = SkillStatus("product-launch-pipeline")
 logger = logging.getLogger(__name__)
 
 
+@async_tool_wrapper()
 async def product_launch_pipeline_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Complete product launch workflow: domain → leads → competitors → content.

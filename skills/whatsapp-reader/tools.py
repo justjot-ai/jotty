@@ -10,6 +10,7 @@ Requires WhatsApp Web session initialized in same process (/whatsapp login).
 import asyncio
 import logging
 from typing import Dict, Any, List, Optional
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper, async_tool_wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +25,7 @@ def _get_client():
         return None
 
 
+@async_tool_wrapper()
 async def read_whatsapp_chat_messages_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Read messages from a WhatsApp chat or group.
@@ -99,11 +101,13 @@ def _run_async(coro):
     return coro
 
 
+@tool_wrapper()
 def read_whatsapp_chat_messages_tool_sync(params: Dict[str, Any]) -> Dict[str, Any]:
     """Synchronous wrapper for read_whatsapp_chat_messages_tool."""
     return _run_async(read_whatsapp_chat_messages_tool(params))
 
 
+@async_tool_wrapper()
 async def summarize_whatsapp_chat_learnings_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Read messages from a WhatsApp chat and summarize key learnings.
@@ -202,6 +206,7 @@ async def summarize_whatsapp_chat_learnings_tool(params: Dict[str, Any]) -> Dict
     }
 
 
+@tool_wrapper()
 def summarize_whatsapp_chat_learnings_tool_sync(params: Dict[str, Any]) -> Dict[str, Any]:
     """Synchronous wrapper for summarize_whatsapp_chat_learnings_tool."""
     return _run_async(summarize_whatsapp_chat_learnings_tool(params))

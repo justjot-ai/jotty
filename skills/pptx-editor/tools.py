@@ -91,6 +91,7 @@ class PPTXEditor:
         return content
 
 
+@tool_wrapper()
 def read_pptx_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Read presentation content from a PPTX file.
@@ -138,6 +139,7 @@ def read_pptx_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': f'Failed to read presentation: {str(e)}'}
 
 
+@tool_wrapper()
 def get_slide_layouts_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Get available slide layouts from a PPTX file.
@@ -182,6 +184,7 @@ def get_slide_layouts_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': f'Failed to get layouts: {str(e)}'}
 
 
+@tool_wrapper()
 def add_slide_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Add a new slide to a presentation.
@@ -294,6 +297,7 @@ def add_slide_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': f'Failed to add slide: {str(e)}'}
 
 
+@tool_wrapper()
 def update_slide_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Update content of an existing slide.
@@ -379,6 +383,7 @@ def update_slide_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': f'Failed to update slide: {str(e)}'}
 
 
+@tool_wrapper()
 def delete_slide_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Delete a slide from a presentation.
@@ -434,6 +439,7 @@ def delete_slide_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': f'Failed to delete slide: {str(e)}'}
 
 
+@tool_wrapper()
 def reorder_slides_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Reorder slides in a presentation.
@@ -502,6 +508,7 @@ def reorder_slides_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': f'Failed to reorder slides: {str(e)}'}
 
 
+@tool_wrapper()
 def add_image_to_slide_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Add an image to a slide.
@@ -583,6 +590,7 @@ def add_image_to_slide_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': f'Failed to add image: {str(e)}'}
 
 
+@tool_wrapper()
 def extract_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Extract all text from a presentation.

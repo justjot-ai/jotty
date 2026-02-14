@@ -12,6 +12,7 @@ from typing import Dict, Any, Optional
 import requests
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -107,6 +108,7 @@ def _call_justjot_api(
 # Ideas Management Tools
 # ============================================
 
+@async_tool_wrapper()
 async def list_ideas_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     List all ideas.
@@ -141,6 +143,7 @@ async def list_ideas_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return result
 
 
+@async_tool_wrapper()
 async def create_idea_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create a new idea.
@@ -200,6 +203,7 @@ async def create_idea_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return result
 
 
+@async_tool_wrapper()
 async def get_idea_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Get idea by ID.
@@ -234,6 +238,7 @@ async def get_idea_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return result
 
 
+@async_tool_wrapper()
 async def update_idea_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Update an existing idea.
@@ -283,6 +288,7 @@ async def update_idea_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return result
 
 
+@async_tool_wrapper()
 async def delete_idea_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Delete an idea.
@@ -320,6 +326,7 @@ async def delete_idea_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 # Templates Management Tools
 # ============================================
 
+@async_tool_wrapper()
 async def list_templates_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """List all templates."""
     status.set_callback(params.pop('_status_callback', None))
@@ -337,6 +344,7 @@ async def list_templates_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return result
 
 
+@async_tool_wrapper()
 async def get_template_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """Get template by ID or name."""
     status.set_callback(params.pop('_status_callback', None))
@@ -363,6 +371,7 @@ async def get_template_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 # Sections Management Tools
 # ============================================
 
+@async_tool_wrapper()
 async def add_section_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Add section to idea.
@@ -400,6 +409,7 @@ async def add_section_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return result
 
 
+@async_tool_wrapper()
 async def update_section_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """Update section in idea."""
     status.set_callback(params.pop('_status_callback', None))
@@ -437,6 +447,7 @@ async def update_section_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 # Tags Management Tools
 # ============================================
 
+@async_tool_wrapper()
 async def list_tags_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """List all tags."""
     status.set_callback(params.pop('_status_callback', None))
@@ -458,6 +469,7 @@ async def list_tags_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 # Ideas by Tag (merged from justjot-mcp-http)
 # ============================================
 
+@async_tool_wrapper()
 async def get_ideas_by_tag_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Get ideas filtered by tag.

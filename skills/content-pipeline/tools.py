@@ -11,6 +11,7 @@ from typing import Dict, Any, List, Optional
 from pathlib import Path
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -515,6 +516,7 @@ def _create_sinks(sink_configs: List[Dict[str, Any]]) -> List:
     return sinks
 
 
+@tool_wrapper()
 def run_pipeline_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Run a complete content pipeline: Source -> Processors -> Sinks.
@@ -584,6 +586,7 @@ def run_pipeline_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': str(e)}
 
 
+@tool_wrapper()
 def run_source_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Run only the source stage to generate a Document.
@@ -631,6 +634,7 @@ def run_source_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': str(e)}
 
 
+@tool_wrapper()
 def process_document_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Process an existing document through processors.
@@ -682,6 +686,7 @@ def process_document_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': str(e)}
 
 
+@tool_wrapper()
 def sink_document_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Write a document to one or more sinks.

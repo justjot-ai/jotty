@@ -14,6 +14,7 @@ from typing import Dict, Any, List
 from datetime import datetime
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("trending-topics-to-ideas")
@@ -276,6 +277,7 @@ Format the synthesis with clear sections and bullet points where appropriate."""
         }
 
 
+@async_tool_wrapper()
 async def trending_topics_to_ideas_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Get trending topics, process each: gather details → synthesize → create ideas.

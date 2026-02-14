@@ -15,6 +15,7 @@ from sklearn.mixture import GaussianMixture
 from sklearn.metrics import silhouette_score, calinski_harabasz_score, davies_bouldin_score
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("clustering")
@@ -23,6 +24,7 @@ status = SkillStatus("clustering")
 logger = logging.getLogger(__name__)
 
 
+@async_tool_wrapper()
 async def cluster_kmeans_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     K-Means clustering with automatic k selection.
@@ -116,6 +118,7 @@ async def cluster_kmeans_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def cluster_dbscan_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     DBSCAN clustering (density-based).
@@ -198,6 +201,7 @@ async def cluster_dbscan_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def cluster_hierarchical_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Hierarchical/Agglomerative clustering.
@@ -269,6 +273,7 @@ async def cluster_hierarchical_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def cluster_gmm_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Gaussian Mixture Model clustering.
@@ -347,6 +352,7 @@ async def cluster_gmm_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def cluster_evaluate_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Evaluate clustering quality with multiple metrics.

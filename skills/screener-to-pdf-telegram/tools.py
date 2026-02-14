@@ -16,6 +16,7 @@ from datetime import datetime
 import json
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("screener-to-pdf-telegram")
@@ -24,6 +25,7 @@ status = SkillStatus("screener-to-pdf-telegram")
 logger = logging.getLogger(__name__)
 
 
+@async_tool_wrapper()
 async def screener_analyze_pdf_telegram_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Complete workflow: Screener.in → Analysis → PDF → Telegram

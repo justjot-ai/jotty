@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("hyperopt")
@@ -19,6 +20,7 @@ status = SkillStatus("hyperopt")
 logger = logging.getLogger(__name__)
 
 
+@async_tool_wrapper()
 async def hyperopt_optimize_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Optimize hyperparameters for a model using Optuna.
@@ -201,6 +203,7 @@ async def hyperopt_optimize_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def hyperopt_multi_model_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Optimize multiple model types and return the best.

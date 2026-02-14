@@ -15,6 +15,7 @@ from typing import Dict, Any
 from pathlib import Path
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("meeting-intelligence-pipeline")
@@ -23,6 +24,7 @@ status = SkillStatus("meeting-intelligence-pipeline")
 logger = logging.getLogger(__name__)
 
 
+@async_tool_wrapper()
 async def meeting_intelligence_pipeline_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Complete meeting intelligence workflow: analyze → prepare → communicate.

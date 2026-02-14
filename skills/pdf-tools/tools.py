@@ -11,6 +11,7 @@ from typing import Dict, Any, List, Optional, Union
 from datetime import datetime
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("pdf-tools")
@@ -424,6 +425,7 @@ class PDFCreator:
         }
 
 
+@tool_wrapper()
 def extract_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Extract text from a PDF file.
@@ -456,6 +458,7 @@ def extract_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': f'Text extraction failed: {str(e)}'}
 
 
+@tool_wrapper()
 def extract_tables_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Extract tables from a PDF file.
@@ -491,6 +494,7 @@ def extract_tables_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': f'Table extraction failed: {str(e)}'}
 
 
+@tool_wrapper()
 def merge_pdfs_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Merge multiple PDF files into a single PDF.
@@ -526,6 +530,7 @@ def merge_pdfs_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': f'PDF merge failed: {str(e)}'}
 
 
+@tool_wrapper()
 def split_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Split a PDF into separate page files.
@@ -561,6 +566,7 @@ def split_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': f'PDF split failed: {str(e)}'}
 
 
+@tool_wrapper()
 def get_metadata_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Get metadata from a PDF file.
@@ -587,6 +593,7 @@ def get_metadata_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': f'Metadata extraction failed: {str(e)}'}
 
 
+@tool_wrapper()
 def rotate_pages_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Rotate pages in a PDF file.
@@ -630,6 +637,7 @@ def rotate_pages_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': f'Page rotation failed: {str(e)}'}
 
 
+@tool_wrapper()
 def create_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create a PDF from text or markdown content.

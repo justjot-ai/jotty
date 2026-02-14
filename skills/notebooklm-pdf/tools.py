@@ -17,6 +17,7 @@ import logging
 import os
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("notebooklm-pdf")
@@ -51,6 +52,7 @@ def _load_cookies_from_env() -> Optional[List[Dict[str, Any]]]:
         return None
 
 
+@async_tool_wrapper()
 async def notebooklm_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Generate PDF using Google NotebookLM by uploading markdown/text content.

@@ -11,6 +11,7 @@ from typing import Dict, Any
 from datetime import datetime
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("v2v-to-pdf-telegram-remarkable")
@@ -19,6 +20,7 @@ status = SkillStatus("v2v-to-pdf-telegram-remarkable")
 logger = logging.getLogger(__name__)
 
 
+@async_tool_wrapper()
 async def v2v_to_pdf_and_send_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Search V2V trending topics, generate PDF, and send to Telegram/reMarkable.

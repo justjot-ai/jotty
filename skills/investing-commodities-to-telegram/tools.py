@@ -10,6 +10,7 @@ from pathlib import Path
 import sys
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Add parent directory to path to import other skills
 
@@ -28,6 +29,7 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
+@async_tool_wrapper()
 async def commodities_to_telegram_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Fetch commodities prices from investing.com and send to Telegram.

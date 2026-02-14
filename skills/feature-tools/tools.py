@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("feature-tools")
@@ -19,6 +20,7 @@ status = SkillStatus("feature-tools")
 logger = logging.getLogger(__name__)
 
 
+@async_tool_wrapper()
 async def featuretools_dfs_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Deep Feature Synthesis using Featuretools.
@@ -120,6 +122,7 @@ async def featuretools_dfs_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def featuretools_primitives_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Apply specific feature primitives to data.
@@ -187,6 +190,7 @@ async def featuretools_primitives_tool(params: Dict[str, Any]) -> Dict[str, Any]
     }
 
 
+@async_tool_wrapper()
 async def featuretools_normalize_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Normalize a denormalized table into entities.
@@ -251,6 +255,7 @@ async def featuretools_normalize_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def featuretools_interesting_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Find interesting features based on correlation with target.

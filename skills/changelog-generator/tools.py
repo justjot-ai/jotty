@@ -13,6 +13,7 @@ from datetime import datetime
 import os
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("changelog-generator")
@@ -28,6 +29,7 @@ except ImportError:
     logger.warning("gitpython not available - install with: pip install gitpython")
 
 
+@async_tool_wrapper()
 async def generate_changelog_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Generate a user-friendly changelog from git commit history.

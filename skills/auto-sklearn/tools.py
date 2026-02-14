@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("auto-sklearn")
@@ -19,6 +20,7 @@ status = SkillStatus("auto-sklearn")
 logger = logging.getLogger(__name__)
 
 
+@async_tool_wrapper()
 async def autosklearn_classify_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     AutoML classification using auto-sklearn.
@@ -105,6 +107,7 @@ async def autosklearn_classify_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def autosklearn_regress_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     AutoML regression using auto-sklearn.
@@ -177,6 +180,7 @@ async def autosklearn_regress_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+@async_tool_wrapper()
 async def autosklearn_ensemble_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Get detailed ensemble information from trained auto-sklearn model.
@@ -230,6 +234,7 @@ async def autosklearn_ensemble_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': str(e)}
 
 
+@async_tool_wrapper()
 async def autosklearn_predict_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Generate predictions using trained auto-sklearn model.

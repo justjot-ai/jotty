@@ -12,6 +12,7 @@ from typing import Dict, Any, Optional
 import tempfile
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("oauth-automation")
@@ -20,6 +21,7 @@ status = SkillStatus("oauth-automation")
 logger = logging.getLogger(__name__)
 
 
+@async_tool_wrapper()
 async def oauth_login_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Automate OAuth login flow.

@@ -14,6 +14,7 @@ from typing import Dict, Any, List, Optional
 from pathlib import Path
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import async_tool_wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +60,7 @@ if not search_web_tool:
     logger.warning("Could not import web-search tools, will use fallback")
 
 
+@async_tool_wrapper()
 async def last30days_claude_cli(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Research a topic from the last 30 days using Jotty's web search tools.

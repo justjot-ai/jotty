@@ -20,6 +20,7 @@ import tempfile
 import os
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("simple-pdf-generator")
@@ -28,6 +29,7 @@ status = SkillStatus("simple-pdf-generator")
 logger = logging.getLogger(__name__)
 
 
+@async_tool_wrapper()
 async def generate_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Generate PDF from text/markdown content.

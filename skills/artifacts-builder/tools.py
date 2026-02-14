@@ -13,6 +13,7 @@ from datetime import datetime
 import os
 import subprocess
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("artifacts-builder")
@@ -21,6 +22,7 @@ status = SkillStatus("artifacts-builder")
 logger = logging.getLogger(__name__)
 
 
+@async_tool_wrapper()
 async def init_artifact_project_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Initialize a new artifact project.
@@ -281,6 +283,7 @@ This creates a single HTML file ready for Claude.ai artifacts.
         }
 
 
+@async_tool_wrapper()
 async def bundle_artifact_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Bundle artifact into single HTML file.

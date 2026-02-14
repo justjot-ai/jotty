@@ -11,6 +11,7 @@ import logging
 import json
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("investing-commodities")
@@ -19,6 +20,7 @@ status = SkillStatus("investing-commodities")
 logger = logging.getLogger(__name__)
 
 
+@tool_wrapper()
 def get_commodities_prices_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Fetch latest commodities prices from investing.com.

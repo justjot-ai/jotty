@@ -15,6 +15,7 @@ from typing import Dict, Any
 from pathlib import Path
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("dev-workflow")
@@ -23,6 +24,7 @@ status = SkillStatus("dev-workflow")
 logger = logging.getLogger(__name__)
 
 
+@async_tool_wrapper()
 async def dev_workflow_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Complete development workflow: changelog → skill creation → testing.
