@@ -2,35 +2,49 @@
 Text-to-Speech (TTS)
 ====================
 
-Convert text to voice/audio using various providers.
+Unified TTS interface using multiple providers with auto-selection.
+
+Priority (auto mode):
+1. Edge TTS (free, high quality)
+2. OpenAI TTS (paid, very high quality)
+3. ElevenLabs (paid, ultra high quality)
+4. Local Piper (offline)
 """
 
-from typing import Optional
+import logging
+from typing import Any, AsyncIterator, Dict, Optional
+
+from .providers import get_tts_provider
+
+logger = logging.getLogger(__name__)
 
 
 class TextToSpeech:
     """
-    Text-to-speech synthesizer.
+    Text-to-speech synthesizer with multi-provider support.
 
-    Supports multiple providers:
-    - OpenAI TTS API
-    - Google Text-to-Speech
-    - Azure Speech
-    - ElevenLabs
+    Auto-selects best available provider or use specific provider.
     """
 
-    def __init__(self, platform: str = "generic", provider: str = "openai"):
+    def __init__(self, platform: str = "generic", provider: str = "auto"):
         """
         Initialize TTS synthesizer.
 
         Args:
             platform: Platform name (telegram, whatsapp, cli, web)
-            provider: TTS provider (openai, google, azure, elevenlabs)
+            provider: TTS provider (auto, edge, openai, elevenlabs, local)
         """
         self.platform = platform
-        self.provider = provider
+        self.provider_name = provider
+        self._provider = None
 
-    def synthesize(self, text: str, voice: Optional[str] = None, **kwargs) -> bytes:
+    def _get_provider(self):
+        """Get or create provider instance."""
+        if self._provider is None:
+            self._provider = get_tts_provider(self.provider_name)
+        return self._provider
+
+    async def synthesize(self, text: str, voice: Optional[str] = None, **kwargs) -> Dict[str, Any]:
         """
         Synthesize text to speech.
 
@@ -40,42 +54,36 @@ class TextToSpeech:
             **kwargs: Provider-specific options (speed, pitch, etc.)
 
         Returns:
-            Audio data as bytes (mp3, ogg, wav depending on provider)
+            Dict with success, audio_base64 or audio_path, format, provider, voice_id
         """
-        if self.provider == "openai":
-            return self._synthesize_openai(text, voice, **kwargs)
-        elif self.provider == "google":
-            return self._synthesize_google(text, voice, **kwargs)
-        elif self.provider == "azure":
-            return self._synthesize_azure(text, voice, **kwargs)
-        elif self.provider == "elevenlabs":
-            return self._synthesize_elevenlabs(text, voice, **kwargs)
-        else:
-            raise ValueError(f"Unknown TTS provider: {self.provider}")
+        provider = self._get_provider()
+        return await provider.text_to_speech(text, voice, **kwargs)
 
-    def _synthesize_openai(self, text: str, voice: Optional[str], **kwargs) -> bytes:
-        """Synthesize using OpenAI TTS API."""
-        # TODO: Implement OpenAI TTS integration
-        return b"[OpenAI TTS audio data]"
+    async def stream(
+        self, text: str, voice: Optional[str] = None, chunk_size: int = 1024
+    ) -> AsyncIterator[bytes]:
+        """
+        Stream text-to-speech audio in chunks.
 
-    def _synthesize_google(self, text: str, voice: Optional[str], **kwargs) -> bytes:
-        """Synthesize using Google Text-to-Speech."""
-        # TODO: Implement Google TTS integration
-        return b"[Google TTS audio data]"
+        Args:
+            text: Text to convert to speech
+            voice: Voice ID/name
+            chunk_size: Size of audio chunks
 
-    def _synthesize_azure(self, text: str, voice: Optional[str], **kwargs) -> bytes:
-        """Synthesize using Azure Speech."""
-        # TODO: Implement Azure Speech integration
-        return b"[Azure TTS audio data]"
-
-    def _synthesize_elevenlabs(self, text: str, voice: Optional[str], **kwargs) -> bytes:
-        """Synthesize using ElevenLabs."""
-        # TODO: Implement ElevenLabs integration
-        return b"[ElevenLabs TTS audio data]"
+        Yields:
+            Audio data chunks
+        """
+        provider = self._get_provider()
+        async for chunk in provider.stream_speech(text, voice, chunk_size):
+            yield chunk
 
 
-def text_to_speech(
-    text: str, platform: str = "generic", provider: str = "openai", **kwargs
+async def text_to_speech(
+    text: str,
+    platform: str = "generic",
+    provider: str = "auto",
+    voice: Optional[str] = None,
+    **kwargs,
 ) -> bytes:
     """
     Convenience function to convert text to speech.
@@ -83,11 +91,30 @@ def text_to_speech(
     Args:
         text: Text to convert
         platform: Platform name
-        provider: TTS provider (openai, google, azure, elevenlabs)
+        provider: TTS provider (auto, edge, openai, elevenlabs, local)
+        voice: Voice ID/name
         **kwargs: Provider-specific options
 
     Returns:
         Audio data as bytes
+
+    Raises:
+        RuntimeError: If synthesis fails
     """
     tts = TextToSpeech(platform, provider)
-    return tts.synthesize(text, **kwargs)
+    result = await tts.synthesize(text, voice, **kwargs)
+
+    if not result.get("success"):
+        raise RuntimeError(result.get("error", "Unknown TTS error"))
+
+    # Return audio bytes
+    if "audio_base64" in result:
+        import base64
+
+        return base64.b64decode(result["audio_base64"])
+    elif "audio_path" in result:
+        from pathlib import Path
+
+        return Path(result["audio_path"]).read_bytes()
+    else:
+        raise RuntimeError("No audio data in TTS result")

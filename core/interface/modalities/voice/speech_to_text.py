@@ -2,35 +2,50 @@
 Speech-to-Text (STT)
 ====================
 
-Convert voice/audio to text using various providers.
+Unified STT interface using multiple providers with auto-selection.
+
+Priority (auto mode):
+1. Groq Whisper (fast, free tier)
+2. OpenAI Whisper (reliable, paid)
+3. Local Whisper (offline)
 """
 
+import logging
 from typing import Any, Dict, Optional
+
+from .providers import get_stt_provider
+
+logger = logging.getLogger(__name__)
 
 
 class SpeechToText:
     """
-    Speech-to-text converter.
+    Speech-to-text converter with multi-provider support.
 
-    Supports multiple providers:
-    - OpenAI Whisper API
-    - Google Speech-to-Text
-    - Azure Speech
-    - Local Whisper model
+    Auto-selects best available provider or use specific provider.
     """
 
-    def __init__(self, platform: str = "generic", provider: str = "whisper"):
+    def __init__(self, platform: str = "generic", provider: str = "auto"):
         """
         Initialize STT converter.
 
         Args:
             platform: Platform name (telegram, whatsapp, cli, web)
-            provider: STT provider (whisper, google, azure)
+            provider: STT provider (auto, groq, whisper, local)
         """
         self.platform = platform
-        self.provider = provider
+        self.provider_name = provider
+        self._provider = None
 
-    def transcribe(self, audio_file: str, language: Optional[str] = None, **kwargs) -> str:
+    def _get_provider(self):
+        """Get or create provider instance."""
+        if self._provider is None:
+            self._provider = get_stt_provider(self.provider_name)
+        return self._provider
+
+    async def transcribe(
+        self, audio_file: str, language: Optional[str] = None, **kwargs
+    ) -> Dict[str, Any]:
         """
         Transcribe audio file to text.
 
@@ -40,36 +55,18 @@ class SpeechToText:
             **kwargs: Provider-specific options
 
         Returns:
-            Transcribed text
+            Dict with success, text, language, provider, model
         """
-        if self.provider == "whisper":
-            return self._transcribe_whisper(audio_file, language, **kwargs)
-        elif self.provider == "google":
-            return self._transcribe_google(audio_file, language, **kwargs)
-        elif self.provider == "azure":
-            return self._transcribe_azure(audio_file, language, **kwargs)
-        else:
-            raise ValueError(f"Unknown STT provider: {self.provider}")
-
-    def _transcribe_whisper(self, audio_file: str, language: Optional[str], **kwargs) -> str:
-        """Transcribe using OpenAI Whisper API."""
-        # TODO: Implement Whisper API integration
-        # For now, return placeholder
-        return f"[Whisper transcription of {audio_file}]"
-
-    def _transcribe_google(self, audio_file: str, language: Optional[str], **kwargs) -> str:
-        """Transcribe using Google Speech-to-Text."""
-        # TODO: Implement Google STT integration
-        return f"[Google STT transcription of {audio_file}]"
-
-    def _transcribe_azure(self, audio_file: str, language: Optional[str], **kwargs) -> str:
-        """Transcribe using Azure Speech."""
-        # TODO: Implement Azure Speech integration
-        return f"[Azure STT transcription of {audio_file}]"
+        provider = self._get_provider()
+        return await provider.speech_to_text(audio_file, language, **kwargs)
 
 
-def speech_to_text(
-    audio_file: str, platform: str = "generic", provider: str = "whisper", **kwargs
+async def speech_to_text(
+    audio_file: str,
+    platform: str = "generic",
+    provider: str = "auto",
+    language: Optional[str] = None,
+    **kwargs,
 ) -> str:
     """
     Convenience function to convert speech to text.
@@ -77,11 +74,20 @@ def speech_to_text(
     Args:
         audio_file: Path to audio file
         platform: Platform name
-        provider: STT provider (whisper, google, azure)
+        provider: STT provider (auto, groq, whisper, local)
+        language: Language code
         **kwargs: Provider-specific options
 
     Returns:
         Transcribed text
+
+    Raises:
+        RuntimeError: If transcription fails
     """
     stt = SpeechToText(platform, provider)
-    return stt.transcribe(audio_file, **kwargs)
+    result = await stt.transcribe(audio_file, language, **kwargs)
+
+    if not result.get("success"):
+        raise RuntimeError(result.get("error", "Unknown STT error"))
+
+    return result["text"]
