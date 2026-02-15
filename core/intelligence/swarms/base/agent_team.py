@@ -42,6 +42,7 @@ from typing import Any, Dict, List, Optional, Type
 from Jotty.core.infrastructure.foundation.types.execution_types import (
     CoordinationPattern,
     MergeStrategy,
+    SynthesisStrategy,
 )
 
 logger = logging.getLogger(__name__)
@@ -124,11 +125,22 @@ class AgentTeam:
     agents: Dict[str, AgentSpec] = field(default_factory=dict)
     pattern: CoordinationPattern = CoordinationPattern.NONE
     merge_strategy: MergeStrategy = MergeStrategy.COMBINE
+    synthesis_strategy: Optional[SynthesisStrategy] = None  # For intelligent merging
     timeout: float = 0.0  # 0.0 → resolved in __post_init__
     max_retries: int = 0  # 0 → resolved in __post_init__
 
     # For hierarchical pattern
     manager_attr: Optional[str] = None
+
+    # For CUSTOM pattern with STAGES
+    stages: Optional[List] = None  # List[StageConfig] - defined at swarm level
+
+    # For ITERATIVE pattern
+    quality_threshold: float = 0.8  # Quality score to stop iteration
+    max_iterations: int = 5  # Max iteration rounds
+
+    # For DEBATE pattern
+    debate_rounds: int = 3  # Number of debate rounds
 
     # Initialized agent instances (set by swarm)
     _instances: Dict[str, Any] = field(default_factory=dict, repr=False)
@@ -220,7 +232,7 @@ class AgentTeam:
                 metadata={"note": "No coordination pattern - swarm handles execution"},
             )
 
-        elif self.pattern == CoordinationPattern.PIPELINE:
+        elif self.pattern in (CoordinationPattern.PIPELINE, CoordinationPattern.SEQUENTIAL):
             return await self._execute_pipeline(task, context, **kwargs)
 
         elif self.pattern == CoordinationPattern.PARALLEL:
@@ -228,6 +240,12 @@ class AgentTeam:
 
         elif self.pattern == CoordinationPattern.CONSENSUS:
             return await self._execute_consensus(task, context, **kwargs)
+
+        elif self.pattern == CoordinationPattern.DEBATE:
+            return await self._execute_debate(task, context, **kwargs)
+
+        elif self.pattern == CoordinationPattern.ITERATIVE:
+            return await self._execute_iterative(task, context, **kwargs)
 
         elif self.pattern == CoordinationPattern.HIERARCHICAL:
             return await self._execute_hierarchical(task, context, **kwargs)
@@ -237,6 +255,9 @@ class AgentTeam:
 
         elif self.pattern == CoordinationPattern.ROUND_ROBIN:
             return await self._execute_round_robin(task, context, **kwargs)
+
+        elif self.pattern == CoordinationPattern.CUSTOM:
+            return await self._execute_custom(task, context, **kwargs)
 
         else:
             raise ValueError(f"Unknown coordination pattern: {self.pattern}")
@@ -581,6 +602,386 @@ class AgentTeam:
             errors=errors,
         )
 
+    async def _execute_debate(
+        self, task: Any, context: Dict[str, Any], **kwargs: Any
+    ) -> TeamResult:
+        """
+        Multi-round deliberation + synthesis.
+
+        Flow:
+        Round 1: All agents propose solutions (PARALLEL)
+        Round 2-N: Agents critique and refine each other's solutions
+        Final: Synthesize best-of-all solution using LLM
+
+        Returns:
+            TeamResult with synthesized output combining best ideas
+        """
+        outputs = {}
+        errors = {}
+        execution_order = []
+        round_results = []
+
+        # Round 1: Propose solutions (parallel)
+        logger.info(f"DEBATE Round 1: Proposing solutions ({len(self.agents)} agents)")
+        round1 = await self._execute_parallel(task, context, **kwargs)
+        round_results.append({"round": 1, "outputs": round1.outputs})
+        outputs.update({f"{k}_round1": v for k, v in round1.outputs.items()})
+        execution_order.extend([f"{name}(round=1)" for name in round1.execution_order])
+
+        # Rounds 2-N: Critique and refine
+        prev_outputs = round1.outputs
+        for round_num in range(2, self.debate_rounds + 1):
+            logger.info(f"DEBATE Round {round_num}: Critiquing and refining")
+            round_outputs = {}
+
+            for attr, spec in self.get_ordered_agents():
+                agent = self._instances.get(attr)
+                if not agent:
+                    continue
+
+                try:
+                    # Pass previous round's outputs for critique
+                    critique_context = {
+                        **context,
+                        "previous_round": prev_outputs,
+                        "round_number": round_num,
+                        "mode": "critique_and_refine",
+                    }
+
+                    if hasattr(agent, "execute"):
+                        result = await asyncio.wait_for(
+                            agent.execute(input=task, context=critique_context, **kwargs),
+                            timeout=self.timeout,
+                        )
+                        output = result.output if hasattr(result, "output") else result
+                        round_outputs[spec.display_name] = output
+                        execution_order.append(f"{spec.display_name}(round={round_num})")
+                except Exception as e:
+                    logger.error(f"DEBATE agent {spec.display_name} round {round_num} failed: {e}")
+                    errors[f"{spec.display_name}_round{round_num}"] = str(e)
+
+            outputs.update({f"{k}_round{round_num}": v for k, v in round_outputs.items()})
+            round_results.append({"round": round_num, "outputs": round_outputs})
+            prev_outputs = round_outputs
+
+        # Final: Synthesize best solution
+        logger.info("DEBATE Final: Synthesizing best solution")
+        synthesized = await self._synthesize_outputs(
+            all_outputs=outputs,
+            round_results=round_results,
+            task=task,
+            context=context,
+        )
+
+        return TeamResult(
+            success=len(errors) == 0,
+            outputs=outputs,
+            merged_output=synthesized,
+            pattern=self.pattern,
+            execution_order=execution_order,
+            errors=errors,
+            metadata={"debate_rounds": len(round_results), "synthesis_used": True},
+        )
+
+    async def _execute_iterative(
+        self, task: Any, context: Dict[str, Any], **kwargs: Any
+    ) -> TeamResult:
+        """
+        Feedback loop until quality threshold met.
+
+        Flow:
+        1. Generate initial solution (all agents)
+        2. Evaluate quality
+        3. If quality < threshold: improve and repeat
+        4. Return best iteration
+
+        Returns:
+            TeamResult with best quality output across all iterations
+        """
+        outputs = {}
+        errors = {}
+        execution_order = []
+        iterations = []
+
+        best_output = None
+        best_quality = 0.0
+        current_input = task
+
+        for iteration in range(self.max_iterations):
+            logger.info(
+                f"ITERATIVE iteration {iteration + 1}/{self.max_iterations} (best={best_quality:.2f})"
+            )
+
+            # Generate solution
+            iter_result = await self._execute_parallel(current_input, context, **kwargs)
+            iter_output = iter_result.merged_output
+
+            # Evaluate quality (simple heuristic - can be overridden)
+            quality = await self._evaluate_quality(iter_output, task, context)
+
+            iterations.append(
+                {"iteration": iteration + 1, "output": iter_output, "quality": quality}
+            )
+
+            outputs[f"iteration_{iteration + 1}"] = iter_output
+            execution_order.append(f"iteration_{iteration + 1}(quality={quality:.2f})")
+
+            # Track best
+            if quality > best_quality:
+                best_quality = quality
+                best_output = iter_output
+
+            # Check threshold
+            if quality >= self.quality_threshold:
+                logger.info(
+                    f"ITERATIVE converged at iteration {iteration + 1} (quality={quality:.2f})"
+                )
+                break
+
+            # Prepare next iteration with feedback
+            current_input = {
+                "original_task": task,
+                "previous_attempt": iter_output,
+                "quality_score": quality,
+                "iteration": iteration + 1,
+            }
+
+        return TeamResult(
+            success=True,
+            outputs=outputs,
+            merged_output=best_output,
+            pattern=self.pattern,
+            execution_order=execution_order,
+            errors=errors,
+            metadata={
+                "iterations": len(iterations),
+                "best_quality": best_quality,
+                "converged": best_quality >= self.quality_threshold,
+            },
+        )
+
+    async def _execute_custom(
+        self, task: Any, context: Dict[str, Any], **kwargs: Any
+    ) -> TeamResult:
+        """
+        Execute STAGES configuration with dependency resolution.
+
+        Reads self.stages (List[StageConfig]) and executes stages in
+        topological order respecting dependencies.
+
+        Returns:
+            TeamResult with outputs from all stages
+        """
+        if not self.stages:
+            raise ValueError("CUSTOM pattern requires stages configuration")
+
+        from ..stage_config import StageResult, topological_sort, validate_stages
+
+        # Validate and sort stages
+        validate_stages(self.stages)
+        sorted_stages = topological_sort(self.stages)
+
+        outputs = {}
+        errors = {}
+        execution_order = []
+        stage_results = {}
+        shared_context = {**context}
+
+        logger.info(f"CUSTOM executing {len(sorted_stages)} stages")
+
+        for stage in sorted_stages:
+            logger.info(f"CUSTOM Stage: {stage.name}")
+            import time
+
+            stage_start = time.time()
+
+            # Check dependencies completed successfully
+            deps_ok = all(
+                stage_results.get(dep, StageResult(dep, False, {})).success for dep in stage.needs
+            )
+            if not deps_ok and not stage.optional:
+                logger.error(f"Stage {stage.name}: dependencies failed, skipping")
+                stage_results[stage.name] = StageResult(stage.name, False, {}, skipped=True)
+                continue
+
+            # Execute agents in this stage
+            stage_outputs = {}
+            stage_errors = {}
+
+            if stage.parallel and len(stage.agents) > 1:
+                # Parallel execution within stage
+                async def run_stage_agent(attr_name: str) -> Any:
+                    agent = self._instances.get(attr_name)
+                    if not agent or not hasattr(agent, "execute"):
+                        return None
+                    try:
+                        result = await agent.execute(input=task, context=shared_context, **kwargs)
+                        return (attr_name, result.output if hasattr(result, "output") else result)
+                    except Exception as e:
+                        stage_errors[attr_name] = str(e)
+                        return None
+
+                tasks = [run_stage_agent(attr) for attr in stage.agents]
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+
+                for result in results:
+                    if result and not isinstance(result, Exception):
+                        attr_name, output = result
+                        stage_outputs[attr_name] = output
+
+            else:
+                # Sequential execution within stage
+                for attr_name in stage.agents:
+                    agent = self._instances.get(attr_name)
+                    if not agent:
+                        continue
+
+                    try:
+                        if hasattr(agent, "execute"):
+                            result = await agent.execute(
+                                input=task, context=shared_context, **kwargs
+                            )
+                            output = result.output if hasattr(result, "output") else result
+                            stage_outputs[attr_name] = output
+                            execution_order.append(f"{stage.name}:{attr_name}")
+                    except Exception as e:
+                        logger.error(f"Stage {stage.name} agent {attr_name} failed: {e}")
+                        stage_errors[attr_name] = str(e)
+
+            # Store stage result
+            stage_time = time.time() - stage_start
+            success = len(stage_errors) == 0 and len(stage_outputs) > 0
+            stage_result = StageResult(
+                stage_name=stage.name,
+                success=success,
+                outputs=stage_outputs,
+                execution_time=stage_time,
+                error="; ".join(stage_errors.values()) if stage_errors else None,
+            )
+            stage_results[stage.name] = stage_result
+
+            # Update shared context with stage output
+            if stage.output_key and stage_outputs:
+                shared_context[stage.output_key] = stage_outputs
+            elif stage.pass_to_next and stage_outputs:
+                # Pass all outputs to next stage
+                shared_context[f"stage_{stage.name}"] = stage_outputs
+
+            outputs.update(stage_outputs)
+            errors.update(stage_errors)
+
+        # Final output is last stage's output
+        final_output = None
+        if sorted_stages:
+            last_stage = sorted_stages[-1]
+            final_output = stage_results.get(last_stage.name, StageResult("", False, {})).outputs
+
+        return TeamResult(
+            success=all(r.success for r in stage_results.values()),
+            outputs=outputs,
+            merged_output=final_output,
+            pattern=self.pattern,
+            execution_order=execution_order,
+            errors=errors,
+            metadata={"stages": [r.stage_name for r in stage_results.values()]},
+        )
+
+    async def _evaluate_quality(self, output: Any, task: Any, context: Dict[str, Any]) -> float:
+        """
+        Evaluate quality of output (for ITERATIVE pattern).
+
+        Override this method for custom quality evaluation.
+        Default: simple heuristic based on output length and structure.
+
+        Returns:
+            Quality score 0.0-1.0
+        """
+        if not output:
+            return 0.0
+
+        # Simple heuristics
+        score = 0.5  # Base score
+
+        # Length check
+        output_str = str(output)
+        if len(output_str) > 100:
+            score += 0.2
+
+        # Structure check (dict with multiple keys)
+        if isinstance(output, dict) and len(output) >= 3:
+            score += 0.2
+
+        # No error indicators
+        if "error" not in output_str.lower():
+            score += 0.1
+
+        return min(1.0, score)
+
+    async def _synthesize_outputs(
+        self,
+        all_outputs: Dict[str, Any],
+        round_results: List[Dict] = None,
+        task: Any = None,
+        context: Dict[str, Any] = None,
+    ) -> Any:
+        """
+        Intelligent synthesis of multiple outputs using LLM.
+
+        Unlike _merge_outputs (mechanical), this creates NEW integrated
+        solution that combines best ideas from all agents.
+
+        Used by DEBATE pattern and available for CONSENSUS when
+        synthesis_strategy is set.
+
+        Args:
+            all_outputs: Dict of agent_name -> output
+            round_results: Optional list of {round, outputs} dicts
+            task: Original task for context
+            context: Execution context
+
+        Returns:
+            Synthesized output combining best ideas
+        """
+        if not self.synthesis_strategy:
+            # Fallback to mechanical merge
+            return self._merge_outputs(all_outputs)
+
+        try:
+            # Try LLM-based synthesis
+            import json
+
+            # Build synthesis input for LLM
+            outputs_text = "\n\n".join(
+                [
+                    f"Agent {name}:\n{json.dumps(output, default=str)}"
+                    for name, output in all_outputs.items()
+                ]
+            )
+
+            # Try to get LLM synthesis (requires DSPy configured)
+            try:
+                import dspy
+
+                class Synthesizer(dspy.Signature):
+                    """Synthesize multiple agent outputs into one optimal solution."""
+
+                    outputs = dspy.InputField(desc="Multiple agent outputs to synthesize")
+                    task = dspy.InputField(desc="Original task")
+                    synthesis = dspy.OutputField(desc="Synthesized optimal solution")
+
+                synthesizer = dspy.ChainOfThought(Synthesizer)
+                result = synthesizer(outputs=outputs_text, task=str(task))
+                return result.synthesis
+
+            except Exception as llm_err:
+                logger.debug(f"LLM synthesis failed: {llm_err}")
+
+        except Exception as e:
+            logger.warning(f"Synthesis failed: {e}, falling back to merge")
+
+        # Fallback to mechanical merge
+        return self._merge_outputs(all_outputs)
+
     def _merge_outputs(self, outputs: Dict[str, Any]) -> Any:
         """Merge outputs based on strategy."""
         if not outputs:
@@ -628,8 +1029,13 @@ class AgentTeam:
         *specs: tuple,
         pattern: CoordinationPattern = CoordinationPattern.NONE,
         merge_strategy: MergeStrategy = MergeStrategy.COMBINE,
+        synthesis_strategy: Optional[SynthesisStrategy] = None,
         timeout: float = 0.0,
         manager_attr: str = None,
+        stages: Optional[List] = None,
+        quality_threshold: float = 0.8,
+        max_iterations: int = 5,
+        debate_rounds: int = 3,
     ) -> "AgentTeam":
         """
         Create a team from tuples with optional coordination pattern.
@@ -667,8 +1073,13 @@ class AgentTeam:
         team = cls(
             pattern=pattern,
             merge_strategy=merge_strategy,
+            synthesis_strategy=synthesis_strategy,
             timeout=timeout,
             manager_attr=manager_attr,
+            stages=stages,
+            quality_threshold=quality_threshold,
+            max_iterations=max_iterations,
+            debate_rounds=debate_rounds,
         )
 
         for spec in specs:
@@ -692,4 +1103,5 @@ __all__ = [
     "TeamResult",
     "CoordinationPattern",
     "MergeStrategy",
+    "SynthesisStrategy",
 ]

@@ -1,0 +1,23 @@
+"""Sequential Team Pattern Template"""
+
+from Jotty.core.infrastructure.foundation.types.execution_types import CoordinationPattern
+
+from ...base.agent_team import AgentTeam
+from ...base_swarm import BaseSwarm, SwarmBaseConfig, SwarmResult
+
+
+class SequentialTemplate(BaseSwarm):
+    """Sequential team pattern - agents work in pipeline order."""
+
+    AGENT_TEAM = AgentTeam.define(pattern=CoordinationPattern.SEQUENTIAL)
+    TEMPLATE_NAME = "sequential_team"
+
+    def __init__(self, config: SwarmBaseConfig = None):
+        super().__init__(config or SwarmBaseConfig(name="SequentialTeam", domain="pipeline"))
+
+    async def execute(self, **kwargs) -> SwarmResult:
+        pass
+
+
+SequentialTeam = SequentialTemplate
+__all__ = ["SequentialTemplate", "SequentialTeam"]

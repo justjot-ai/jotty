@@ -1,0 +1,21 @@
+"""Pilot Template"""
+
+from Jotty.core.infrastructure.foundation.types.execution_types import CoordinationPattern
+
+from ..base.agent_team import AgentTeam
+from ..base_swarm import BaseSwarm, SwarmBaseConfig, SwarmResult
+
+
+class PilotTemplate(BaseSwarm):
+    AGENT_TEAM = AgentTeam.define(pattern=CoordinationPattern.AUTO)
+    TEMPLATE_NAME = "pilot"
+
+    def __init__(self, config: SwarmBaseConfig = None):
+        super().__init__(config or SwarmBaseConfig(name="Pilot", domain="pilot"))
+
+    async def execute(self, **kwargs) -> SwarmResult:
+        pass
+
+
+PilotSwarm = PilotTemplate
+__all__ = ["PilotTemplate", "PilotSwarm"]

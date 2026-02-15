@@ -415,6 +415,10 @@ class DomainSwarm(BaseSwarm):
         Also wires in coalition formation and smart routing from
         SwarmIntelligence when available.
 
+        Supports AUTO pattern selection: if pattern=AUTO, analyzes task
+        and selects optimal pattern using learning from memory, TD-Lambda,
+        and Swarm Intelligence.
+
         Args:
             task: The task/input for the team
             context: Additional context for agents
@@ -441,10 +445,47 @@ class DomainSwarm(BaseSwarm):
         if not self._agents_initialized:
             self._init_agents()
 
+        # AUTO pattern selection
+        if self.AGENT_TEAM.pattern == CoordinationPattern.AUTO:
+            from ..pattern_selector import PatternSelector
+
+            selector = PatternSelector(
+                memory=self._memory,
+                td_learner=self._td_learner,
+                swarm_intelligence=self._swarm_intelligence,
+                swarm_name=self.config.name or "base_swarm",
+            )
+            selected_pattern = await selector.select_pattern(
+                task=task, context=context, agent_count=len(self.AGENT_TEAM)
+            )
+
+            # Temporarily set pattern for this execution
+            original_pattern = self.AGENT_TEAM.pattern
+            self.AGENT_TEAM.pattern = selected_pattern
+            logger.info(f"AUTO selected pattern: {selected_pattern.value}")
+
+            try:
+                result = await self._execute_team_with_pattern(task, context, **kwargs)
+                # Store learned pattern success
+                await self._record_pattern_success(
+                    task=task, pattern=selected_pattern, success=result.success
+                )
+                return result
+            finally:
+                # Restore AUTO pattern
+                self.AGENT_TEAM.pattern = original_pattern
+        else:
+            return await self._execute_team_with_pattern(task, context, **kwargs)
+
+    async def _execute_team_with_pattern(
+        self, task: Any, context: Dict[str, Any] = None, **kwargs: Any
+    ) -> TeamResult:
+        """Execute team with current pattern (separated for AUTO selection)."""
+        context = context or {}
+
         # Build context with swarm's shared context
-        full_context = context or {}
         if self._context:
-            full_context["shared_context"] = self._context
+            context["shared_context"] = self._context
 
         # Wire in coordination protocols from SwarmIntelligence
         si = self._swarm_intelligence
@@ -471,8 +512,8 @@ class DomainSwarm(BaseSwarm):
                         max_agents=len(agent_names),
                     )
                     if coalition:
-                        full_context["coalition_id"] = coalition.coalition_id
-                        full_context["coalition_leader"] = coalition.leader
+                        context["coalition_id"] = coalition.coalition_id
+                        context["coalition_leader"] = coalition.leader
                 except Exception:
                     pass  # Non-blocking
 
@@ -488,13 +529,58 @@ class DomainSwarm(BaseSwarm):
                     use_hierarchy=True,
                 )
                 if route.get("assigned_agent"):
-                    full_context["routed_agent"] = route["assigned_agent"]
-                    full_context["routing_method"] = route.get("method", "unknown")
-                    full_context["routing_confidence"] = route.get("confidence", 0.5)
+                    context["routed_agent"] = route["assigned_agent"]
+                    context["routing_method"] = route.get("method", "unknown")
+                    context["routing_confidence"] = route.get("confidence", 0.5)
             except Exception:
                 pass  # Non-blocking
 
-        return await self.AGENT_TEAM.execute(task, full_context, **kwargs)
+        return await self.AGENT_TEAM.execute(task, context, **kwargs)
+
+    async def _record_pattern_success(
+        self, task: Any, pattern: CoordinationPattern, success: bool
+    ) -> None:
+        """Record pattern selection outcome for learning."""
+        try:
+            import json
+
+            # Store in memory (procedural level - learned patterns)
+            if self._memory:
+                from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
+
+                self._memory.store(
+                    content=json.dumps(
+                        {
+                            "pattern": pattern.value,
+                            "task": str(task)[:200],
+                            "success": 1.0 if success else 0.0,
+                            "swarm": self.config.name,
+                        }
+                    ),
+                    level=MemoryLevel.PROCEDURAL,
+                    goal="pattern_selection",
+                    context={"pattern_learning": True},
+                )
+
+            # Update TD-Lambda Q-value
+            if self._td_learner:
+                task_str = str(task)[:200]
+                task_hash = __import__("hashlib").md5(task_str.encode()).hexdigest()[:8]
+                state = {"swarm": self.config.name, "task_hash": task_hash}
+                action = {"pattern": pattern.value}
+                reward = 1.0 if success else 0.0
+
+                self._td_learner.update(state=state, action=action, reward=reward, next_state=state)
+
+            # Update SwarmIntelligence pattern learner
+            if self._swarm_intelligence and hasattr(self._swarm_intelligence, "pattern_learner"):
+                task_type = str(task)[:50]  # Simplified task type
+                self._swarm_intelligence.pattern_learner.record_pattern_result(
+                    task_type=task_type, pattern=pattern.value, success=success
+                )
+
+        except Exception as e:
+            logger.debug(f"Failed to record pattern success: {e}")
 
     def has_team_coordination(self) -> bool:
         """Check if team has a coordination pattern configured."""
