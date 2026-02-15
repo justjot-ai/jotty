@@ -155,36 +155,26 @@ from Jotty.core.intelligence.swarms.coding_swarm import CodingSwarm
 from Jotty.core.intelligence.swarms.research_swarm import ResearchSwarm
 ```
 
-### Layer 3: CAPABILITIES (Skills & Tools)
+### Layer 3: CAPABILITIES (Skills & Registry)
 
 ```python
-# SKILLS — 273 skills, 8 providers
+# SKILLS REGISTRY — Discovers and manages all skills from skills/ folder
 from Jotty.core.capabilities.skills.facade import (
     get_registry,            # Skill registry
     list_providers,          # Available providers
     list_skills,             # All skills
 )
 
-# REGISTRY — Unified capability registry
+# UNIFIED REGISTRY — Single entry point for all capabilities
 from Jotty.core.capabilities.registry.unified_registry import (
-    get_unified_registry,    # Single entry point
+    get_unified_registry,    # Discovers all skills from skills/ folder
 )
 from Jotty.core.capabilities.registry.skills_registry import SkillsRegistry
 
-# SEMANTIC — Database schema understanding, NL→SQL, visualization
-from Jotty.core.capabilities.semantic.facade import (
-    get_semantic_layer,      # Main semantic layer interface
-    get_query_engine,        # NL→SQL query generation
-    get_visualization_layer, # LIDA-based data visualization
-    list_components,         # List all semantic components
-    get_supported_databases, # List supported database types
-)
-
-# TOOLS — Tool management
-from Jotty.core.capabilities.tools.content_generation import ContentGenerator
-
 # SDK — Skill development kit
 from Jotty.core.capabilities.sdk.skill_sdk.tool_helpers import format_json
+
+# NOTE: All actual skills (semantic, automl, research, content-gen, etc.)  # are now in skills/ folder and discovered automatically by the registry
 ```
 
 ### Layer 2: MODES (Execution Modes)
@@ -297,74 +287,15 @@ result = ctx.build_context(
 )
 ```
 
-### Semantic Layer — Natural Language to SQL
+### Semantic Layer Skill — Natural Language to SQL & Visualization
 ```python
-from Jotty.core.capabilities.semantic.facade import get_semantic_layer
-
-# From live database
-layer = get_semantic_layer(
-    db_type="postgresql",
-    host="localhost",
-    database="sales",
-    user="admin",
-    password="secret"
+from skills.semantic_layer import (
+    query_database_natural_language,
+    analyze_ddl_schema,
+    visualize_data_from_query
 )
 
-# Query with natural language
-result = layer.query("Show total revenue by region this year")
-print(result['generated_sql'])  # SELECT region, SUM(revenue) ...
-print(result['results'])        # Query results (if execute=True)
-
-# From DDL string (no database connection needed)
-layer = get_semantic_layer(
-    ddl="CREATE TABLE products (id INT, name VARCHAR(100), price DECIMAL)",
-    dialect="postgresql"
-)
-
-# Generate LookML semantic model
-lookml = layer.to_lookml()
-
-# Suggest queries based on schema
-suggestions = layer.suggest_queries(num_suggestions=5)
-```
-
-### Data Visualization — Charts from Natural Language
-```python
-from Jotty.core.capabilities.semantic.facade import get_visualization_layer
-
-# Create viz layer from database
-viz = get_visualization_layer(
-    db_type="postgresql",
-    host="localhost",
-    database="sales"
-)
-
-# Generate charts from natural language
-charts = viz.visualize(
-    question="Show sales trends over the last 6 months",
-    library="matplotlib",  # or seaborn, plotly, altair
-    n=3  # Generate 3 chart variations
-)
-
-# Create multi-chart dashboard
-dashboard = viz.dashboard(
-    questions=[
-        "Total revenue by region",
-        "Monthly sales trends",
-        "Top 10 products by quantity"
-    ],
-    library="plotly"
-)
-
-# Get suggested visualizations based on data
-suggestions = viz.goals(n=5)  # Returns 5 visualization suggestions
-```
-
-### Semantic Skills — Use via Skill Wrappers
-```python
-# Option 1: Use semantic-sql-query skill
-from skills.semantic_sql_query import query_database_natural_language
-
+# Query database with natural language
 result = query_database_natural_language({
     "question": "Show customers with orders over $1000",
     "db_type": "postgresql",
@@ -373,24 +304,63 @@ result = query_database_natural_language({
     "user": "admin",
     "password": "secret"
 })
+print(result['generated_sql'])  # SELECT ...
+print(result['results'])        # Query results
 
-# Option 2: Use schema-analyzer skill
-from skills.schema_analyzer import analyze_ddl_schema, generate_lookml_from_ddl
-
+# Analyze DDL schema
 schema = analyze_ddl_schema({
     "ddl": "CREATE TABLE users (id INT PRIMARY KEY, email VARCHAR(255))",
     "dialect": "postgresql"
 })
 
-# Option 3: Use data-visualizer skill
-from skills.data_visualizer import visualize_data_from_query
-
+# Visualize data
 viz = visualize_data_from_query({
-    "question": "Visualize sales by month",
+    "question": "Show sales trends over time",
     "db_type": "postgresql",
     "database": "sales",
     "library": "plotly",
-    "output_format": "html"
+    "n_charts": 3
+})
+
+# Or use the semantic layer classes directly for programmatic access
+from skills.semantic_layer.semantic import SemanticLayer
+
+layer = SemanticLayer.from_database(
+    db_type="postgresql",
+    host="localhost",
+    database="sales",
+    user="admin",
+    password="secret"
+)
+result = layer.query("Show total revenue by region")
+```
+
+### AutoML Skill — Automated Machine Learning
+```python
+from skills.automl import automl_train, hyperparameter_optimize, backtest_strategy
+
+# Train model with AutoML
+result = await automl_train({
+    "data": "data.csv",
+    "target": "price",
+    "problem_type": "regression",
+    "framework": "autogluon",  # or 'flaml' or 'both'
+    "time_budget": 120
+})
+
+# Optimize hyperparameters
+optimized = await hyperparameter_optimize({
+    "data": "data.csv",
+    "target": "label",
+    "model_type": "xgboost",
+    "n_trials": 50
+})
+
+# Backtest trading strategy
+backtest = await backtest_strategy({
+    "data": "price_data.csv",
+    "strategy_type": "ml_classification",
+    "initial_capital": 10000
 })
 ```
 

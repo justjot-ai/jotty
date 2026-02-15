@@ -179,7 +179,7 @@ class SmartAgentSlack:
         """Lazy-init Transformer agent."""
         if self._transformer is None:
             logger.info(" [SMART AGENT SLACK] Lazy-initializing Transformer...")
-            from Jotty.core.smart_data_transformer import SmartDataTransformer
+            from skills.data_transformer.transformer import SmartDataTransformer
             # Get LM from config or use global DSPy LM
             lm = self._config.get('lm') if self._config else None
             if lm is None:
