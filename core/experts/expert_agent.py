@@ -43,7 +43,7 @@ from ..orchestration import (
 )
 from ..foundation.agent_config import AgentConfig
 from ..memory.cortex import SwarmMemory
-from ..foundation.data_structures import MemoryLevel
+from ..foundation.data_structures import SwarmConfig, MemoryLevel
 
 logger = logging.getLogger(__name__)
 

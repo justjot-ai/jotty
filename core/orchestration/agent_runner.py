@@ -17,7 +17,7 @@ import time as _time
 from typing import Dict, Any, Optional, List, Callable
 from dataclasses import dataclass, field
 
-from Jotty.core.foundation.data_structures import SwarmLearningConfig, EpisodeResult
+from Jotty.core.foundation.data_structures import SwarmConfig, SwarmLearningConfig, EpisodeResult
 from Jotty.core.utils.async_utils import StatusReporter
 from Jotty.core.foundation.exceptions import (
     AgentExecutionError,

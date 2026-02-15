@@ -36,7 +36,7 @@ from pathlib import Path
 import dspy
 import asyncio
 
-from ..foundation.data_structures import SwarmLearningConfig, EpisodeResult
+from ..foundation.data_structures import SwarmConfig, SwarmLearningConfig, EpisodeResult
 from ..utils.tokenizer import SmartTokenizer
 
 

@@ -18,7 +18,7 @@ from typing import Dict, Any, Optional, List, Tuple
 from pathlib import Path
 from collections import defaultdict, deque
 
-from Jotty.core.foundation.data_structures import SwarmLearningConfig, EpisodeResult
+from Jotty.core.foundation.data_structures import SwarmConfig, SwarmLearningConfig, EpisodeResult
 from Jotty.core.foundation.agent_config import AgentConfig
 from Jotty.core.foundation.robust_parsing import AdaptiveWeightGroup
 

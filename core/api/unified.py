@@ -10,7 +10,7 @@ import logging
 from Jotty.core.foundation.agent_config import AgentConfig
 from Jotty.core.use_cases import ChatUseCase, WorkflowUseCase, UseCaseConfig
 from Jotty.core.orchestration import Orchestrator
-from Jotty.core.foundation.data_structures import SwarmLearningConfig
+from Jotty.core.foundation.data_structures import SwarmConfig, SwarmLearningConfig
 
 logger = logging.getLogger(__name__)
 

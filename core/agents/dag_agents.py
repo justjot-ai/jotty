@@ -25,7 +25,7 @@ from .dag_types import (                         # noqa: F401
 from .task_breakdown_agent import TaskBreakdownAgent   # noqa: F401
 from .todo_creator_agent import TodoCreatorAgent       # noqa: F401
 
-from ..foundation.data_structures import SwarmLearningConfig
+from ..foundation.data_structures import SwarmConfig, SwarmLearningConfig
 
 
 def get_swarm_resources(config: Optional[SwarmConfig] = None) -> SwarmResources:

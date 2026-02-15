@@ -59,7 +59,7 @@ if TYPE_CHECKING:
     from Jotty.core.orchestration.mas_learning import MASLearning
     from Jotty.core.monitoring.profiler import PerformanceProfiler
 
-from Jotty.core.foundation.data_structures import SwarmLearningConfig, EpisodeResult
+from Jotty.core.foundation.data_structures import SwarmConfig, SwarmLearningConfig, EpisodeResult
 from Jotty.core.foundation.agent_config import AgentConfig
 from Jotty.core.foundation.exceptions import (
     AgentExecutionError, LLMError, ConfigurationError, LearningError,

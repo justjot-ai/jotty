@@ -9,7 +9,7 @@ from datetime import datetime
 import dspy
 
 from ..orchestration.swarm_roadmap import SwarmTaskBoard
-from ..foundation.data_structures import SwarmLearningConfig, MemoryLevel
+from ..foundation.data_structures import SwarmConfig, SwarmLearningConfig, MemoryLevel
 from ..persistence.shared_context import SharedContext
 from .base import AgentResult
 

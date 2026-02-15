@@ -29,7 +29,7 @@ try:
 except ImportError:
     DSPY_AVAILABLE = False
 
-from ..foundation.data_structures import SwarmLearningConfig
+from ..foundation.data_structures import SwarmConfig, SwarmLearningConfig
 from ..context.global_context_guard import (
     GlobalContextGuard,
     patch_dspy_with_guard,

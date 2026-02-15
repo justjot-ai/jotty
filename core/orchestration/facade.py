@@ -18,7 +18,7 @@ import threading
 from typing import Optional, Dict, Any, Union, Type, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from Jotty.core.foundation.data_structures import SwarmLearningConfig
+    from Jotty.core.foundation.data_structures import SwarmConfig, SwarmLearningConfig
     from Jotty.core.orchestration.swarm_intelligence import SwarmIntelligence
     from Jotty.core.orchestration.paradigm_executor import ParadigmExecutor
     from Jotty.core.orchestration.training_daemon import TrainingDaemon
