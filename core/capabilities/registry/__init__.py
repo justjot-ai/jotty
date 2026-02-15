@@ -39,10 +39,11 @@ _LAZY_IMPORTS: dict[str, str] = {
     # Skill generation (imports DSPy)
     "SkillGenerator": ".skill_generator",
     "get_skill_generator": ".skill_generator",
-    # LLM-based tool selection (imports DSPy, optional)
-    "ToolShed": ".tool_shed",
-    "AgenticToolSelector": ".tool_shed",
-    "CapabilityIndex": ".tool_shed",
+    # LLM-based tool selection (moved to skills/_tools/tool_selector.py)
+    "ToolShed": "Jotty.skills._tools",
+    "AgenticToolSelector": "Jotty.skills._tools",
+    "CapabilityIndex": "Jotty.skills._tools",
+    "ToolShedSchema": "Jotty.skills._tools",
     # Package/dependency management (now in skills/)
     "SkillDependencyManager": "Jotty.skills.skill-package-manager.skill_dependency_manager",
     "get_dependency_manager": "Jotty.skills.skill-package-manager.skill_dependency_manager",
@@ -70,7 +71,7 @@ def __getattr__(name: str) -> Any:
     if name in _LAZY_IMPORTS:
         module_path = _LAZY_IMPORTS[name]
         # Handle absolute imports (for skills with hyphens in names)
-        if module_path.startswith("Jotty.skills."):
+        if module_path.startswith("Jotty.skills.") and "-" in module_path:
             # Use importlib.util for paths with hyphens
             import importlib.util
             import sys
@@ -95,6 +96,7 @@ def __getattr__(name: str) -> Any:
             else:
                 raise ImportError(f"Could not load {module_path} from {file_path}")
         elif module_path.startswith("Jotty."):
+            # Standard absolute import
             module = _importlib.import_module(module_path)
         else:
             # Relative imports

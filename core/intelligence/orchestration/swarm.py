@@ -284,16 +284,16 @@ class Swarm:
         **kwargs: Any,
     ) -> TemplateSwarmResult:
         """
-        Solve ML problem using the existing SkillOrchestrator.
+        Solve ML problem using AutoMLWorkflow.
 
-        This provides backward compatibility while we migrate to the new template system.
+        Uses the new skill-based AutoML workflow from execution layer.
         Integrates learning lifecycle: before_execution -> pipeline -> after_execution.
         """
-        from .skill_orchestrator import get_skill_orchestrator
+        from Jotty.core.execution.workflows.automl_workflow import get_automl_workflow
 
         start_time = time.time()
 
-        orchestrator = get_skill_orchestrator()
+        orchestrator = get_automl_workflow()
 
         # --- Initialize learning from Orchestrator ---
         template_instance = kwargs.get("_template_instance", None)

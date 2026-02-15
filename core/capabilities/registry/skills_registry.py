@@ -2160,7 +2160,7 @@ class SkillsRegistry:
         """Lazy-load ToolShed for LLM-based tool selection."""
         if self._tool_shed is None:
             try:
-                from .tool_shed import ToolShed
+                from Jotty.skills._tools import ToolShed
 
                 self._tool_shed = ToolShed()
 

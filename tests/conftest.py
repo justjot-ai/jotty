@@ -342,10 +342,10 @@ def reset_singletons():
     from Jotty.core.infrastructure.utils.prompt_selector import reset_prompt_selector
 
     reset_prompt_selector()
-    # Skill orchestrator
-    from Jotty.core.intelligence.orchestration.skill_orchestrator import reset_skill_orchestrator
+    # AutoML workflow
+    from Jotty.core.execution.workflows.automl_workflow import reset_automl_workflow
 
-    reset_skill_orchestrator()
+    reset_automl_workflow()
     # Dict-based caches
     from Jotty.core.infrastructure.utils.budget_tracker import BudgetTracker
     from Jotty.core.infrastructure.utils.llm_cache import LLMCallCache

@@ -4,14 +4,22 @@ Workflows - Intent-Based Automation
 
 High-level workflows that understand intent and automatically execute.
 
-Three Domain-Specific Workflows:
+Four Domain-Specific Workflows:
 1. AutoWorkflow - General software development (APIs, apps, systems)
 2. ResearchWorkflow - Research and analysis (topics, markets, trends)
 3. LearningWorkflow - Educational content (K-12 to Olympiad)
+4. AutoMLWorkflow - Machine learning pipelines (AutoML)
 """
 
 from .auto_workflow import AutoWorkflow, WorkflowIntent, build, develop
 from .auto_workflow import research as research_stage  # Rename to avoid conflict
+from .automl_workflow import (
+    AutoMLWorkflow,
+    ProblemType,
+    SkillCategory,
+    get_automl_workflow,
+    reset_automl_workflow,
+)
 from .learning_workflow import (
     LearningDepth,
     LearningIntent,
@@ -50,6 +58,12 @@ __all__ = [
     "LearningDepth",
     "Subject",
     "learn",
+    # AutoMLWorkflow (machine learning)
+    "AutoMLWorkflow",
+    "ProblemType",
+    "SkillCategory",
+    "get_automl_workflow",
+    "reset_automl_workflow",
     # Registry
     "SmartSwarmRegistry",
     "StageType",

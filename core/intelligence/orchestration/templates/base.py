@@ -339,7 +339,7 @@ class SwarmTemplate:
         try:
             self._learning.record_session(
                 task_description=kwargs.get("business_context", ""),
-                agents_used=["skill_orchestrator"],
+                agents_used=["automl_workflow"],
                 total_time=0.0,
                 success=results.get("final_score", 0) > 0,
             )

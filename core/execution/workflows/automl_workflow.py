@@ -16,7 +16,7 @@ The workflow:
 4. Executes pipeline and returns best model
 
 Architecture:
-- Inherits from BaseWorkflow (execution layer)
+- Standalone workflow class (no BaseWorkflow yet)
 - Calls skills from skills/automl/ via registry
 - No hard-coded business logic (uses skill orchestration)
 - Configurable pipeline order (not hard-coded)
@@ -25,13 +25,13 @@ Architecture:
 from __future__ import annotations
 
 import logging
+from enum import Enum
 from typing import Any, Callable, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
 
 from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
-from Jotty.core.execution.base import BaseWorkflow
 
 logger = logging.getLogger(__name__)
 
@@ -39,8 +39,6 @@ logger = logging.getLogger(__name__)
 # ============================================================
 # TYPES (shared with old SkillOrchestrator for compatibility)
 # ============================================================
-
-from enum import Enum
 
 
 class ProblemType(str, Enum):
@@ -70,13 +68,7 @@ class SkillCategory(str, Enum):
 # ============================================================
 
 
-class BaseWorkflow:
-    """Temporary base class until we create proper BaseWorkflow in execution/base/."""
-
-    pass
-
-
-class AutoMLWorkflow(BaseWorkflow):
+class AutoMLWorkflow:
     """
     Orchestrates AutoML skills to solve any machine learning problem.
 

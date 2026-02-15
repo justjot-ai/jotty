@@ -17,7 +17,7 @@ import logging
 from typing import Any, Dict, List, Tuple
 
 try:
-    from Jotty.core.capabilities.registry.tool_shed import ToolShedSchema as ToolSchema
+    from .tool_selector import ToolShedSchema as ToolSchema
 except ImportError:
     ToolSchema = None
 

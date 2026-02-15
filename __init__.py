@@ -101,10 +101,10 @@ _LAZY_IMPORTS: dict[str, str] = {
     "CausalLink": ".core.infrastructure.foundation.data_structures",
     "SwarmResult": ".core.infrastructure.data.io_manager",
     # --- TOOL MANAGEMENT ---
-    "ToolShed": ".core.infrastructure.metadata.tool_shed",
-    "ToolSchema": ".core.infrastructure.metadata.tool_shed",
-    "ToolResult": ".core.infrastructure.metadata.tool_shed",
-    "CapabilityIndex": ".core.infrastructure.metadata.tool_shed",
+    "ToolShed": ".skills._tools.tool_selector",
+    "ToolShedSchema": ".skills._tools.tool_selector",
+    "ToolResult": ".skills._tools.tool_selector",
+    "CapabilityIndex": ".skills._tools.tool_selector",
     # --- SHAPED REWARDS ---
     "ShapedRewardManager": ".core.intelligence.learning.shaped_rewards",
     "RewardCondition": ".core.intelligence.learning.shaped_rewards",

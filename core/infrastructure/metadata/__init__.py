@@ -16,6 +16,12 @@ Modules:
 - tool_interceptor: Tool call interception
 """
 
+# Tool interceptor moved to integration (2026-02-16)
+from Jotty.core.infrastructure.integration import ToolCall, ToolCallRegistry, ToolInterceptor
+
+# Tool shed moved to skills/_tools/tool_selector.py (2026-02-16)
+from Jotty.skills._tools import AgenticToolSelector, CapabilityIndex, ToolShed, ToolShedSchema
+
 from .a2ui_standard_widgets import (
     get_standard_widget_catalog,
     get_widget_count,
@@ -42,8 +48,23 @@ from .metadata_protocol import (
     jotty_method,
 )
 from .metadata_tool_registry import MetadataToolRegistry
-from .tool_interceptor import ToolCall, ToolCallRegistry, ToolInterceptor
-from .tool_shed import AgenticToolSelector, CapabilityIndex, ToolResult, ToolShed, ToolShedSchema
+
+# ToolResult - check if this exists in tool_selector
+try:
+    from Jotty.skills._tools.tool_selector import ToolResult
+except ImportError:
+    # Define a minimal ToolResult if not in tool_selector
+    from dataclasses import dataclass
+    from typing import Any
+
+    @dataclass
+    class ToolResult:
+        """Result from tool execution."""
+
+        success: bool
+        result: Any = None
+        error: str | None = None
+
 
 __all__ = [
     # base_metadata_provider
