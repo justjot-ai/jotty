@@ -41,7 +41,7 @@ def register_system_routes(app, api):
     async def get_widgets():
         """Get all widgets from unified registry."""
         try:
-            from ..core.registry import get_unified_registry
+            from Jotty.core.capabilities.registry.unified_registry import get_unified_registry
             registry = get_unified_registry()
             return registry.get_widgets()
         except ImportError:
@@ -52,7 +52,7 @@ def register_system_routes(app, api):
     async def get_tools():
         """Get all tools from unified registry."""
         try:
-            from ..core.registry import get_unified_registry
+            from Jotty.core.capabilities.registry.unified_registry import get_unified_registry
             registry = get_unified_registry()
             return registry.get_tools()
         except ImportError:
@@ -86,7 +86,7 @@ def register_system_routes(app, api):
         ]
 
         try:
-            from ..core.registry import get_unified_registry
+            from Jotty.core.capabilities.registry.unified_registry import get_unified_registry
             registry = get_unified_registry()
             all_data = registry.get_all()
             defaults = registry.get_enabled_defaults()
@@ -118,7 +118,7 @@ def register_system_routes(app, api):
     async def list_agents():
         """Get agents from skills registry."""
         try:
-            from ..core.registry import get_skills_registry
+            from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
             registry = get_skills_registry()
             if hasattr(registry, 'list_agents_from_skills'):
                 agents = registry.list_agents_from_skills()
@@ -323,7 +323,7 @@ def register_system_routes(app, api):
     async def execute_swarm(request: SwarmRequest):
         """Execute multi-agent swarm."""
         try:
-            from ..core.agents import Orchestrator
+            from Jotty.core.intelligence.orchestration import Orchestrator
             manager = Orchestrator()
             result = await manager.execute(
                 task=request.task,

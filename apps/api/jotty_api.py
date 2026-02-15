@@ -19,7 +19,8 @@ logger = logging.getLogger(__name__)
 
 # Absolute imports - single source of truth
 from Jotty.core.interface.api.mode_router import ModeRouter, get_mode_router, RouteResult
-from Jotty.core.infrastructure.foundation.types.sdk_types import (
+# Import SDK types from public package
+from Jotty.sdk import (
     ExecutionContext, ExecutionMode, ChannelType, ResponseFormat,
 )
 
