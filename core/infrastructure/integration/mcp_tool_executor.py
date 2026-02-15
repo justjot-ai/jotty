@@ -55,6 +55,12 @@ class MCPToolExecutor:
         self.available_tools: List[MCPTool] = []
         self.tool_map: Dict[str, MCPTool] = {}
 
+        # Tool interceptor for learning (integrated 2026-02-16)
+        from .tool_interceptor import ToolInterceptor
+
+        self.interceptor = ToolInterceptor("mcp_executor")
+        logger.debug("Initialized ToolInterceptor for MCP tool execution tracking")
+
     def _find_mcp_config(self) -> str:
         """Find MCP configuration file"""
         # Check common locations
@@ -198,7 +204,7 @@ class MCPToolExecutor:
 
     async def execute_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Execute an MCP tool
+        Execute an MCP tool (with interception for learning)
 
         Args:
             tool_name: Name of the tool to execute
@@ -207,20 +213,62 @@ class MCPToolExecutor:
         Returns:
             Tool execution result
         """
-        tool = self.tool_map.get(tool_name)
-        if not tool:
-            raise ValueError(f"Tool {tool_name} not found. Available: {list(self.tool_map.keys())}")
+        import time
 
-        # Validate arguments against schema (basic validation)
-        required = tool.input_schema.get("required", [])
-        for field in required:
-            if field not in arguments:
-                raise ValueError(f"Missing required argument: {field}")
+        from .tool_interceptor import ToolCall
 
-        # Call MCP server
-        result = await self._call_mcp_server(tool.server, tool_name, arguments)
+        start_time = time.time()
+        success = False
+        result = None
+        error = None
 
-        return result
+        try:
+            tool = self.tool_map.get(tool_name)
+            if not tool:
+                raise ValueError(
+                    f"Tool {tool_name} not found. Available: {list(self.tool_map.keys())}"
+                )
+
+            # Validate arguments against schema (basic validation)
+            required = tool.input_schema.get("required", [])
+            for field in required:
+                if field not in arguments:
+                    raise ValueError(f"Missing required argument: {field}")
+
+            # Call MCP server
+            result = await self._call_mcp_server(tool.server, tool_name, arguments)
+            success = True
+
+            return result
+
+        except Exception as e:
+            error = str(e)
+            logger.error(f"MCP tool execution failed: {tool_name} - {error}")
+            raise
+
+        finally:
+            # Record tool call for learning (always executes)
+            latency = time.time() - start_time
+
+            tool_call = ToolCall(
+                tool_name=tool_name,
+                args=arguments,
+                result=result,
+                success=success,
+                error=error,
+                attempt_number=self.interceptor._attempt_counters.get(tool_name, 0) + 1,
+                metadata={"executor": "mcp", "latency": latency},
+            )
+
+            with self.interceptor._lock:
+                self.interceptor._attempt_counters[tool_name] = (
+                    self.interceptor._attempt_counters.get(tool_name, 0) + 1
+                )
+                self.interceptor._calls.append(tool_call)
+
+            logger.debug(
+                f"Tracked MCP tool call: {tool_name} (success={success}, latency={latency:.3f}s)"
+            )
 
     async def _call_mcp_server(
         self, server_name: str, tool_name: str, arguments: Dict[str, Any]
@@ -356,3 +404,65 @@ class MCPToolExecutor:
     def get_tool_names(self) -> List[str]:
         """Get list of available tool names"""
         return list(self.tool_map.keys())
+
+    # =============================================================================
+    # Learning Integration (2026-02-16)
+    # =============================================================================
+
+    def get_execution_statistics(self) -> Dict[str, Any]:
+        """
+        Get tool execution statistics for learning.
+
+        Returns:
+            Dict with call counts, success rates, and latencies
+        """
+        return self.interceptor.summary()
+
+    def feed_to_learning_system(self) -> None:
+        """
+        Feed tool execution statistics to TD-Lambda learning system.
+
+        This enables the system to learn which tools work well and improve
+        future tool selection.
+        """
+        try:
+            from Jotty.core.intelligence.learning.facade import get_td_lambda
+
+            td = get_td_lambda()
+
+            for call in self.interceptor.get_all_calls():
+                # Reward: +1.0 for success, -0.5 for failure
+                reward = 1.0 if call.success else -0.5
+
+                # State: current tool being executed
+                state = {
+                    "tool": call.tool_name,
+                    "executor": "mcp",
+                    "args_count": len(call.args),
+                }
+
+                # Action: execute the tool
+                action = {"execute": True, "attempt": call.attempt_number}
+
+                # Next state: completed execution
+                next_state = {
+                    "tool": call.tool_name,
+                    "executor": "mcp",
+                    "completed": True,
+                    "success": call.success,
+                }
+
+                # Update TD-Lambda learner
+                td.update(state=state, action=action, reward=reward, next_state=next_state)
+
+            logger.info(
+                f"Fed {len(self.interceptor.get_all_calls())} MCP tool calls to learning system"
+            )
+
+        except Exception as e:
+            logger.warning(f"Failed to feed statistics to learning system: {e}")
+
+    def clear_statistics(self) -> None:
+        """Clear execution statistics (useful for multi-session scenarios)."""
+        self.interceptor.clear()
+        logger.debug("Cleared MCP tool execution statistics")

@@ -185,4 +185,77 @@ def list_components() -> Dict[str, str]:
         "LLMTrajectoryPredictor": "Predicts future agent trajectories using LLMs",
         "AlgorithmicCreditAssigner": "Shapley value and difference reward estimation",
         "AdaptiveExploration": "Exploration strategy that adapts over time",
+        "ToolLearningFeedback": "Tool execution → learning feedback loop (NEW 2026-02-16)",
     }
+
+
+# =============================================================================
+# Tool Learning Feedback (NEW 2026-02-16)
+# =============================================================================
+
+
+def get_tool_learning_feedback() -> Any:
+    """
+    Get tool learning feedback loop.
+
+    Integrates tool execution statistics with TD-Lambda learning.
+
+    Returns:
+        ToolLearningFeedback instance
+
+    Example:
+        from Jotty.core.intelligence.learning.facade import get_tool_learning_feedback
+
+        feedback = get_tool_learning_feedback()
+        feedback.feed_from_interceptor(interceptor)
+        feedback.update_registry_scores(registry)
+    """
+    from .tool_learning import get_tool_learning_feedback as _get
+
+    return _get()
+
+
+def feed_tool_statistics(interceptor: Any) -> int:
+    """
+    Convenience: Feed tool execution statistics to learning system.
+
+    Args:
+        interceptor: ToolInterceptor instance with execution history
+
+    Returns:
+        Number of tool calls processed
+
+    Example:
+        from Jotty.core.intelligence.learning.facade import feed_tool_statistics
+        from Jotty.core.infrastructure.integration import ToolInterceptor
+
+        interceptor = ToolInterceptor("executor")
+        # ... execute tools ...
+        feed_tool_statistics(interceptor)
+    """
+    from .tool_learning import feed_tool_statistics_to_learning
+
+    return feed_tool_statistics_to_learning(interceptor)
+
+
+def update_registry_with_learning(registry: Any) -> int:
+    """
+    Convenience: Update SkillsRegistry discovery scores with learning data.
+
+    Args:
+        registry: SkillsRegistry instance
+
+    Returns:
+        Number of skills updated
+
+    Example:
+        from Jotty.core.intelligence.learning.facade import update_registry_with_learning
+        from Jotty.core.capabilities.registry import get_skills_registry
+
+        registry = get_skills_registry()
+        updated = update_registry_with_learning(registry)
+        print(f"Updated {updated} skills with learning data")
+    """
+    from .tool_learning import update_registry_with_learning as _update
+
+    return _update(registry)

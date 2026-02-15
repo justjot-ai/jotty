@@ -23,8 +23,6 @@ from .skills_registry import (
     ToolMetadata,
     get_skills_registry,
 )
-from .tool_collection import ToolCollection
-from .tool_validation import RegistryValidationResult, ToolValidator, validate_tool_attributes
 from .ui_registry import UIComponent, UIRegistry, get_ui_registry, reset_ui_registry
 from .unified_registry import UnifiedRegistry, get_unified_registry, reset_unified_registry
 
@@ -41,6 +39,10 @@ _LAZY_IMPORTS: dict[str, str] = {
     # Skill generation (imports DSPy)
     "SkillGenerator": ".skill_generator",
     "get_skill_generator": ".skill_generator",
+    # LLM-based tool selection (imports DSPy, optional)
+    "ToolShed": ".tool_shed",
+    "AgenticToolSelector": ".tool_shed",
+    "CapabilityIndex": ".tool_shed",
     # Package/dependency management (now in skills/)
     "SkillDependencyManager": "Jotty.skills.skill-package-manager.skill_dependency_manager",
     "get_dependency_manager": "Jotty.skills.skill-package-manager.skill_dependency_manager",
@@ -51,10 +53,6 @@ _LAZY_IMPORTS: dict[str, str] = {
     "WidgetRegistry": ".widget_registry",
     "WidgetSchema": ".widget_registry",
     "get_widget_registry": ".widget_registry",
-    # Legacy Tools Registry
-    "ToolsRegistry": ".tools_registry",
-    "ToolSchema": ".tools_registry",
-    "get_tools_registry": ".tools_registry",
     # Legacy AGUI Registry
     "AGUIComponentRegistry": ".agui_component_registry",
     "AGUIComponentAdapter": ".agui_component_registry",
@@ -121,10 +119,6 @@ __all__ = [
     "UIComponent",
     "get_ui_registry",
     "reset_ui_registry",
-    "ToolCollection",
-    "ToolValidator",
-    "validate_tool_attributes",
-    "ValidationResult",
     "SkillDependencyManager",
     "get_dependency_manager",
     # Lazy exports
