@@ -974,7 +974,10 @@ async def convert_md_to_pdf(
     html_content = None
     if template_name:
         try:
-            from .templates import TemplateRegistry
+            try:
+                from .templates import TemplateRegistry
+            except ImportError:
+                from templates import TemplateRegistry
 
             template = TemplateRegistry.get(template_name)
             if template:

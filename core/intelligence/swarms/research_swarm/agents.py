@@ -1364,7 +1364,7 @@ class ScreenerAgent(SwarmLearningAgent):
                 result["success"] = True
         except (ImportError, Exception) as e:
             logger.warning(
-                f"screener-financials skill not available ({e}), attempting direct fetch"
+                f"screening-financials skill not available ({e}), attempting direct fetch"
             )
             # Graceful degradation — attempt basic aiohttp fetch
             result = await self._fallback_fetch(ticker, result)

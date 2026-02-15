@@ -51,8 +51,8 @@ async def enhanced_stock_research_tool(params: Dict[str, Any]) -> Dict[str, Any]
     Returns:
         Dictionary with report paths and data
     """
+    # Import components - handle both relative (package) and absolute (sys.path) imports
     try:
-        # Import components
         from .data_fetcher import FinancialDataConverter, ResearchDataFetcher
         from .report_components import (
             CatalystsGenerator,
@@ -70,6 +70,27 @@ async def enhanced_stock_research_tool(params: Dict[str, Any]) -> Dict[str, Any]
             ReportTemplate,
             ScenarioAnalyzer,
         )
+    except ImportError:
+        # Fallback to absolute imports when loaded via sys.path
+        from data_fetcher import FinancialDataConverter, ResearchDataFetcher
+        from report_components import (
+            CatalystsGenerator,
+            ChartGenerator,
+            CompanySnapshot,
+            DCFCalculator,
+            DCFModel,
+            EarningsProjector,
+            FinancialStatements,
+            FinancialTablesFormatter,
+            IndustryAnalyzer,
+            PeerComparison,
+            PeerComparisonFormatter,
+            PriceChartGenerator,
+            ReportTemplate,
+            ScenarioAnalyzer,
+        )
+
+    try:
 
         # Parse parameters
         ticker = params.get("ticker", "").upper().strip()
@@ -485,7 +506,10 @@ def _get_sector_peers(ticker: str, sector: str, exchange: str) -> List[str]:
 
 def _build_dcf_model(data: Dict[str, Any], financials: "FinancialStatements") -> "DCFModel":
     """Build DCF model from company data."""
-    from .report_components import DCFModel
+    try:
+        from .report_components import DCFModel
+    except ImportError:
+        from report_components import DCFModel
 
     model = DCFModel()
 
@@ -1058,7 +1082,10 @@ async def _convert_to_pdf(
 
         # Try our professional PDF template first
         try:
-            from .pdf_template import convert_md_to_pdf
+            try:
+                from .pdf_template import convert_md_to_pdf
+            except ImportError:
+                from pdf_template import convert_md_to_pdf
 
             result_path = await convert_md_to_pdf(
                 str(md_path), str(pdf_path), template_name=template_name, chart_files=chart_files

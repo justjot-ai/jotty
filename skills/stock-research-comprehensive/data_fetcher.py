@@ -586,7 +586,10 @@ class FinancialDataConverter:
         data: Dict[str, Any], target_price: float = None, rating: str = None
     ) -> "CompanySnapshot":
         """Convert fetched data to CompanySnapshot."""
-        from .report_components import CompanySnapshot
+        try:
+            from .report_components import CompanySnapshot
+        except ImportError:
+            from report_components import CompanySnapshot
 
         current_price = data.get("current_price", 0)
         if target_price is None:
@@ -632,7 +635,10 @@ class FinancialDataConverter:
     @staticmethod
     def to_financial_statements(data: Dict[str, Any]) -> "FinancialStatements":
         """Convert fetched data to FinancialStatements."""
-        from .report_components import FinancialStatements
+        try:
+            from .report_components import FinancialStatements
+        except ImportError:
+            from report_components import FinancialStatements
 
         fs = FinancialStatements()
 
@@ -658,7 +664,10 @@ class FinancialDataConverter:
     @staticmethod
     def to_peer_comparison(peer_data: Dict[str, List[Any]]) -> "PeerComparison":
         """Convert peer data to PeerComparison."""
-        from .report_components import PeerComparison
+        try:
+            from .report_components import PeerComparison
+        except ImportError:
+            from report_components import PeerComparison
 
         return PeerComparison(
             companies=peer_data.get("companies", []),
