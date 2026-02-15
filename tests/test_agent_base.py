@@ -49,7 +49,7 @@ except ImportError:
     BASE_AGENT_AVAILABLE = False
 
 try:
-    from Jotty.core.modes.agent.implementations.domain_agent import (
+    from Jotty.core.modes.agent.agents.domain_agent import (
         DomainAgent,
         DomainAgentConfig,
         create_domain_agent,
@@ -59,13 +59,13 @@ except ImportError:
     DOMAIN_AGENT_AVAILABLE = False
 
 try:
-    from Jotty.core.modes.agent.implementations.swarm_agent import BaseSwarmAgent
+    from Jotty.core.modes.agent.agents.swarm_agent import BaseSwarmAgent
     SWARM_AGENT_AVAILABLE = True
 except ImportError:
     SWARM_AGENT_AVAILABLE = False
 
 try:
-    from Jotty.core.modes.agent.implementations.validation_agent import (
+    from Jotty.core.modes.agent.agents.validation_agent import (
         AgentMessage,
         SharedScratchpad,
         ValidationAgent,
@@ -84,7 +84,7 @@ except ImportError:
     TOOL_CACHE_AVAILABLE = False
 
 try:
-    from Jotty.core.modes.agent.implementations.autonomous_agent import ExecutionContextManager
+    from Jotty.core.modes.agent.agents.autonomous_agent import ExecutionContextManager
     EXEC_CTX_AVAILABLE = True
 except ImportError:
     EXEC_CTX_AVAILABLE = False

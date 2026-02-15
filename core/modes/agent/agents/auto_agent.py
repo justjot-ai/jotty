@@ -21,7 +21,7 @@ from Jotty.core.infrastructure.foundation.exceptions import (
     DSPyError,
 )
 from Jotty.core.infrastructure.utils.async_utils import safe_status, StatusReporter, AgentEventBroadcaster, AgentEvent
-from ._execution_types import TaskType, AgenticExecutionResult, _clean_for_display
+from ..types.execution_types import TaskType, AgenticExecutionResult, _clean_for_display
 
 # Mode-specific system prompts for tools with different backends
 _MODE_PROMPTS = {

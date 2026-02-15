@@ -5,7 +5,7 @@ import logging
 from enum import IntEnum
 from typing import Dict, Any, List, Optional, Tuple
 
-from ._execution_types import TaskType
+from ..types.execution_types import TaskType
 
 logger = logging.getLogger(__name__)
 

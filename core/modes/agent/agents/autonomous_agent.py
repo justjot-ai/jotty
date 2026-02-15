@@ -25,7 +25,7 @@ from typing import Any, Callable, Dict, List, Optional
 from .base_agent import BaseAgent, AgentRuntimeConfig, AgentResult
 from Jotty.core.infrastructure.utils.async_utils import StatusReporter, AgentEventBroadcaster, AgentEvent
 from .skill_plan_executor import SkillPlanExecutor
-from ._execution_types import ExecutionStep
+from ..types.execution_types import ExecutionStep
 
 logger = logging.getLogger(__name__)
 

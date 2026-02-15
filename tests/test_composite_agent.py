@@ -10,7 +10,7 @@ import pytest
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
 from datetime import datetime
 
-from Jotty.core.modes.agent.implementations.composite_agent import (
+from Jotty.core.modes.agent.agents.composite_agent import (
     CompositeAgent,
     CompositeAgentConfig,
     UnifiedResult,
@@ -293,7 +293,7 @@ class TestCompositeAgent:
 
 
 # Import _COORDINATION_DISPATCH for dispatch table tests
-from Jotty.core.modes.agent.implementations.composite_agent import _COORDINATION_DISPATCH
+from Jotty.core.modes.agent.agents.composite_agent import _COORDINATION_DISPATCH
 from Jotty.core.modes.agent.base.base_agent import AgentResult
 
 

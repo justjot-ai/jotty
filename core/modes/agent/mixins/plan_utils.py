@@ -5,7 +5,7 @@ import logging
 import re
 from typing import Dict, Any, List, Optional, Union
 
-from ._execution_types import ExecutionStep, TaskType, ToolSchema
+from ..types.execution_types import ExecutionStep, TaskType, ToolSchema
 from Jotty.core.infrastructure.utils.context_utils import strip_enrichment_context
 
 logger = logging.getLogger(__name__)

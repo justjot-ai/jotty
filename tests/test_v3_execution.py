@@ -2850,13 +2850,13 @@ class TestReActMode:
     """Test ReAct execution mode configuration."""
 
     def test_react_config_defaults(self):
-        from Jotty.core.modes.agent.implementations.domain_agent import DomainAgentConfig
+        from Jotty.core.modes.agent.agents.domain_agent import DomainAgentConfig
         config = DomainAgentConfig(use_react=True)
         assert config.use_react is True
         assert config.max_react_iters == 5
 
     def test_react_mode_disabled_by_default(self):
-        from Jotty.core.modes.agent.implementations.domain_agent import DomainAgentConfig
+        from Jotty.core.modes.agent.agents.domain_agent import DomainAgentConfig
         config = DomainAgentConfig()
         assert config.use_react is False
 

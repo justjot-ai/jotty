@@ -1,7 +1,3 @@
-from __future__ import annotations
-
-
-from pathlib import Path
 """
 Routing protocol mixin: smart routing, load balancing, work stealing.
 
@@ -11,7 +7,7 @@ These are mixed into SwarmIntelligence at class definition.
 
 import time
 import logging
-from typing import Dict, List, Any, Optional, Tuple, Callable, TYPE_CHECKING, Set
+from typing import Dict, List, Any, Optional, Tuple, Callable
 
 from ..swarm_data_structures import (
     AgentSpecialization, AgentProfile, ConsensusVote, SwarmDecision,
@@ -39,43 +35,105 @@ class RoutingMixin:
         use_hierarchy: bool = True
     ) -> Dict[str, Any]:
         """
+        Smart routing combining all arXiv swarm patterns + RL-learned values.
 
-    if TYPE_CHECKING:
-        # Comprehensive attribute declarations for type checking
-        # These are provided by parent class or other mixins in composition
+        Integrates: handoff, hierarchy, auction, coalition, gossip,
+        and TD-Lambda learned values for closed-loop RL.
 
-    # Orchestration attributes
-    agents: List[Any]
-    agent_profiles: Dict[str, Any]
-    agent_name: Optional[str]
-    config: Dict[str, Any]
-    name: str
-    history: List[Any]
-    handoff_history: List[Any]
-    pending_handoffs: List[Any]
-    active_auctions: Dict[str, Any]
-    agent_coalitions: Dict[str, Any]
-    coalitions: Dict[str, Any]
-    circuit_breakers: Dict[str, Any]
-    gossip_inbox: List[Any]
-    gossip_seen: Set[str]
-    consensus_history: List[Any]
-    morph_score_history: List[Any]
-    morph_scorer: Optional[Any]
+        Args:
+            task_id: Task identifier
+            task_type: Type of task
+            task_description: Optional description
+            prefer_coalition: Form coalition for complex tasks
+            use_auction: Use auction for allocation
+            use_hierarchy: Use hierarchical routing
 
-    def register_agent(self, agent: Any) -> None: ...
-    def find_idle_agents(self) -> List[Any]: ...
-    def find_overloaded_agents(self) -> List[Any]: ...
-    def get_agent_load(self, agent_id: str) -> float: ...
-    def get_available_agents(self) -> List[Any]: ...
-    def initiate_handoff(self, from_agent: str, to_agent: str, **kwargs: Any) -> None: ...
-    def auto_auction(self, task: Any) -> Any: ...
-    def form_coalition(self, agents: List[str]) -> str: ...
-    def check_circuit(self, operation: str) -> bool: ...
-    def gossip_broadcast(self, message: Any) -> None: ...
-    def get_swarm_health(self) -> Dict[str, Any]: ...
+        Returns:
+            Dict with routing decision and metadata
+        """
+        result = {
+            "task_id": task_id,
+            "assigned_agent": None,
+            "coalition": None,
+            "method": "direct",
+            "confidence": 0.5,
+            "rl_advantage": 0.0,
+        }
 
+        available = list(self.agent_profiles.keys())
+        if not available:
+            return result
 
+        # Filter out circuit-blocked agents
+        try:
+            available = self.get_available_agents(available)
+        except Exception:
+            pass
+
+        if not available:
+            available = list(self.agent_profiles.keys())
+
+        # Strategy 1: Coalition for complex tasks
+        if prefer_coalition:
+            coalition = self.form_coalition(task_type, min_agents=2, max_agents=4)
+            if coalition:
+                result["assigned_agent"] = coalition.leader
+                result["coalition"] = coalition.coalition_id
+                result["method"] = "coalition"
+                result["confidence"] = 0.9
+                return result
+
+        # Strategy 2: Auction for competitive allocation
+        if use_auction:
+            winner = self.auto_auction(task_id, task_type, available)
+            if winner:
+                result["assigned_agent"] = winner
+                result["method"] = "auction"
+                result["confidence"] = 0.85
+                return result
+
+        # Strategy 3: Hierarchical routing
+        if use_hierarchy and self._tree_built:
+            agent = self.route_via_hierarchy(task_type)
+            if agent:
+                result["assigned_agent"] = agent
+                result["method"] = "hierarchy"
+                result["confidence"] = 0.8
+                return result
+
+        # Strategy 4: MorphAgent TRAS scoring
+        if task_description:
+            profiles = {a: self.agent_profiles[a] for a in available}
+            best = self.morph_scorer.get_best_agent_by_tras(
+                profiles=profiles,
+                task=task_description,
+                task_type=task_type
+            )
+            if best:
+                result["assigned_agent"] = best
+                result["method"] = "morph_tras"
+                result["confidence"] = 0.75
+                # Enrich with RL advantage if available
+                rl_adv = self._get_rl_advantage(best, task_type)
+                result["rl_advantage"] = rl_adv
+                return result
+
+        # Strategy 5: RL-informed routing using TD-Lambda learned values
+        # This closes the RL loop: learned values now influence agent selection.
+        rl_best = self._rl_informed_select(available, task_type)
+        if rl_best:
+            result["assigned_agent"] = rl_best
+            result["method"] = "rl_informed"
+            result["confidence"] = 0.7
+            result["rl_advantage"] = self._get_rl_advantage(rl_best, task_type)
+            return result
+
+        # Strategy 6: Fallback to simple routing
+        best = self.get_best_agent_for_task(task_type, available, task_description)
+        result["assigned_agent"] = best
+        result["method"] = "simple"
+        result["confidence"] = 0.6
+        return result
 
     def _rl_informed_select(self, available: List[str], task_type: str) -> Optional[str]:
         """

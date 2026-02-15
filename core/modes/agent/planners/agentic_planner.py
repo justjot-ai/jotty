@@ -101,9 +101,9 @@ def _load_signatures() -> None:
 # =============================================================================
 
 
-from ._inference_mixin import InferenceMixin
-from ._skill_selection_mixin import SkillSelectionMixin
-from ._plan_utils_mixin import PlanUtilsMixin
+from ..mixins.inference import InferenceMixin
+from ..mixins.skill_selection import SkillSelectionMixin
+from ..mixins.plan_utils import PlanUtilsMixin
 
 class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
     """

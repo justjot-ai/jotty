@@ -13,7 +13,7 @@ from .base import AgentResult
 
 logger = logging.getLogger(__name__)
 
-from .dag_types import (
+from ..types.dag_types import (
     DAGAgentMixin, SwarmResources, Actor, ExecutableDAG,
     ActorAssignmentSignature,
     DAGValidationSignature, OptimizeDAGSignature,

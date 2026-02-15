@@ -791,7 +791,7 @@ class TestDomainSwarm:
 
     def test_to_composite(self):
         """to_composite() creates CompositeAgent wrapping the swarm."""
-        from Jotty.core.modes.agent.implementations.composite_agent import CompositeAgent
+        from Jotty.core.modes.agent.agents.composite_agent import CompositeAgent
         swarm = self._make_test_swarm()
         composite = swarm.to_composite()
         assert isinstance(composite, CompositeAgent)

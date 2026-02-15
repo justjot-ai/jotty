@@ -89,7 +89,7 @@ core/modes/agent/
 │   ├── skill_selection.py
 │   ├── plan_utils.py
 │   └── inference.py
-├── implementations/         # Concrete agents (14 files)
+├── agents/                  # Concrete agents (14 files)
 │   ├── auto_agent.py
 │   ├── chat_assistant.py
 │   ├── autonomous_agent.py
@@ -107,7 +107,7 @@ core/modes/agent/
 ├── executors/               # Execution engines (2 files)
 │   ├── skill_plan_executor.py
 │   └── step_processors.py
-├── planning/                # Planning logic (2 files)
+├── planners/                # Planning logic (2 files)
 │   ├── agentic_planner.py
 │   └── dag_agents.py
 └── tools/                   # Agent tools (4 files)
@@ -135,7 +135,7 @@ from Jotty.core.modes.agent.base.chat_assistant import ChatAssistant
 from Jotty.core.modes.agent.base._execution_types import ExecutionResult
 
 # After
-from Jotty.core.modes.agent.implementations.chat_assistant import ChatAssistant
+from Jotty.core.modes.agent.agents.chat_assistant import ChatAssistant
 from Jotty.core.modes.agent.types.execution_types import ExecutionResult
 ```
 
@@ -309,7 +309,7 @@ pytest tests/ -v
 python3 -c "from jotty import Jotty; print('SDK OK')"
 
 # 3. Test agent imports
-python3 -c "from Jotty.core.modes.agent.implementations import ChatAssistant; print('Agents OK')"
+python3 -c "from Jotty.core.modes.agent.agents import ChatAssistant; print('Agents OK')"
 
 # 4. Test interface layer
 python3 -c "from Jotty.core.interface.api import JottyAPI; print('Interface OK')"

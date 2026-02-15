@@ -1,7 +1,3 @@
-from __future__ import annotations
-
-
-from pathlib import Path
 """
 Coordination protocol mixin: handoff, auction, coalition, gossip, supervisor hierarchy.
 
@@ -12,7 +8,7 @@ These are mixed into SwarmIntelligence at class definition.
 import hashlib
 import time
 import logging
-from typing import Dict, List, Any, Optional, Tuple, Callable, TYPE_CHECKING, Set
+from typing import Dict, List, Any, Optional, Tuple, Callable
 
 from ..swarm_data_structures import (
     AgentSpecialization, AgentProfile, ConsensusVote, SwarmDecision,
@@ -42,41 +38,46 @@ class CoordinationMixin:
         priority: int = 5
     ) -> HandoffContext:
         """
+        Initiate task handoff between agents with context preservation.
 
-    if TYPE_CHECKING:
-        # Comprehensive attribute declarations for type checking
-        # These are provided by parent class or other mixins in composition
+        SwarmAgentic pattern: Seamless task transfer without losing state.
 
-    # Orchestration attributes
-    agents: List[Any]
-    agent_profiles: Dict[str, Any]
-    agent_name: Optional[str]
-    config: Dict[str, Any]
-    name: str
-    history: List[Any]
-    handoff_history: List[Any]
-    pending_handoffs: List[Any]
-    active_auctions: Dict[str, Any]
-    agent_coalitions: Dict[str, Any]
-    coalitions: Dict[str, Any]
-    circuit_breakers: Dict[str, Any]
-    gossip_inbox: List[Any]
-    gossip_seen: Set[str]
-    consensus_history: List[Any]
-    morph_score_history: List[Any]
-    morph_scorer: Optional[Any]
+        Args:
+            task_id: Unique task identifier
+            from_agent: Agent initiating handoff
+            to_agent: Agent receiving task
+            task_type: Type of task being handed off
+            context: Task context to preserve
+            partial_result: Any partial work completed
+            progress: Completion progress 0-1
+            priority: Task priority 1-10
 
-    def register_agent(self, agent: Any) -> None: ...
-    def find_idle_agents(self) -> List[Any]: ...
-    def find_overloaded_agents(self) -> List[Any]: ...
-    def get_agent_load(self, agent_id: str) -> float: ...
-    def get_available_agents(self) -> List[Any]: ...
-    def initiate_handoff(self, from_agent: str, to_agent: str, **kwargs: Any) -> None: ...
-    def auto_auction(self, task: Any) -> Any: ...
-    def form_coalition(self, agents: List[str]) -> str: ...
-    def check_circuit(self, operation: str) -> bool: ...
-    def gossip_broadcast(self, message: Any) -> None: ...
-    def get_swarm_health(self) -> Dict[str, Any]: ...
+        Returns:
+            HandoffContext for tracking
+        """
+        handoff = HandoffContext(
+            task_id=task_id,
+            from_agent=from_agent,
+            to_agent=to_agent,
+            task_type=task_type,
+            context=context or {},
+            partial_result=partial_result,
+            progress=progress,
+            priority=priority
+        )
+        handoff.add_to_chain(from_agent)
+
+        self.pending_handoffs[task_id] = handoff
+
+        # Notify via gossip
+        self.gossip_broadcast(
+            origin_agent=from_agent,
+            message_type="handoff",
+            content={"task_id": task_id, "to": to_agent, "type": task_type}
+        )
+
+        logger.info(f"Handoff initiated: {from_agent} → {to_agent} for task {task_id}")
+        return handoff
 
 
 
@@ -174,7 +175,7 @@ class CoordinationMixin:
         # Build supervisor levels until we have a single root
         while len(current_level) > 1:
             level += 1
-            next_level: list[Any] = []
+            next_level = []
 
             for i in range(0, len(current_level), branching_factor):
                 children = current_level[i:i + branching_factor]
