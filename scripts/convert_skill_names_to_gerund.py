@@ -8,7 +8,6 @@ Rules:
 - Lowercase, hyphens only, max 64 chars
 """
 
-import os
 import re
 from pathlib import Path
 

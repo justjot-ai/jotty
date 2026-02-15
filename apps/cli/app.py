@@ -89,14 +89,14 @@ class JottyCLI:
         # Event processor
         self.event_processor = EventProcessor(self.chat)
 
-        # Initialize global LLM provider (shared across all components)
-        from Jotty.core.infrastructure.foundation.llm_singleton import get_global_lm
+        # Initialize LLM provider (shared across all components)
+        from Jotty.core.infrastructure.foundation.unified_lm_provider import UnifiedLMProvider
 
         try:
-            self.lm = get_global_lm(provider="anthropic")
-            logger.info(f"✅ Global LLM provider ready: {getattr(self.lm, 'model', 'unknown')}")
+            self.lm = UnifiedLMProvider.create_lm(provider="anthropic")
+            logger.info(f"LLM provider ready: {getattr(self.lm, 'model', 'unknown')}")
         except Exception as e:
-            logger.warning(f"⚠️  Global LLM provider init failed: {e}")
+            logger.warning(f"LLM provider init failed: {e}")
 
         # SDK client
         self.sdk = Jotty().use_local()

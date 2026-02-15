@@ -12,20 +12,14 @@ Covers:
 Target: ~150 tests
 """
 
-import asyncio
 import json
-import tempfile
 import time
 from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, List
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
 # Import learning mixin
-from Jotty.core.intelligence.swarms._learning_mixin import SwarmLearningMixin
-
 # Import evaluation components
 from Jotty.core.intelligence.swarms.evaluation import (
     EvaluationHistory,
@@ -53,7 +47,6 @@ from Jotty.core.intelligence.swarms.swarm_types import (
     AgentRole,
     Evaluation,
     EvaluationResult,
-    ExecutionTrace,
     GoldStandard,
     ImprovementSuggestion,
     ImprovementType,

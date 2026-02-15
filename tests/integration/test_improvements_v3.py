@@ -7,14 +7,11 @@ Tests for Orchestrator improvements v3:
 4. Real-world LLM benchmark (optional, requires API key)
 """
 
-import asyncio
-import json
 import os
 import tempfile
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
 from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult, SwarmConfig
 
@@ -174,7 +171,6 @@ class TestAgentWarmStart:
             AgentRunnerConfig,
         )
         from Jotty.core.intelligence.orchestration.swarm_data_structures import (
-            AgentProfile,
             AgentSpecialization,
         )
         from Jotty.core.intelligence.orchestration.swarm_intelligence import SwarmIntelligence
@@ -216,7 +212,6 @@ class TestAgentWarmStart:
             AgentRunnerConfig,
         )
         from Jotty.core.intelligence.orchestration.swarm_data_structures import (
-            AgentProfile,
             AgentSpecialization,
         )
         from Jotty.core.intelligence.orchestration.swarm_intelligence import SwarmIntelligence

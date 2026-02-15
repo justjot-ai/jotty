@@ -392,7 +392,7 @@ class ValidationGate:
 
     def _init_lm(self) -> bool:
         """
-        Initialize LM using global singleton provider.
+        Initialize LM using unified LM provider.
 
         Uses the unified LLM provider shared across all components.
         This prevents duplicate API calls and rate limit issues.
@@ -400,12 +400,13 @@ class ValidationGate:
         Returns True if any LM is available.
         """
         try:
-            from Jotty.core.infrastructure.foundation.llm_singleton import get_global_lm
+            from Jotty.core.infrastructure.foundation.unified_lm_provider import (
+                configure_dspy_lm,
+            )
 
-            # Use global LLM provider (shared across all components)
-            self._lm = get_global_lm()
+            self._lm = configure_dspy_lm()
             logger.info(
-                f"ValidationGate: Using global LLM provider "
+                f"ValidationGate: Using unified LLM provider "
                 f"(model={getattr(self._lm, 'model', 'unknown')})"
             )
             return True

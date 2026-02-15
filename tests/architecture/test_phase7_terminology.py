@@ -53,7 +53,6 @@ def test_jotty_core_module_import():
 def test_actor_parameter_backward_compat():
     """Old 'actor' parameter still works with deprecation warning."""
     import dspy
-
     from core.orchestration import SingleAgentOrchestrator
 
     # Create a simple agent
@@ -84,7 +83,6 @@ def test_actor_parameter_backward_compat():
 def test_agent_parameter_new():
     """New 'agent' parameter works without warning."""
     import dspy
-
     from core.orchestration import SingleAgentOrchestrator
 
     # Create a simple agent
@@ -116,7 +114,6 @@ def test_agent_parameter_new():
 def test_instance_variable_name():
     """Internal instance variable is named 'agent'."""
     import dspy
-
     from core.orchestration import SingleAgentOrchestrator
 
     agent = dspy.ChainOfThought("question -> answer")

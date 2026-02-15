@@ -10,12 +10,9 @@ Tests for Phase 1A-1G SDK additions:
 - Document methods (upload_document, search_documents, chat_with_documents)
 """
 
-import asyncio
-from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-
 from Jotty.core.infrastructure.foundation.types.sdk_types import (
     ExecutionMode,
     SDKEvent,

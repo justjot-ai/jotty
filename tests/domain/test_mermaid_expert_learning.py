@@ -104,7 +104,7 @@ async def test_mermaid_expert_learning():
     print()
 
     training_data = expert.get_training_data()
-    print(f"Training Data:")
+    print("Training Data:")
     print(f"  Cases available: {len(training_data)}")
     print()
 
@@ -163,7 +163,7 @@ async def test_mermaid_expert_learning():
                 description=test_case["description"], diagram_type=test_case["diagram_type"]
             )
 
-            print(f"  Generated Diagram:")
+            print("  Generated Diagram:")
             print("  ```mermaid")
             print(f"  {diagram}")
             print("  ```")
@@ -179,7 +179,7 @@ async def test_mermaid_expert_learning():
                 "has_labels": "|" in diagram_str,
             }
 
-            print(f"  Validation:")
+            print("  Validation:")
             for key, value in validation.items():
                 status = "✅" if value else "❌"
                 print(f"    {status} {key.replace('_', ' ').title()}: {value}")
@@ -193,7 +193,7 @@ async def test_mermaid_expert_learning():
             if missing_elements:
                 print(f"  ⚠️  Missing expected elements: {', '.join(missing_elements)}")
             else:
-                print(f"  ✅ All expected elements present!")
+                print("  ✅ All expected elements present!")
 
             # Score
             score = sum(validation.values()) / len(validation)
@@ -211,8 +211,8 @@ async def test_mermaid_expert_learning():
 
         except RuntimeError as e:
             if "must be trained" in str(e):
-                print(f"  ⚠️  Expert not trained (likely no LLM configured)")
-                print(f"  This is expected if no LLM is available.")
+                print("  ⚠️  Expert not trained (likely no LLM configured)")
+                print("  This is expected if no LLM is available.")
             else:
                 print(f"  ❌ Error: {e}")
             results.append({"name": test_case["name"], "error": str(e)})

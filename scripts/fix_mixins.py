@@ -14,7 +14,7 @@ Usage:
 import argparse
 import re
 from pathlib import Path
-from typing import List, Set
+from typing import List
 
 # Standard attributes that report generator mixins expect
 REPORT_MIXIN_ATTRS = """

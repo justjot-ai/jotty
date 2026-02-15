@@ -13,7 +13,6 @@ import os
 from pathlib import Path
 
 import pytest
-
 from Jotty.core.intelligence.swarms.coding_swarm.types import CodingConfig
 from Jotty.core.intelligence.swarms.templates.coding import CodingTemplate
 

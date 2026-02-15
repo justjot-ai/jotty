@@ -329,7 +329,7 @@ class LotusArxiv:
         """
         self._init_lotus()
 
-        logger.info(f" Finding similar papers...")
+        logger.info(" Finding similar papers...")
 
         loop = asyncio.get_running_loop()
 

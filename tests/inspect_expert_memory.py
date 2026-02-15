@@ -31,7 +31,7 @@ def inspect_memory_for_expert(memory: SwarmMemory, expert_name: str, domain: str
     episodic = memory.memories[MemoryLevel.EPISODIC]
     causal = memory.memories[MemoryLevel.CAUSAL]
 
-    print(f"Memory Levels:")
+    print("Memory Levels:")
     print(f"  PROCEDURAL: {len(procedural)} entries")
     print(f"  SEMANTIC:   {len(semantic)} entries")
     print(f"  META:       {len(meta)} entries")
@@ -64,7 +64,7 @@ def inspect_memory_for_expert(memory: SwarmMemory, expert_name: str, domain: str
         or f"expert_{domain}" in entry.context.get("expert_name", "")
     ]
 
-    print(f"Expert-Specific Entries:")
+    print("Expert-Specific Entries:")
     print(f"  PROCEDURAL: {len(expert_procedural)} entries")
     print(f"  SEMANTIC:   {len(expert_semantic)} entries")
     print(f"  META:       {len(expert_meta)} entries")
@@ -81,7 +81,7 @@ def inspect_memory_for_expert(memory: SwarmMemory, expert_name: str, domain: str
             print(f"  Last Accessed: {entry.last_accessed}")
             print(f"  Access Count: {entry.access_count}")
             print(f"  Context: {json.dumps(entry.context, indent=4, default=str)}")
-            print(f"  Content Preview:")
+            print("  Content Preview:")
             try:
                 content_data = json.loads(entry.content)
                 print(f"    {json.dumps(content_data, indent=4, default=str)[:500]}...")
@@ -98,7 +98,7 @@ def inspect_memory_for_expert(memory: SwarmMemory, expert_name: str, domain: str
             print(f"  Key: {entry.key}")
             print(f"  Created: {entry.created_at}")
             print(f"  Context: {json.dumps(entry.context, indent=4, default=str)}")
-            print(f"  Content Preview:")
+            print("  Content Preview:")
             print(f"    {entry.content[:500]}...")
         print()
 
@@ -111,12 +111,12 @@ def inspect_memory_for_expert(memory: SwarmMemory, expert_name: str, domain: str
             print(f"  Key: {entry.key}")
             print(f"  Created: {entry.created_at}")
             print(f"  Context: {json.dumps(entry.context, indent=4, default=str)}")
-            print(f"  Content Preview:")
+            print("  Content Preview:")
             print(f"    {entry.content[:500]}...")
         print()
 
     # Retrieve using integration functions
-    print(f"Retrieved Improvements (via integration):")
+    print("Retrieved Improvements (via integration):")
     print("-" * 80)
     improvements = retrieve_improvements_from_memory(
         memory=memory, expert_name=expert_name, domain=domain, max_results=20
@@ -134,7 +134,7 @@ def inspect_memory_for_expert(memory: SwarmMemory, expert_name: str, domain: str
         print(f"\n  ... and {len(improvements) - 5} more improvements")
 
     # Try synthesized
-    print(f"\nSynthesized Improvements:")
+    print("\nSynthesized Improvements:")
     print("-" * 80)
     synthesized = retrieve_synthesized_improvements(
         memory=memory, expert_name=expert_name, domain=domain
@@ -144,7 +144,7 @@ def inspect_memory_for_expert(memory: SwarmMemory, expert_name: str, domain: str
         print(f"  Length: {len(synthesized)} chars")
         print(f"  Preview: {synthesized[:300]}...")
     else:
-        print(f"  No synthesized improvements available")
+        print("  No synthesized improvements available")
 
 
 def main():
@@ -246,11 +246,11 @@ def main():
         ]
     )
 
-    print(f"\nPlantUML Expert:")
+    print("\nPlantUML Expert:")
     print(f"  PROCEDURAL: {plantuml_procedural} entries")
     print(f"  SEMANTIC:   {plantuml_semantic} entries")
 
-    print(f"\nMermaid Expert:")
+    print("\nMermaid Expert:")
     print(f"  PROCEDURAL: {mermaid_procedural} entries")
     print(f"  SEMANTIC:   {mermaid_semantic} entries")
 

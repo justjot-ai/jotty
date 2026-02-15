@@ -11,7 +11,6 @@ from typing import Any, Dict, List
 
 import requests
 from bs4 import BeautifulSoup
-
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
@@ -611,7 +610,7 @@ def get_commodities_prices_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             }
 
             # Build formatted output
-            formatted_output = f"📈 *Commodities Prices*\n"
+            formatted_output = "📈 *Commodities Prices*\n"
             formatted_output += f"🕐 {timestamp}\n\n"
 
             # Summary stats
@@ -684,7 +683,7 @@ def get_commodities_prices_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
                     formatted_output += "─" * 40 + "\n\n"
         else:  # text
-            formatted_output = f"📈 Commodities Prices\n"
+            formatted_output = "📈 Commodities Prices\n"
             formatted_output += f"🕐 {timestamp}\n\n"
             for c in commodities:
                 name = c.get("name", "N/A")

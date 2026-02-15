@@ -255,7 +255,7 @@ async def _generate_changelog_content(
         lines.append("")
         lines.append(f"*Released: {datetime.now().strftime('%Y-%m-%d')}*")
     else:
-        lines.append(f"# Changelog")
+        lines.append("# Changelog")
         lines.append("")
         lines.append(f"*Generated: {datetime.now().strftime('%Y-%m-%d')}*")
 

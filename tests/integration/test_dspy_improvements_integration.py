@@ -23,8 +23,6 @@ except ImportError:
 from core.experts import ExpertAgentConfig, MermaidExpertAgent
 from core.experts.dspy_improvements import (
     apply_improvements_to_dspy_module,
-    create_improvements_context,
-    inject_improvements_into_signature,
 )
 
 

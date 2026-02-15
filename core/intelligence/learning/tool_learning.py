@@ -148,9 +148,7 @@ class ToolLearningFeedback:
         logger.info(f"Updated learning boost for {updated_count} skills")
         return updated_count
 
-    def get_tool_recommendations(
-        self, task: str, top_k: int = 5
-    ) -> List[Dict[str, Any]]:
+    def get_tool_recommendations(self, task: str, top_k: int = 5) -> List[Dict[str, Any]]:
         """
         Get tool recommendations based on learned success patterns.
 
@@ -165,9 +163,7 @@ class ToolLearningFeedback:
             return []
 
         # Sort tools by success rate
-        sorted_tools = sorted(
-            self.tool_success_rates.items(), key=lambda x: -x[1]
-        )[:top_k]
+        sorted_tools = sorted(self.tool_success_rates.items(), key=lambda x: -x[1])[:top_k]
 
         recommendations = []
         for tool_name, success_rate in sorted_tools:

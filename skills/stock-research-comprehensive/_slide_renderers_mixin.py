@@ -951,13 +951,13 @@ class SlideRenderersMixin:
 
             if status == "done":
                 completed += 1
-                icon_class = f"bg-green-500/20 text-green-400"
+                icon_class = "bg-green-500/20 text-green-400"
                 icon = ""
-                tag = f'<span class="tag bg-green-500/20 text-green-300">Done</span>'
+                tag = '<span class="tag bg-green-500/20 text-green-300">Done</span>'
             elif status == "in_progress":
-                icon_class = f"bg-blue-500/20 text-blue-400"
+                icon_class = "bg-blue-500/20 text-blue-400"
                 icon = "○"
-                tag = f'<span class="tag bg-blue-500/20 text-blue-300">In Progress</span>'
+                tag = '<span class="tag bg-blue-500/20 text-blue-300">In Progress</span>'
             else:
                 icon_class = f"bg-[{self.colors['border']}] text-[{self.colors['text_muted']}]"
                 icon = "○"

@@ -3,11 +3,9 @@ Tests for Fact-Retrieval Executor
 """
 
 import pytest
-
 from Jotty.core.modes.execution.fact_retrieval_executor import (
     AnswerFormat,
     FactRetrievalExecutor,
-    QuestionAnalysis,
 )
 
 

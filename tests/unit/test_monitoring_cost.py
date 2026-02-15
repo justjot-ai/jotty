@@ -12,7 +12,6 @@ Tests cover:
 
 import json
 import time
-from typing import Any, Dict
 
 import pytest
 

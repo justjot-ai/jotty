@@ -319,7 +319,7 @@ Return ONLY the JSON array, no other text:"""
                                 forecast = forecasts["revenue"]
                                 chart_markdown += "### 📈 Revenue Forecast\n\n"
                                 chart_markdown += (
-                                    f"Based on historical trends, revenue is forecasted to "
+                                    "Based on historical trends, revenue is forecasted to "
                                 )
                                 chart_markdown += (
                                     f"{forecast.get('trend_direction', 'grow')} with a "

@@ -18,7 +18,6 @@ Measures: latency, output quality, PDF existence, and file size.
 """
 
 import asyncio
-import glob
 import os
 import sys
 import time

@@ -132,24 +132,7 @@ class SwarmProviderGateway:
                                 except Exception:
                                     continue
 
-                    # 3. JottyClaudeProvider (auto-manages wrapper)
-                    if not self._configured_lm:
-                        try:
-                            from Jotty.core.infrastructure.foundation.jotty_claude_provider import (
-                                JottyClaudeProvider,
-                                is_claude_available,
-                            )
-
-                            if is_claude_available():
-                                provider = JottyClaudeProvider(auto_start=True)
-                                self._configured_lm = provider.get_lm()
-                                logger.info(
-                                    " SwarmProviderGateway (async): Using JottyClaudeProvider"
-                                )
-                        except Exception as e:
-                            logger.debug(f"JottyClaudeProvider failed: {e}")
-
-                    # 4. DirectClaudeCLI (simple subprocess, ~3s per call)
+                    # 3. DirectClaudeCLI (simple subprocess, ~3s per call)
                     if not self._configured_lm and shutil.which("claude"):
                         try:
                             from Jotty.core.infrastructure.integration.direct_claude_cli_lm import (

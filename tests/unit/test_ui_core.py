@@ -5,7 +5,6 @@ Tests for StatusTaxonomy (status_taxonomy.py) and A2UI widgets/helpers (a2ui.py)
 """
 
 import json
-from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 

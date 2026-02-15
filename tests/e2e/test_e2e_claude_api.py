@@ -259,7 +259,6 @@ class TestComponentBehavior:
 
 def run_e2e_tests():
     """Run end-to-end tests."""
-    import sys
 
     if not os.getenv("ANTHROPIC_API_KEY"):
         print("⚠️  ANTHROPIC_API_KEY not set. Skipping API tests.")

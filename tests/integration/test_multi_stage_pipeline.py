@@ -38,7 +38,6 @@ async def test_pipeline_basic_usage():
     from Jotty.core.intelligence.orchestration import (
         MergeStrategy,
         MultiStagePipeline,
-        SwarmAdapter,
     )
 
     # Mock swarms
@@ -118,7 +117,7 @@ async def test_pipeline_context_chaining():
 @pytest.mark.asyncio
 async def test_pipeline_multiple_context_sources():
     """Test stage receiving context from multiple previous stages."""
-    from Jotty.core.intelligence.orchestration import MergeStrategy, MultiStagePipeline
+    from Jotty.core.intelligence.orchestration import MultiStagePipeline
 
     class MockSwarm:
         name = "Mock"
@@ -148,7 +147,7 @@ async def test_pipeline_multiple_context_sources():
 @pytest.mark.asyncio
 async def test_pipeline_get_stage():
     """Test retrieving specific stage results."""
-    from Jotty.core.intelligence.orchestration import MergeStrategy, MultiStagePipeline
+    from Jotty.core.intelligence.orchestration import MultiStagePipeline
 
     class MockSwarm:
         name = "Mock"
@@ -307,7 +306,7 @@ async def test_stage_config_context_template():
 @pytest.mark.asyncio
 async def test_pipeline_with_max_context_chars():
     """Test that context is truncated to max_context_chars."""
-    from Jotty.core.intelligence.orchestration import MergeStrategy, MultiStagePipeline
+    from Jotty.core.intelligence.orchestration import MultiStagePipeline
 
     class VerboseSwarm:
         name = "Verbose"

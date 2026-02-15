@@ -101,7 +101,7 @@ Examples:
         print("   Provide via --email/--password or OAUTH_EMAIL/OAUTH_PASSWORD env vars")
         sys.exit(1)
 
-    print(f"🔐 OAuth Login")
+    print("🔐 OAuth Login")
     print(f"   Provider: {args.provider}")
     print(f"   Email: {email}")
     print(f"   Service: {args.service_url}")

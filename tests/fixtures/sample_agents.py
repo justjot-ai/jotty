@@ -6,7 +6,7 @@ Provides reusable mock agents and DSPy modules for test scenarios.
 
 from dataclasses import dataclass
 from typing import Any, Dict, List
-from unittest.mock import AsyncMock, MagicMock, Mock
+from unittest.mock import Mock
 
 # =============================================================================
 # Simple Mock Agents

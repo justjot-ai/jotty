@@ -5,11 +5,10 @@ Covers LLMQPredictor: init, Q-value estimation, state/action handling,
 experience management, tiered memory, and persistence.
 """
 
-import json
 import os
 import tempfile
 import time
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 

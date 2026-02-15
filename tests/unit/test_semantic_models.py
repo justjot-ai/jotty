@@ -10,11 +10,9 @@ All tests are offline, unit-level, and use mocks where needed.
 """
 
 from datetime import datetime, timedelta
-from typing import Any, Dict
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
-from dateutil.relativedelta import relativedelta
 
 # LookML models imports
 from Jotty.core.capabilities.semantic.lookml.models import (
@@ -25,10 +23,10 @@ from Jotty.core.capabilities.semantic.lookml.models import (
     JoinType,
     LookMLModel,
     Measure,
+    View,
 )
 from Jotty.core.capabilities.semantic.lookml.models import MeasureType as LookMLMeasureType
 from Jotty.core.capabilities.semantic.lookml.models import Relationship as LookMLRelationship
-from Jotty.core.capabilities.semantic.lookml.models import View
 
 # Semantic models imports
 from Jotty.core.capabilities.semantic.models import (

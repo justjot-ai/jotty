@@ -15,8 +15,7 @@ All tests use mocks and tmp_path -- NO real LLM calls.
 
 import asyncio
 import threading
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from datetime import datetime
 
 import pytest
 

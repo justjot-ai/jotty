@@ -479,15 +479,17 @@ class TierExecutor:
                 scratchpad=scratchpad,
             )
 
-            # Inject global LM so validation works
+            # Inject LM so validation works
             try:
-                from Jotty.core.infrastructure.foundation.llm_singleton import get_global_lm
+                from Jotty.core.infrastructure.foundation.unified_lm_provider import (
+                    UnifiedLMProvider,
+                )
 
-                auditor._dspy_lm = get_global_lm(
+                auditor._dspy_lm = UnifiedLMProvider.create_lm(
                     provider="anthropic", model="claude-haiku-4-5-20251001"
                 )
             except Exception as lm_err:
-                logger.debug(f"Could not inject global LM into auditor: {lm_err}")
+                logger.debug(f"Could not inject LM into auditor: {lm_err}")
 
             return MultiRoundValidator([auditor], swarm_config)
         except (ImportError, ConfigurationError) as e:

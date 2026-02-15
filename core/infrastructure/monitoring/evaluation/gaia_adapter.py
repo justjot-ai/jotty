@@ -338,16 +338,20 @@ class JottyGAIAAdapter:
                         key, _, value = line.partition("=")
                         os.environ.setdefault(key.strip(), value.strip())
 
-            # Configure DSPy to use global LM singleton
+            # Configure DSPy with unified LM provider
             # to avoid "cannot be launched inside another Claude Code session" errors
             try:
                 import dspy
-                from Jotty.core.infrastructure.foundation.llm_singleton import get_global_lm
+                from Jotty.core.infrastructure.foundation.unified_lm_provider import (
+                    UnifiedLMProvider,
+                )
 
-                api_lm = get_global_lm(provider="anthropic", model="claude-sonnet-4-20250514")
+                api_lm = UnifiedLMProvider.create_lm(
+                    provider="anthropic", model="claude-sonnet-4-20250514"
+                )
                 dspy.configure(lm=api_lm)
             except Exception as e:
-                logger.debug(f"DSPy global LM configuration: {e}")
+                logger.debug(f"DSPy LM configuration: {e}")
 
             from Jotty.jotty import Jotty
 

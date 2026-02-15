@@ -6,7 +6,6 @@ Update Agent Imports After Reorganization
 Maps old agent.base.* imports to new organized structure.
 """
 
-import re
 from pathlib import Path
 
 # Mapping: old path → new path

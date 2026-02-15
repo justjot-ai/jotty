@@ -56,9 +56,9 @@ async def test_real_claude_cli():
         dspy.configure(lm=lm)
 
         print("✅ Claude CLI provider configured successfully!")
-        print(f"   Provider: Direct Claude CLI (binary)")
-        print(f"   Model: sonnet (Claude 3.5 Sonnet)")
-        print(f"   No authentication required (direct binary call)")
+        print("   Provider: Direct Claude CLI (binary)")
+        print("   Model: sonnet (Claude 3.5 Sonnet)")
+        print("   No authentication required (direct binary call)")
 
     except Exception as e:
         print(f"❌ Failed to configure Claude CLI: {e}")
@@ -138,7 +138,7 @@ async def test_real_claude_cli():
         formula = result.formula
         results["latex"] = formula
 
-        print(f"✅ Generated Formula:")
+        print("✅ Generated Formula:")
         print(f"   {formula}")
 
     except Exception as e:
@@ -163,7 +163,7 @@ async def test_real_claude_cli():
         diagram = result.diagram
         results["mermaid"] = diagram
 
-        print(f"✅ Generated Diagram:")
+        print("✅ Generated Diagram:")
         print(f"   {diagram[:100]}...")
 
     except Exception as e:
@@ -188,7 +188,7 @@ async def test_real_claude_cli():
         class_diagram = result.diagram
         results["plantuml"] = class_diagram
 
-        print(f"✅ Generated Class Diagram:")
+        print("✅ Generated Class Diagram:")
         print(f"   {class_diagram[:100]}...")
 
     except Exception as e:
@@ -213,7 +213,7 @@ async def test_real_claude_cli():
         pipeline = result.diagram
         results["pipeline"] = pipeline
 
-        print(f"✅ Generated Pipeline:")
+        print("✅ Generated Pipeline:")
         print(f"   {pipeline[:100]}...")
 
     except Exception as e:
@@ -268,7 +268,7 @@ Token Bucket Algorithm:
 
     print(f"\n✅ Document Generated: {output_file}")
     print(f"   Size: {len(doc)} characters")
-    print(f"   Sections: 4 (Formula, Flow, Model, Pipeline)")
+    print("   Sections: 4 (Formula, Flow, Model, Pipeline)")
 
     # Step 6: Summary
     print("\n" + "=" * 80)

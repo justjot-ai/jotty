@@ -289,7 +289,7 @@ async def test_tough_mermaid_examples():
         print()
         print(f"Description: {case['description']}")
         print()
-        print(f"Expected Output:")
+        print("Expected Output:")
         print("```mermaid")
         print(case["gold_standard"])
         print("```")
@@ -301,7 +301,7 @@ async def test_tough_mermaid_examples():
                 description=case["description"], diagram_type=case["diagram_type"]
             )
 
-            print(f"Generated Output:")
+            print("Generated Output:")
             print("```mermaid")
             print(generated)
             print("```")
@@ -319,13 +319,13 @@ async def test_tough_mermaid_examples():
             status = eval_result.get("status", "UNKNOWN")
             matches = eval_result.get("matches_gold", False)
 
-            print(f"Evaluation:")
+            print("Evaluation:")
             print(f"  Score: {score:.2f} / 1.0")
             print(f"  Status: {status}")
             print(f"  Matches Gold: {'✅ YES' if matches else '❌ NO'}")
 
             if eval_result.get("issues"):
-                print(f"  Issues:")
+                print("  Issues:")
                 for issue in eval_result["issues"]:
                     print(f"    - {issue}")
 

@@ -8,7 +8,7 @@ they always produce correct outputs. They can be pre-trained and validated.
 
 Migration Guide:
     Old (deprecated):
-        from Jotty.core.intelligence.reasoning.experts import ExpertAgent, ExpertAgentConfig
+        from Jotty.core.execution.agents import ExpertAgent, ExpertAgentConfig
         config = ExpertAgentConfig(name="Expert", domain="mermaid")
         expert = ExpertAgent(config)
 

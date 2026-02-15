@@ -14,22 +14,15 @@ Proves Jotty V2 works end-to-end across multiple execution cycles:
 NOT a unit test — this simulates a real multi-run workflow.
 """
 
-import asyncio
-import json
 import logging
 import os
-import tempfile
 import time
-from pathlib import Path
 
 import pytest
-
-from core.foundation.data_structures import GoalValue, MemoryEntry, MemoryLevel, SwarmConfig
+from core.foundation.data_structures import MemoryLevel, SwarmConfig
 from core.learning.adaptive_components import AdaptiveLearningRate
 from core.learning.td_lambda import TDLambdaLearner
 from core.memory.cortex import SwarmMemory
-from core.orchestration.benchmarking import SwarmBenchmarks
-from core.orchestration.stigmergy import StigmergyLayer
 from core.orchestration.swarm_intelligence import SwarmIntelligence
 
 logger = logging.getLogger(__name__)

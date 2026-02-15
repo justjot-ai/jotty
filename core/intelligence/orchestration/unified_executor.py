@@ -59,10 +59,6 @@ from .llm_providers import (
     auto_detect_provider,
     create_provider,
 )
-<<<<<<< Updated upstream
-from Jotty.skills._tools import UnifiedToolGenerator
-=======
->>>>>>> Stashed changes
 
 logger = logging.getLogger(__name__)
 

@@ -12,15 +12,15 @@ All skill-related code now lives in skills/.
 
 # Base classes come from infrastructure
 from .._infrastructure import (
+    CATEGORY_KEYWORDS,
+    SKILL_CATEGORY_MAP,
+    JottyDefaultProvider,
     ProviderCapability,
+    ProviderRegistry,
     ProviderResult,
+    ProviderSelector,
     SkillCategory,
     SkillProvider,
-    JottyDefaultProvider,
-    SKILL_CATEGORY_MAP,
-    CATEGORY_KEYWORDS,
-    ProviderRegistry,
-    ProviderSelector,
 )
 
 __all__ = [

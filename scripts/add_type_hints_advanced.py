@@ -7,10 +7,9 @@ Infers and adds type hints using AST analysis and heuristics.
 """
 
 import ast
-import re
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
+from typing import List, Optional, Set, Tuple
 
 
 class TypeInferrer(ast.NodeVisitor):
@@ -207,7 +206,6 @@ def process_file_advanced(filepath: Path, dry_run: bool = True) -> Tuple[int, Li
 
 def main():
     import argparse
-    import sys
 
     parser = argparse.ArgumentParser()
     parser.add_argument("paths", nargs="+")
@@ -260,10 +258,10 @@ def main():
     print(f"  Total hints added: {total_changes}")
 
     if args.dry_run:
-        print(f"\n💡 Run with --apply to make changes")
+        print("\n💡 Run with --apply to make changes")
         return 1
     else:
-        print(f"\n✅ Changes applied!")
+        print("\n✅ Changes applied!")
         return 0
 
 

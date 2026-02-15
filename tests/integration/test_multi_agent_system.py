@@ -13,7 +13,6 @@ This shows:
 
 import asyncio
 import logging
-from typing import Any, Dict, List
 
 # Setup logging
 logging.basicConfig(
@@ -168,7 +167,7 @@ async def test_multi_agent_system():
     total_score = sum(r["score"] for r in results.values())
     avg_score = total_score / len(results)
 
-    print(f"\nMulti-Agent Task Completion:")
+    print("\nMulti-Agent Task Completion:")
     print(f"  Total Tasks: {len(tasks)}")
     print(f"  Completed: {sum(1 for r in results.values() if r['score'] >= 0.9)}")
     print(f"  Partial: {sum(1 for r in results.values() if 0.5 <= r['score'] < 0.9)}")

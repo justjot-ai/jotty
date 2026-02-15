@@ -11,19 +11,18 @@ Moved from core/capabilities/skills/providers/ (Feb 2026) for better organizatio
 """
 
 from .base import (
+    CATEGORY_KEYWORDS,
+    SKILL_CATEGORY_MAP,
+    JottyDefaultProvider,
     ProviderCapability,
     ProviderResult,
     SkillCategory,
     SkillProvider,
-    JottyDefaultProvider,
-    SKILL_CATEGORY_MAP,
-    CATEGORY_KEYWORDS,
 )
-
 from .provider_registry import (
+    ProviderPerformance,
     ProviderRegistry,
     ProviderSelector,
-    ProviderPerformance,
 )
 
 __all__ = [

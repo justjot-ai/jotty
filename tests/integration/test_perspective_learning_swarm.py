@@ -10,11 +10,7 @@ Tests cover:
 - Registration check
 """
 
-import asyncio
-import json
-import logging
-from dataclasses import dataclass
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -640,19 +636,19 @@ class TestSwarmRegistration:
 
     @pytest.mark.unit
     def test_lazy_import_from_core_swarms(self):
-        from Jotty.core.intelligence.swarms import PerspectiveLearningSwarm
+        from Jotty.core.execution.swarms import PerspectiveLearningSwarm
 
         assert PerspectiveLearningSwarm is not None
 
     @pytest.mark.unit
     def test_lazy_import_teach_perspectives(self):
-        from Jotty.core.intelligence.swarms import teach_perspectives
+        from Jotty.core.execution.swarms import teach_perspectives
 
         assert callable(teach_perspectives)
 
     @pytest.mark.unit
     def test_lazy_import_types(self):
-        from Jotty.core.intelligence.swarms import AgeGroup, ContentDepth, Language, PerspectiveType
+        from Jotty.core.execution.swarms import Language, PerspectiveType
 
         assert len(PerspectiveType) == 6
         assert len(Language) == 4
@@ -973,7 +969,6 @@ class TestSignatures:
     def test_all_signatures_importable(self):
         # Just verify they're all importable DSPy signatures
         import dspy
-
         from Jotty.core.intelligence.swarms.perspective_learning_swarm.signatures import (
             ContentAssemblerSignature,
             CurriculumDesignerSignature,

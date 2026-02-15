@@ -7,10 +7,8 @@ Covers: AgentRole, EvaluationResult, ImprovementType enums,
 
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
-
 from Jotty.core.intelligence.swarms.swarm_types import (
     AgentRole,
     Evaluation,
@@ -761,7 +759,7 @@ class TestSwarmSignatures:
     def test_all_exports_exist(self):
         """All entries in __all__ are importable."""
         try:
-            from Jotty.core.intelligence.swarms import swarm_signatures
+            from Jotty.core.execution.swarms import swarm_signatures
 
             for name in swarm_signatures.__all__:
                 assert hasattr(swarm_signatures, name), f"{name} not found"

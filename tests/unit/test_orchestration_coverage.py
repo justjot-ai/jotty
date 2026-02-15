@@ -8,10 +8,9 @@ Covers:
 """
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, Mock, PropertyMock, patch
+from unittest.mock import AsyncMock, Mock
 
 import pytest
-
 from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult
 
 # ──────────────────────────────────────────────────────────────────────

@@ -35,7 +35,7 @@ Integration:
 import ast
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 
 class FileSizeAnalyzer:
@@ -210,7 +210,7 @@ class FileSizeAnalyzer:
             return 0
 
         print("=" * 100)
-        print(f"⚠️  FILES WITH >1,000 LINES OF CODE (excluding documentation)")
+        print("⚠️  FILES WITH >1,000 LINES OF CODE (excluding documentation)")
         print("=" * 100)
 
         for i, result in enumerate(results, 1):

@@ -6,11 +6,12 @@ This tests the simple stub templates to verify they work end-to-end.
 
 import asyncio
 import os
+
 from core.intelligence.swarms.templates import (
-    ReviewTemplate,
-    MLTemplate,
-    TestingTemplate,
     DataAnalysisTemplate,
+    MLTemplate,
+    ReviewTemplate,
+    TestingTemplate,
 )
 
 # Requires ANTHROPIC_API_KEY env var

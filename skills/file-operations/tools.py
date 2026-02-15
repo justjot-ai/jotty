@@ -82,8 +82,8 @@ def write_file_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         and '"bytes_written"' in _content_stripped
     ):
         return tool_error(
-            f"Content appears to be a tool result JSON, not actual file content. "
-            f"The step that generates the content may have resolved incorrectly.",
+            "Content appears to be a tool result JSON, not actual file content. "
+            "The step that generates the content may have resolved incorrectly.",
             path=str(file_path),
         )
 
@@ -155,7 +155,7 @@ def write_file_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             status.emit("Cleaned", f"🧹 Stripped markdown fences from {file_path.name}")
 
     # For .json files, also strip any LLM preamble before the JSON
-    if _ext == ".json" and content.strip() and not content.strip()[0] in ("{", "["):
+    if _ext == ".json" and content.strip() and content.strip()[0] not in ("{", "["):
         # Try to find where the JSON actually starts
         _json_start = None
         for _i, _ch in enumerate(content):

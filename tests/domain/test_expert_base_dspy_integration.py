@@ -20,7 +20,6 @@ except ImportError:
     print("⚠️  DSPy not available. Install with: pip install dspy-ai")
     sys.exit(1)
 
-from core.experts import ExpertAgentConfig
 from core.experts.base_expert import BaseExpert
 
 

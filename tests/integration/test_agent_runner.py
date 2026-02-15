@@ -13,10 +13,8 @@ All tests use mocks -- no real LLM calls, no API keys, runs offline.
 Each test completes in < 1 second.
 """
 
-import asyncio
 import time
-from dataclasses import fields as dataclass_fields
-from unittest.mock import AsyncMock, MagicMock, Mock, PropertyMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 

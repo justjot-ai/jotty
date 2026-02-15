@@ -26,13 +26,13 @@ async def test_mermaid_expert():
     # Verify training data is available (replaces old .train() call)
     print("Checking training data...")
     training_data = expert.get_training_data()
-    print(f"Training Data:")
+    print("Training Data:")
     print(f"  Cases available: {len(training_data)}")
     print()
 
     # Verify validation data is available
     validation_data = expert.get_validation_data()
-    print(f"Validation Data:")
+    print("Validation Data:")
     print(f"  Cases available: {len(validation_data)}")
     print()
 
@@ -61,7 +61,7 @@ async def test_pipeline_expert():
 
     # Verify training data
     training_data = expert.get_training_data()
-    print(f"Training Data:")
+    print("Training Data:")
     print(f"  Cases available: {len(training_data)}")
     print()
 

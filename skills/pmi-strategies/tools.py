@@ -152,7 +152,7 @@ async def get_strategy_status_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     result = client.get(f"/v2/strategies/status/{strategy_id}")
     if not result.get("success"):
-        return tool_error(result.get("error", f"Failed to get strategy status"))
+        return tool_error(result.get("error", "Failed to get strategy status"))
 
     return tool_response(
         strategy_id=strategy_id,

@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 # Try to import Agent-S / gui-agents
 try:
     from gui_agents import Agent as GUIAgent
-    from gui_agents.aci import OSWorldACI  # noqa: F401
+    from gui_agents.aci import OSWorldACI
 
     AGENT_S_AVAILABLE = True
 except ImportError:

@@ -12,7 +12,6 @@ Verdict: Is Jotty worth it?
 """
 
 import asyncio
-import json
 import logging
 import os
 import random
@@ -229,7 +228,6 @@ async def test_4_real_llm() -> Score:
     t0 = time.time()
     try:
         import dspy
-
         from Jotty.core.infrastructure.foundation.direct_anthropic_lm import (
             DirectAnthropicLM,
             is_api_key_available,

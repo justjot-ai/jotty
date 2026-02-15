@@ -18,7 +18,6 @@ pytestmark = pytest.mark.skipif(
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.experts import PlantUMLExpertAgent
 from core.experts.plantuml_expert import PlantUMLExpertAgent as PlantUMLExpert
 
 
@@ -154,4 +153,4 @@ if __name__ == "__main__":
     print("✅ JSON saving: Working")
     print("✅ Gold standards format: Correct")
     print()
-    print(f"Examples saved to: ./expert_data/plantuml_expert/github_training_examples.json")
+    print("Examples saved to: ./expert_data/plantuml_expert/github_training_examples.json")

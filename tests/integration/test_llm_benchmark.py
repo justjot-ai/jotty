@@ -7,16 +7,14 @@ Compares speed/quality across:
   1. DirectAnthropicLM (Haiku)  — cheapest, fastest Anthropic
   2. DirectAnthropicLM (Sonnet) — current default, best quality
   3. dspy.LM via OpenRouter     — free/cheap models (GLM, Llama, etc.)
-  4. PersistentClaudeCLI        — subprocess fallback (baseline)
+  4. DirectClaudeCLI            — subprocess fallback (baseline)
 
 Usage:
   python tests/test_llm_benchmark.py
   OPENROUTER_API_KEY=sk-or-... python tests/test_llm_benchmark.py
 """
 
-import asyncio
 import os
-import sys
 import time
 from pathlib import Path
 
@@ -180,19 +178,19 @@ def main():
         print(f"  {D}Get free key at: https://openrouter.ai/keys{E}")
         print(f"  {D}Then run: OPENROUTER_API_KEY=sk-or-... python tests/test_llm_benchmark.py{E}")
 
-    # ── 4. PersistentClaudeCLI (subprocess baseline) ──
+    # ── 4. DirectClaudeCLI (subprocess baseline) ──
     import shutil
 
     if shutil.which("claude"):
         try:
-            from Jotty.core.infrastructure.foundation.persistent_claude_lm import (
-                PersistentClaudeCLI,
+            from Jotty.core.infrastructure.integration.direct_claude_cli_lm import (
+                DirectClaudeCLI,
             )
 
-            lm = PersistentClaudeCLI(model="haiku")
+            lm = DirectClaudeCLI(model="haiku")
             # Only test simple prompt — CLI is slow
             print(f"\n{B}{'─'*60}{E}")
-            print(f"{B}  Provider: PersistentClaudeCLI (Haiku) — baseline{E}")
+            print(f"{B}  Provider: DirectClaudeCLI (Haiku) — baseline{E}")
             print(f"{B}{'─'*60}{E}")
             r = measure_call(lm, PROMPTS["simple"], "cli/simple")
             if r["success"]:

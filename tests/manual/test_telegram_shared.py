@@ -91,7 +91,7 @@ def test_telegram_long_message_splitting():
         renderer.render_message(long_msg)
 
         console.print(f"\n✅ Long message split into {len(messages_sent)} parts")
-        console.print(f"✅ All parts under 4096 chars")
+        console.print("✅ All parts under 4096 chars")
         return True
 
     except Exception as e:

@@ -174,7 +174,7 @@ class ContentGenerators:
         file_size = pdf_path.stat().st_size
         if file_size == 0:
             pdf_path.unlink()
-            raise RuntimeError(f"Generated PDF file is empty (0 bytes) - conversion failed")
+            raise RuntimeError("Generated PDF file is empty (0 bytes) - conversion failed")
 
         logger.info(f"PDF created: {pdf_path.name} ({file_size} bytes)")
         return pdf_path

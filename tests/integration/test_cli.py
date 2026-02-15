@@ -5,7 +5,6 @@ Comprehensive CLI Tests
 Test all Jotty CLI features for automated testing and n8n workflows.
 """
 
-import asyncio
 import os
 import sys
 from pathlib import Path
@@ -236,11 +235,10 @@ class TestCompleter:
 
     def test_command_completions(self):
         """Test command completions."""
-        from prompt_toolkit.document import Document
-
         from Jotty.apps.cli.commands import register_all_commands
         from Jotty.apps.cli.commands.base import CommandRegistry
         from Jotty.apps.cli.repl.completer import CommandCompleter
+        from prompt_toolkit.document import Document
 
         registry = CommandRegistry()
         register_all_commands(registry)
@@ -253,11 +251,10 @@ class TestCompleter:
 
     def test_ml_dataset_completions(self):
         """Test ML dataset completions."""
-        from prompt_toolkit.document import Document
-
         from Jotty.apps.cli.commands import register_all_commands
         from Jotty.apps.cli.commands.base import CommandRegistry
         from Jotty.apps.cli.repl.completer import CommandCompleter
+        from prompt_toolkit.document import Document
 
         registry = CommandRegistry()
         register_all_commands(registry)

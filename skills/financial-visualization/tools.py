@@ -1257,7 +1257,7 @@ async def _generate_table(
         else:
             table_content = f"Financial statements data for {company_name}"
 
-        description = f"Summary of financial statements including revenue and profit trends."
+        description = "Summary of financial statements including revenue and profit trends."
 
     elif table_type == "valuation_metrics":
         valuation = extracted_data.get("valuation_metrics", {})
@@ -1284,7 +1284,7 @@ async def _generate_table(
         else:
             table_content = f"Valuation metrics for {company_name}"
 
-        description = f"Key valuation metrics including P/E, P/B, and EV/EBITDA ratios."
+        description = "Key valuation metrics including P/E, P/B, and EV/EBITDA ratios."
 
     elif table_type == "key_ratios":
         ratios = extracted_data.get("key_ratios", {})
@@ -1312,7 +1312,7 @@ async def _generate_table(
             table_content = f"Key financial ratios for {company_name}"
 
         description = (
-            f"Key financial ratios including ROE, ROA, debt-to-equity, and profitability metrics."
+            "Key financial ratios including ROE, ROA, debt-to-equity, and profitability metrics."
         )
 
     elif table_type == "peer_comparison":

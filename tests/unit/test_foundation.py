@@ -5,8 +5,7 @@ Tests for SwarmConfig, AgentConfig (foundation), Exception hierarchy,
 model_limits_catalog, robust_parsing functions, and token_counter.
 """
 
-from typing import Any, Dict
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -1409,7 +1408,7 @@ class TestGoalHierarchy:
     @pytest.mark.unit
     def test_add_goal_with_parent(self):
         """add_goal with explicit parent_id links to parent."""
-        from Jotty.core.infrastructure.foundation.types.memory_types import GoalHierarchy, GoalNode
+        from Jotty.core.infrastructure.foundation.types.memory_types import GoalHierarchy
 
         h = GoalHierarchy()
         # Create parent first

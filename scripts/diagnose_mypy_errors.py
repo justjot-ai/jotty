@@ -19,7 +19,7 @@ import sys
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Tuple
 
 
 @dataclass
@@ -68,7 +68,6 @@ class MypyDiagnostics:
         """Run mypy and return (exit_code, output)."""
         try:
             # Run from parent directory so Jotty.* imports work
-            import os
 
             parent_dir = Path.cwd().parent if Path.cwd().name == "Jotty" else Path.cwd()
 
@@ -265,7 +264,7 @@ class MypyDiagnostics:
         print("MYPY ERROR DIAGNOSTICS")
         print("=" * 80)
 
-        print(f"\n📊 SUMMARY")
+        print("\n📊 SUMMARY")
         print(f"   Total errors: {len(self.errors)}")
         print(f"   Categories: {len(self.errors_by_code)}")
         print()
@@ -294,11 +293,11 @@ class MypyDiagnostics:
                     exists = "✅ EXISTS" if self.check_module_exists(module) else "❌ MISSING"
                     print(f"   • {module:60s}: {count:3d} errors  {exists}")
 
-                print(f"\n📁 TOP 10 FILES WITH MOST ERRORS:")
+                print("\n📁 TOP 10 FILES WITH MOST ERRORS:")
                 for file, count in analysis["top_files"]:
                     print(f"   • {file:60s}: {count:3d} errors")
 
-                print(f"\n📦 IMPORT PATTERNS:")
+                print("\n📦 IMPORT PATTERNS:")
                 for pattern, count in analysis["import_patterns"]:
                     pct = count * 100 // analysis["total"]
                     print(f"   • {pattern:30s}: {count:3d} ({pct:2d}%)")

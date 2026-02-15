@@ -772,7 +772,7 @@ class ChartGenerator:
             plt.savefig(filepath, dpi=150, bbox_inches="tight")
             plt.close()
             chart_files.append(filepath)
-            logger.info(f"✅ Generated: Revenue & PAT Trend")
+            logger.info("✅ Generated: Revenue & PAT Trend")
         else:
             logger.info("⏭️ Skipping Revenue/PAT chart - insufficient data")
 
@@ -822,7 +822,7 @@ class ChartGenerator:
             plt.savefig(filepath, dpi=150, bbox_inches="tight")
             plt.close()
             chart_files.append(filepath)
-            logger.info(f"✅ Generated: Margin Trend")
+            logger.info("✅ Generated: Margin Trend")
         else:
             logger.info("⏭️ Skipping Margin chart - insufficient data")
 
@@ -857,7 +857,7 @@ class ChartGenerator:
             plt.savefig(filepath, dpi=150, bbox_inches="tight")
             plt.close()
             chart_files.append(filepath)
-            logger.info(f"✅ Generated: ROE & ROCE Trend")
+            logger.info("✅ Generated: ROE & ROCE Trend")
         else:
             logger.info("⏭️ Skipping ROE/ROCE chart - insufficient data")
 

@@ -8,12 +8,9 @@ Covers:
 - core/learning/reasoning_credit.py (ReasoningCreditAssigner)
 """
 
-import json
 import os
 import tempfile
-import time
-from dataclasses import dataclass, field
-from unittest.mock import MagicMock, Mock, PropertyMock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 

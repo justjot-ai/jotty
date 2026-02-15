@@ -6,13 +6,11 @@ for all test modules in the JOTTY framework.
 """
 
 import asyncio
-import os
 import shutil
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, List
-from unittest.mock import AsyncMock, MagicMock, Mock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
@@ -356,10 +354,6 @@ def reset_singletons():
     BudgetTracker.reset_instances()
     LLMCallCache.reset_instances()
     SmartTokenizer.reset_instances()
-    # Claude provider
-    from Jotty.core.infrastructure.foundation.jotty_claude_provider import JottyClaudeProvider
-
-    JottyClaudeProvider.reset_instance()
 
 
 @pytest.fixture(autouse=True)

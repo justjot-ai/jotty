@@ -59,8 +59,6 @@ INFRASTRUCTURE = {
 }
 
 ALLOWED_DEPS: Dict[str, Set[str]] = {
-    # --- Tier 0: Skill SDK (depends only on foundation) ---
-    "skill_sdk": {"foundation", "utils"},
     # --- Tier 1: Leaves (depend only on foundation + infrastructure) ---
     "memory": {"foundation", "observability"},
     "context": {"foundation", "utils"},
@@ -314,7 +312,7 @@ def check_internal_boundaries(core_root: str) -> List[str]:
 class ImportInfo:
     """A single cross-module import."""
 
-    __slots__ = ("source_file", "line", "from_module", "to_module", "is_deferred")
+    __slots__ = ("from_module", "is_deferred", "line", "source_file", "to_module")
 
     def __init__(
         self, source_file: str, line: int, from_module: str, to_module: str, is_deferred: bool
@@ -574,7 +572,7 @@ def main():
             print(v)
 
     # Summary
-    print(f"\n--- Summary ---")
+    print("\n--- Summary ---")
     print(f"  Top-level violations: {len(top_level_violations)}")
     print(f"  Deferred violations:  {len(deferred_violations)}")
     print(f"  Internal violations:  {len(internal_violations)} (orchestration sub-modules)")

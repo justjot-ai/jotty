@@ -8,7 +8,6 @@ Tests that:
 3. Skills can use installed packages
 """
 
-import os
 import sys
 from pathlib import Path
 
@@ -74,19 +73,19 @@ def test_venv_and_dependencies():
     # Test with image-generator skill
     image_skill_dir = Path(__file__).parent.parent / "skills" / "image-generator"
     if image_skill_dir.exists():
-        print(f"  Testing with image-generator skill...")
+        print("  Testing with image-generator skill...")
         result = dep_manager.ensure_skill_dependencies("image-generator", image_skill_dir)
 
         if result["success"]:
-            print(f"  ✅ Dependencies handled")
+            print("  ✅ Dependencies handled")
             if result.get("installed"):
                 print(f"     Installed: {result['installed']}")
             else:
-                print(f"     All dependencies already installed")
+                print("     All dependencies already installed")
         else:
             print(f"  ⚠️  Dependency check: {result.get('error', 'unknown')}")
     else:
-        print(f"  ⚠️  image-generator skill not found (skipping)")
+        print("  ⚠️  image-generator skill not found (skipping)")
     print()
 
     # Step 6: Test auto-installation via registry

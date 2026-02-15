@@ -12,7 +12,6 @@ Run from Jotty root:
     python scripts/add_status_to_skills.py
 """
 
-import os
 import re
 from pathlib import Path
 

@@ -5,9 +5,7 @@ Tests for BaseAgent execution, retries, hooks, metrics, and AgentResult.
 Tests for DomainAgent, CompositeAgent, and MetaAgent.
 """
 
-import asyncio
-from typing import Any, Dict
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -98,7 +96,7 @@ class TestBaseAgent:
     @pytest.mark.unit
     def test_creation_with_default_config(self):
         """BaseAgent creates with default config."""
-        from Jotty.core.modes.agent.base.base_agent import AgentRuntimeConfig, BaseAgent
+        from Jotty.core.modes.agent.base.base_agent import BaseAgent
 
         class TestAgent(BaseAgent):
             async def _execute_impl(self, **kwargs):
@@ -624,7 +622,6 @@ class TestCompositeAgent:
     def _make_sub_agent(self, name="sub", output="result", success=True, error=None):
         """Create a mock sub-agent."""
         from Jotty.core.modes.agent.base.base_agent import (
-            AgentResult,
             AgentRuntimeConfig,
             BaseAgent,
         )
@@ -1164,7 +1161,6 @@ class TestMetaAgent:
     def test_create_meta_agent_with_signature(self):
         """create_meta_agent with signature includes name in config."""
         import dspy
-
         from Jotty.core.modes.agent.agents.meta_agent import create_meta_agent
 
         class TestSig(dspy.Signature):
@@ -1564,7 +1560,7 @@ class TestToolSchema:
     @pytest.mark.unit
     def test_constructor(self):
         """ToolSchema initializes with name and optional params."""
-        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
+        from Jotty.core.modes.agent._execution_types import ToolSchema
 
         schema = ToolSchema(name="test_tool", description="A test tool")
         assert schema.name == "test_tool"
@@ -2104,7 +2100,6 @@ class TestAgentIOSchema:
     def test_from_dspy_signature(self):
         """from_dspy_signature builds schema from DSPy Signature class."""
         import dspy
-
         from Jotty.core.modes.agent._execution_types import AgentIOSchema
 
         class TestSig(dspy.Signature):
@@ -2125,7 +2120,6 @@ class TestAgentIOSchema:
     def test_from_dspy_signature_empty(self):
         """from_dspy_signature handles empty/minimal signatures."""
         import dspy
-
         from Jotty.core.modes.agent._execution_types import AgentIOSchema
 
         class MinimalSig(dspy.Signature):
@@ -3141,8 +3135,6 @@ class TestFeedbackChannel:
         """broadcast sends to all specified participants except self."""
         from Jotty.core.modes.agent.feedback_channel import (
             FeedbackChannel,
-            FeedbackMessage,
-            FeedbackType,
         )
 
         channel = FeedbackChannel()

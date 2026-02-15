@@ -3,7 +3,6 @@
 from typing import Any, Dict
 
 import requests
-
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
@@ -29,7 +28,7 @@ def convert_currency_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     try:
         resp = requests.get(
-            f"https://api.frankfurter.app/latest",
+            "https://api.frankfurter.app/latest",
             params={"amount": amount, "from": from_cur, "to": to_cur},
             timeout=10,
         )
@@ -61,7 +60,7 @@ def list_rates_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     base = params["base"].upper().strip()
     try:
         resp = requests.get(
-            f"https://api.frankfurter.app/latest",
+            "https://api.frankfurter.app/latest",
             params={"from": base},
             timeout=10,
         )

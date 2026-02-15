@@ -325,7 +325,7 @@ async def test_plantuml_expert():
         if result.get("output_length"):
             print(f"   Size: {result['output_length']} chars, {result.get('lines', 0)} lines")
         if result.get("has_414"):
-            print(f"   ⚠️  HTTP 414: Handled with fallback validation")
+            print("   ⚠️  HTTP 414: Handled with fallback validation")
         if result.get("element_coverage"):
             print(f"   Elements: {result['element_coverage']:.0f}%")
         if result.get("error"):

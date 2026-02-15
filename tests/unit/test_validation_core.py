@@ -4,13 +4,7 @@ Tests for core/validation.py
 Covers: ParamValidator, validate_params, ValidationError re-export.
 """
 
-import os
-import tempfile
-from pathlib import Path
-from unittest.mock import MagicMock, patch
-
 import pytest
-
 from Jotty.core.validation import ParamValidator, ValidationError, validate_params
 
 # ===========================================================================

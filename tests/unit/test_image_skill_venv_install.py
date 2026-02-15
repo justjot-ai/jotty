@@ -8,7 +8,6 @@ Tests that:
 3. Skill can use installed packages
 """
 
-import os
 import sys
 from pathlib import Path
 
@@ -56,7 +55,7 @@ def test_image_skill_venv_install():
 
     tools_py = image_skill_dir / "tools.py"
     if not tools_py.exists():
-        print(f"  ❌ tools.py not found")
+        print("  ❌ tools.py not found")
         return False
 
     tools_code = tools_py.read_text()
@@ -92,23 +91,23 @@ def test_image_skill_venv_install():
         test_packages = ["pillow"]  # Lightweight, good for testing
 
         if "pillow" in missing:
-            print(f"  Installing test package: pillow")
+            print("  Installing test package: pillow")
             result = venv_manager.install_packages(["pillow"])
 
             if result["success"]:
-                print(f"  ✅ Installed: pillow")
+                print("  ✅ Installed: pillow")
                 print(f"     Output: {result.get('output', '')[:200]}...")
             else:
                 print(f"  ⚠️  Installation failed: {result.get('error', 'unknown')}")
         else:
-            print(f"  ✅ pillow already installed")
+            print("  ✅ pillow already installed")
 
         print()
         print("  Note: torch, diffusers, transformers are large packages.")
         print("  They can be installed when actually needed.")
         print()
     else:
-        print(f"  ✅ All dependencies already installed!")
+        print("  ✅ All dependencies already installed!")
     print()
 
     # Step 7: Verify installation
@@ -121,7 +120,7 @@ def test_image_skill_venv_install():
     if new_packages:
         print(f"  ✅ New packages installed: {new_packages}")
     else:
-        print(f"  ℹ️  No new packages (may have been already installed)")
+        print("  ℹ️  No new packages (may have been already installed)")
     print()
 
     # Step 8: Test dependency manager integration
@@ -150,7 +149,7 @@ def test_image_skill_venv_install():
         print(f"  ✅ Skill loaded: {skill.name}")
         print(f"  📦 Tools: {list(skill.tools.keys())}")
     else:
-        print(f"  ❌ Skill not found")
+        print("  ❌ Skill not found")
     print()
 
     print("=" * 60)
@@ -159,9 +158,9 @@ def test_image_skill_venv_install():
     print()
     print("Summary:")
     print(f"  ✅ Requirements detected: {requirements}")
-    print(f"  ✅ Venv system: Working")
-    print(f"  ✅ Dependency manager: Working")
-    print(f"  ✅ Auto-installation: Integrated")
+    print("  ✅ Venv system: Working")
+    print("  ✅ Dependency manager: Working")
+    print("  ✅ Auto-installation: Integrated")
     print()
     print("Next steps:")
     print("  - Install torch, diffusers, transformers when needed")

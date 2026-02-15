@@ -15,7 +15,6 @@ from core.experts import ExpertAgentConfig, MermaidExpertAgent
 from core.experts.memory_integration import (
     retrieve_improvements_from_memory,
     store_improvement_to_memory,
-    sync_improvements_to_memory,
 )
 from core.foundation.data_structures import MemoryLevel, SwarmConfig
 from core.memory.cortex import SwarmMemory
@@ -48,7 +47,7 @@ async def test_memory_integration():
     )
 
     expert = MermaidExpertAgent(config=config, memory=memory)
-    print(f"Expert created")
+    print("Expert created")
     print(f"   Uses memory storage: {config.use_memory_storage}")
     print(f"   Memory system: {type(expert.memory).__name__ if expert.memory else 'None'}")
     print()
@@ -75,7 +74,7 @@ async def test_memory_integration():
     )
 
     if entry:
-        print(f"✅ Improvement stored to memory")
+        print("✅ Improvement stored to memory")
         print(f"   Memory key: {entry.key}")
         print(f"   Memory level: {entry.level.value}")
         print(f"   Content length: {len(entry.content)} chars")
@@ -93,7 +92,7 @@ async def test_memory_integration():
 
     print(f"✅ Retrieved {len(improvements)} improvements from memory")
     if improvements:
-        print(f"   First improvement:")
+        print("   First improvement:")
         print(f"     Task: {improvements[0].get('task', 'Unknown')}")
         print(f"     Pattern: {improvements[0].get('learned_pattern', '')[:60]}...")
     print()

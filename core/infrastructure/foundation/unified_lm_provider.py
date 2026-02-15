@@ -479,21 +479,7 @@ class UnifiedLMProvider:
             except Exception as e:
                 logger.debug(f"OpenCode Zen not available: {e}")
 
-        # 2. CLI providers (Claude CLI)
-        try:
-            from .jotty_claude_provider import JottyClaudeProvider, is_claude_available
-
-            if is_claude_available():
-                jotty_provider = JottyClaudeProvider(auto_start=True)
-                raw_lm = jotty_provider.configure_dspy()
-                lm = ContextAwareLM(raw_lm)
-                dspy.configure(lm=lm)
-                logger.debug("DSPy configured with JottyClaudeProvider")
-                return lm
-        except Exception as e:
-            logger.debug(f"JottyClaudeProvider not available: {e}")
-
-        # 3. API providers (fallback)
+        # 2. API providers
         # Check for API keys and use native DSPy support
         api_providers = [
             ("anthropic", "ANTHROPIC_API_KEY", "sonnet"),

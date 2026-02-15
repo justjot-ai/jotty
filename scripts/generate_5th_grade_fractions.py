@@ -175,7 +175,7 @@ async def main():
 
         # Show first 3 rank tips
         if content and content.rank_tips:
-            print(f"\nFirst 3 rank tips:")
+            print("\nFirst 3 rank tips:")
             for tip in content.rank_tips[:3]:
                 print(f"  {tip[:100]}")
     else:
@@ -188,7 +188,7 @@ async def main():
         tracker = get_cost_tracker()
         metrics = tracker.get_metrics()
         print(f"\n{'─' * 40}")
-        print(f"COST REPORT")
+        print("COST REPORT")
         print(f"  Total cost:    ${metrics.total_cost:.4f}")
         print(f"  Total calls:   {metrics.total_calls}")
         print(f"  Input tokens:  {metrics.total_input_tokens:,}")

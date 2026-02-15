@@ -16,7 +16,6 @@ import asyncio
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict
 
 # Load .env file
 try:
@@ -43,7 +42,6 @@ async def test_simple_llm_call():
 
     try:
         import dspy
-
         from Jotty.core.infrastructure.context import SmartContextManager
         from Jotty.core.infrastructure.foundation.direct_anthropic_lm import DirectAnthropicLM
 
@@ -101,7 +99,6 @@ async def test_context_with_swarm():
 
     try:
         import dspy
-
         from Jotty.core.infrastructure.context import ContextPriority, SmartContextManager
         from Jotty.core.infrastructure.foundation.direct_anthropic_lm import DirectAnthropicLM
 
@@ -148,7 +145,6 @@ async def test_dspy_patching():
 
     try:
         import dspy
-
         from Jotty.core.infrastructure.context import (
             SmartContextManager,
             patch_dspy_with_guard,
@@ -201,7 +197,6 @@ async def test_function_wrapping_real():
 
     try:
         import dspy
-
         from Jotty.core.infrastructure.context import SmartContextManager
         from Jotty.core.infrastructure.foundation.direct_anthropic_lm import DirectAnthropicLM
 

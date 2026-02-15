@@ -21,17 +21,12 @@ All external dependencies (LLM calls, DSPy, file I/O) are mocked.
 Each test is fast (<1s), offline, and requires no real LLM calls.
 """
 
-import asyncio
-import hashlib
 import json
 import sys
 import time
-from collections import defaultdict
-from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 

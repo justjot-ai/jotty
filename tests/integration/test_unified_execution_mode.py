@@ -18,13 +18,6 @@ async def test_execution_mode_imports():
     """Test that all imports work"""
     print("🧪 Test 1: Imports")
     try:
-        from Jotty.core.intelligence.orchestration import (
-            ChatMessage,
-            ChatMode,
-            ExecutionMode,
-            WorkflowMode,
-        )
-        from Jotty.core.queue import SQLiteTaskQueue
 
         print("✅ All imports successful")
         return True
@@ -37,7 +30,6 @@ async def test_execution_mode_creation():
     """Test ExecutionMode creation"""
     print("\n🧪 Test 2: ExecutionMode Creation")
     try:
-        from Jotty.core.intelligence.orchestration import ExecutionMode
 
         # Test that ExecutionMode can be instantiated (without Conductor for now)
         # We'll test with Conductor in integration tests

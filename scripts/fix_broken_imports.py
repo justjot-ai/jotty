@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Fix broken imports in mixin files."""
 
-import re
 from pathlib import Path
 
 files_to_fix = [
@@ -86,8 +85,7 @@ for file_path in files_to_fix:
             if (
                 line.startswith('"""')
                 or line.startswith("import ")
-                or line.startswith("from ")
-                and "__future__" not in line
+                or (line.startswith("from ") and "__future__" not in line)
             ):
                 lines.insert(idx, "from pathlib import Path")
                 lines.insert(idx + 1, "")

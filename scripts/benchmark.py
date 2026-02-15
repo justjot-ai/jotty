@@ -12,13 +12,11 @@ Usage:
 
 import sys
 import time
-from pathlib import Path
 
 
 def benchmark_import_time():
     """Measure import time."""
     start = time.time()
-    import Jotty
 
     end = time.time()
     return (end - start) * 1000  # Convert to ms

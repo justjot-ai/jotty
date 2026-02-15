@@ -333,7 +333,7 @@ class MongoDBQueryEngine:
         # Add date fields information
         date_fields = PipelineValidator.get_date_fields(self.schema)
         if date_fields:
-            context += f"\n\n## Date Fields (use proper date comparison)\n"
+            context += "\n\n## Date Fields (use proper date comparison)\n"
             context += f"Fields that store dates: {', '.join(date_fields[:10])}\n"
             context += "For date comparisons, dates will be auto-converted to Date objects."
 

@@ -181,7 +181,6 @@ def test_team_templates_export():
 def test_expert_is_single_agent_orchestrator():
     """Expert templates return SingleAgentOrchestrator instances."""
     import dspy
-
     from core.experts.expert_templates import create_custom_expert
     from core.foundation import SwarmConfig
     from core.orchestration import SingleAgentOrchestrator

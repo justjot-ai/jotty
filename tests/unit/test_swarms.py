@@ -16,12 +16,10 @@ Fixtures from conftest.py:
     make_swarm_result — factory for SwarmResult
 """
 
-import asyncio
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 import pytest
-
 from Jotty.core.intelligence.swarms.base.agent_team import (
     AgentSpec,
     CoordinationPattern,

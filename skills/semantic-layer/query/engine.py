@@ -87,7 +87,7 @@ class SemanticQueryEngine:
     def _build_context_from_model(self) -> str:
         """Build context string from LookML model."""
         lines = []
-        lines.append(f"# Database Schema")
+        lines.append("# Database Schema")
         lines.append("")
 
         for view in self.lookml_model.views:

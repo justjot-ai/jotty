@@ -13,10 +13,8 @@ Usage:
 """
 
 import ast
-import re
-import sys
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Optional
 
 
 def infer_return_type(func_node: ast.FunctionDef, source_code: str) -> Optional[str]:
@@ -184,7 +182,7 @@ def main():
     print(f"\n📊 Summary: {total_changes} type hints {'would be ' if args.check else ''}added")
 
     if args.check and total_changes > 0:
-        print(f"Run without --check to apply changes")
+        print("Run without --check to apply changes")
 
 
 if __name__ == "__main__":

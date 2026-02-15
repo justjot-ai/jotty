@@ -37,7 +37,6 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 from ._data_feature_analysis_mixin import DataFeatureAnalysisMixin
-from ._model_performance_mixin import ModelPerformanceMixin
 from ._deployment_mixin import DeploymentMixin
 from ._drift_mixin import DriftMixin
 from ._error_analysis_mixin import ErrorAnalysisMixin
@@ -45,6 +44,7 @@ from ._fairness_mixin import FairnessMixin
 
 # Mixin imports for decomposed functionality
 from ._interpretability_mixin import InterpretabilityMixin
+from ._model_performance_mixin import ModelPerformanceMixin
 from ._rendering_mixin import RenderingMixin
 from ._visualization_mixin import VisualizationMixin
 

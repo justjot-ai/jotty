@@ -53,7 +53,7 @@ class JottyDoctor:
                 content = py_file.read_text()
 
                 # Check for wildcard imports
-                if "import *" in content and "skill_sdk" not in str(py_file):
+                if "import *" in content:
                     for i, line in enumerate(content.split("\n"), 1):
                         if "import *" in line and "# noqa" not in line:
                             self.issues.append(

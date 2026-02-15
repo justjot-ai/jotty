@@ -126,7 +126,7 @@ async def test_memory_consolidation():
     )
 
     if synthesized:
-        print(f"✅ Retrieved synthesized improvements")
+        print("✅ Retrieved synthesized improvements")
         print(f"   Length: {len(synthesized)} chars")
         print(f"   Preview: {synthesized[:200]}...")
     else:
@@ -141,7 +141,7 @@ async def test_memory_consolidation():
         memory=memory, expert_name="mermaid_expert_test", domain="mermaid"
     )
 
-    print(f"✅ Consolidation result:")
+    print("✅ Consolidation result:")
     print(f"   Consolidated patterns: {consolidation_result.get('consolidated', 0)}")
     print(f"   Preferences extracted: {consolidation_result.get('preferences', 0)}")
 
@@ -150,7 +150,7 @@ async def test_memory_consolidation():
     semantic_count_after = len(memory.memories[MemoryLevel.SEMANTIC])
     meta_count_after = len(memory.memories[MemoryLevel.META])
 
-    print(f"   Memory levels after consolidation:")
+    print("   Memory levels after consolidation:")
     print(f"     PROCEDURAL: {procedural_count_after}")
     print(f"     SEMANTIC: {semantic_count_after} (was {semantic_count})")
     print(f"     META: {meta_count_after}")
@@ -164,7 +164,7 @@ async def test_memory_consolidation():
         memory=memory, expert_name="mermaid_expert_test", domain="mermaid"
     )
 
-    print(f"✅ Consolidation cycle complete:")
+    print("✅ Consolidation cycle complete:")
     print(f"   Consolidated: {cycle_result.get('consolidated', 0)}")
     print(f"   Preferences: {cycle_result.get('preferences', 0)}")
     print()
@@ -185,7 +185,7 @@ async def test_memory_consolidation():
     expert = MermaidExpertAgent(config=config, memory=memory)
     expert.trained = True  # Mark as trained for testing
 
-    print(f"✅ Expert created with synthesis enabled")
+    print("✅ Expert created with synthesis enabled")
     print(f"   Improvements loaded: {len(expert.improvements)}")
     if expert.improvements:
         first_imp = expert.improvements[0]

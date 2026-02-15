@@ -15,10 +15,9 @@ Usage:
 """
 
 import ast
-import re
 import sys
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List
 
 
 class ExceptionFixer(ast.NodeTransformer):
@@ -103,7 +102,7 @@ def fix_file(file_path: Path, dry_run: bool = False) -> int:
         print(f"     Fix: {issue['fix']}")
 
     if not dry_run:
-        print(f"  ⏭️  Auto-fix not yet implemented - manual review required")
+        print("  ⏭️  Auto-fix not yet implemented - manual review required")
 
     return len(issues)
 
@@ -150,17 +149,17 @@ def main():
             files_with_issues += 1
 
     print("\n" + "=" * 80)
-    print(f"📊 Summary:")
+    print("📊 Summary:")
     print(f"  Files analyzed: {len(files)}")
     print(f"  Files with issues: {files_with_issues}")
     print(f"  Total issues: {total_issues}")
 
     if total_issues > 0:
-        print(f"\n💡 Next steps:")
-        print(f"  1. Review the issues above")
-        print(f"  2. Add logging to broad Exception handlers")
-        print(f"  3. Use specific exception types where possible")
-        print(f"  4. See: docs/ERROR_HANDLING_GUIDE.md")
+        print("\n💡 Next steps:")
+        print("  1. Review the issues above")
+        print("  2. Add logging to broad Exception handlers")
+        print("  3. Use specific exception types where possible")
+        print("  4. See: docs/ERROR_HANDLING_GUIDE.md")
 
     sys.exit(0 if total_issues == 0 else 1)
 

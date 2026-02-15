@@ -7,10 +7,10 @@ Run with: pytest tests/test_review_template.py -v -s
 """
 
 import logging
-import pytest
 
-from Jotty.core.intelligence.swarms.templates.review import ReviewTemplate
+import pytest
 from Jotty.core.intelligence.swarms.swarm_learning import SwarmBaseConfig
+from Jotty.core.intelligence.swarms.templates.review import ReviewTemplate
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")

@@ -8,7 +8,7 @@ properly categorized by type (Report, Orchestration, Learning, Memory, Coding).
 
 import re
 from pathlib import Path
-from typing import Dict, List, Set
+from typing import List
 
 # Comprehensive attribute lists by category
 REPORT_ATTRS = """

@@ -15,11 +15,8 @@ Comprehensive unit tests for all classes in core/orchestration/swarm_roadmap.py:
 All tests use mocks -- no real LLM calls, no API keys, runs offline and fast (<1s each).
 """
 
-import hashlib
-import json
-from dataclasses import fields
-from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from datetime import datetime
+from unittest.mock import Mock, patch
 
 import pytest
 

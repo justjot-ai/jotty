@@ -59,7 +59,7 @@ def test_weather_skill_usage():
         print(f"  Available skills: {[s['name'] for s in skills_list]}")
         return False
 
-    print(f"  ✅ Found weather-checker skill")
+    print("  ✅ Found weather-checker skill")
     print(f"  📦 Description: {weather_skill.description[:100]}...")
     print(f"  📦 Tools: {list(weather_skill.tools.keys())}")
     print()

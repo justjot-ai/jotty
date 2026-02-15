@@ -194,7 +194,7 @@ Provide the summary in markdown format with clear sections."""
             summary_text, search_results
         )
 
-        logger.info(f"   ✅ Idea created successfully!")
+        logger.info("   ✅ Idea created successfully!")
         logger.info(f"      Idea ID: {idea_id}")
         logger.info(f"      Sections: {len(sections)}")
 

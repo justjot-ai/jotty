@@ -945,7 +945,7 @@ class ComprehensiveBacktestReportGenerator:
         if abs(rm.max_drawdown) > 20:
             md += f"⚠ Large maximum drawdown ({rm.max_drawdown:.1f}%)\n"
         if rm.skewness < -0.5:
-            md += f"⚠ Negative skewness indicates tail risk\n"
+            md += "⚠ Negative skewness indicates tail risk\n"
         if rm.kurtosis > 2:
             md += "⚠ Fat tails increase extreme event risk\n"
 

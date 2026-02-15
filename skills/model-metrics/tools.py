@@ -10,6 +10,12 @@ from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import (
+    async_tool_wrapper,
+    tool_error,
+    tool_response,
+)
 from sklearn.metrics import (
     accuracy_score,
     average_precision_score,
@@ -27,13 +33,6 @@ from sklearn.metrics import (
     roc_auc_score,
 )
 from sklearn.model_selection import KFold, StratifiedKFold, cross_val_score
-
-from Jotty.core.infrastructure.utils.skill_status import SkillStatus
-from Jotty.core.infrastructure.utils.tool_helpers import (
-    async_tool_wrapper,
-    tool_error,
-    tool_response,
-)
 
 # Status emitter for progress updates
 status = SkillStatus("model-metrics")

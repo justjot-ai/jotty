@@ -126,7 +126,7 @@ async def test_and_improve_mermaid_expert():
     print("Verifying training data...")
     print()
     training_data = expert.get_training_data()
-    print(f"Training Data Available:")
+    print("Training Data Available:")
     print(f"  Cases: {len(training_data)}")
     print()
 
@@ -172,10 +172,10 @@ async def test_and_improve_mermaid_expert():
                 description=test_case["description"], diagram_type=test_case["diagram_type"]
             )
 
-            print(f"  Generated:")
-            print(f"  ```mermaid")
+            print("  Generated:")
+            print("  ```mermaid")
             print(f"  {generated[:200]}...")  # Show first 200 chars
-            print(f"  ```")
+            print("  ```")
             print()
 
             # Check if it contains expected pattern

@@ -10,7 +10,6 @@ import urllib.parse
 from typing import Any, Dict, Optional
 
 import requests
-
 from Jotty.core.infrastructure.utils.api_client import BaseAPIClient
 
 # Use centralized utilities

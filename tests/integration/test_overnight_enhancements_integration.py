@@ -23,8 +23,6 @@ class TestOvernightEnhancementsIntegration:
         from Jotty.core.infrastructure.monitoring.safety import get_adaptive_threshold_manager
         from Jotty.core.intelligence.learning import get_cost_aware_td_lambda
         from Jotty.core.intelligence.orchestration import (
-            MergeStrategy,
-            SwarmAdapter,
             get_multi_swarm_coordinator,
         )
 
@@ -132,7 +130,6 @@ class TestOvernightEnhancementsIntegration:
         from Jotty.core.infrastructure.monitoring.observability import get_distributed_tracer
         from Jotty.core.intelligence.orchestration import (
             MergeStrategy,
-            SwarmAdapter,
             get_multi_swarm_coordinator,
         )
 
@@ -177,11 +174,6 @@ class TestOvernightEnhancementsIntegration:
     async def test_adaptive_thresholds_with_multi_swarm(self):
         """Test adaptive thresholds adjust based on multi-swarm usage."""
         from Jotty.core.infrastructure.monitoring.safety import get_adaptive_threshold_manager
-        from Jotty.core.intelligence.orchestration import (
-            MergeStrategy,
-            SwarmAdapter,
-            get_multi_swarm_coordinator,
-        )
 
         manager = get_adaptive_threshold_manager()
 

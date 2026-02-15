@@ -5,12 +5,10 @@ Tests for ExecutionRecord, AgentMetrics, MetricsCollector, and singleton functio
 All tests are mocked and offline — no LLM calls or API keys required.
 """
 
-import math
 import time
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock
 
 import pytest
-
 from Jotty.core.infrastructure.monitoring.observability.metrics import (
     AgentMetrics,
     ExecutionRecord,

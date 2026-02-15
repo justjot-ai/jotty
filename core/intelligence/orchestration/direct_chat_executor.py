@@ -106,10 +106,12 @@ class DirectChatExecutor:
             )
 
     def _get_provider(self) -> Any:
-        """Get global LLM instance (shared across all components)."""
+        """Get LLM instance (shared across all components)."""
         if self._provider is None:
-            from Jotty.core.infrastructure.foundation.llm_singleton import get_global_lm
+            from Jotty.core.infrastructure.foundation.unified_lm_provider import (
+                UnifiedLMProvider,
+            )
 
-            self._provider = get_global_lm(provider="anthropic", model=self.model)
-            logger.info(f"DirectChatExecutor: Using global LLM (model={self.model})")
+            self._provider = UnifiedLMProvider.create_lm(provider="anthropic", model=self.model)
+            logger.info(f"DirectChatExecutor: Using unified LLM (model={self.model})")
         return self._provider

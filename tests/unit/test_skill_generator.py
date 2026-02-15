@@ -18,10 +18,8 @@ All LLM calls, file I/O (YAML), and external dependencies are mocked.
 import json
 import os
 import sys
-import tempfile
 from pathlib import Path
-from typing import Any, Dict
-from unittest.mock import MagicMock, Mock, PropertyMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 

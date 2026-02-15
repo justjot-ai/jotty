@@ -376,7 +376,7 @@ class SmartDataTransformer:
                 if union_type is type(None):
                     # Handle NoneType specially
                     if source is None:
-                        logger.info(f" Source is None, matches Union")
+                        logger.info(" Source is None, matches Union")
                         return source
                 else:
                     try:
@@ -398,7 +398,7 @@ class SmartDataTransformer:
                     try:
                         result = self._transform_with_tools(source, union_type.__name__, context)
                         if result is not None:
-                            logger.info(f" Transformation successful!")
+                            logger.info(" Transformation successful!")
                             return result
                     except Exception as e:
                         logger.debug(f" Transformation to {union_type.__name__} failed: {e}")
@@ -406,13 +406,13 @@ class SmartDataTransformer:
 
             # If all transformations fail, just return the source as-is
             # DSPy ReAct will handle the rest!
-            logger.info(f" No transformation succeeded, returning source as-is (DSPy will handle)")
+            logger.info(" No transformation succeeded, returning source as-is (DSPy will handle)")
             return source
 
         # Fast path: already correct type (non-Union)
         try:
             if isinstance(source, target_type):
-                logger.info(f" Already correct type, no transformation needed")
+                logger.info(" Already correct type, no transformation needed")
                 return source
         except TypeError:
             # target_type can't be used with isinstance (e.g., generic types)
@@ -426,7 +426,7 @@ class SmartDataTransformer:
         if result is None:
             # A-TEAM: Don't raise error, just return source
             # Let DSPy ReAct handle type conversion!
-            logger.info(f" Transformation failed, returning source as-is (DSPy will handle)")
+            logger.info(" Transformation failed, returning source as-is (DSPy will handle)")
             return source
 
         # Validate result type (only for non-Union, non-generic types)
@@ -441,7 +441,7 @@ class SmartDataTransformer:
             # Can't validate with isinstance, just return
             pass
 
-        logger.info(f" Transformation successful!")
+        logger.info(" Transformation successful!")
         return result
 
     # NEW: AgentSlack-compatible async API
@@ -470,7 +470,7 @@ class SmartDataTransformer:
 
         # If formats match, return as-is
         if source_format == target_format:
-            logger.info(f" Formats match, no transformation needed")
+            logger.info(" Formats match, no transformation needed")
             return data
 
         # Map format strings to types
@@ -526,7 +526,7 @@ class SmartDataTransformer:
                         logger.info(f" Converted to CSV string ({len(result)} chars)")
                         return result
                 else:
-                    logger.warning(f" Data is not a list, converting to string")
+                    logger.warning(" Data is not a list, converting to string")
                     return str(data)
             except Exception as e:
                 logger.error(f" CSV conversion failed: {e}")
@@ -545,7 +545,7 @@ class SmartDataTransformer:
                     raise
             elif isinstance(data, list):
                 # Already a list, just return it
-                logger.info(f" Already a list")
+                logger.info(" Already a list")
                 return data
 
         # Generic transformation using existing method
@@ -605,7 +605,7 @@ class SmartDataTransformer:
         attempts.append(("test_type_conversion", test_result))
 
         if test_result["success"]:
-            logger.debug(f" Direct conversion worked!")
+            logger.debug(" Direct conversion worked!")
             return test_result["result"]
 
         logger.debug(f" Direct conversion failed: {test_result['error']}")
@@ -618,7 +618,7 @@ class SmartDataTransformer:
             attempts.append(("test_json_load", json_result))
 
             if json_result["success"] and isinstance(json_result["result"], dict):
-                logger.debug(f" JSON load worked!")
+                logger.debug(" JSON load worked!")
                 return json_result["result"]
 
             # JSON failed - try fixing quotes
@@ -633,7 +633,7 @@ class SmartDataTransformer:
                 attempts.append(("test_json_load_retry", json_retry))
 
                 if json_retry["success"] and isinstance(json_retry["result"], dict):
-                    logger.debug(f" JSON load after fix worked!")
+                    logger.debug(" JSON load after fix worked!")
                     return json_retry["result"]
 
             # Try Python literal eval (handles single quotes)
@@ -642,7 +642,7 @@ class SmartDataTransformer:
             attempts.append(("test_python_literal", literal_result))
 
             if literal_result["success"] and isinstance(literal_result["result"], dict):
-                logger.debug(f" Python literal_eval worked!")
+                logger.debug(" Python literal_eval worked!")
                 return literal_result["result"]
 
         # Attempt 3: If target is list, try list tools
@@ -656,7 +656,7 @@ class SmartDataTransformer:
                 return list_result["result"]
 
         # All attempts failed - but this is OK! DSPy will handle it
-        logger.info(f" All transformation attempts completed without success")
+        logger.info(" All transformation attempts completed without success")
         logger.debug(f"   Attempts: {len(attempts)}")
         for tool_name, result in attempts:
             logger.debug(f"     - {tool_name}: {result.get('error', 'Unknown error')}")

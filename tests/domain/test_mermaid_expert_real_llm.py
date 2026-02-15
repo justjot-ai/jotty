@@ -179,7 +179,7 @@ async def test_real_llm_learning():
     try:
         training_results = await expert.train()
 
-        print(f"Training Results:")
+        print("Training Results:")
         print(f"  Overall Success: {training_results.get('overall_success')}")
         print(
             f"  Passed Cases: {training_results.get('passed_cases')}/{training_results.get('total_cases')}"
@@ -245,7 +245,7 @@ async def test_real_llm_learning():
                 description=test["description"], diagram_type=test["diagram_type"]
             )
 
-            print(f"  Generated Diagram:")
+            print("  Generated Diagram:")
             print("  ```mermaid")
             print(f"  {diagram}")
             print("  ```")
@@ -262,7 +262,7 @@ async def test_real_llm_learning():
                 "valid_syntax": True,  # If we got here, syntax is likely valid
             }
 
-            print(f"  Validation:")
+            print("  Validation:")
             for key, value in validation.items():
                 status = "✅" if value else "❌"
                 print(f"    {status} {key.replace('_', ' ').title()}: {value}")

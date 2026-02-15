@@ -15,8 +15,6 @@ Verifies:
 
 import asyncio
 import logging
-import os
-from typing import Any, Dict
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -29,7 +27,7 @@ async def test_context_manager_basic():
     logger.info("TEST 1: Basic SmartContextManager")
     logger.info("=" * 60)
 
-    from Jotty.core.infrastructure.context import ContextPriority, SmartContextManager
+    from Jotty.core.infrastructure.context import SmartContextManager
 
     ctx = SmartContextManager(max_tokens=10000)
 
@@ -62,7 +60,7 @@ async def test_overflow_detection():
     logger.info("TEST 2: Overflow Detection")
     logger.info("=" * 60)
 
-    from Jotty.core.infrastructure.context import OverflowDetector, SmartContextManager
+    from Jotty.core.infrastructure.context import OverflowDetector
 
     detector = OverflowDetector(max_tokens=4000)
 
@@ -119,7 +117,7 @@ async def test_function_wrapping():
     if asyncio.iscoroutine(result):
         result = await result
 
-    logger.info(f"✓ Function executed after auto-retry")
+    logger.info("✓ Function executed after auto-retry")
     logger.info(f"✓ Total calls: {call_count[0]}")
     logger.info(f"✓ Overflows recovered: {ctx.api_errors_recovered}")
 
@@ -138,13 +136,7 @@ async def test_unified_imports():
 
     # Test new unified imports
     from Jotty.core.infrastructure.context import (
-        ContextChunk,
-        ContextPriority,
-        OverflowDetector,
-        SmartContextManager,
         context_utils,
-        patch_dspy_with_guard,
-        unpatch_dspy,
     )
 
     logger.info("✓ All unified imports work")

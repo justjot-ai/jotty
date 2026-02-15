@@ -383,9 +383,8 @@ def _create_sinks(sink_configs: List[Dict[str, Any]]) -> List:
 
                 def write(self, doc, output_path=None, **kwargs):
                     try:
-                        from utils.markdown_converter import MarkdownConverter
-
                         from Jotty.core.config import PageSize
+                        from utils.markdown_converter import MarkdownConverter
 
                         size_map = {
                             "remarkable": PageSize.REMARKABLE,
@@ -436,9 +435,8 @@ def _create_sinks(sink_configs: List[Dict[str, Any]]) -> List:
                     try:
                         import tempfile
 
-                        from utils.markdown_converter import MarkdownConverter
-
                         from Jotty.core.config import PageSize
+                        from utils.markdown_converter import MarkdownConverter
 
                         with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
                             f.write(doc.content or doc.full_content)
@@ -499,10 +497,9 @@ def _create_sinks(sink_configs: List[Dict[str, Any]]) -> List:
                         # First generate remarkable-optimized PDF
                         import tempfile
 
+                        from Jotty.core.config import PageSize
                         from utils.markdown_converter import MarkdownConverter
                         from utils.remarkable_sync import RemarkableSync
-
-                        from Jotty.core.config import PageSize
 
                         with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
                             f.write(doc.content or doc.full_content)

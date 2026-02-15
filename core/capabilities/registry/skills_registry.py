@@ -584,6 +584,9 @@ class SkillsRegistry:
 
         self.dependency_manager = get_dependency_manager()
 
+        # LLM-based tool selection (optional, lazy-loaded)
+        self._tool_shed: Optional[Any] = None
+
     # Top skills by usage (referenced by most derived/composite skills)
     # Pre-warming these saves 1-3s on first task execution
     _TOP_SKILLS = [
@@ -2147,6 +2150,169 @@ class SkillsRegistry:
         except Exception as e:
             logger.warning(f"Failed to convert skills to agents: {e}")
             return []
+
+    # =============================================================================
+    # Agentic Tool Selection (LLM-based, integrated 2026-02-16)
+    # =============================================================================
+
+    @property
+    def tool_shed(self) -> Any:
+        """Lazy-load ToolShed for LLM-based tool selection."""
+        if self._tool_shed is None:
+            try:
+                from .tool_shed import ToolShed
+
+                self._tool_shed = ToolShed()
+
+                # Register all loaded skills as tools
+                for skill_name, skill in self.loaded_skills.items():
+                    if skill.is_loaded:
+                        for tool_name, tool_func in skill.tools.items():
+                            # Extract capabilities for produces/consumes
+                            produces = skill.capabilities[:3] if skill.capabilities else []
+                            consumes = list(skill.tools.keys())[:3] if skill.tools else []
+
+                            self._tool_shed.register(
+                                tool=tool_func,
+                                name=tool_name,
+                                description=skill.description or skill.name,
+                                produces=produces,
+                                consumes=consumes,
+                            )
+
+                logger.info(f"Initialized ToolShed with {len(self._tool_shed.tools)} tools")
+            except ImportError as e:
+                logger.warning(f"ToolShed not available (requires DSPy): {e}")
+                self._tool_shed = None
+
+        return self._tool_shed
+
+    def discover_agentic(
+        self,
+        task: str,
+        required_output: str = "result",
+        context: Optional[Dict[str, Any]] = None,
+        fallback_to_keyword: bool = True,
+    ) -> List[Dict[str, Any]]:
+        """
+        LLM-based skill discovery using ToolShed.
+
+        This uses LLM reasoning to select tools instead of keyword matching.
+        Slower but smarter than discover() - understands intent better.
+
+        Args:
+            task: Task description
+            required_output: What type of output is needed (e.g., 'DataFrame', 'chart', 'report')
+            context: Optional context for selection
+            fallback_to_keyword: If True, falls back to keyword-based discover() on error
+
+        Returns:
+            List of skill dicts sorted by LLM-selected relevance
+
+        Example:
+            # Smart selection understands multi-step workflows
+            skills = registry.discover_agentic(
+                task="Create a bar chart from SQL database",
+                required_output="chart"
+            )
+            # Returns: sql-executor, data-visualizer (in order)
+        """
+        shed = self.tool_shed
+
+        if shed is None:
+            if fallback_to_keyword:
+                logger.info("ToolShed not available, falling back to keyword discovery")
+                return self.discover(task)
+            return []
+
+        try:
+            # LLM-based tool selection
+            selected_tool_names = shed.select_tools(
+                task=task,
+                required_output=required_output,
+                context=context or {},
+            )
+
+            # Map tool names back to skills
+            results = []
+            for tool_name in selected_tool_names:
+                # Find which skill provides this tool
+                for skill_name, skill in self.loaded_skills.items():
+                    if tool_name in skill.tools:
+                        results.append(self._skill_to_discovery_dict(skill, score=10))
+                        break
+
+            return results
+
+        except Exception as e:
+            logger.warning(f"Agentic discovery failed: {e}")
+            if fallback_to_keyword:
+                logger.info("Falling back to keyword discovery")
+                return self.discover(task)
+            return []
+
+    def find_tool_chain(
+        self,
+        start_capability: str,
+        end_capability: str,
+        max_depth: int = 5,
+    ) -> List[str]:
+        """
+        Find a chain of tools to get from one capability to another.
+
+        Uses ToolShed's CapabilityIndex to plan multi-step workflows.
+
+        Args:
+            start_capability: Starting capability (e.g., "pdf")
+            end_capability: Target capability (e.g., "excel")
+            max_depth: Maximum chain length
+
+        Returns:
+            List of tool names in execution order, or empty if no chain found
+
+        Example:
+            # Find workflow: PDF → Excel
+            chain = registry.find_tool_chain("pdf", "excel")
+            # Returns: ['pdf_reader', 'table_extractor', 'excel_writer']
+        """
+        shed = self.tool_shed
+
+        if shed is None:
+            logger.warning("ToolShed not available for tool chaining")
+            return []
+
+        try:
+            return shed.capability_index.find_chain(
+                start=start_capability,
+                end=end_capability,
+                max_depth=max_depth,
+            )
+        except Exception as e:
+            logger.warning(f"Tool chain discovery failed: {e}")
+            return []
+
+    def get_tool_statistics(self, tool_name: str) -> Optional[Dict[str, Any]]:
+        """
+        Get usage statistics for a tool (from ToolShed).
+
+        Args:
+            tool_name: Name of the tool
+
+        Returns:
+            Dict with call_count, success_rate, avg_latency, or None
+        """
+        shed = self.tool_shed
+
+        if shed is None or tool_name not in shed.schemas:
+            return None
+
+        schema = shed.schemas[tool_name]
+        return {
+            "tool_name": tool_name,
+            "call_count": schema.call_count,
+            "success_rate": schema.success_rate,
+            "avg_latency": schema.avg_latency,
+        }
 
 
 # Singleton instance

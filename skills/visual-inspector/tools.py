@@ -285,7 +285,7 @@ class FileConverter:
                 return {"status": "success", "path": save_path, "file_type": "svg_converted"}
         except (FileNotFoundError, subprocess.TimeoutExpired):
             pass
-        return {"status": "error", "error": f"SVG conversion failed. Install ImageMagick."}
+        return {"status": "error", "error": "SVG conversion failed. Install ImageMagick."}
 
     @staticmethod
     def pdf_pages_to_images(pdf_path: str, output_dir: str) -> List[str]:

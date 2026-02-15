@@ -10,7 +10,6 @@ Runs in dry_run by default; pass --write to apply changes.
 """
 
 import ast
-import re
 import sys
 from pathlib import Path
 

@@ -80,7 +80,7 @@ async def extract_cookies(profile_dir: str):
             print(f"  export NOTEBOOKLM_COOKIES='{json.dumps(cookies)}'")
             print()
             print("Or in docker-compose.yml:")
-            print(f"  environment:")
+            print("  environment:")
             print(f"    - NOTEBOOKLM_COOKIES='{json.dumps(cookies)}'")
 
     except Exception as e:

@@ -56,11 +56,11 @@ from .section_registry import (
     ContentSchemaBuilder,
     JustJotSectionRegistry,
     SectionTypeDefinition,
+    get_registry,
+    map_lida_to_justjot_chart_type,
 )
 from .section_registry import get_all_section_types as registry_get_all_types
-from .section_registry import get_registry
 from .section_registry import get_section_schema as registry_get_schema
-from .section_registry import map_lida_to_justjot_chart_type
 
 # Section Types (Registry-Driven)
 from .section_types import (  # Registry access functions; Context generators for LLM; Chart types; Data structures; Content classes; Section and Idea; Normalization utilities
@@ -96,8 +96,11 @@ from .section_types import (  # Registry access functions; Context generators fo
 )
 
 # Transformers (Registry-Driven)
-from .transformers import ChartTransformer  # Specialized for LIDA code analysis
-from .transformers import SectionTransformer, transform_to_section
+from .transformers import (
+    ChartTransformer,  # Specialized for LIDA code analysis
+    SectionTransformer,
+    transform_to_section,
+)
 
 __all__ = [
     # Registry

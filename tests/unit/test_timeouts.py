@@ -20,11 +20,10 @@ Covers:
 
 import asyncio
 import time
-from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
+from datetime import datetime
+from unittest.mock import MagicMock
 
 import pytest
-
 from Jotty.core.infrastructure.foundation.exceptions import TimeoutError
 from Jotty.core.infrastructure.utils.timeouts import (
     ADAPTIVE_TIMEOUT,

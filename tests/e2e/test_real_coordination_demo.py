@@ -61,7 +61,7 @@ async def test_real_coordination():
         "pipeline": PipelineExpertAgent(output_format="mermaid"),
     }
 
-    print(f"✅ 4 expert agents initialized")
+    print("✅ 4 expert agents initialized")
 
     # Define coordinated workflow
     print("\n[3/4] Executing Coordinated Workflow")
@@ -293,7 +293,7 @@ This document proves **true multi-agent coordination**:
 
     print(f"✅ Final document saved: {output_file}")
     print(f"   Total size: {len(doc)} characters")
-    print(f"   Coordination events: 3 (Tasks 2, 3, 4 received context)")
+    print("   Coordination events: 3 (Tasks 2, 3, 4 received context)")
 
     # Summary
     print("\n" + "=" * 90)

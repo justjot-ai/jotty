@@ -6,11 +6,9 @@ including configuration defaults, result conversion, sub-agent management,
 and factory methods (from_swarm, compose).
 """
 
-from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from Jotty.core.intelligence.swarms.base.agent_team import CoordinationPattern, MergeStrategy
 from Jotty.core.intelligence.swarms.swarm_types import AgentRole, ExecutionTrace, SwarmResult
 from Jotty.core.modes.agent.agents.composite_agent import (

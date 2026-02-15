@@ -23,7 +23,6 @@ import logging
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
 
 import dspy
 import pytest
@@ -72,7 +71,7 @@ async def real_learning_test():
 
     mermaid_expert = MermaidExpertAgent()
     print(f"✅ Mermaid expert initialized (domain: {mermaid_expert.domain})")
-    print(f"   Will use expert's _evaluate_domain() for REAL quality assessment")
+    print("   Will use expert's _evaluate_domain() for REAL quality assessment")
 
     # Define learning task
     print("\n[3/5] Defining Learning Task")
@@ -121,7 +120,7 @@ Requirements:
         print(f"\n📝 Step 1: Generate Mermaid Diagram (Attempt #{iteration})")
 
         if iteration > 1:
-            print(f"   Using improved prompt based on previous feedback:")
+            print("   Using improved prompt based on previous feedback:")
             print(f"   - Previous score: {learning_history[-1]['score']:.2f}")
             print(f"   - Applying {len(improvements)} improvements")
 
@@ -139,7 +138,7 @@ Requirements:
             "\n\n".join(improvements) if improvements else "First attempt - no previous feedback"
         )
 
-        print(f"   🤖 Calling Claude CLI...")
+        print("   🤖 Calling Claude CLI...")
         start_time = datetime.now()
 
         result = generator(
@@ -154,7 +153,7 @@ Requirements:
         print(f"   Preview:\n{generated_diagram[:200]}...")
 
         # REAL evaluation by expert
-        print(f"\n📊 Step 2: Expert Evaluation (REAL quality assessment)")
+        print("\n📊 Step 2: Expert Evaluation (REAL quality assessment)")
 
         evaluation = await mermaid_expert._evaluate_domain(
             output=generated_diagram,
@@ -172,12 +171,12 @@ Requirements:
         print(f"   Status: {status}")
 
         if issues:
-            print(f"   ⚠️  Issues found:")
+            print("   ⚠️  Issues found:")
             for issue in issues[:3]:  # Show top 3 issues
                 print(f"      - {issue}")
 
         if suggestions:
-            print(f"   💡 Expert suggestions:")
+            print("   💡 Expert suggestions:")
             print(f"      {suggestions[:200]}...")
 
         # Store results
@@ -194,7 +193,7 @@ Requirements:
 
         # REAL learning: Extract feedback for next iteration
         if iteration < iterations:
-            print(f"\n🧠 Step 3: Learning from Feedback (updating approach for next iteration)")
+            print("\n🧠 Step 3: Learning from Feedback (updating approach for next iteration)")
 
             # Build improvement based on actual feedback
             if score < 0.9:
@@ -218,10 +217,10 @@ Requirements:
                 )
                 improvements.append(improvement)
 
-                print(f"   ✅ Learned from evaluation")
+                print("   ✅ Learned from evaluation")
                 print(f"   📝 Added improvement: {improvement[:150]}...")
             else:
-                print(f"   ✅ High score achieved! Continuing to next iteration for verification")
+                print("   ✅ High score achieved! Continuing to next iteration for verification")
 
         print(f"\n{'='*90}")
         print(f"ITERATION {iteration} COMPLETE - Score: {score:.2f}")
@@ -246,7 +245,7 @@ Requirements:
         ((final_score - initial_score) / initial_score * 100) if initial_score > 0 else 0
     )
 
-    print(f"\n📊 Learning Metrics:")
+    print("\n📊 Learning Metrics:")
     print(f"  Initial Score: {initial_score:.2f}")
     print(f"  Final Score: {final_score:.2f}")
     print(f"  Improvement: {improvement_pct:+.1f}%")
@@ -380,20 +379,20 @@ Requirements:
     success = final_score > initial_score
 
     if success:
-        print(f"\n✅ SUCCESS: Agent learned and improved!")
-        print(f"\nEvidence:")
+        print("\n✅ SUCCESS: Agent learned and improved!")
+        print("\nEvidence:")
         print(f"  ✅ Initial score: {initial_score:.2f}")
         print(f"  ✅ Final score: {final_score:.2f}")
         print(f"  ✅ Improvement: {improvement_pct:+.1f}%")
-        print(f"  ✅ Used REAL Claude CLI (not simulated)")
-        print(f"  ✅ Used REAL expert evaluation")
-        print(f"  ✅ Applied REAL feedback")
-        print(f"  ✅ Achieved REAL improvement")
+        print("  ✅ Used REAL Claude CLI (not simulated)")
+        print("  ✅ Used REAL expert evaluation")
+        print("  ✅ Applied REAL feedback")
+        print("  ✅ Achieved REAL improvement")
 
         print(f"\n📄 View detailed comparison: {output_file.absolute()}")
         print("\nThis proves actual learning, not simulation!")
     else:
-        print(f"\n⚠️  No improvement detected")
+        print("\n⚠️  No improvement detected")
         print(f"  Initial: {initial_score:.2f}")
         print(f"  Final: {final_score:.2f}")
 

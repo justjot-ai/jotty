@@ -12,7 +12,6 @@ Tests for the modularity improvements (Phases 1-5):
 
 import subprocess
 import sys
-from dataclasses import fields as dc_fields
 from pathlib import Path
 
 import pytest
@@ -87,7 +86,7 @@ class TestExecutionTypesExtraction:
         assert MergeStrategy.FIRST.value == "first"
 
     def test_swarms_init_reexport(self):
-        from Jotty.core.intelligence.swarms import CoordinationPattern, MergeStrategy
+        from Jotty.core.execution.swarms import CoordinationPattern, MergeStrategy
 
         assert len(CoordinationPattern) == 7
         assert len(MergeStrategy) == 5
@@ -96,7 +95,7 @@ class TestExecutionTypesExtraction:
         """composite_agent.py should import from foundation, not from swarms."""
         import inspect
 
-        from Jotty.core.modes.agent.base import composite_agent
+        from Jotty.core.execution.base import composite_agent
 
         source = inspect.getsource(composite_agent)
         assert "from Jotty.core.infrastructure.foundation.types.execution_types import" in source
@@ -129,10 +128,10 @@ class TestExecutionTypesExtraction:
 
     def test_identity_across_import_paths(self):
         """Same enum class regardless of import path."""
+        from Jotty.core.execution.swarms import CoordinationPattern as CP3
         from Jotty.core.infrastructure.foundation.types.execution_types import (
             CoordinationPattern as CP1,
         )
-        from Jotty.core.intelligence.swarms import CoordinationPattern as CP3
         from Jotty.core.intelligence.swarms.base.agent_team import CoordinationPattern as CP2
 
         assert CP1 is CP2 is CP3
@@ -560,83 +559,10 @@ class TestLearningFocusedConfigs:
 
 
 # =============================================================================
-# Phase C: Skill SDK Package
+# Phase C: Removed - Skill SDK was unused abstraction layer
 # =============================================================================
-
-
-@pytest.mark.unit
-class TestSkillSDK:
-    """Skill SDK package provides standalone skill utilities."""
-
-    def test_skill_sdk_importable(self):
-        """core.skill_sdk is importable."""
-        from Jotty.core.capabilities.sdk import (
-            api_client,
-            async_utils,
-            env_loader,
-            skill_status,
-            smart_fetcher,
-            tool_helpers,
-        )
-
-        assert tool_helpers is not None
-        assert env_loader is not None
-        assert skill_status is not None
-        assert api_client is not None
-        assert async_utils is not None
-        assert smart_fetcher is not None
-
-    def test_skill_sdk_tool_helpers_works(self):
-        """tool_helpers from skill_sdk has expected functions."""
-        from Jotty.core.capabilities.sdk.tool_helpers import (
-            require_params,
-            tool_error,
-            tool_response,
-        )
-
-        resp = tool_response(data={"ok": True})
-        assert resp["success"] is True
-        err = tool_error("bad input")
-        assert err["success"] is False
-
-    def test_skill_sdk_skill_status_works(self):
-        """SkillStatus from skill_sdk works."""
-        from Jotty.core.capabilities.sdk import SkillStatus
-
-        status = SkillStatus("test-skill")
-        assert status.skill_name == "test-skill"
-
-    def test_skill_sdk_env_loader_works(self):
-        """env_loader from skill_sdk works."""
-        from Jotty.core.capabilities.sdk import get_env
-
-        # Should not raise (returns None if not set)
-        result = get_env("NONEXISTENT_VAR_12345")
-        assert result is None
-
-    def test_skill_sdk_api_client_works(self):
-        """BaseAPIClient from skill_sdk works."""
-        from Jotty.core.capabilities.sdk.api_client import BaseAPIClient
-
-        assert hasattr(BaseAPIClient, "_make_request")
-
-    def test_utils_reexport_backward_compat(self):
-        """Importing from core.utils still works (backward compat)."""
-        from Jotty.core.infrastructure.utils.env_loader import get_env
-        from Jotty.core.infrastructure.utils.skill_status import SkillStatus
-        from Jotty.core.infrastructure.utils.tool_helpers import tool_response
-
-        assert SkillStatus is not None
-        assert tool_response is not None
-        assert get_env is not None
-
-    def test_skill_sdk_smart_fetcher(self):
-        """smart_fetcher from skill_sdk is accessible."""
-        from Jotty.core.capabilities.sdk.smart_fetcher import FetchResult, smart_fetch
-
-        assert callable(smart_fetch)
-        assert FetchResult is not None
-
+# TestSkillSDK class removed - skill_sdk directory deleted
+# Skills import directly from core.infrastructure.utils instead
 
 # =============================================================================
 # Phase D: Tightened Boundary Linter
@@ -671,18 +597,6 @@ class TestTightenedBoundaryLinter:
             assert "foundation" in deps
             assert "agents" in deps
             assert "memory" in deps
-        finally:
-            sys.path.pop(0)
-
-    def test_skill_sdk_in_allowed_deps(self):
-        """skill_sdk module is tracked in boundary linter."""
-        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
-        try:
-            import check_import_boundaries as linter
-
-            assert "skill_sdk" in linter.ALLOWED_DEPS
-            deps = linter.ALLOWED_DEPS["skill_sdk"]
-            assert "foundation" in deps
         finally:
             sys.path.pop(0)
 

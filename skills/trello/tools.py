@@ -9,7 +9,6 @@ import os
 from typing import Any, Dict, Optional
 
 import requests
-
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 

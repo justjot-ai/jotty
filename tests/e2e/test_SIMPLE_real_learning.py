@@ -14,7 +14,6 @@ No complex expert evaluation - just clear metrics.
 
 import asyncio
 import os
-import re
 from datetime import datetime
 from pathlib import Path
 
@@ -184,7 +183,7 @@ SPECIFIC REQUIREMENTS (will be scored):
     final = history[-1]["score"]
     improvement = final - initial
 
-    print(f"\n📊 Learning Metrics:")
+    print("\n📊 Learning Metrics:")
     print(f"  Initial: {initial}/8 ({initial/8*100:.0f}%)")
     print(f"  Final: {final}/8 ({final/8*100:.0f}%)")
     print(f"  Improvement: +{improvement} points ({improvement/8*100:.0f}%)")
@@ -263,7 +262,7 @@ SPECIFIC REQUIREMENTS (will be scored):
 
     Path("SIMPLE_REAL_LEARNING.md").write_text(doc)
 
-    print(f"\n📄 Results saved: SIMPLE_REAL_LEARNING.md")
+    print("\n📄 Results saved: SIMPLE_REAL_LEARNING.md")
 
     if improvement > 0:
         print("\n✅ SUCCESS: Real learning demonstrated!")

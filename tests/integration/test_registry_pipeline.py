@@ -18,11 +18,10 @@ Covers:
 All registry lookups and tool executions are mocked.
 """
 
-import asyncio
 import sys
 from pathlib import Path
 from typing import Any, Dict
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import MagicMock
 
 import pytest
 

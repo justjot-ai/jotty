@@ -11,10 +11,9 @@ edge cases, serialization, and reset behaviour.
 
 import threading
 import time
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock
 
 import pytest
-
 from Jotty.core.infrastructure.utils.budget_tracker import (
     DEFAULT_COST_PER_1K_INPUT,
     DEFAULT_COST_PER_1K_OUTPUT,

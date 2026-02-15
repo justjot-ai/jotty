@@ -19,7 +19,7 @@ except ImportError:
     print("⚠️  DSPy not available. Install with: pip install dspy-ai")
     sys.exit(1)
 
-from core.experts import ExpertAgentConfig, MermaidExpertAgent
+from core.experts import MermaidExpertAgent
 
 
 async def test_mermaid_expert_with_llm():
@@ -79,7 +79,7 @@ async def test_mermaid_expert_with_llm():
     try:
         # Verify training data (BaseExpert does not have .train())
         training_data = expert.get_training_data()
-        print(f"Training Data:")
+        print("Training Data:")
         print(f"  Cases available: {len(training_data)}")
         print()
 
@@ -106,7 +106,7 @@ async def test_mermaid_expert_with_llm():
                     description=test_case["description"], diagram_type=test_case["diagram_type"]
                 )
 
-                print(f"Generated Diagram:")
+                print("Generated Diagram:")
                 print("```mermaid")
                 print(diagram)
                 print("```")
@@ -117,7 +117,7 @@ async def test_mermaid_expert_with_llm():
                 has_nodes = "[" in str(diagram) or "{" in str(diagram)
                 has_arrow = "-->" in str(diagram)
 
-                print(f"Validation:")
+                print("Validation:")
                 print(f"  Has graph declaration: {is_valid}")
                 print(f"  Has nodes: {has_nodes}")
                 print(f"  Has arrows: {has_arrow}")

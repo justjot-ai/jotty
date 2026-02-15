@@ -121,7 +121,7 @@ async def test_minimal_orchestration():
             generator = dspy.ChainOfThought(SimpleTask)
 
             # Generate output
-            print(f"   🤖 Calling Claude CLI...")
+            print("   🤖 Calling Claude CLI...")
             result = generator(prompt=task["prompt"])
             output = result.output
 
@@ -214,7 +214,7 @@ async def test_minimal_orchestration():
     total_count = len(results)
     avg_score = sum(r["score"] for r in results.values()) / len(results)
 
-    print(f"\nResults:")
+    print("\nResults:")
     print(f"  Tasks Completed: {success_count}/{total_count}")
     print(f"  Success Rate: {success_count/total_count*100:.0f}%")
     print(f"  Average Score: {avg_score:.2f}")

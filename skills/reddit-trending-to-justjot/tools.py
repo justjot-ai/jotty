@@ -32,13 +32,13 @@ def _format_reddit_results_as_markdown(results: list, topic: str) -> str:
     """Format Reddit search results as markdown."""
     lines = [
         f"# Reddit Trending: {topic}",
-        f"",
+        "",
         f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-        f"**Source:** Reddit",
+        "**Source:** Reddit",
         f"**Results:** {len(results)} posts",
-        f"",
+        "",
         "---",
-        f"",
+        "",
     ]
 
     for i, result in enumerate(results, 1):

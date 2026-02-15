@@ -142,10 +142,10 @@ def main():
     print(f"  Total hints added: {total_changes}")
 
     if args.dry_run:
-        print(f"\n💡 Run with --apply to make changes")
+        print("\n💡 Run with --apply to make changes")
         return 1
     else:
-        print(f"\n✅ Changes applied successfully!")
+        print("\n✅ Changes applied successfully!")
         return 0
 
 

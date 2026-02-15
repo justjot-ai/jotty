@@ -72,7 +72,7 @@ def generate_copy_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     product = params["product"]
     audience = params["audience"]
     fw_name = params.get("framework", "AIDA").lower()
-    benefit = params.get("key_benefit", f"save time and boost productivity")
+    benefit = params.get("key_benefit", "save time and boost productivity")
     tone = params.get("tone", "professional").lower()
 
     if fw_name not in FRAMEWORKS:
@@ -93,7 +93,7 @@ def generate_copy_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     elif fw_name == "pas":
         copy_sections = {
             "Problem": f"As {audience}, you're constantly struggling to keep up with demands. The current tools just aren't cutting it.",
-            "Agitate": f"Every day without a proper solution means lost opportunities, wasted hours, and falling behind competitors. Can you really afford to keep doing things the old way?",
+            "Agitate": "Every day without a proper solution means lost opportunities, wasted hours, and falling behind competitors. Can you really afford to keep doing things the old way?",
             "Solution": f"{product} helps you {benefit}. {tone_mod['cta']}",
         }
     elif fw_name == "bab":

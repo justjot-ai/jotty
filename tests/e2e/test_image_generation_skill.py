@@ -78,7 +78,7 @@ def test_image_generation_skill():
             examples=examples,
         )
 
-        print(f"  ✅ Skill generated!")
+        print("  ✅ Skill generated!")
         print(f"  📄 Files: {result['skill_md']}, {result['tools_py']}")
         print(f"  🔄 Auto-reloaded: {result.get('reloaded', False)}")
         print(f"  🧪 Tool tested: {result.get('tool_tested', False)}")

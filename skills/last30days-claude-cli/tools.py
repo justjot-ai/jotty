@@ -403,10 +403,10 @@ def _format_as_markdown(topic: str, date_range: str, data: Dict[str, Any], tool:
     """Format research data as markdown."""
     lines = [
         f'# Research Results: "{topic}"',
-        f"",
+        "",
         f"**Date Range:** {date_range}",
-        f"**Mode:** Jotty Web Search (DuckDuckGo)",
-        f"",
+        "**Mode:** Jotty Web Search (DuckDuckGo)",
+        "",
     ]
 
     if tool:
@@ -474,7 +474,7 @@ def _format_as_compact(topic: str, date_range: str, data: Dict[str, Any], tool: 
     lines = [
         f'Research Results: "{topic}"',
         f"Date Range: {date_range}",
-        f"Mode: Jotty Web Search (DuckDuckGo)",
+        "Mode: Jotty Web Search (DuckDuckGo)",
         "",
     ]
 

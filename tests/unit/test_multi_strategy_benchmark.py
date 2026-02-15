@@ -6,7 +6,6 @@ Tests for Multi-Strategy Benchmark Utility
 Tests the high-level benchmarking utility that reduces boilerplate.
 """
 
-import asyncio
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest

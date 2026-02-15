@@ -29,14 +29,11 @@ Usage:
 """
 
 import argparse
-import base64
 import json
-import os
 import sqlite3
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
-from urllib.parse import urlparse
+from typing import Any, Dict, List
 
 try:
     from playwright.async_api import async_playwright

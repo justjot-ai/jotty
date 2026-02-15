@@ -6,7 +6,6 @@ Tests for SwarmAdapter
 Tests the zero-wrapper multi-swarm integration.
 """
 
-import asyncio
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest

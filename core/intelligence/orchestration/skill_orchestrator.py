@@ -2,27 +2,33 @@
 SkillOrchestrator - Auto-chain Skills for Any ML Task
 ======================================================
 
-Automatically discovers, sequences, and executes ML skills
-to solve ANY machine learning problem.
+⚠️  DEPRECATED: This class is deprecated and will be removed in a future version.
+    Use AutoMLWorkflow instead:
 
-Usage:
+    from Jotty.core.execution.workflows import AutoMLWorkflow
+    workflow = AutoMLWorkflow()
+    result = await workflow.solve(X, y)
+
+WHY DEPRECATED:
+- This is use-case specific AutoML logic, not generic orchestration infrastructure
+- Hard-coded PIPELINE_ORDER should be configurable
+- Inherits from mixins instead of using skills from registry (violates separation of concerns)
+- Belongs in execution layer (workflows/swarms), not intelligence/orchestration
+
+MIGRATION PATH:
+- Replace SkillOrchestrator with AutoMLWorkflow
+- AutoMLWorkflow uses skills from skills/automl/ via registry
+- AutoMLWorkflow allows custom pipeline order
+- AutoMLWorkflow properly separates WHAT (skills) from HOW (workflow orchestration)
+
+OLD (DEPRECATED):
     orchestrator = SkillOrchestrator()
     result = await orchestrator.solve(X, y)
 
-The orchestrator:
-1. Auto-detects problem type (classification/regression)
-2. Discovers relevant skills from registry
-3. Chains skills in optimal order
-4. Executes pipeline and returns best model
-
-Features:
-- Progress tracking with visual progress bar
-- LLM-powered feature reasoning from multiple perspectives
-
-Components:
-- skill_types.py: ProblemType, SkillCategory, SkillResult, PipelineResult, ProgressTracker, SkillAdapter
-- core/skills/ml/eda.py: EDASkill (imported as EDAAnalyzer)
-- core/skills/ml/llm_reasoner.py: LLMFeatureReasonerSkill (imported as LLMFeatureReasoner)
+NEW (RECOMMENDED):
+    from Jotty.core.execution.workflows import AutoMLWorkflow
+    workflow = AutoMLWorkflow()
+    result = await workflow.solve(X, y)
 """
 
 from __future__ import annotations
@@ -92,6 +98,16 @@ class SkillOrchestrator(FeatureEngineeringMixin, FeatureSelectionMixin, ModelPip
     ]
 
     def __init__(self, use_llm_features: bool = True, show_progress: bool = True) -> None:
+        import warnings
+
+        warnings.warn(
+            "SkillOrchestrator is deprecated and will be removed in a future version. "
+            "Use AutoMLWorkflow instead: "
+            "from Jotty.core.execution.workflows import AutoMLWorkflow",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
         self._skills_registry = None
         self._tools_registry = None
         self._skill_adapters: Dict[str, SkillAdapter] = {}

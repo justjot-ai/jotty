@@ -213,7 +213,7 @@ async def download_and_train():
     print("=" * 80)
     print()
     print(f"✅ Gold Standards: {len(gold_standards)} loaded")
-    print(f"✅ Expert: Created and configured")
+    print("✅ Expert: Created and configured")
     print(f"✅ Training: {'Completed' if expert.trained else 'May need more'}")
     print(f"✅ Improvements: {len(improvements)} learned")
     print()

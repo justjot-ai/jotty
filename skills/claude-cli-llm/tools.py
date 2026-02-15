@@ -444,11 +444,11 @@ def _select_domain_perspectives(
         fast_perspectives = [
             {
                 "name": "domain_expert",
-                "system": f"You are a senior domain expert. Provide deep, practical analysis.",
+                "system": "You are a senior domain expert. Provide deep, practical analysis.",
             },
             {
                 "name": "critical_reviewer",
-                "system": f"You are a critical reviewer. Identify risks, gaps, and overlooked considerations.",
+                "system": "You are a critical reviewer. Identify risks, gaps, and overlooked considerations.",
             },
         ]
         logger.info("Ensemble: fast mode (%d perspectives, no LLM selection)", max_perspectives)

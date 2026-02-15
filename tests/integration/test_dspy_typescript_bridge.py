@@ -6,9 +6,6 @@ Tests the complete flow: TypeScript → DSPy → MCP tools → response
 
 import asyncio
 import sys
-from pathlib import Path
-
-import pytest
 
 # Add supervisor to path (Jotty is now a pip package)
 sys.path.insert(0, "/var/www/sites/personal/stock_market/JustJot.ai/supervisor")
@@ -160,7 +157,7 @@ def test_health_endpoint():
     print("=" * 80)
 
     try:
-        from dspy_bridge import DSPY_AVAILABLE, register_dspy_routes
+        from dspy_bridge import register_dspy_routes
         from flask import Flask
 
         app = Flask(__name__)

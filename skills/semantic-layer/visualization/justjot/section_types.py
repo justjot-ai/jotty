@@ -466,10 +466,10 @@ def get_visualization_types_context() -> str:
         context_lines.append(f"- **Description**: {t.description}")
         context_lines.append(f"- **Content Type**: {t.content_type}")
         if t.content_schema:
-            context_lines.append(f"- **Schema**:")
-            context_lines.append(f"```")
+            context_lines.append("- **Schema**:")
+            context_lines.append("```")
             context_lines.append(t.content_schema[:500])
-            context_lines.append(f"```")
+            context_lines.append("```")
         context_lines.append("")
 
     return "\n".join(context_lines)

@@ -14,10 +14,9 @@ All tests are fast (< 1s), offline, no real LLM calls.
 """
 
 import json
-from unittest.mock import MagicMock, Mock, PropertyMock, patch
+from unittest.mock import Mock, patch
 
 import pytest
-
 from Jotty.core.infrastructure.utils.tokenizer import (
     SmartTokenizer,
     count_tokens,

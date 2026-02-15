@@ -8,7 +8,6 @@ and ConfigTuner hyperparameter tuning.
 import random
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -30,7 +29,6 @@ from core.evaluation import (
     TuningResult,
     set_reproducible_seeds,
 )
-from core.evaluation.benchmark import BenchmarkMetrics
 from core.foundation.data_structures import SwarmConfig
 
 # ---------------------------------------------------------------------------

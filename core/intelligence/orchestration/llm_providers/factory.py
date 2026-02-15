@@ -9,7 +9,6 @@ from typing import Optional
 from Jotty.core.infrastructure.foundation.config_defaults import DEFAULTS, MODEL_SONNET
 from Jotty.core.infrastructure.foundation.exceptions import InvalidConfigError
 
-from .adapter import JottyClaudeProviderAdapter
 from .anthropic import AnthropicProvider
 from .base import LLMProvider
 from .google import GoogleProvider
@@ -62,30 +61,15 @@ def create_provider(
 
 def auto_detect_provider() -> tuple:
     """
-    Auto-detect available provider based on environment variables or CLI providers.
+    Auto-detect available provider based on environment variables.
 
     Priority order:
-    1. JottyClaudeProvider (CLI-based, most reliable)
-    2. API key providers (anthropic, openai, openrouter, groq, google)
+    1. API key providers (anthropic, openai, openrouter, groq, google)
 
     Returns:
         Tuple of (provider_name, LLMProvider instance)
     """
-    # 1. Try JottyClaudeProvider first (uses Claude CLI, most reliable)
-    try:
-        from Jotty.core.infrastructure.foundation.jotty_claude_provider import (
-            JottyClaudeProvider,
-            is_claude_available,
-        )
-
-        if is_claude_available():
-            provider = JottyClaudeProvider(auto_start=True)
-            # Return a wrapper that uses JottyClaudeProvider
-            return "jotty-claude", JottyClaudeProviderAdapter(provider)
-    except Exception as e:
-        logger.debug(f"JottyClaudeProvider not available: {e}")
-
-    # 2. Check API key providers
+    # Check API key providers
     providers_to_check = [
         ("anthropic", "ANTHROPIC_API_KEY"),
         ("openai", "OPENAI_API_KEY"),

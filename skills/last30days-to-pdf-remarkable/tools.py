@@ -34,10 +34,10 @@ def _json_to_markdown(data: Dict[str, Any], topic: str) -> str:
     """Convert last30days JSON output to markdown."""
     lines = [
         f'# Research Results: "{topic}"',
-        f"",
+        "",
         f"**Date Range:** {data.get('date_range', 'Last 30 days')}",
-        f"**Mode:** Jotty Web Search (DuckDuckGo)",
-        f"",
+        "**Mode:** Jotty Web Search (DuckDuckGo)",
+        "",
     ]
 
     # Reddit section

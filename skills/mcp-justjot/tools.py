@@ -12,7 +12,6 @@ import os
 from typing import Any, Dict, Optional
 
 import requests
-
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 from Jotty.core.infrastructure.utils.tool_helpers import (
     async_tool_wrapper,

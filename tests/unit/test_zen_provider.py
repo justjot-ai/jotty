@@ -5,9 +5,6 @@ Tests model selection, fallback behavior, fuzzy matching,
 free model defaults, and the full create_lm flow.
 """
 
-import os
-from unittest.mock import MagicMock, patch
-
 import pytest
 
 # ---------------------------------------------------------------------------

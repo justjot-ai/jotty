@@ -87,7 +87,7 @@ class TestRealParadigms:
             skip_validation=True,  # Skip architect/auditor = 1 LLM call per agent
         )
 
-        print(f"\n--- RELAY ---")
+        print("\n--- RELAY ---")
         print(f"Success: {result.success}")
         print(f"Output: {str(result.output)[:400]}")
         print(f"Status steps: {len(status_log)}")
@@ -124,7 +124,7 @@ class TestRealParadigms:
             skip_validation=True,
         )
 
-        print(f"\n--- DEBATE ---")
+        print("\n--- DEBATE ---")
         print(f"Success: {result.success}")
         print(f"Output: {str(result.output)[:400]}")
 
@@ -151,7 +151,7 @@ class TestRealParadigms:
             skip_validation=True,
         )
 
-        print(f"\n--- REFINEMENT ---")
+        print("\n--- REFINEMENT ---")
         print(f"Success: {result.success}")
         print(f"Output: {str(result.output)[:400]}")
 
@@ -191,7 +191,7 @@ class TestRealDecisionProtocols:
             protocol="majority",
         )
 
-        print(f"\n--- MAJORITY ---")
+        print("\n--- MAJORITY ---")
         print(f"Decision: {decision.final_decision} (strength: {decision.consensus_strength:.2f})")
         print(f"Dissenting: {decision.dissenting_views}")
 
@@ -224,7 +224,7 @@ class TestRealDecisionProtocols:
             protocol="supermajority",
         )
 
-        print(f"\n--- SUPERMAJORITY ---")
+        print("\n--- SUPERMAJORITY ---")
         print(f"Decision: {decision.final_decision} (strength: {decision.consensus_strength:.2f})")
 
         # 2/4 = 50% < 66% → penalized strength
@@ -250,7 +250,7 @@ class TestRealDecisionProtocols:
             protocol="unanimity",
         )
 
-        print(f"\n--- UNANIMITY ---")
+        print("\n--- UNANIMITY ---")
         print(f"Decision: {decision.final_decision} (strength: {decision.consensus_strength:.2f})")
 
         assert decision.final_decision == "patch_now"
@@ -282,7 +282,7 @@ class TestRealDecisionProtocols:
             protocol="ranked",
         )
 
-        print(f"\n--- RANKED ---")
+        print("\n--- RANKED ---")
         print(f"Decision: {decision.final_decision} (strength: {decision.consensus_strength:.2f})")
 
         assert decision.final_decision == "react"  # 3/5 first-choice votes
@@ -311,7 +311,7 @@ class TestRealDecisionProtocols:
             protocol="approval",
         )
 
-        print(f"\n--- APPROVAL ---")
+        print("\n--- APPROVAL ---")
         print(f"Decision: {decision.final_decision} (strength: {decision.consensus_strength:.2f})")
 
         # Only hiring_mgr (0.95) and tech_lead (0.8) are confident enough
@@ -361,7 +361,7 @@ class TestRealCompression:
             max_chars=900,
         )
 
-        print(f"\n--- COMPRESSION ---")
+        print("\n--- COMPRESSION ---")
         print(f"Original: {len(log)} chars → Compressed: {len(compressed)} chars")
         print(f"Ratio: {len(compressed)/len(log):.1%}")
         print(f"\n{compressed}")
@@ -388,7 +388,7 @@ class TestRealCompression:
         # build_context will trigger compression
         context, meta = asyncio.run(mgr.build_context())
 
-        print(f"\n--- CONTEXT GUARD FLOW ---")
+        print("\n--- CONTEXT GUARD FLOW ---")
         print(f"Context length: {len(context)} chars")
         print(f"Utilization: {meta['utilization']:.1%}")
 
@@ -415,7 +415,7 @@ class TestRealScopedTools:
             format="names",
         )
 
-        print(f"\n--- SCOPED TOOLS (web) ---")
+        print("\n--- SCOPED TOOLS (web) ---")
         print(f"All skills: {all_count}, Scoped: {len(tools)}")
         print(f"Tools: {tools}")
 
@@ -433,7 +433,7 @@ class TestRealScopedTools:
             format="names",
         )
 
-        print(f"\n--- SCOPED TOOLS (telegram) ---")
+        print("\n--- SCOPED TOOLS (telegram) ---")
         print(f"Tools: {tools}")
 
         assert len(tools) <= 5
@@ -477,7 +477,7 @@ class TestRealHooks:
             skip_validation=True,
         )
 
-        print(f"\n--- HOOKS ---")
+        print("\n--- HOOKS ---")
         print(f"Hook log: {hook_log}")
         print(f"Output: {str(result.output)[:200]}")
 

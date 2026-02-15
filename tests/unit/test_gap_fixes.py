@@ -6,10 +6,9 @@ Gap 2: Adaptive learning controls refinement iteration count
 Gap 3: Curriculum tasks auto-queue on plateau → consumable via run_training_task
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import pytest
-
 from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
 from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult, SwarmConfig
 

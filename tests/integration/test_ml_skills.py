@@ -18,10 +18,8 @@ Tests cover:
 All sklearn/lightgbm/xgboost calls are mocked -- no real ML needed.
 """
 
-import asyncio
 from dataclasses import fields
-from typing import Any, Dict, List, Optional
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import Mock
 
 import numpy as np
 import pytest

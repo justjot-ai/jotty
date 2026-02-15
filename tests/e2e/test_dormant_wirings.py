@@ -10,7 +10,6 @@ Modules:
 6. sandbox_manager.py        — sandboxed code execution in SwarmTerminal
 """
 
-import asyncio
 import os
 
 import pytest

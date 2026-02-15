@@ -54,7 +54,7 @@ def test_generation_with_usage():
 
     print(f"  ✅ Registry: {registry.skills_dir}")
     print(f"  ✅ Generator: {generator.skills_dir}")
-    print(f"  ✅ Linked for auto-reload")
+    print("  ✅ Linked for auto-reload")
     print()
 
     # Step 3: Generate skill (will auto-reload)
@@ -77,7 +77,7 @@ def test_generation_with_usage():
             examples=examples,
         )
 
-        print(f"  ✅ Skill generated!")
+        print("  ✅ Skill generated!")
         print(f"  📄 Files: {result['skill_md']}, {result['tools_py']}")
         print(f"  🔄 Auto-reloaded: {result.get('reloaded', False)}")
         print(f"  🧪 Tool tested: {result.get('tool_tested', False)}")
@@ -114,7 +114,7 @@ def test_generation_with_usage():
             result = first_tool({})
 
             if result.get("success"):
-                print(f"  ✅ Tool executed successfully!")
+                print("  ✅ Tool executed successfully!")
                 print(f"     Result: {result}")
             else:
                 print(f"  ⚠️  Tool returned: {result.get('error', 'unknown')}")
@@ -122,7 +122,7 @@ def test_generation_with_usage():
                 if "time" in first_tool_name.lower() or "convert" in first_tool_name.lower():
                     test_result = first_tool({"from_timezone": "UTC", "to_timezone": "EST"})
                     if test_result.get("success"):
-                        print(f"  ✅ Tool works with proper params!")
+                        print("  ✅ Tool works with proper params!")
                         print(f"     Result: {test_result}")
         except Exception as e:
             print(f"  ⚠️  Tool execution error: {e}")

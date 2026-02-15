@@ -138,11 +138,11 @@ async def test_quick():
     else:
         print(f"   No improvements file found at {improvements_file}")
 
-    print(f"✅ Expert created")
+    print("✅ Expert created")
     print(f"   Improvements loaded: {len(expert.improvements)}")
 
     if expert.improvements:
-        print(f"\n   Sample Learned Patterns:")
+        print("\n   Sample Learned Patterns:")
         for i, imp in enumerate(expert.improvements[:3], 1):
             pattern = imp.get("learned_pattern", "")
             if pattern:
@@ -168,7 +168,7 @@ async def test_quick():
             )
 
             # Validate via renderer
-            print(f"   Validating via renderer...")
+            print("   Validating via renderer...")
             is_valid, error_msg, metadata = validate_mermaid_syntax(diagram, use_renderer=True)
 
             # Check elements
@@ -203,7 +203,7 @@ async def test_quick():
                 print(f"      Error: {error_msg}")
 
         except asyncio.TimeoutError:
-            print(f"   ⏱️  Timeout")
+            print("   ⏱️  Timeout")
             results.append(
                 {"scenario": scenario["name"], "valid": False, "error": "Timeout", "success": False}
             )

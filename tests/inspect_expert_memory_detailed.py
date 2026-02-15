@@ -12,7 +12,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.experts.memory_integration import (
     retrieve_improvements_from_memory,
-    retrieve_synthesized_improvements,
     sync_improvements_to_memory,
 )
 from core.foundation.data_structures import MemoryLevel, SwarmConfig
@@ -48,20 +47,20 @@ def show_file_improvements(expert_name: str, domain: str):
             print(f"  Type: {imp.get('improvement_type', 'unknown')}")
             print(f"  Student Score: {imp.get('student_score', 0.0)}")
             print(f"  Teacher Score: {imp.get('teacher_score', 1.0)}")
-            print(f"  Learned Pattern:")
+            print("  Learned Pattern:")
             pattern = imp.get("learned_pattern", "")
             if pattern:
                 print(f"    {pattern[:200]}...")
             else:
-                print(f"    (No pattern)")
+                print("    (No pattern)")
 
             # Show student vs teacher output
             student = imp.get("student_output", "")
             teacher = imp.get("teacher_output", "")
             if student and teacher:
-                print(f"  Student Output (first 100 chars):")
+                print("  Student Output (first 100 chars):")
                 print(f"    {str(student)[:100]}...")
-                print(f"  Teacher Output (first 100 chars):")
+                print("  Teacher Output (first 100 chars):")
                 print(f"    {str(teacher)[:100]}...")
 
             print()
@@ -101,7 +100,7 @@ def sync_and_show_memory(expert_name: str, domain: str, improvements: list):
     semantic = memory.memories[MemoryLevel.SEMANTIC]
     meta = memory.memories[MemoryLevel.META]
 
-    print(f"Memory Levels After Sync:")
+    print("Memory Levels After Sync:")
     print(f"  PROCEDURAL: {len(procedural)} entries")
     print(f"  SEMANTIC:   {len(semantic)} entries")
     print(f"  META:       {len(meta)} entries")
@@ -109,13 +108,13 @@ def sync_and_show_memory(expert_name: str, domain: str, improvements: list):
 
     # Show PROCEDURAL entries
     if procedural:
-        print(f"PROCEDURAL Level Entries:")
+        print("PROCEDURAL Level Entries:")
         print("-" * 80)
         for i, (key, entry) in enumerate(list(procedural.items())[:5], 1):  # Show first 5
             print(f"\nEntry {i} (Key: {key[:16]}...):")
             print(f"  Created: {entry.created_at}")
             print(f"  Context: {json.dumps(entry.context, indent=4, default=str)}")
-            print(f"  Content:")
+            print("  Content:")
             try:
                 content_data = json.loads(entry.content)
                 print(f"    {json.dumps(content_data, indent=4, default=str)}")
@@ -126,7 +125,7 @@ def sync_and_show_memory(expert_name: str, domain: str, improvements: list):
             print(f"\n  ... and {len(procedural) - 5} more entries")
 
     # Retrieve using integration
-    print(f"\nRetrieved via Integration Function:")
+    print("\nRetrieved via Integration Function:")
     print("-" * 80)
     retrieved = retrieve_improvements_from_memory(
         memory=memory, expert_name=expert_name, domain=domain, max_results=10

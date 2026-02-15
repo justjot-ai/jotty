@@ -7,11 +7,9 @@ ProviderManager (provider_manager.py), and EnsembleManager (ensemble_manager.py)
 """
 
 import time as _time
-from dataclasses import fields
-from unittest.mock import AsyncMock, MagicMock, Mock, PropertyMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
-
 from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
 from Jotty.core.intelligence.orchestration.agent_runner import (
     HOOK_TYPES,
@@ -26,15 +24,15 @@ try:
     from Jotty.core.intelligence.orchestration.llm_providers.types import (
         LLMExecutionResult,
         LLMResponse,
+        TextBlock,
+        ToolUseBlock,
     )
     from Jotty.core.intelligence.orchestration.llm_providers.types import (
         StreamEvent as LLMStreamEvent,
     )
-    from Jotty.core.intelligence.orchestration.llm_providers.types import TextBlock
     from Jotty.core.intelligence.orchestration.llm_providers.types import (
         ToolResult as LLMToolResult,
     )
-    from Jotty.core.intelligence.orchestration.llm_providers.types import ToolUseBlock
 
     HAS_LLM_TYPES = True
 except ImportError:
@@ -1098,16 +1096,11 @@ class TestLLMProviderFactory:
     @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}, clear=False)
     @patch("Jotty.core.orchestration.llm_providers.factory.AnthropicProvider")
     def test_auto_detect_anthropic(self, mock_anthropic_cls):
-        """auto_detect_provider detects ANTHROPIC_API_KEY when Claude CLI unavailable."""
+        """auto_detect_provider detects ANTHROPIC_API_KEY."""
         mock_anthropic_cls.return_value = Mock()
-        # Patch the source module that auto_detect_provider imports from
-        with patch(
-            "Jotty.core.foundation.jotty_claude_provider.is_claude_available",
-            return_value=False,
-        ):
-            name, provider = auto_detect_provider()
-            assert name == "anthropic"
-            assert provider is mock_anthropic_cls.return_value
+        name, provider = auto_detect_provider()
+        assert name == "anthropic"
+        assert provider is mock_anthropic_cls.return_value
 
     @patch.dict(
         "os.environ",
@@ -1124,12 +1117,8 @@ class TestLLMProviderFactory:
         """auto_detect_provider raises when no API keys are set."""
         from Jotty.core.infrastructure.foundation.exceptions import InvalidConfigError
 
-        with patch(
-            "Jotty.core.foundation.jotty_claude_provider.is_claude_available",
-            return_value=False,
-        ):
-            with pytest.raises(InvalidConfigError, match="No LLM provider"):
-                auto_detect_provider()
+        with pytest.raises(InvalidConfigError, match="No LLM provider"):
+            auto_detect_provider()
 
     @patch("Jotty.core.orchestration.llm_providers.factory.AnthropicProvider")
     def test_create_provider_with_api_key(self, mock_cls):

@@ -18,13 +18,12 @@ Usage:
 
 import argparse
 import asyncio
-import json
 import os
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 try:
     from playwright.async_api import async_playwright
@@ -384,7 +383,7 @@ Examples:
         )
 
         if result.get("success"):
-            print(f"\n✅ PDF generated successfully!")
+            print("\n✅ PDF generated successfully!")
             print(f"   Method: {result.get('method')}")
             print(f"   File: {result.get('pdf_path')}")
             print(f"   Size: {result.get('file_size', 0) / 1024:.2f} KB")
@@ -408,7 +407,7 @@ Examples:
             result = convert_with_pandoc(Path(tmp_path), output_file, args.title, args.author)
 
             if result.get("success"):
-                print(f"\n✅ PDF generated successfully!")
+                print("\n✅ PDF generated successfully!")
                 print(f"   Method: {result.get('method')}")
                 print(f"   File: {result.get('pdf_path')}")
                 print(f"   Size: {result.get('file_size', 0) / 1024:.2f} KB")

@@ -32,9 +32,9 @@ def _format_topic_details_for_synthesis(results: list, topic: str) -> str:
     """Format web search results for synthesis."""
     lines = [
         f"# Information about: {topic}",
-        f"",
+        "",
         f"The following are web search results about '{topic}':",
-        f"",
+        "",
     ]
 
     for i, result in enumerate(results, 1):
@@ -323,7 +323,7 @@ async def trending_topics_to_ideas_tool(params: Dict[str, Any]) -> Dict[str, Any
         query = params.get("query", "trending topics")
         max_topics = params.get("max_topics", 5)
 
-        logger.info(f"🔍 Trending Topics → Ideas workflow")
+        logger.info("🔍 Trending Topics → Ideas workflow")
         logger.info(f"   Source: {source}")
         logger.info(f"   Query: {query}")
         logger.info(f"   Max topics: {max_topics}")
@@ -435,7 +435,7 @@ async def trending_topics_to_ideas_tool(params: Dict[str, Any]) -> Dict[str, Any
 
         successful = sum(1 for r in processed_results if r.get("success"))
 
-        logger.info(f"✅ Processing complete!")
+        logger.info("✅ Processing complete!")
         logger.info(f"   Topics processed: {successful}/{len(topics)}")
         logger.info(f"   Ideas created: {ideas_created}")
 

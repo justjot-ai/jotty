@@ -22,8 +22,7 @@ All external dependencies (builtin widgets, supervisor widgets) are mocked.
 import json
 import sys
 from pathlib import Path
-from typing import Any, Dict, List
-from unittest.mock import MagicMock, Mock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 

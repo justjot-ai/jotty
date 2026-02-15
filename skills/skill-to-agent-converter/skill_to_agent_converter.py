@@ -17,8 +17,8 @@ try:
 except ImportError:
     DSPY_AVAILABLE = False
 
-from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
 from Jotty.core.capabilities.registry.skills_registry import SkillDefinition, get_skills_registry
+from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
 
 logger = logging.getLogger(__name__)
 

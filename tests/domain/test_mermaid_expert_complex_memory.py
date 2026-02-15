@@ -245,7 +245,7 @@ async def test_complex_scenarios():
     )
 
     expert = MermaidExpertAgent(config=config, memory=memory)
-    print(f"✅ Expert created")
+    print("✅ Expert created")
     print(f"   Uses memory storage: {expert.use_memory_storage}")
     print(f"   Improvements loaded: {len(expert.improvements)}")
     print()
@@ -272,7 +272,7 @@ async def test_complex_scenarios():
             expert.train(gold_standards=training_cases, force_retrain=True),
             timeout=300,  # 5 minutes timeout
         )
-        print(f"✅ Training completed")
+        print("✅ Training completed")
         print(f"   Passed cases: {training_results.get('passed_cases', 0)}")
         print(f"   Total iterations: {training_results.get('total_iterations', 0)}")
         print(f"   Improvements learned: {len(expert.improvements)}")

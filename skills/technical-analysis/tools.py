@@ -146,13 +146,13 @@ def load_ohlcv(
 def _detect_ta_library():
     """Detect which TA library is available."""
     try:
-        import pandas_ta  # noqa: F401
+        import pandas_ta
 
         return "pandas_ta"
     except ImportError:
         pass
     try:
-        import ta  # noqa: F401
+        import ta
 
         return "ta"
     except ImportError:

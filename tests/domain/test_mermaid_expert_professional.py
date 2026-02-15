@@ -8,7 +8,6 @@ import asyncio
 import json
 import logging
 import os
-import re
 import sys
 from pathlib import Path
 
@@ -17,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from core.experts import ExpertAgentConfig, MermaidExpertAgent
 from core.experts.memory_integration import sync_improvements_to_memory
 from core.experts.mermaid_renderer import validate_mermaid_syntax
-from core.foundation.data_structures import MemoryLevel, SwarmConfig
+from core.foundation.data_structures import SwarmConfig
 from core.memory.cortex import SwarmMemory
 
 
@@ -221,19 +220,19 @@ async def test_professional_scenarios(use_renderer: bool = True, max_scenarios: 
     # Mark as trained for testing
     expert.trained = True
 
-    print(f"✅ Expert created")
+    print("✅ Expert created")
     print(f"   Improvements loaded: {len(expert.improvements)}")
     print(f"   Memory storage: {expert.use_memory_storage}")
 
     # Show what improvements are being used
     if expert.improvements:
-        print(f"\n   Sample Learned Patterns:")
+        print("\n   Sample Learned Patterns:")
         for i, imp in enumerate(expert.improvements[:5], 1):
             pattern = imp.get("learned_pattern", "")
             if pattern:
                 print(f"     {i}. {pattern[:120]}...")
     else:
-        print(f"\n   ⚠️  No improvements loaded - expert will generate from scratch")
+        print("\n   ⚠️  No improvements loaded - expert will generate from scratch")
     print()
 
     # Test scenarios
@@ -258,15 +257,15 @@ async def test_professional_scenarios(use_renderer: bool = True, max_scenarios: 
 
             # Validate syntax (renderer or basic)
             if use_renderer:
-                print(f"      Validating via renderer...", end="", flush=True)
+                print("      Validating via renderer...", end="", flush=True)
                 try:
                     is_valid, error_msg, metadata = validate_mermaid_syntax(
                         diagram, use_renderer=True
                     )
-                    print(f" ✓")
+                    print(" ✓")
                 except Exception as renderer_error:
                     # Fallback to basic validation if renderer fails
-                    print(f" ✗ (fallback)")
+                    print(" ✗ (fallback)")
                     is_valid, error_msg, metadata = validate_mermaid_syntax(
                         diagram, use_renderer=False
                     )
@@ -328,7 +327,7 @@ async def test_professional_scenarios(use_renderer: bool = True, max_scenarios: 
                 print(f"      Lines: {result['lines']}, Complexity features: {has_complexity}")
 
         except asyncio.TimeoutError:
-            print(f"   ⏱️  Timeout")
+            print("   ⏱️  Timeout")
             results.append(
                 {"scenario": scenario["name"], "valid": False, "error": "Timeout", "success": False}
             )

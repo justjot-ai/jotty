@@ -10,9 +10,6 @@ Tests cover:
 6. WidgetParamSchema - schema definition, validation, defaults, docstring generation
 """
 
-import asyncio
-from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -502,8 +499,7 @@ class TestExpertTemplates:
     @patch("Jotty.core.experts.mermaid_expert.MermaidExpertAgent", create=True)
     def test_create_mermaid_expert(self, MockMermaid):
         """Test create_mermaid_expert factory with mocked MermaidExpertAgent."""
-        from Jotty.core.intelligence.reasoning.experts import expert_templates
-        from Jotty.core.intelligence.reasoning.experts.expert_agent import ExpertAgentConfig
+        from Jotty.core.execution.agents import expert_templates
 
         mock_instance = MagicMock()
 
@@ -524,7 +520,7 @@ class TestExpertTemplates:
     @patch("Jotty.core.experts.mermaid_expert.MermaidExpertAgent", create=True)
     def test_create_mermaid_expert_with_memory(self, _):
         """Test create_mermaid_expert passes memory correctly."""
-        from Jotty.core.intelligence.reasoning.experts import expert_templates
+        from Jotty.core.execution.agents import expert_templates
 
         mock_memory = MagicMock()
         mock_instance = MagicMock()
@@ -543,7 +539,7 @@ class TestExpertTemplates:
     @patch("Jotty.core.experts.mermaid_expert.MermaidExpertAgent", create=True)
     def test_create_mermaid_expert_with_improvements(self, _):
         """Test create_mermaid_expert passes improvements correctly."""
-        from Jotty.core.intelligence.reasoning.experts import expert_templates
+        from Jotty.core.execution.agents import expert_templates
 
         improvements = [{"pattern": "use subgraphs"}]
         mock_instance = MagicMock()
@@ -561,7 +557,7 @@ class TestExpertTemplates:
 
     def test_create_mermaid_expert_config_fields(self):
         """Test that create_mermaid_expert creates correct ExpertAgentConfig."""
-        from Jotty.core.intelligence.reasoning.experts import expert_templates
+        from Jotty.core.execution.agents import expert_templates
 
         mock_instance = MagicMock()
         mock_cls = MagicMock(return_value=mock_instance)
@@ -582,7 +578,7 @@ class TestExpertTemplates:
 
     def test_create_plantuml_expert(self):
         """Test create_plantuml_expert factory."""
-        from Jotty.core.intelligence.reasoning.experts import expert_templates
+        from Jotty.core.execution.agents import expert_templates
 
         mock_instance = MagicMock()
         mock_cls = MagicMock(return_value=mock_instance)
@@ -598,7 +594,7 @@ class TestExpertTemplates:
 
     def test_create_plantuml_expert_config_fields(self):
         """Test that create_plantuml_expert creates correct ExpertAgentConfig."""
-        from Jotty.core.intelligence.reasoning.experts import expert_templates
+        from Jotty.core.execution.agents import expert_templates
 
         mock_instance = MagicMock()
         mock_cls = MagicMock(return_value=mock_instance)
@@ -617,7 +613,7 @@ class TestExpertTemplates:
 
     def test_create_sql_expert_default_dialect(self):
         """Test create_sql_expert with default postgresql dialect."""
-        from Jotty.core.intelligence.reasoning.experts import expert_templates
+        from Jotty.core.execution.agents import expert_templates
 
         mock_instance = MagicMock()
         mock_cls = MagicMock(return_value=mock_instance)
@@ -641,7 +637,7 @@ class TestExpertTemplates:
 
     def test_create_sql_expert_custom_dialect(self):
         """Test create_sql_expert with custom mysql dialect."""
-        from Jotty.core.intelligence.reasoning.experts import expert_templates
+        from Jotty.core.execution.agents import expert_templates
 
         mock_instance = MagicMock()
         mock_cls = MagicMock(return_value=mock_instance)

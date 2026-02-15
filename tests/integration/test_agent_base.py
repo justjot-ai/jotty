@@ -18,14 +18,11 @@ Author: A-Team
 Date: February 2026
 """
 
-import asyncio
-import json
 import os
 import time
-from dataclasses import asdict
 from datetime import datetime
-from typing import Any, Dict, List, Optional
-from unittest.mock import AsyncMock, MagicMock, Mock, PropertyMock, patch
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 import pytest
 

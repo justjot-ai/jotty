@@ -1,6 +1,23 @@
-"""SkillOrchestrator mixin — builtin feature engineering stage."""
+"""
+⚠️  DEPRECATED: SkillOrchestrator mixin — builtin feature engineering stage.
+
+This mixin is deprecated and will be removed in a future version.
+Use skills from skills/automl/feature_engineering.py instead.
+
+WHY DEPRECATED:
+- Duplicate of skills/automl/feature_engineering.py (which is 17% larger and has bug fixes)
+- Skills have CV-validated target encoding that works (mixin version is disabled due to leakage)
+- Mixins violate separation of concerns (WHAT vs HOW)
+- Should use skills from registry, not inherit methods
+
+MIGRATION PATH:
+- Use AutoMLWorkflow instead of SkillOrchestrator
+- AutoMLWorkflow calls skills from registry
+- skills/automl/feature_engineering.py is the single source of truth
+"""
 
 import logging
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -9,9 +26,21 @@ from .skill_types import ProblemType, SkillResult
 
 logger = logging.getLogger(__name__)
 
+# Emit deprecation warning on import
+warnings.warn(
+    "FeatureEngineeringMixin is deprecated. "
+    "Use skills/automl/feature_engineering.py via AutoMLWorkflow instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
 
 class FeatureEngineeringMixin:
-    """Mixin providing _builtin_feature_engineering for SkillOrchestrator."""
+    """
+    ⚠️  DEPRECATED: Mixin providing _builtin_feature_engineering for SkillOrchestrator.
+
+    Use skills/automl/feature_engineering.py instead.
+    """
 
     async def _builtin_feature_engineering(
         self, X: pd.DataFrame, y: pd.Series, problem_type: ProblemType

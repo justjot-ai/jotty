@@ -6,7 +6,6 @@ This helps us build a comprehensive list of all attributes that mixins expect.
 """
 
 import re
-from collections import defaultdict
 from pathlib import Path
 from typing import Dict, Set
 

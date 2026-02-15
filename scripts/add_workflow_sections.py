@@ -730,7 +730,7 @@ def main():
         print(f"  Added workflow to: {skill_name} ({', '.join(reason)})")
 
     print(f"\n{'=' * 60}")
-    print(f"SUMMARY")
+    print("SUMMARY")
     print(f"{'=' * 60}")
     print(f"Total SKILL.md files:         {len(skill_dirs)}")
     print(f"Already had workflow:          {skipped_has_workflow}")
@@ -739,7 +739,7 @@ def main():
     print(f"{'=' * 60}")
 
     if updated_skills:
-        print(f"\nUpdated skills:")
+        print("\nUpdated skills:")
         for name, reason in updated_skills:
             print(f"  - {name} ({reason})")
 

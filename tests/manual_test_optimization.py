@@ -13,8 +13,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.foundation.agent_config import AgentConfig
 from core.orchestration.optimization_pipeline import (
-    OptimizationConfig,
-    OptimizationPipeline,
     create_optimization_pipeline,
 )
 
@@ -124,7 +122,7 @@ async def test_mermaid_generation():
 
     # If it failed, check why
     if not result["optimization_complete"]:
-        print(f"  Note: Optimization didn't complete (this is OK for this test)")
+        print("  Note: Optimization didn't complete (this is OK for this test)")
         print(f"  Last iteration error: {result['iterations'][-1].get('error', 'None')}")
 
     print(f"✓ Status: {result['status']}")

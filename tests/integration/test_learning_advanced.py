@@ -5,9 +5,7 @@ Tests for advanced learning modules:
 - reasoning_credit.py (ReasoningCreditAssigner)
 """
 
-import time
-from dataclasses import fields
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock
 
 import pytest
 

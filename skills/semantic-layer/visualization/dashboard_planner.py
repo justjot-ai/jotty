@@ -133,7 +133,7 @@ class DashboardPlanner:
 
         context_parts = [
             f"Dataset: {len(df)} rows, {len(df.columns)} columns",
-            f"\nColumns:",
+            "\nColumns:",
         ]
 
         for col in df.columns:
@@ -151,7 +151,7 @@ class DashboardPlanner:
             context_parts.append(f"  - {col}: {stats}")
 
         # Sample data
-        context_parts.append(f"\nSample data (first 3 rows):")
+        context_parts.append("\nSample data (first 3 rows):")
         context_parts.append(df.head(3).to_string())
 
         return "\n".join(context_parts)

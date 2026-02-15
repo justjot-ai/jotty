@@ -849,8 +849,8 @@ class PptxGenJSEngine:
             x, y, w, h = te.get("x", 0.5), te.get("y", 0.5), te.get("w", 9), te.get("h", 1)
             lines.append(f"slide{idx}.addText({json.dumps(text)}, {{")
             lines.append(f"  x: {x:.2f}, y: {y:.2f}, w: {w:.2f}, h: {h:.2f},")
-            lines.append(f"  fontFace: FONT_BODY, fontSize: BODY_SIZE, color: TEXT_PRIMARY")
-            lines.append(f"}});")
+            lines.append("  fontFace: FONT_BODY, fontSize: BODY_SIZE, color: TEXT_PRIMARY")
+            lines.append("});")
             lines.append("")
 
         for i, img in enumerate(slide_data.get("images", [])):
@@ -861,7 +861,7 @@ class PptxGenJSEngine:
             lines.append(f"slide{idx}.addImage({{")
             lines.append(f"  path: {json.dumps(path)},")
             lines.append(f"  x: {x:.2f}, y: {y:.2f}, w: {w:.2f}, h: {h:.2f}")
-            lines.append(f"}});")
+            lines.append("});")
             lines.append("")
 
         for i, tbl in enumerate(slide_data.get("tables", [])):
@@ -896,10 +896,10 @@ class PptxGenJSEngine:
                 table_data.append(table_row)
 
             lines.append(f"slide{idx}.addTable({json.dumps(table_data)}, {{")
-            lines.append(f"  x: 0.50, y: 1.00, w: 9.00,")
+            lines.append("  x: 0.50, y: 1.00, w: 9.00,")
             lines.append(f"  border: {{ pt: 0.5, color: '{t.get('border', 'E5E7EB')}' }},")
-            lines.append(f"  margin: 0.1, rowH: 0.4")
-            lines.append(f"}});")
+            lines.append("  margin: 0.1, rowH: 0.4")
+            lines.append("});")
             lines.append("")
 
         return lines
@@ -1327,8 +1327,8 @@ class PptxGenJSEngine:
 
             # Generate JS
             script_lines = [
-                f"import pptxgen from 'pptxgenjs';",
-                f"const pres = new pptxgen();",
+                "import pptxgen from 'pptxgenjs';",
+                "const pres = new pptxgen();",
                 f"pres.title = {json.dumps(metadata.get('title', 'Presentation'))};",
                 f"pres.author = {json.dumps(metadata.get('author', 'Jotty AI'))};",
                 "",

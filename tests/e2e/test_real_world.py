@@ -13,7 +13,6 @@ Measures: latency, output quality, and practical usefulness.
 
 import asyncio
 import os
-import sys
 import time
 from pathlib import Path
 

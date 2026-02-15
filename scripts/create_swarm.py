@@ -193,13 +193,13 @@ Part of Jotty AI Framework
         filepath.write_text(content)
         print(f"✅ Created: {filepath}")
 
-    print(f"\n🎉 Swarm created successfully!")
-    print(f"\nNext steps:")
+    print("\n🎉 Swarm created successfully!")
+    print("\nNext steps:")
     print(f"1. Edit {swarm_dir}/swarm.py to implement your logic")
-    print(f"2. Add agents in _define_agents()")
+    print("2. Add agents in _define_agents()")
     print(f"3. Update {swarm_dir}/README.md with documentation")
     print(f"4. Create tests in tests/test_{swarm_snake}.py")
-    print(f"5. Add to CLAUDE.md task→swarm mapping")
+    print("5. Add to CLAUDE.md task→swarm mapping")
 
 
 if __name__ == "__main__":

@@ -43,7 +43,7 @@ async def test_sdk_basic():
     # Test configuration
     print("\n3. Testing voice configuration...")
     config = await client.configure_voice(stt_provider="groq", tts_provider="edge")
-    print(f"✓ Voice configured:")
+    print("✓ Voice configured:")
     print(f"  - STT: {config['stt_provider']}")
     print(f"  - TTS: {config['tts_provider']}")
     print(f"  - Available STT: {config['available_stt']}")
@@ -59,7 +59,7 @@ async def test_sdk_basic():
     print("\n5. Testing memory_status...")
     try:
         mem_status = await client.memory_status()
-        print(f"✓ Memory status retrieved:")
+        print("✓ Memory status retrieved:")
         print(f"  - Success: {mem_status.success}")
         if mem_status.success:
             print(f"  - Backend: {mem_status.content.get('backend', 'unknown')}")
@@ -92,7 +92,7 @@ async def test_sdk_basic():
         success=True, content="Test content", mode=ExecutionMode.CHAT, execution_time=0.5
     )
     response_dict = response.to_dict()
-    print(f"✓ SDKResponse serialized:")
+    print("✓ SDKResponse serialized:")
     print(f"  - Success: {response_dict['success']}")
     print(f"  - Mode: {response_dict['mode']}")
 
@@ -106,7 +106,7 @@ async def test_sdk_basic():
         mode=ExecutionMode.VOICE,
     )
     voice_dict = voice_response.to_dict()
-    print(f"✓ SDKVoiceResponse serialized:")
+    print("✓ SDKVoiceResponse serialized:")
     print(f"  - User text: {voice_dict['user_text']}")
     print(f"  - Confidence: {voice_dict['confidence']}")
     print(f"  - Provider: {voice_dict['provider']}")
@@ -135,7 +135,7 @@ async def test_sdk_chat():
         # Simple chat test (may fail if no LLM configured)
         result = await client.chat("Say 'SDK works!'", timeout=10)
 
-        print(f"✓ Chat completed:")
+        print("✓ Chat completed:")
         print(f"  - Success: {result.success}")
         print(f"  - Mode: {result.mode}")
         print(f"  - Content: {result.content[:100] if result.content else 'None'}...")
@@ -168,7 +168,7 @@ async def test_sdk_memory():
             content="Test memory content", level="episodic", goal="testing"
         )
 
-        print(f"✓ Memory stored:")
+        print("✓ Memory stored:")
         print(f"  - Success: {store_result.success}")
         if store_result.success:
             print(f"  - Memory ID: {store_result.content}")
@@ -176,7 +176,7 @@ async def test_sdk_memory():
         print("\n3. Testing memory_retrieve...")
         retrieve_result = await client.memory_retrieve(query="test memory", top_k=5)
 
-        print(f"✓ Memory retrieved:")
+        print("✓ Memory retrieved:")
         print(f"  - Success: {retrieve_result.success}")
         if retrieve_result.success:
             print(f"  - Memories found: {len(retrieve_result.content)}")
@@ -184,7 +184,7 @@ async def test_sdk_memory():
         print("\n4. Testing memory_status...")
         status_result = await client.memory_status()
 
-        print(f"✓ Memory status:")
+        print("✓ Memory status:")
         print(f"  - Success: {status_result.success}")
         if status_result.success:
             print(f"  - Backend: {status_result.content.get('backend')}")

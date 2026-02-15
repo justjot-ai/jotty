@@ -36,9 +36,9 @@ def _format_search_results_for_summary(results: list, topic: str) -> str:
     """Format search results into text for summarization."""
     lines = [
         f"# Search Results: {topic}",
-        f"",
+        "",
         f"The following are web search results about '{topic}':",
-        f"",
+        "",
     ]
 
     for i, result in enumerate(results, 1):

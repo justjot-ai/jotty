@@ -145,7 +145,7 @@ async def meeting_intelligence_pipeline_tool(params: Dict[str, Any]) -> Dict[str
         pre_read_id = meeting_result.get("pre_read_page_id")
         agenda_id = meeting_result.get("agenda_page_id")
 
-        logger.info(f"✅ Meeting materials prepared")
+        logger.info("✅ Meeting materials prepared")
 
         # Step 3: Generate internal communication (Sink)
         comm_content = None

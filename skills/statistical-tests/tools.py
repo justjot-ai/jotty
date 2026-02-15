@@ -10,14 +10,13 @@ from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
-from scipy import stats
-
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 from Jotty.core.infrastructure.utils.tool_helpers import (
     async_tool_wrapper,
     tool_error,
     tool_response,
 )
+from scipy import stats
 
 # Status emitter for progress updates
 status = SkillStatus("statistical-tests")

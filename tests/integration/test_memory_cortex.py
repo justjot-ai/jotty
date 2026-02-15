@@ -4,9 +4,6 @@ Tests for Memory Cortex Module
 Tests for SwarmMemory store, retrieve, consolidation, and serialization.
 """
 
-from typing import Any, Dict, List
-from unittest.mock import AsyncMock, MagicMock, patch
-
 import pytest
 
 # =============================================================================
@@ -886,7 +883,6 @@ class TestRetrievalMixinAdvanced:
     @pytest.mark.unit
     def test_retrieve_fast_updates_last_accessed(self, minimal_jotty_config):
         """retrieve_fast updates last_accessed timestamp."""
-        from datetime import datetime, timedelta
 
         from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         from Jotty.core.intelligence.memory.cortex import SwarmMemory

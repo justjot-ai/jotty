@@ -8,8 +8,7 @@ All tests use mocks -- NO real LLM calls, NO real token counting.
 
 import json
 import logging
-from dataclasses import fields
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 

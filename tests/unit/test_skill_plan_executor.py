@@ -7,12 +7,10 @@ artifact tagging, and large output spilling.
 """
 
 import json
-import os
 import string
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
-
 from Jotty.core.modes.agent.executors.skill_plan_executor import (
     ParameterResolver,
     SkillPlanExecutor,
@@ -1359,7 +1357,7 @@ class TestToolSchemaDeep:
     """Deep tests for the ToolSchema class."""
 
     def _make_schema(self, name="test_tool", params=None):
-        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
+        from Jotty.core.modes.agent._execution_types import ToolSchema
 
         return ToolSchema(name=name, params=params or [])
 

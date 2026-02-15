@@ -7,8 +7,6 @@ Covers:
 - CircuitBreaker: state transitions (CLOSED → OPEN → HALF_OPEN → CLOSED)
 """
 
-from unittest.mock import Mock
-
 import pytest
 
 # ──────────────────────────────────────────────────────────────────────

@@ -58,6 +58,8 @@ try:
 except ImportError:
     pass  # DSPy not available
 
+from Jotty.skills._tools import ToolManager
+
 from ._consensus_mixin import ConsensusMixin
 from ._morph_mixin import MorphMixin
 from ._session_mixin import SessionMixin
@@ -69,7 +71,6 @@ from .metrics_collector import MetricsCollector
 # Protocol modules (now composed, not inherited)
 from .protocols import CoordinationMixin, LifecycleMixin, ResilienceMixin, RoutingMixin
 from .stigmergy import StigmergyLayer, StigmergySignal
-from Jotty.skills._tools import ToolManager
 
 # =============================================================================
 # SWARM INTELLIGENCE ENGINE

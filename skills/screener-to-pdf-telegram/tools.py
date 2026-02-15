@@ -213,7 +213,7 @@ async def screener_analyze_pdf_telegram_tool(params: Dict[str, Any]) -> Dict[str
             if pdf_output_file.exists():
                 pdf_path = str(pdf_output_file)
             else:
-                logger.warning(f"PDF file not found at expected location, checking output_dir")
+                logger.warning("PDF file not found at expected location, checking output_dir")
                 # Look for PDF files in output_dir matching our pattern
                 pdf_files = list(output_dir.glob(f"{symbol_str}_analysis_*.pdf"))
                 if pdf_files:

@@ -20,12 +20,9 @@ Date: February 2026
 """
 
 import asyncio
-from datetime import datetime
-from typing import Any, Dict
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-
 from Jotty.core.intelligence.swarms.base.agent_team import (
     AgentSpec,
     CoordinationPattern,

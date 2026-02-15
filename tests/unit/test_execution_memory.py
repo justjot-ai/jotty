@@ -10,7 +10,6 @@ from datetime import datetime, timedelta
 from unittest.mock import patch
 
 import pytest
-
 from Jotty.core.modes.execution.memory import JSONMemory, NoOpMemory
 
 # =============================================================================

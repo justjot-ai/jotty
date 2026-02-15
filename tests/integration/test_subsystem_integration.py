@@ -12,7 +12,6 @@ Pipelines tested:
 4. Config: focused config → SwarmConfig bridge → subsystem acceptance
 """
 
-import threading
 import time
 from contextlib import nullcontext
 
@@ -408,7 +407,6 @@ class TestConfigPipelineIntegration:
             MemoryConfig(chunk_overlap=1000, chunk_size=500)
 
         # Budget over-allocation (now logs warning instead of raising)
-        import logging
 
         with pytest.warns(None) if False else nullcontext():
             # Verify it doesn't raise - it logs a warning instead

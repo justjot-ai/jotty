@@ -10,15 +10,14 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
-from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler
-
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 from Jotty.core.infrastructure.utils.tool_helpers import (
     async_tool_wrapper,
     tool_error,
     tool_response,
 )
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
 
 # Status emitter for progress updates
 status = SkillStatus("dimensionality-reduction")

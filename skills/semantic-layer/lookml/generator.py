@@ -8,10 +8,9 @@ import logging
 import re
 from typing import Any, Dict, List, Optional
 
-from ..models import Column, ColumnType
+from ..models import Column, ColumnType, Schema, Table
 from ..models import MeasureType as SchemaMeasureType
 from ..models import Relationship as SchemaRelationship
-from ..models import Schema, Table
 from .models import (
     Dimension,
     DimensionType,
@@ -152,7 +151,7 @@ class LookMLGenerator:
             label=column.label or self._to_label(column.name),
             description=column.description,
             primary_key=is_pk,
-            hidden=column.hidden or column.name.lower().endswith("_id") and not is_pk,
+            hidden=column.hidden or (column.name.lower().endswith("_id") and not is_pk),
         )
 
         # Group date dimensions

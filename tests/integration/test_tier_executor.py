@@ -18,10 +18,9 @@ Focuses on areas NOT covered by test_v3_execution.py:
 """
 
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-
 from Jotty.core.modes.execution.executor import (
     ComplexityGate,
     LLMProvider,
@@ -31,8 +30,6 @@ from Jotty.core.modes.execution.executor import (
 from Jotty.core.modes.execution.types import (
     ExecutionConfig,
     ExecutionPlan,
-    ExecutionResult,
-    ExecutionStep,
     ExecutionTier,
     MemoryContext,
     TierValidationResult,

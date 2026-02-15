@@ -9,7 +9,7 @@ AgentRuntimeConfig - Runtime configuration
 AgentResult - Execution results
 
 Usage:
-    from Jotty.core.modes.agent.base import (
+    from Jotty.core.execution.base import (
         BaseAgent, AgentRuntimeConfig, AgentResult,
     )
 

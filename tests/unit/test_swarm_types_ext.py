@@ -9,15 +9,11 @@ Tests cover:
 All tests are unit tests with no external dependencies or LLM calls.
 """
 
-import hashlib
 import json
 from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
-
 from Jotty.core.intelligence.swarms.evaluation import (
     EvaluationHistory,
     GoldStandardDB,

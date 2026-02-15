@@ -122,7 +122,6 @@ class BrowserUseProvider(SkillProvider):
         try:
             # Try to use Claude CLI via our adapter
             import dspy
-
             from Jotty.core.infrastructure.integration.direct_claude_cli_lm import DirectClaudeCLI
 
             self._llm = DirectClaudeCLI(model="sonnet")

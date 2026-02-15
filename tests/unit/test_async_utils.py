@@ -20,10 +20,9 @@ import asyncio
 import logging
 import threading
 import time
-from unittest.mock import AsyncMock, MagicMock, Mock, call, patch
+from unittest.mock import Mock, patch
 
 import pytest
-
 from Jotty.core.infrastructure.utils.async_utils import (
     AGENT_EVENT_TYPES,
     AgentEvent,

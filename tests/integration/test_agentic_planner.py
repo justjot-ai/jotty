@@ -20,10 +20,9 @@ Covers:
 - replan_with_reflection() replanning after failure
 """
 
-import asyncio
 import json
 from dataclasses import fields
-from unittest.mock import AsyncMock, MagicMock, Mock, PropertyMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 

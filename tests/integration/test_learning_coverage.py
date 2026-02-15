@@ -7,8 +7,6 @@ Covers:
 - Credit assignment reward distribution
 """
 
-from unittest.mock import Mock, patch
-
 import pytest
 
 # ──────────────────────────────────────────────────────────────────────

@@ -6,7 +6,6 @@ Requires DSPy to be configured with an LLM provider.
 """
 
 import asyncio
-import os
 import sys
 from pathlib import Path
 
@@ -17,8 +16,7 @@ sys.path.insert(0, str(project_root))
 import subprocess
 
 import dspy
-
-from Jotty.core.intelligence.reasoning.experts import MermaidExpertAgent
+from Jotty.core.execution.agents import MermaidExpertAgent
 
 # Configure DSPy with Claude CLI wrapper if available
 try:
@@ -72,10 +70,10 @@ async def test_expert_real_mermaid_generation():
             lm = dspy.settings.lm
             print(f"   ✅ DSPy LLM configured: {type(lm).__name__}")
         else:
-            print(f"   ⚠️  DSPy LLM not configured")
-            print(f"   ⚠️  Generation will fail without LLM configuration")
+            print("   ⚠️  DSPy LLM not configured")
+            print("   ⚠️  Generation will fail without LLM configuration")
     except ImportError:
-        print(f"   ❌ DSPy not available")
+        print("   ❌ DSPy not available")
         return None
 
     # Step 3: Generate Mermaid diagram
@@ -85,7 +83,7 @@ async def test_expert_real_mermaid_generation():
             description="A simple flow from Start to End", diagram_type="flowchart"
         )
 
-        print(f"   ✅ Generation completed")
+        print("   ✅ Generation completed")
         print(f"   ✅ Result type: {type(result)}")
 
         # Extract the actual Mermaid code
@@ -103,7 +101,7 @@ async def test_expert_real_mermaid_generation():
             else:
                 mermaid_code = str(result)
 
-        print(f"\n   📊 Generated Mermaid Diagram:")
+        print("\n   📊 Generated Mermaid Diagram:")
         print("   " + "-" * 66)
         if mermaid_code:
             # Print first 500 chars
@@ -143,16 +141,16 @@ async def test_expert_real_mermaid_generation():
     except RuntimeError as e:
         if "must be trained" in str(e):
             print(f"   ❌ ERROR: {e}")
-            print(f"   ⚠️  This shouldn't happen - training check should be removed")
+            print("   ⚠️  This shouldn't happen - training check should be removed")
             return None
         else:
             raise
     except Exception as e:
         print(f"   ❌ Generation failed: {e}")
-        print(f"   ⚠️  This is expected if:")
-        print(f"      - DSPy LLM is not configured")
-        print(f"      - No internet connection")
-        print(f"      - LLM API key not set")
+        print("   ⚠️  This is expected if:")
+        print("      - DSPy LLM is not configured")
+        print("      - No internet connection")
+        print("      - LLM API key not set")
         import traceback
 
         traceback.print_exc()
@@ -175,7 +173,7 @@ async def test_expert_generate_mermaid_method():
         )
 
         print(f"   ✅ Generated: {type(result)}")
-        print(f"   📊 Result:")
+        print("   📊 Result:")
         print("   " + "-" * 66)
         print("   " + "\n   ".join(str(result)[:500].split("\n")))
         print("   " + "-" * 66)

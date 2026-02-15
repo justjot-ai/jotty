@@ -1,6 +1,23 @@
-"""SkillOrchestrator mixin — builtin feature selection stage."""
+"""
+⚠️  DEPRECATED: SkillOrchestrator mixin — builtin feature selection stage.
+
+This mixin is deprecated and will be removed in a future version.
+Use skills from skills/automl/feature_selection.py instead.
+
+WHY DEPRECATED:
+- Duplicate of skills/automl/feature_selection.py (which is 174% larger with 7 unique techniques)
+- Skills have BOHB, PASHA, and advanced techniques that mixins lack
+- Mixins violate separation of concerns (WHAT vs HOW)
+- Should use skills from registry, not inherit methods
+
+MIGRATION PATH:
+- Use AutoMLWorkflow instead of SkillOrchestrator
+- AutoMLWorkflow calls skills from registry
+- skills/automl/feature_selection.py is the single source of truth
+"""
 
 import logging
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -9,9 +26,21 @@ from .skill_types import ProblemType, SkillResult
 
 logger = logging.getLogger(__name__)
 
+# Emit deprecation warning on import
+warnings.warn(
+    "FeatureSelectionMixin is deprecated. "
+    "Use skills/automl/feature_selection.py via AutoMLWorkflow instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
 
 class FeatureSelectionMixin:
-    """Mixin providing _builtin_feature_selection for SkillOrchestrator."""
+    """
+    ⚠️  DEPRECATED: Mixin providing _builtin_feature_selection for SkillOrchestrator.
+
+    Use skills/automl/feature_selection.py instead.
+    """
 
     async def _builtin_feature_selection(
         self, X: pd.DataFrame, y: pd.Series, problem_type: ProblemType

@@ -11,12 +11,11 @@ Tests for:
 """
 
 import asyncio
-import json
 import tempfile
 import time
-from dataclasses import asdict, fields
+from dataclasses import fields
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, Mock, PropertyMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 

@@ -13,7 +13,7 @@ Provides:
 
 Usage:
     # Simple swarm (manual coordination)
-    from Jotty.core.intelligence.swarms.base import SwarmTemplate, TeamCoordinator
+    from Jotty.core.execution.base import SwarmTemplate, TeamCoordinator
 
     class MySwarm(SwarmTemplate):
         AGENT_TEAM = TeamCoordinator.define(
@@ -27,7 +27,7 @@ Usage:
             return result_b
 
     # Team-coordinated swarm (automatic orchestration)
-    from Jotty.core.intelligence.swarms.base import CoordinationPattern, MergeStrategy
+    from Jotty.core.execution.base import CoordinationPattern, MergeStrategy
 
     class ReviewSwarm(SwarmTemplate):
         AGENT_TEAM = TeamCoordinator.define(

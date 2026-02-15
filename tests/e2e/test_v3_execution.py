@@ -17,7 +17,6 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
-
 from Jotty.core.modes.execution.tier_detector import TierDetector
 from Jotty.core.modes.execution.types import (
     ExecutionConfig,
@@ -27,7 +26,6 @@ from Jotty.core.modes.execution.types import (
     ExecutionTier,
     StreamEvent,
     StreamEventType,
-    ValidationResult,
 )
 
 # =============================================================================
@@ -2986,7 +2984,7 @@ class TestDeadLetterQueue:
         assert len(retryable) == 1
 
     def test_mark_resolved(self):
-        from Jotty.core.modes.execution.types import DeadLetterQueue, ErrorType
+        from Jotty.core.modes.execution.types import DeadLetterQueue
 
         dlq = DeadLetterQueue()
         letter = dlq.enqueue("op1", {}, "error1")
@@ -2994,7 +2992,7 @@ class TestDeadLetterQueue:
         assert dlq.size == 0
 
     def test_retry_all(self):
-        from Jotty.core.modes.execution.types import DeadLetterQueue, ErrorType
+        from Jotty.core.modes.execution.types import DeadLetterQueue
 
         dlq = DeadLetterQueue()
         dlq.enqueue("op1", {}, "error1")
@@ -3634,7 +3632,7 @@ class TestValidationVerdictExtended:
     """Extended tests for ValidationVerdict."""
 
     def test_ok_verdict(self):
-        from Jotty.core.modes.execution.types import ValidationStatus, ValidationVerdict
+        from Jotty.core.modes.execution.types import ValidationVerdict
 
         v = ValidationVerdict.ok("all good", confidence=0.95)
         assert v.is_pass
@@ -4473,7 +4471,7 @@ class RealOrchestratorIntegrationTest:
 
         total_time = time.time() - self.start_time
         self.log(f"Total wall-clock time: {total_time:.1f}s")
-        self.log(f"Task timings:")
+        self.log("Task timings:")
         for name, t in self.task_timings.items():
             self.log(f"  {name}: {t:.1f}s")
 
@@ -7396,7 +7394,6 @@ class TestShellExecCwdFix:
 
     def test_cwd_not_referenced_before_assignment(self):
         """Verify the shell-exec tool doesn't reference cwd before assignment."""
-        import ast
 
         tools_path = Path(__file__).parent.parent / "skills" / "shell-exec" / "tools.py"
         if not tools_path.exists():

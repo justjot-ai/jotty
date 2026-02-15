@@ -58,7 +58,7 @@ class TestFeedbackChannelBroadcast:
         assert len(msg_ids) >= 2  # agent_b, agent_c (manager may also get one)
 
     def test_broadcast_to_explicit_participants(self):
-        from core.agents.feedback_channel import FeedbackChannel, FeedbackType
+        from core.agents.feedback_channel import FeedbackChannel
 
         fc = FeedbackChannel()
         msg_ids = fc.broadcast(

@@ -88,9 +88,9 @@ def execute_command_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             )
         else:
             return tool_error(
-                f"Command appears to be a task description, not a shell command. "
-                f"Use execute_script_tool for Python code, or pass a real command like "
-                f'"python script.py"',
+                "Command appears to be a task description, not a shell command. "
+                "Use execute_script_tool for Python code, or pass a real command like "
+                '"python script.py"',
                 command=command[:80] + "...",
             )
 

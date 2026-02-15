@@ -14,16 +14,12 @@ Covers:
 All tests use mocks -- no LLM calls, no API keys, runs offline.
 """
 
-import asyncio
 import json
-import math
 import os
 import time
-from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, Mock, PropertyMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 

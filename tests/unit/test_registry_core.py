@@ -4,7 +4,6 @@ Tests for Registry Core Module
 Tests for UnifiedRegistry, skill discovery, and tool management.
 """
 
-from typing import Any, Dict, List
 from unittest.mock import MagicMock, patch
 
 import pytest

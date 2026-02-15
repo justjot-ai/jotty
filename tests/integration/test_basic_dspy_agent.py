@@ -175,14 +175,13 @@ def test_claude_cli_availability():
 
     try:
         import dspy
-
         from Jotty.examples.claude_cli_wrapper import ClaudeCLILM
 
         lm = ClaudeCLILM(model="sonnet")
         dspy.configure(lm=lm)
 
         print("✅ Claude CLI configured successfully")
-        print(f"   Model: sonnet")
+        print("   Model: sonnet")
         print()
         return True
 

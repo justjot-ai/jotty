@@ -284,7 +284,7 @@ def categorize_skill_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         else:
             return {
                 "success": False,
-                "error": f"Failed to categorize skill. Check skill and category names.",
+                "error": "Failed to categorize skill. Check skill and category names.",
             }
 
     except Exception as e:

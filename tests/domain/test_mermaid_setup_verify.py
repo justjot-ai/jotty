@@ -53,7 +53,7 @@ def test_improvements_loading():
     print(f"   ✅ Retrieved {len(memory_entries)} entries from memory")
 
     if len(memory_entries) > 0:
-        print(f"\n   Sample memory entry:")
+        print("\n   Sample memory entry:")
         entry = memory_entries[0]
         print(f"     Level: {entry.level.value}")
         print(f"     Content: {entry.content[:100]}...")

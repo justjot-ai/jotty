@@ -14,9 +14,7 @@ Tests cover:
 
 import asyncio
 import json
-import logging
-from dataclasses import dataclass
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -558,19 +556,19 @@ class TestSwarmRegistration:
 
     @pytest.mark.unit
     def test_lazy_import_from_core_swarms(self):
-        from Jotty.core.intelligence.swarms import PilotSwarm
+        from Jotty.core.execution.swarms import PilotSwarm
 
         assert PilotSwarm is not None
 
     @pytest.mark.unit
     def test_lazy_import_pilot(self):
-        from Jotty.core.intelligence.swarms import pilot
+        from Jotty.core.execution.swarms import pilot
 
         assert callable(pilot)
 
     @pytest.mark.unit
     def test_lazy_import_types(self):
-        from Jotty.core.intelligence.swarms import SubtaskStatus, SubtaskType
+        from Jotty.core.execution.swarms import SubtaskStatus, SubtaskType
 
         assert len(SubtaskType) == 7
         assert len(SubtaskStatus) == 5
@@ -636,7 +634,6 @@ class TestSignatures:
     @pytest.mark.unit
     def test_all_signatures_importable(self):
         import dspy
-
         from Jotty.core.intelligence.swarms.pilot_swarm.signatures import (
             CoderSignature,
             PlannerSignature,

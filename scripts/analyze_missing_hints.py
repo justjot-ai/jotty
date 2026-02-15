@@ -7,7 +7,7 @@ import ast
 import re  # noqa: F401
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 
 def analyze_return_statements(func_node: ast.FunctionDef) -> List[str]:
@@ -189,7 +189,7 @@ def main():
     # Filter to public methods only
     public_suggestions = [s for s in all_suggestions if not s["is_private"]]
 
-    print(f"📊 Missing Type Hints Analysis\n")
+    print("📊 Missing Type Hints Analysis\n")
     print(f"Total functions missing hints: {len(all_suggestions)}")
     print(f"Public functions: {len(public_suggestions)}")
     print(f"Private functions: {len(all_suggestions) - len(public_suggestions)}\n")
@@ -214,8 +214,8 @@ def main():
             if sug["return_suggestion"]:
                 print(f"      Return: -> {sug['return_suggestion']}")
 
-    print(f"\n💡 Use this analysis to add proper type hints manually")
-    print(f"   Focus on top files for maximum impact")
+    print("\n💡 Use this analysis to add proper type hints manually")
+    print("   Focus on top files for maximum impact")
 
 
 if __name__ == "__main__":

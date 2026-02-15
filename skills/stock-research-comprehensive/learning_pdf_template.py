@@ -1513,7 +1513,7 @@ def _convert_markdown_content(text: str) -> str:
     # e.g., "π(a|s)", "R(s,a)", "∇f(x)"
     text = re.sub(rf"({math_symbols_pattern}\s*\([^)]+\))", wrap_math_expr, text)
     text = re.sub(
-        rf"([A-Za-z]_?\w*\([^)]*[,|][^)]*\))",  # Function with comma or pipe args
+        r"([A-Za-z]_?\w*\([^)]*[,|][^)]*\))",  # Function with comma or pipe args
         wrap_math_expr,
         text,
     )
@@ -1655,7 +1655,7 @@ def generate_learning_html(
         """
 
         if s.get("has_bingo_moment"):
-            section_html += f"""
+            section_html += """
             <div class="bingo-box">
                 <p>This is a key insight that connects everything together!</p>
             </div>

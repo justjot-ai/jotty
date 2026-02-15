@@ -20,9 +20,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from core.experts import ExpertAgentConfig, PlantUMLExpertAgent
 from core.experts.memory_integration import (
     consolidate_improvements,
-    retrieve_improvements_from_memory,
     retrieve_synthesized_improvements,
-    store_improvement_to_memory,
 )
 from core.foundation.data_structures import MemoryLevel, SwarmConfig
 from core.memory.cortex import SwarmMemory
@@ -160,7 +158,7 @@ async def test_plantuml_expert_comprehensive():
     )
 
     expert = PlantUMLExpertAgent(config=config, memory=memory)
-    print(f"✅ Expert created")
+    print("✅ Expert created")
     print(f"   Uses memory storage: {expert.use_memory_storage}")
     print(f"   Improvements loaded: {len(expert.improvements)}")
     print()
@@ -207,7 +205,7 @@ stop
         training_results = await asyncio.wait_for(
             expert.train(gold_standards=training_cases, force_retrain=True), timeout=120
         )
-        print(f"✅ Training completed")
+        print("✅ Training completed")
         print(f"   Passed cases: {training_results.get('passed_cases', 0)}")
         print(f"   Improvements learned: {len(expert.improvements)}")
 
@@ -218,16 +216,16 @@ stop
         # Mark as trained if we have improvements or passed cases
         if training_results.get("passed_cases", 0) > 0 or len(expert.improvements) > 0:
             expert.trained = True
-            print(f"   Expert marked as trained")
+            print("   Expert marked as trained")
         else:
-            print(f"   ⚠️  Training didn't produce improvements, marking as trained for testing")
+            print("   ⚠️  Training didn't produce improvements, marking as trained for testing")
             expert.trained = True  # Mark as trained for testing purposes
     except Exception as e:
         print(f"⚠️  Training error: {e}")
         print(f"   Improvements so far: {len(expert.improvements)}")
         # Mark as trained for testing
         expert.trained = True
-        print(f"   Expert marked as trained for testing")
+        print("   Expert marked as trained for testing")
 
     # Check memory
     procedural_count = len(memory.memories[MemoryLevel.PROCEDURAL])
@@ -280,7 +278,7 @@ stop
                 print(f"      Error: {error_msg}")
 
         except asyncio.TimeoutError:
-            print(f"   ⏱️  Timeout")
+            print("   ⏱️  Timeout")
             results.append(
                 {"scenario": scenario["name"], "valid": False, "error": "Timeout", "success": False}
             )
@@ -312,7 +310,7 @@ stop
         consolidation_result = consolidate_improvements(
             memory=memory, expert_name=config.name, domain=config.domain
         )
-        print(f"✅ Consolidation result:")
+        print("✅ Consolidation result:")
         print(f"   Consolidated: {consolidation_result.get('consolidated', 0)}")
         print(f"   Preferences: {consolidation_result.get('preferences', 0)}")
 
@@ -336,7 +334,7 @@ stop
     )
 
     if synthesized:
-        print(f"✅ Synthesized improvements retrieved")
+        print("✅ Synthesized improvements retrieved")
         print(f"   Length: {len(synthesized)} chars")
         print(f"   Preview: {synthesized[:200]}...")
     else:

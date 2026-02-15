@@ -10,10 +10,8 @@ Comprehensive tests covering:
 
 import json
 import time
-from collections import OrderedDict
 from datetime import datetime
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, Mock, mock_open, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
@@ -677,8 +675,6 @@ class TestMemoryPersistenceSave:
         from datetime import datetime
 
         from Jotty.core.infrastructure.foundation.data_structures import (
-            GoalValue,
-            MemoryEntry,
             MemoryLevel,
         )
 

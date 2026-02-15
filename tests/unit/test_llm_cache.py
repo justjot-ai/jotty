@@ -20,10 +20,9 @@ import threading
 import time
 from collections import OrderedDict
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 import pytest
-
 from Jotty.core.infrastructure.utils.llm_cache import (
     CachedResponse,
     CacheStats,

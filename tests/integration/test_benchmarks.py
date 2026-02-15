@@ -22,10 +22,9 @@ Fixtures:
 """
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-
 from Jotty.core.modes.execution.tier_detector import TierDetector
 from Jotty.core.modes.execution.types import (
     ExecutionConfig,

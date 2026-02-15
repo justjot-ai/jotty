@@ -48,7 +48,7 @@ def generate_blog_outline_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         sections.append(
             {
                 "order": i + 1,
-                "heading": f"## {heading}" if i > 0 else f"## Introduction",
+                "heading": f"## {heading}" if i > 0 else "## Introduction",
                 "guidance": guidance,
                 "word_target": words_per_section,
                 "key_points": [

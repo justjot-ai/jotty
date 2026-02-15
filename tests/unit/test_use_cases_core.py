@@ -5,11 +5,9 @@ Covers: UseCaseType, UseCaseConfig, UseCaseResult, BaseUseCase.
 """
 
 import time
-from dataclasses import dataclass
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
-
 from Jotty.core.interface.use_cases.base import (
     BaseUseCase,
     UseCaseConfig,

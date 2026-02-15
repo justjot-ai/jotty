@@ -7,10 +7,9 @@ Tests for Orchestrator improvements:
 """
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
-
 from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
 from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult, SwarmConfig
 
@@ -394,7 +393,6 @@ class TestAutoParadigmSelection:
 
     def test_paradigm_stats_persistence(self):
         """Paradigm stats should survive save/load cycle."""
-        import json
         import tempfile
 
         from Jotty.core.intelligence.orchestration.learning_pipeline import SwarmLearningPipeline

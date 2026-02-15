@@ -41,7 +41,6 @@ async def generate_economics_material():
 
     # Force DSPy to use DirectAnthropicLM (not Claude CLI) for all calls
     import dspy
-
     from Jotty.core.infrastructure.foundation.direct_anthropic_lm import DirectAnthropicLM
 
     lm = DirectAnthropicLM(model="claude-3-5-haiku-20241022")
@@ -106,7 +105,7 @@ async def generate_economics_material():
     logger.info("=" * 80)
 
     if result.success:
-        logger.info(f"✓ Success: Generated comprehensive economics lesson")
+        logger.info("✓ Success: Generated comprehensive economics lesson")
         logger.info(f"✓ Student: {result.student_name}")
         logger.info(f"✓ Topic: {result.topic[:100]}...")
         logger.info(f"✓ Learning Time: {result.learning_time_estimate}")
@@ -121,7 +120,7 @@ async def generate_economics_material():
             logger.info(f"✓ Strategies: {len(result.content.strategies)}")
             logger.info(f"✓ Common Mistakes: {len(result.content.mistakes)}")
 
-        logger.info(f"\n📄 OUTPUT FILES:")
+        logger.info("\n📄 OUTPUT FILES:")
         if result.pdf_path:
             logger.info(f"   PDF: {result.pdf_path}")
         if result.html_path:
@@ -131,7 +130,7 @@ async def generate_economics_material():
 
         # Show sample content
         if result.content and result.content.key_insights:
-            logger.info(f"\n🎯 KEY INSIGHTS:")
+            logger.info("\n🎯 KEY INSIGHTS:")
             for i, insight in enumerate(result.content.key_insights[:3], 1):
                 if insight:
                     logger.info(f"   {i}. {insight[:100]}...")

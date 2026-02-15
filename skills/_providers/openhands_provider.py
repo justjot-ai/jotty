@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 try:
     # OpenHands SDK imports
     from openhands import Agent as OpenHandsAgent
-    from openhands.tools import FileEditTool, TerminalTool  # noqa: F401
+    from openhands.tools import FileEditTool, TerminalTool
 
     OPENHANDS_AVAILABLE = True
 except ImportError:

@@ -10,7 +10,6 @@ Tests for core/monitoring/profiler.py:
 import time
 
 import pytest
-
 from Jotty.core.infrastructure.monitoring.monitoring.profiler import (
     PerformanceProfiler,
     ProfileReport,

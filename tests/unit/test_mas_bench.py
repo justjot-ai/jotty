@@ -11,9 +11,7 @@ Unit tests for all MAS-Bench components:
 All tests are mocked — no real Android device or emulator needed.
 """
 
-import json
-from dataclasses import dataclass
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 

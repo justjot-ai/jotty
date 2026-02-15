@@ -5,8 +5,6 @@ Run with: pytest tests/test_workflow_providers.py -v
 With n8n on localhost:5678 you get real workflow list; without, providers init and return empty (OK).
 """
 
-import os
-
 import pytest
 
 

@@ -13,8 +13,7 @@ All tests are fast (< 1s), offline, no real LLM calls.
 import asyncio
 import logging
 import time
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 

@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import Any, Dict
 
 import requests
-
 from Jotty.core.infrastructure.utils.api_client import BaseAPIClient
 
 # Use centralized utilities
@@ -109,7 +108,7 @@ async def send_telegram_message_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         payload["parse_mode"] = params["parse_mode"]
 
     logger.info(f"Sending Telegram message to chat {client.chat_id}")
-    status.emit("Sending", f"📤 Sending message to Telegram...")
+    status.emit("Sending", "📤 Sending message to Telegram...")
     result = client._make_request("sendMessage", json_data=payload)
 
     if result.get("success"):

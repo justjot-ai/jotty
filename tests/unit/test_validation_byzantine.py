@@ -10,9 +10,8 @@ Comprehensive tests for:
 All tests mock external dependencies — no LLM calls, no API keys, runs offline.
 """
 
-import time
 from collections import deque
-from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 

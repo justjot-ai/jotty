@@ -21,7 +21,6 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 import requests
-
 from Jotty.core.infrastructure.utils.api_client import BaseAPIClient
 from Jotty.core.infrastructure.utils.async_utils import run_sync
 

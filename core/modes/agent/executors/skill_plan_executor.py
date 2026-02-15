@@ -161,21 +161,6 @@ class SkillPlanExecutor:
         except Exception as e:
             logger.debug(f"DirectAnthropicLM not available (unexpected): {e}", exc_info=True)
 
-        try:
-            from Jotty.core.infrastructure.foundation.persistent_claude_lm import (
-                PersistentClaudeCLI,
-            )
-
-            lm = PersistentClaudeCLI()
-            dspy.configure(lm=lm)
-            logger.info("SkillPlanExecutor: Auto-configured DSPy LM with PersistentClaudeCLI")
-        except (ImportError, LLMError, ConfigurationError) as e:
-            logger.warning(f"SkillPlanExecutor: Could not configure DSPy LM (known): {e}")
-        except Exception as e:
-            logger.warning(
-                f"SkillPlanExecutor: Could not configure DSPy LM (unexpected): {e}", exc_info=True
-            )
-
     # =========================================================================
     # SKILL SELECTION
     # =========================================================================

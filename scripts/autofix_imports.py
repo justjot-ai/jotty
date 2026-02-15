@@ -23,7 +23,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 
 class ImportViolation:
@@ -264,7 +264,7 @@ def main():
         return 0
 
     # Apply fixes
-    print(f"\n🔧 Auto-fixing by adding to ignore_imports...")
+    print("\n🔧 Auto-fixing by adding to ignore_imports...")
     fixer = ImportLinterFixer(config_path)
 
     modified = False

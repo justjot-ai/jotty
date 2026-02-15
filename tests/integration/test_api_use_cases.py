@@ -13,7 +13,6 @@ Target: ~150 tests across all classes.
 """
 
 import time
-from dataclasses import asdict
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest

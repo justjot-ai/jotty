@@ -23,7 +23,7 @@ def _is_fib(n: int) -> bool:
         return False
 
     def _is_perfect_square(x: int) -> bool:
-        s = int(math.isqrt(x))
+        s = math.isqrt(x)
         return s * s == x
 
     return _is_perfect_square(5 * n * n + 4) or _is_perfect_square(5 * n * n - 4)

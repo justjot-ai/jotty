@@ -20,7 +20,6 @@ except ImportError:
     print("⚠️  DSPy not available")
     sys.exit(1)
 
-from core.experts import ExpertAgentConfig
 from core.experts.base_expert import BaseExpert
 
 
@@ -206,7 +205,7 @@ async def test_learning_with_mock():
     print()
 
     training_data = expert.get_training_data()
-    print(f"Training Data:")
+    print("Training Data:")
     print(f"  Cases available: {len(training_data)}")
     print()
 
@@ -258,7 +257,7 @@ async def test_learning_with_mock():
                 description=test["description"], diagram_type=test["diagram_type"]
             )
 
-            print(f"  Generated Diagram:")
+            print("  Generated Diagram:")
             print("  ```mermaid")
             print(f"  {diagram}")
             print("  ```")
@@ -276,7 +275,7 @@ async def test_learning_with_mock():
 
             score = sum(validation.values()) / len(validation)
 
-            print(f"  Validation:")
+            print("  Validation:")
             for key, value in validation.items():
                 status = "✅" if value else "❌"
                 print(f"    {status} {key.replace('_', ' ').title()}")

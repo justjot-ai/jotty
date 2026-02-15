@@ -1,7 +1,23 @@
-"""SkillOrchestrator mixin — model selection, hyperopt, and ensemble stages."""
+"""
+⚠️  DEPRECATED: SkillOrchestrator mixin — model selection, hyperopt, and ensemble stages.
+
+This mixin is deprecated and will be removed in a future version.
+Use skills from skills/automl/model_selection.py instead.
+
+WHY DEPRECATED:
+- Duplicate of skills/automl/model_selection.py (which has CatBoost support and better architecture)
+- Mixins violate separation of concerns (WHAT vs HOW)
+- Should use skills from registry, not inherit methods
+
+MIGRATION PATH:
+- Use AutoMLWorkflow instead of SkillOrchestrator
+- AutoMLWorkflow calls skills from registry
+- skills/automl/model_selection.py is the single source of truth
+"""
 
 import logging
 import sys
+import warnings
 from typing import Any, Dict
 
 import numpy as np
@@ -11,9 +27,21 @@ from .skill_types import ProblemType, SkillCategory, SkillResult
 
 logger = logging.getLogger(__name__)
 
+# Emit deprecation warning on import
+warnings.warn(
+    "ModelPipelineMixin is deprecated. "
+    "Use skills/automl/model_selection.py via AutoMLWorkflow instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
 
 class ModelPipelineMixin:
-    """Mixin providing _builtin_model_selection, _builtin_hyperopt, _builtin_ensemble."""
+    """
+    ⚠️  DEPRECATED: Mixin providing _builtin_model_selection, _builtin_hyperopt, _builtin_ensemble.
+
+    Use skills/automl/model_selection.py instead.
+    """
 
     async def _builtin_model_selection(
         self, X: pd.DataFrame, y: pd.Series, problem_type: ProblemType

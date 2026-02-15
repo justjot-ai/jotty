@@ -2,10 +2,9 @@
 LLM Providers for ChatExecutor
 ==================================
 
-Supports: Anthropic, OpenAI, OpenRouter, Groq, Google, JottyClaude CLI.
+Supports: Anthropic, OpenAI, OpenRouter, Groq, Google.
 """
 
-from .adapter import JottyClaudeProviderAdapter
 from .anthropic import AnthropicProvider
 from .base import LLMProvider
 from .factory import auto_detect_provider, create_provider
@@ -29,7 +28,6 @@ __all__ = [
     "OpenRouterProvider",
     "GroqProvider",
     "GoogleProvider",
-    "JottyClaudeProviderAdapter",
     # Factory
     "create_provider",
     "auto_detect_provider",

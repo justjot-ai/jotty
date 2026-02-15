@@ -11,7 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from core.tools.content_generation import ContentGenerators, Document, Section, SectionType
+from core.tools.content_generation import ContentGenerators, Document, SectionType
 
 
 def test_pdf_generation():
@@ -118,7 +118,7 @@ class SelfAttention(nn.Module):
         pdf_path = generators.generate_pdf(doc, output_path=output_dir, format="a4")
 
         file_size = pdf_path.stat().st_size
-        print(f"\n✅ SUCCESS!")
+        print("\n✅ SUCCESS!")
         print(f"   PDF: {pdf_path.name}")
         print(f"   Size: {file_size:,} bytes ({file_size/1024:.1f} KB)")
         print(f"   Path: {pdf_path}")
@@ -133,7 +133,7 @@ class SelfAttention(nn.Module):
         return True
 
     except Exception as e:
-        print(f"\n❌ PDF generation failed:")
+        print("\n❌ PDF generation failed:")
         print(f"   Error: {e}")
         print()
         print("Possible issues:")

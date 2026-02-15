@@ -17,7 +17,7 @@ All tests are fast (< 1s), offline, no real HTTP requests.
 """
 
 import time
-from unittest.mock import MagicMock, Mock, PropertyMock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 

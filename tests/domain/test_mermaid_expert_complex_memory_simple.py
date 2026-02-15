@@ -187,7 +187,7 @@ async def test_complex_scenarios():
     # Mark as trained for testing (since training is slow)
     expert.trained = True
 
-    print(f"✅ Expert created")
+    print("✅ Expert created")
     print(f"   Uses memory storage: {expert.use_memory_storage}")
     print(f"   Improvements loaded: {len(expert.improvements)}")
     print(f"   Marked as trained: {expert.trained}")
@@ -238,7 +238,7 @@ async def test_complex_scenarios():
                 print(f"      Found: {', '.join(result['elements_found'][:3])}")
 
         except asyncio.TimeoutError:
-            print(f"   ⏱️  Timeout")
+            print("   ⏱️  Timeout")
             results.append(
                 {"scenario": scenario["name"], "valid": False, "error": "Timeout", "success": False}
             )

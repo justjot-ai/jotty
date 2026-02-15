@@ -195,25 +195,29 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
         3. DSPy global LM fallback (Sonnet — slower but works)
         """
 
-        # Use global LM singleton (shared across all components)
+        # Use unified LM provider (shared across all components)
         try:
-            from Jotty.core.infrastructure.foundation.llm_singleton import get_global_lm
+            from Jotty.core.infrastructure.foundation.unified_lm_provider import UnifiedLMProvider
 
             # Try to use Haiku for fast planning/routing
-            self._fast_lm = get_global_lm(provider="anthropic", model="claude-haiku-4-5-20251001")
+            self._fast_lm = UnifiedLMProvider.create_lm(
+                provider="anthropic", model="claude-haiku-4-5-20251001"
+            )
             self._fast_model = "haiku"
-            logger.info("Fast LM: Using global LM (routing/classification)")
+            logger.info("Fast LM: Using unified LM provider (routing/classification)")
         except Exception as e:
-            logger.warning(f"Could not get global LM for planning: {e}")
-            # Fallback: try global LM without specifying model
+            logger.warning(f"Could not get LM for planning: {e}")
+            # Fallback: try auto-detect
             try:
-                from Jotty.core.infrastructure.foundation.llm_singleton import get_global_lm
+                from Jotty.core.infrastructure.foundation.unified_lm_provider import (
+                    configure_dspy_lm,
+                )
 
-                self._fast_lm = get_global_lm()
+                self._fast_lm = configure_dspy_lm()
                 self._fast_model = "default"
-                logger.info("Fast LM: Using global LM default model")
+                logger.info("Fast LM: Using auto-detected default model")
             except Exception as e2:
-                logger.warning(f"Global LM not available: {e2}")
+                logger.warning(f"LM not available: {e2}")
                 self._fast_lm = None
 
     def _call_with_retry(

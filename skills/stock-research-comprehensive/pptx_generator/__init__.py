@@ -5,13 +5,13 @@ All implementation lives in ``generator.py``.  This file re-exports
 the public API so existing ``from Jotty.core.pptx_generator import X`` still works.
 """
 
-from ..html_slide_generator import (  # noqa: F401
+from ..html_slide_generator import (
     HTMLSlideGenerator,
     LearningSlideBuilder,
     PresentationConfig,
     SlideType,
 )
-from .deck_judge import (  # noqa: F401
+from .deck_judge import (
     AutoImprovementLoop,
     DeckJudge,
     DeckScore,
@@ -19,8 +19,8 @@ from .deck_judge import (  # noqa: F401
     DiagramType,
     analyze_and_decide_diagrams,
 )
-from .diagram_image_generator import DiagramImageGenerator, MermaidDiagramGenerator  # noqa: F401
-from .generator import (  # noqa: F401
+from .diagram_image_generator import DiagramImageGenerator, MermaidDiagramGenerator
+from .generator import (
     convert_pptx_to_pdf,
     generate_all_formats,
     generate_and_improve_pptx,
@@ -30,7 +30,7 @@ from .generator import (  # noqa: F401
     generate_learning_pptx,
     is_libreoffice_available,
 )
-from .visualization_planner import (  # noqa: F401
+from .visualization_planner import (
     LIDAStylePlanner,
     VisualizationSpec,
     convert_specs_to_pptx_data,

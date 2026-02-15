@@ -13,7 +13,6 @@ import os
 from pathlib import Path
 
 import pytest
-
 from Jotty.core.intelligence.swarms.research_swarm.types import ResearchConfig
 from Jotty.core.intelligence.swarms.templates.research import ResearchTemplate
 

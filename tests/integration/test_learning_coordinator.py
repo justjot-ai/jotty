@@ -7,12 +7,10 @@ Covers: LearningManager, LearningSession, LearningUpdate,
 """
 
 import json
-import shutil
-import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 

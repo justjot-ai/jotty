@@ -9,7 +9,6 @@ Tests:
 """
 
 import asyncio
-import json
 import sys
 from pathlib import Path
 
@@ -81,7 +80,7 @@ async def test_all_fixes():
     )
 
     expert = PlantUMLExpertAgent(config=config, memory=memory)
-    print(f"Expert created")
+    print("Expert created")
     print(f"   Has memory: {expert.memory is not None}")
     print(f"   Domain: {expert.domain}")
     print()
@@ -137,7 +136,7 @@ async def test_all_fixes():
         consolidation_result = consolidate_improvements(
             memory=memory, expert_name=config.name, domain=config.domain
         )
-        print(f"✅ Consolidation result:")
+        print("✅ Consolidation result:")
         print(f"   Consolidated patterns: {consolidation_result.get('consolidated', 0)}")
         print(f"   Merged improvements: {consolidation_result.get('merged', 0)}")
 
@@ -190,7 +189,7 @@ async def test_all_fixes():
             pattern_types[pattern_type] = []
         pattern_types[pattern_type].append(imp)
 
-    print(f"\nGrouped by pattern type:")
+    print("\nGrouped by pattern type:")
     for pattern_type, imps in pattern_types.items():
         print(f"  {pattern_type}: {len(imps)} improvements")
         if imps:

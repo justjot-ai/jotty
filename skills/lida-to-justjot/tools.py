@@ -20,7 +20,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
-
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 from Jotty.core.infrastructure.utils.tool_helpers import (
     async_tool_wrapper,
@@ -387,7 +386,7 @@ class LidaToJustJotSkill:
                         for line in f:
                             if line.startswith("MONGODB_URI="):
                                 mongodb_uri = line.split("=", 1)[1].strip().strip('"').strip("'")
-                                logger.info(f"Found MONGODB_URI in .env.local")
+                                logger.info("Found MONGODB_URI in .env.local")
                                 break
 
             # Always use JustJot production MongoDB for reliability

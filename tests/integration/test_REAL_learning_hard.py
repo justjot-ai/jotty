@@ -146,7 +146,7 @@ Order "1" --> "1" Payment
         print(f"{'='*90}\n")
 
         # Generate
-        print(f"Step 1: Generate Diagram")
+        print("Step 1: Generate Diagram")
 
         class DiagramGenerator(dspy.Signature):
             """Generate PlantUML class diagram."""
@@ -175,7 +175,7 @@ Order "1" --> "1" Payment
         print(f"  ✅ Generated in {elapsed:.1f}s ({len(diagram)} chars)")
 
         # Evaluate with REAL expert evaluation
-        print(f"\nStep 2: Expert Evaluation")
+        print("\nStep 2: Expert Evaluation")
 
         evaluation = await plantuml_expert._evaluate_domain(
             output=diagram,
@@ -191,7 +191,7 @@ Order "1" --> "1" Payment
         print(f"  Status: {status}")
 
         # Check specific requirements (manual detailed check)
-        print(f"\nStep 3: Detailed Requirements Check")
+        print("\nStep 3: Detailed Requirements Check")
 
         requirements_met = []
         requirements_missed = []
@@ -228,7 +228,7 @@ Order "1" --> "1" Payment
         print(f"  Requirements met: {len(requirements_met)}/{len(checks)} ({req_score:.1%})")
 
         if requirements_missed:
-            print(f"  ⚠️  Missing:")
+            print("  ⚠️  Missing:")
             for req in requirements_missed[:5]:
                 print(f"    - {req}")
 
@@ -252,7 +252,7 @@ Order "1" --> "1" Payment
 
         # Learn for next iteration
         if iteration < iterations and final_score < 0.95:
-            print(f"\nStep 4: Learning")
+            print("\nStep 4: Learning")
 
             feedback = []
 
@@ -290,7 +290,7 @@ Order "1" --> "1" Payment
     final = history[-1]["score"]
     improvement = ((final - initial) / initial * 100) if initial > 0 else 0
 
-    print(f"\n📊 Learning Metrics:")
+    print("\n📊 Learning Metrics:")
     print(f"  Initial: {initial:.2f}")
     print(f"  Final: {final:.2f}")
     print(f"  Improvement: {improvement:+.1f}%")
@@ -376,14 +376,14 @@ Order "1" --> "1" Payment
     print("\n" + "=" * 90)
     if final > initial:
         print("✅ SUCCESS: REAL LEARNING DEMONSTRATED")
-        print(f"\nEvidence:")
+        print("\nEvidence:")
         print(f"  - Score improved: {initial:.2f} → {final:.2f} ({improvement:+.1f}%)")
         print(
             f"  - Requirements met: {history[0]['requirements_met']} → {history[-1]['requirements_met']}"
         )
-        print(f"  - Used real Claude CLI")
-        print(f"  - Used real expert evaluation")
-        print(f"  - Applied real feedback")
+        print("  - Used real Claude CLI")
+        print("  - Used real expert evaluation")
+        print("  - Applied real feedback")
         print(f"\n📄 See {output_file} for detailed comparison")
     else:
         print("⚠️  Task may have been too easy or too hard")

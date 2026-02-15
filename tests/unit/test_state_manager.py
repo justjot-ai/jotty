@@ -7,9 +7,8 @@ before integrating it into Conductor.
 """
 
 import sys
-from datetime import datetime
 from pathlib import Path
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock
 
 import pytest
 

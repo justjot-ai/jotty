@@ -6,8 +6,9 @@ This tests the actual LLM-powered research workflow (simplified for speed).
 
 import asyncio
 import os
-from core.intelligence.swarms.templates.research import ResearchTemplate
+
 from core.intelligence.swarms.research_swarm.types import ResearchConfig
+from core.intelligence.swarms.templates.research import ResearchTemplate
 
 # Requires ANTHROPIC_API_KEY env var
 assert os.getenv("ANTHROPIC_API_KEY"), "Set ANTHROPIC_API_KEY to run real LLM tests"
@@ -37,8 +38,8 @@ async def test_research_template_quick():
 
     template = ResearchTemplate(config)
 
-    print(f"\n🔍 Testing with ticker: AAPL (Apple Inc.)")
-    print(f"⚡ Quick mode: Minimal features for fast execution\n")
+    print("\n🔍 Testing with ticker: AAPL (Apple Inc.)")
+    print("⚡ Quick mode: Minimal features for fast execution\n")
 
     try:
         result = await template.execute(

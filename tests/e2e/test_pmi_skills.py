@@ -8,13 +8,10 @@ All HTTP calls are mocked — no real API needed.
 
 import importlib.util
 import json
-import sys
 from pathlib import Path
-from typing import Any, Dict
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from Jotty.core.infrastructure.utils.api_client import BaseAPIClient
 
 # =============================================================================
@@ -680,7 +677,7 @@ class TestFinancialAnalysis:
 # TestToolSchemaOutputs — verify output field parsing from docstrings
 # =============================================================================
 
-from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
+from Jotty.core.modes.agent._execution_types import ToolSchema
 
 
 @pytest.mark.unit
@@ -1049,7 +1046,6 @@ class TestIOContractEnrichment:
     @pytest.mark.unit
     def test_infers_inputs_needed_from_template(self):
         """inputs_needed should be auto-populated from ${key.field} refs in params."""
-        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
 
         mixin = self._make_mixin()
         step0 = self._make_step(output_key="search")

@@ -12,10 +12,8 @@ All tests use mocks — NEVER call real LLM providers.
 Tests run fast (< 1s each) and offline.
 """
 
-import asyncio
 import json
 import sys
-import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
@@ -1094,7 +1092,6 @@ class TestDownloadGaia:
 
     def test_download_requires_datasets(self, tmp_path):
         """download_gaia returns error when datasets not available."""
-        from scripts.download_gaia import download_gaia
 
         with patch.dict("sys.modules", {"datasets": None}):
             # Force reimport to trigger ImportError path

@@ -73,7 +73,7 @@ class ClaudeAPIClient:
         # DSPy loads dotenv which populates ANTHROPIC_API_KEY from .env files.
         # Import it before reading client kwargs to ensure the key is available.
         try:
-            import dspy  # noqa: F401 — side-effect: loads dotenv
+            import dspy
         except ImportError:
             pass
 

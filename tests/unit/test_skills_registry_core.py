@@ -5,12 +5,10 @@ Tests for SkillsRegistry, SkillDefinition, SkillType, TrustLevel,
 ToolMetadata, BaseSkill, get_skills_registry singleton, and discovery.
 """
 
-import os
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any, Callable, Dict
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -25,7 +23,6 @@ from Jotty.core.capabilities.registry.skills_registry import (
     ToolMetadata,
     TrustLevel,
     _infer_trust_level,
-    _registry_instance,
     get_skills_registry,
 )
 

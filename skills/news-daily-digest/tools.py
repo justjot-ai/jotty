@@ -180,7 +180,7 @@ def _format_digest_markdown(
     total_articles = sum(s["article_count"] for s in topic_summaries)
 
     sections = [
-        f"# Daily News Digest",
+        "# Daily News Digest",
         f"**Date:** {date_str}  ",
         f"**Prepared for:** {email}  ",
         f"**Topics:** {len(topic_summaries)} | **Articles:** {total_articles}",

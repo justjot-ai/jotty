@@ -14,7 +14,7 @@ from Jotty.core.infrastructure.utils.tool_helpers import (
 try:
     from Jotty.core.capabilities.registry.pipeline_skill import StepType, create_pipeline_skill
 except ImportError:
-    from Jotty.core.capabilities.registry.pipeline_skill import create_pipeline_skill, StepType
+    from Jotty.core.capabilities.registry.pipeline_skill import StepType, create_pipeline_skill
 
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
@@ -73,9 +73,9 @@ def _format_search_results(results: list, topic: str) -> str:
     """Format search results for summarization."""
     lines = [
         f"# Search Results: {topic}",
-        f"",
+        "",
         f"The following are web search results about '{topic}':",
-        f"",
+        "",
     ]
 
     for i, result in enumerate(results, 1):
