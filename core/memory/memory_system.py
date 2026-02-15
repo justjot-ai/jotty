@@ -139,7 +139,7 @@ class MemorySystem:
 
     def _init_full(self) -> Any:
         """Initialize full SwarmMemory backend."""
-        from Jotty.core.foundation.data_structures import SwarmConfig, MemoryLevel
+        from Jotty.core.foundation.data_structures import SwarmLearningConfig, MemoryLevel
         from Jotty.core.foundation.configs.memory import MemoryConfig as FocusedMemoryConfig
 
         jc = self._jotty_config

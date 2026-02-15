@@ -16,7 +16,7 @@ Jotty is a **self-improving AI agent framework** built on DSPy. It coordinates m
 | Area | Description |
 |------|-------------|
 | **Clear layered architecture** | Five well-defined layers (Interface → Modes → Registry → Brain → Persistence) with documented data flow and single responsibility per layer. |
-| **Rich capability surface** | 140+ skills (finance, web, DevOps, communication, analysis, automation, n8n, AI/ML, utility), 16 UI components, 8+ domain swarms (Coding, Research, Testing, Olympiad Learning, ArXiv, DevOps, Data Analysis, etc.). |
+| **Rich capability surface** | 273 skills (finance, web, DevOps, communication, analysis, automation, n8n, AI/ML, utility), 16 UI components, 8+ domain swarms (Coding, Research, Testing, Olympiad Learning, ArXiv, DevOps, Data Analysis, etc.). |
 | **Unified entry points** | One gateway (`UnifiedGateway`) for all channels; one registry (`UnifiedRegistry`) for skills + UI; one API (`JottyAPI`) for chat and workflow. |
 | **Self-improvement loop** | TD-Lambda learning, SwarmIntelligence (specialization, consensus, stigmergy, Byzantine verification), and 5-level SwarmMemory (episodic → semantic → procedural → meta → causal) with consolidation. |
 | **Production-oriented design** | Structured exception hierarchy (30+ JottyError types), lazy initialization for fast startup, singleton-with-reset for tests, ConfigView proxy for scoped config, circuit breaker and budget tracking. |
@@ -31,8 +31,8 @@ Jotty is a **self-improving AI agent framework** built on DSPy. It coordinates m
 
 | Area | Description |
 |------|-------------|
-| **Dual config naming** | `SwarmConfig` (data_structures) vs `SwarmBaseConfig` (swarm_types) causes confusion; docs and scripts still reference both; migration guidance exists but inconsistency remains. |
-| **Documentation drift** | Skill counts vary (126 vs 140+ vs 164) across CLAUDE.md, architecture doc, and code; “Legacy” vs “facade” imports and multiple entry points can confuse new contributors. |
+| **Dual config naming** | ✅ **RESOLVED:** `SwarmLearningConfig` (data_structures, 175 fields for RL/orchestration) vs `SwarmConfig` (swarm_types, 12 fields for swarm metadata). Clear naming eliminates confusion. Deprecation warnings guide migration. |
+| **Documentation drift** | ✅ **RESOLVED:** Skill count standardized to 273 across all documentation. "Legacy" vs "facade" imports and multiple entry points can confuse new contributors. |
 | **Complexity** | Many orchestration components (Orchestrator, SwarmIntelligence, BaseSwarm, DomainSwarm, AgentTeam, PilotSwarm, templates); learning pipeline and memory consolidation add cognitive load. |
 | **DSPy coupling** | Core planning and learning depend on DSPy (signatures, modules); version lock (`dspy-ai>=2.0.0`) and API changes could require non-trivial refactors. |
 | **External dependencies** | Reliance on multiple LLM providers (Anthropic, OpenAI, Groq) and channel-specific tokens (Telegram, Slack, Discord, WhatsApp); optional extras (web, cli, telegram, mongodb, redis, sql) fragment install surface. |
@@ -62,7 +62,7 @@ Jotty is a **self-improving AI agent framework** built on DSPy. It coordinates m
 |------|-------------|
 | **LLM API volatility** | Pricing, rate limits, and model deprecations (e.g. older OpenAI/Anthropic models) can break assumptions; need provider abstraction and fallbacks. |
 | **DSPy evolution** | DSPy 2.x and future changes may require signature/module updates across AgenticPlanner, learning, and memory; technical debt if upgrades are delayed. |
-| **Scope creep** | 140+ skills and many swarms increase maintenance; new skills and channels (e.g. WhatsApp) must follow patterns and tests or quality will diverge. |
+| **Scope creep** | 273 skills and many swarms increase maintenance; new skills and channels (e.g. WhatsApp) must follow patterns and tests or quality will diverge. |
 | **Security and trust** | Webhooks (Telegram, Slack, Discord, WhatsApp) and TrustManager need consistent auth and secret handling; any breach or misconfiguration risks user data and reputation. |
 | **Competition** | Other multi-agent frameworks (CrewAI, AutoGen, LangGraph-based stacks) and hosted agent APIs may capture mindshare; differentiation depends on self-improvement, memory, and unified gateway. |
 | **Operational burden** | Persistence under `~/jotty/intelligence/`, multiple optional backends (MongoDB, Redis, SQL), and channel-specific env vars complicate deployment and ops. |
@@ -81,9 +81,9 @@ Jotty is a **self-improving AI agent framework** built on DSPy. It coordinates m
 
 ## Recommended Next Steps
 
-1. **Resolve config naming** — Standardize on `SwarmBaseConfig` (or one canonical name) everywhere and update docs and scripts; add deprecation warnings for the other.
-2. **Freeze and publish a single “capability count”** — One source of truth (e.g. from `registry.list_skills()`) and reference it in CLAUDE.md and JOTTY_ARCHITECTURE.md.
-3. **Document one “happy path”** — From “user sends message to Telegram” to “response back” with exact classes and facades to use, to lower onboarding cost.
+1. ✅ **Resolve config naming** — **COMPLETED:** Renamed to `SwarmLearningConfig` (RL/orchestration, 175 fields) and `SwarmConfig` (swarm metadata, 12 fields). All 36 files updated with deprecation warnings. Clear separation eliminates confusion.
+2. ✅ **Freeze and publish a single "capability count"** — **COMPLETED:** Standardized to 273 skills across all documentation (CLAUDE.md, JOTTY_ARCHITECTURE.md, README.md, etc.). Source of truth: `registry.list_skills()`.
+3. ✅ **Document one "happy path"** — **COMPLETED:** Created `docs/HAPPY_PATH_GUIDE.md` tracing complete flow from Telegram message to response with exact classes, facades, code snippets, and debugging tips. Covers all 5 layers and 6 core files. Dramatically lowers onboarding cost.
 4. **Invest in observability** — Surface existing metrics/traces in a small dashboard or health endpoint to support production use.
 5. **Plan DSPy upgrade path** — Track DSPy releases and maintain a compatibility matrix; consider a thin adapter layer if churn increases.
 

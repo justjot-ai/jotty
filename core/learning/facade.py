@@ -19,7 +19,7 @@ Usage:
 from typing import Optional, Union, Dict, Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from Jotty.core.foundation.data_structures import SwarmConfig
+    from Jotty.core.foundation.data_structures import SwarmLearningConfig
     from Jotty.core.foundation.configs import LearningConfig
     from Jotty.core.learning.learning_coordinator import LearningManager
     from Jotty.core.learning.td_lambda import TDLambdaLearner
@@ -36,12 +36,12 @@ def _resolve_learning_config(config: Any) -> 'SwarmConfig':
         - SwarmConfig → pass through
     """
     if config is None:
-        from Jotty.core.foundation.data_structures import SwarmConfig
+        from Jotty.core.foundation.data_structures import SwarmLearningConfig
         return SwarmConfig()
 
     from Jotty.core.foundation.configs.learning import LearningConfig
     if isinstance(config, LearningConfig):
-        from Jotty.core.foundation.data_structures import SwarmConfig
+        from Jotty.core.foundation.data_structures import SwarmLearningConfig
         return SwarmConfig.from_configs(learning=config)
 
     # Assume SwarmConfig

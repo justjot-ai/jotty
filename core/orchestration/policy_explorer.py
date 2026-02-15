@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 from .swarm_roadmap import SwarmTaskBoard, TodoItem
 
-from Jotty.core.foundation.data_structures import SwarmConfig
+from Jotty.core.foundation.data_structures import SwarmLearningConfig
 
 try:
     import dspy

@@ -112,7 +112,8 @@ __all__ = [
     'SDKResponse',
     'SDKRequest',
     # Configuration
-    'SwarmConfig',
+    'SwarmLearningConfig',
+    'SwarmConfig',  # Deprecated alias for SwarmLearningConfig
     # Config views
     'PersistenceView',
     'ExecutionView',
@@ -365,9 +366,16 @@ class SwarmIntelligenceView(_ConfigView):
 # =============================================================================
 
 @dataclass
-class SwarmConfig:
+class SwarmLearningConfig:
     """
-    Swarm Orchestration Configuration.
+    Swarm Learning and Orchestration Configuration.
+
+    Comprehensive configuration for reinforcement learning, TD(λ), memory management,
+    context budgeting, and all learning-related parameters.
+
+    ⚠️ RENAMED: Previously called 'SwarmConfig' (now deprecated).
+    Use 'SwarmLearningConfig' for learning/RL configuration.
+    Use 'SwarmConfig' from swarm_types.py for basic swarm metadata.
 
     Schema-versioned for safe JSON persistence roundtrips.
     Pruned to active parameters only — dead params removed 2026-02-10.
@@ -985,8 +993,36 @@ class SwarmConfig:
         # Overrides win
         kwargs.update(overrides)
 
-        # Filter to valid SwarmConfig fields
+        # Filter to valid SwarmLearningConfig fields
         valid_fields = {f.name for f in dc_fields(cls)}
         filtered = {k: v for k, v in kwargs.items() if k in valid_fields}
 
         return cls(**filtered)
+
+
+# =============================================================================
+# DEPRECATED ALIASES (Backward Compatibility)
+# =============================================================================
+
+# Deprecated: SwarmConfig renamed to SwarmLearningConfig
+SwarmConfig = SwarmLearningConfig
+
+def __getattr__(name: str) -> Any:
+    """Provide deprecation warnings for old names."""
+    if name == 'SwarmConfig':
+        import warnings
+        warnings.warn(
+            "\n" + "="*80 + "\n"
+            "⚠️  DEPRECATED: 'SwarmConfig' has been renamed to 'SwarmLearningConfig'\n\n"
+            "This config is for learning/RL/orchestration (175 fields).\n"
+            "For basic swarm metadata, use 'SwarmConfig' from swarm_types.py instead.\n\n"
+            "Fix your code:\n"
+            "  ❌ from ..foundation.data_structures import SwarmConfig\n"
+            "  ✅ from ..foundation.data_structures import SwarmLearningConfig\n\n"
+            "See: Jotty/docs/CONFIG_REFERENCE.md\n"
+            + "="*80,
+            DeprecationWarning,
+            stacklevel=2
+        )
+        return SwarmLearningConfig
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")

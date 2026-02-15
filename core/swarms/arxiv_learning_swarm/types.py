@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 
-from ..swarm_types import SwarmBaseConfig, SwarmResult
+from ..swarm_types import SwarmConfig, SwarmResult
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +60,7 @@ class AudienceLevel(Enum):
 
 
 @dataclass
-class ArxivLearningConfig(SwarmBaseConfig):
+class ArxivLearningConfig(SwarmConfig):
     """Configuration for ArxivLearningSwarm."""
     depth: LearningDepth = LearningDepth.STANDARD
     style: ContentStyle = ContentStyle.ENGAGING

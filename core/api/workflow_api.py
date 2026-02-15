@@ -9,7 +9,7 @@ import logging
 
 from Jotty.core.use_cases.workflow import WorkflowUseCase
 from Jotty.core.orchestration import Orchestrator
-from Jotty.core.foundation.data_structures import SwarmConfig
+from Jotty.core.foundation.data_structures import SwarmLearningConfig
 
 logger = logging.getLogger(__name__)
 

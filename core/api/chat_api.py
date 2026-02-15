@@ -9,7 +9,7 @@ import logging
 
 from Jotty.core.use_cases.chat import ChatUseCase, ChatMessage
 from Jotty.core.orchestration import Orchestrator
-from Jotty.core.foundation.data_structures import SwarmConfig
+from Jotty.core.foundation.data_structures import SwarmLearningConfig
 from Jotty.core.foundation.agent_config import AgentConfig
 from Jotty.core.agents.chat_assistant import create_chat_assistant
 

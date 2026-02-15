@@ -120,7 +120,7 @@ class ExpertAgent:
         if config.use_memory_storage and not memory:
             try:
                 from ..memory.cortex import SwarmMemory
-                from ..foundation.data_structures import SwarmConfig
+                from ..foundation.data_structures import SwarmLearningConfig
                 from ..memory.memory_persistence import enable_memory_persistence
                 
                 memory_config = SwarmConfig()

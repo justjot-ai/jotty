@@ -174,7 +174,7 @@ class BaseSwarm(SwarmLearningMixin, ABC):
         # otherwise create a default — but avoid creating multiple independent configs)
         try:
             from ..agents.dag_agents import SwarmResources
-            from ..foundation.data_structures import SwarmConfig
+            from ..foundation.data_structures import SwarmLearningConfig
 
             jotty_config = getattr(self.config, 'jotty_config', None) or SwarmConfig()
             resources = SwarmResources.get_instance(jotty_config)

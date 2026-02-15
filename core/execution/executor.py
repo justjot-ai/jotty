@@ -408,7 +408,7 @@ class TierExecutor:
         """
         try:
             from Jotty.core.agents.inspector import ValidatorAgent, MultiRoundValidator
-            from Jotty.core.foundation.data_structures import SwarmConfig, SharedScratchpad
+            from Jotty.core.foundation.data_structures import SwarmLearningConfig, SharedScratchpad
 
             swarm_config_dict = self.config.to_swarm_config()
             swarm_config = SwarmConfig(**swarm_config_dict)
@@ -1295,7 +1295,7 @@ Correct answer:"""
         logger.info("[Tier 4: RESEARCH] Delegating to Orchestrator...")
 
         from Jotty.core.orchestration import Orchestrator
-        from Jotty.core.foundation.data_structures import SwarmConfig
+        from Jotty.core.foundation.data_structures import SwarmLearningConfig
 
         swarm_config_dict = config.to_swarm_config()
         swarm_config = SwarmConfig(**swarm_config_dict)

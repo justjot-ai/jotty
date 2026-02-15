@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from typing import Dict, Any, List, Optional
 
 from ..base_swarm import SwarmResult
-from ..swarm_types import SwarmBaseConfig
+from ..swarm_types import SwarmConfig
 
 
 class SubtaskType(enum.Enum):
@@ -49,7 +49,7 @@ class Subtask:
 
 
 @dataclass
-class PilotConfig(SwarmBaseConfig):
+class PilotConfig(SwarmConfig):
     """Configuration for PilotSwarm."""
     max_subtasks: int = 10
     max_retries: int = 2

@@ -22,7 +22,7 @@ from pathlib import Path
 import yaml
 import dspy
 
-from ..foundation.data_structures import SwarmConfig
+from ..foundation.data_structures import SwarmLearningConfig
 from .framework_decorators import ContextGuard
 
 

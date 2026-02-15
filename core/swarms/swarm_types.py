@@ -133,13 +133,17 @@ class ExecutionTrace:
 
 
 @dataclass
-class SwarmBaseConfig:
+class SwarmConfig:
     """Base configuration for all swarms.
 
     All swarm-specific configs should inherit from this class.
 
-    ⚠️ DEPRECATED: SwarmConfig has been renamed to SwarmBaseConfig.
-    If you see import errors, use: from ..swarm_types import SwarmBaseConfig
+    ⚠️ RENAMED: Previously called 'SwarmBaseConfig' (now deprecated).
+    This is the main swarm configuration with basic metadata (name, domain, version, etc.).
+
+    For learning/RL configuration, use 'SwarmLearningConfig' from foundation.data_structures.
+
+    If you see import errors, use: from ..swarm_types import SwarmConfig
     """
     name: str = "BaseSwarm"
     domain: str = "general"
@@ -251,7 +255,8 @@ __all__ = [
     'ImprovementSuggestion',
     'SwarmAgentConfig',
     'ExecutionTrace',
-    'SwarmBaseConfig',
+    'SwarmConfig',
+    'SwarmBaseConfig',  # Deprecated alias for SwarmConfig
     'SwarmResult',
     '_split_field',
     '_safe_join',
@@ -265,22 +270,22 @@ __all__ = [
 
 def __getattr__(name: str) -> Any:
     """Intercept attempts to import deprecated names and provide helpful errors."""
-    if name == 'SwarmConfig':
+    if name == 'SwarmBaseConfig':
         import warnings
         warnings.warn(
             "\n" + "="*80 + "\n"
-            "⚠️  DEPRECATED: 'SwarmConfig' has been renamed to 'SwarmBaseConfig'\n\n"
+            "⚠️  DEPRECATED: 'SwarmBaseConfig' has been renamed to 'SwarmConfig'\n\n"
             "Fix your code:\n"
-            "  ❌ from ..swarm_types import SwarmConfig\n"
-            "  ✅ from ..swarm_types import SwarmBaseConfig\n\n"
-            "  ❌ class MyConfig(SwarmConfig):\n"
-            "  ✅ class MyConfig(SwarmBaseConfig):\n\n"
+            "  ❌ from ..swarm_types import SwarmBaseConfig\n"
+            "  ✅ from ..swarm_types import SwarmConfig\n\n"
+            "  ❌ class MyConfig(SwarmBaseConfig):\n"
+            "  ✅ class MyConfig(SwarmConfig):\n\n"
             "See: Jotty/CLAUDE.md - Legacy Imports section\n"
             + "="*80,
             DeprecationWarning,
             stacklevel=2
         )
         # Return the correct class (backward compatible)
-        return SwarmBaseConfig
+        return SwarmConfig
 
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")

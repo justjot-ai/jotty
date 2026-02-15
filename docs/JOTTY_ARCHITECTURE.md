@@ -107,7 +107,7 @@ Single entry point combining two sub-registries:
 registry = get_unified_registry()
 
 # Backend (Skills = "Hands")
-registry.list_skills()                    # 140+ skills
+registry.list_skills()                    # 273 skills
 registry.discover("get stock quote")      # Semantic discovery
 registry.get_claude_tools(['web-search']) # Convert to Claude tool format
 
@@ -118,7 +118,7 @@ registry.ui.convert_to_a2ui('chart', data)
 
 ### SkillsRegistry (`core/registry/skills_registry.py`)
 
-Manages 140+ skills loaded from `skills/` directories. Each skill has:
+Manages 273 skills loaded from `skills/` directories. Each skill has:
 - `tools.py`: Tool function implementations
 - `SKILL.md`: Metadata (name, description, capabilities, dependencies)
 - Optional `skill.yaml`: Schema definitions
@@ -438,7 +438,7 @@ class _ConfigView:
 
 ## Skills System
 
-140+ skills organized in `skills/` directories:
+273 skills organized in `skills/` directories:
 
 | Category | Skills | Examples |
 |----------|--------|---------|
@@ -466,3 +466,16 @@ pytest tests/ -m unit                         # All unit tests
 ```
 
 All tests use mocks (no real LLM calls), run fast (< 1s each), and work offline.
+
+---
+
+## See Also
+
+- **Happy Path Guide**: `docs/HAPPY_PATH_GUIDE.md` - Step-by-step flow from user message to response
+- **Contributing**: `CONTRIBUTING.md` - Development workflow and patterns
+- **SWOT Analysis**: `docs/SWOT_ANALYSIS.md` - Strengths, weaknesses, opportunities, threats
+- **Quick Reference**: `CLAUDE.md` - Fast lookup for common tasks
+
+---
+
+*This architecture document describes Jotty as of February 2025.*

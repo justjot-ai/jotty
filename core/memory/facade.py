@@ -18,7 +18,7 @@ import threading
 from typing import Optional, Union, Dict, TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from Jotty.core.foundation.data_structures import SwarmConfig
+    from Jotty.core.foundation.data_structures import SwarmLearningConfig
     from Jotty.core.foundation.configs import MemoryConfig
     from Jotty.core.memory.memory_system import MemorySystem
     from Jotty.core.memory.memory_orchestrator import BrainInspiredMemoryManager
@@ -38,12 +38,12 @@ def _resolve_memory_config(config: Any) -> 'SwarmConfig':
         - SwarmConfig → pass through
     """
     if config is None:
-        from Jotty.core.foundation.data_structures import SwarmConfig
+        from Jotty.core.foundation.data_structures import SwarmLearningConfig
         return SwarmConfig()
 
     from Jotty.core.foundation.configs.memory import MemoryConfig
     if isinstance(config, MemoryConfig):
-        from Jotty.core.foundation.data_structures import SwarmConfig
+        from Jotty.core.foundation.data_structures import SwarmLearningConfig
         return SwarmConfig.from_configs(memory=config)
 
     # Assume SwarmConfig

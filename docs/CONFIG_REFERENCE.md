@@ -12,16 +12,16 @@ Complete reference for all configuration classes, organized by importance.
 ## Quick Start
 
 ```python
-from Jotty.core.foundation.data_structures import SwarmConfig
+from Jotty.core.foundation.data_structures import SwarmLearningConfig
 
 # Minimal (defaults work)
-config = SwarmConfig()
+config = SwarmLearningConfig()
 
 # Fast iteration (no learning overhead)
-config = SwarmConfig(enable_rl=False, enable_validation=False, enable_multi_round=False, verbose=0)
+config = SwarmLearningConfig(enable_rl=False, enable_validation=False, enable_multi_round=False, verbose=0)
 
 # Production (full learning + validation)
-config = SwarmConfig(
+config = SwarmLearningConfig(
     enable_rl=True,
     enable_validation=True,
     validation_mode='full',
@@ -32,12 +32,14 @@ config = SwarmConfig(
 
 ---
 
-## SwarmConfig
+## SwarmLearningConfig
+
+**Note:** Previously named `SwarmConfig` (now deprecated). For basic swarm metadata, use `SwarmConfig` from `swarm_types.py`.
 
 Primary configuration dataclass. All fields are flat with `_ConfigView` proxies for organized access.
 
 ```python
-config = SwarmConfig(gamma=0.99, enable_rl=True)
+config = SwarmLearningConfig(gamma=0.99, enable_rl=True)
 config.gamma  # 0.99 (flat access — this is what production code uses)
 ```
 
@@ -573,7 +575,7 @@ Used by `ParameterResolver` for auto-wiring tool parameters.
 Extend with `SwarmConfig.custom_param_mappings`:
 
 ```python
-config = SwarmConfig(custom_param_mappings={'user_id': ['customer_id', 'uid', 'account_id']})
+config = SwarmLearningConfig(custom_param_mappings={'user_id': ['customer_id', 'uid', 'account_id']})
 ```
 
 ---
@@ -589,7 +591,7 @@ learning_dict = config.learning.to_dict()
 
 # ExecutionConfig -> SwarmConfig-compatible dict
 swarm_kwargs = exec_config.to_swarm_config()
-config = SwarmConfig(**swarm_kwargs)
+config = SwarmLearningConfig(**swarm_kwargs)
 
 # BudgetConfig from SwarmConfig (bridge)
 from Jotty.core.utils.budget_tracker import BudgetConfig

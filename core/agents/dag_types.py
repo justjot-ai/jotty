@@ -9,7 +9,7 @@ from enum import Enum
 import dspy
 
 from ..orchestration.swarm_roadmap import SwarmTaskBoard
-from ..foundation.data_structures import SwarmConfig
+from ..foundation.data_structures import SwarmLearningConfig
 from ..memory.cortex import SwarmMemory
 from ..learning.learning import TDLambdaLearner, AdaptiveLearningRate
 from ..persistence.shared_context import SharedContext

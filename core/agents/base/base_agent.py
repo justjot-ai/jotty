@@ -292,7 +292,7 @@ class BaseAgent(ABC):
         if self._memory is None and self.config.enable_memory:
             try:
                 from Jotty.core.memory.cortex import SwarmMemory
-                from Jotty.core.foundation.data_structures import SwarmConfig
+                from Jotty.core.foundation.data_structures import SwarmLearningConfig
                 # Use the shared _jotty_config if one was injected, otherwise
                 # fall back to a default. This prevents creating N independent
                 # SwarmConfig instances with potentially different defaults.

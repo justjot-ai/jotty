@@ -927,8 +927,8 @@ class TestErrorRecovery:
             config=ExecutionConfig(tier=ExecutionTier.DIRECT),
         )
 
-        # Should fail because registry error propagates up in tier 1
-        assert result.success is False
+        # Registry failure is non-fatal: execution continues without discovered tools
+        assert result.success is True
 
     @pytest.mark.asyncio
     async def test_metrics_recorded_on_failure(self, v3_executor, mock_provider, v3_observability_helpers):

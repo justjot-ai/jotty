@@ -23,7 +23,7 @@ REFACTORING PHASE 5: Learning System Interface
 
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, List, Tuple
-from ..foundation.data_structures import SwarmConfig
+from ..foundation.data_structures import SwarmLearningConfig
 
 
 class BaseLearningManager(ABC):

@@ -24,7 +24,7 @@ from .orchestration import Orchestrator
 
 
 # Configuration
-from .foundation.data_structures import SwarmConfig
+from .foundation.data_structures import SwarmLearningConfig
 from .foundation.agent_config import AgentConfig
 
 # Architect = Pre-execution Planner 

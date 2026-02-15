@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 
-from ..swarm_types import SwarmBaseConfig, SwarmResult
+from ..swarm_types import SwarmConfig, SwarmResult
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +60,7 @@ class ContentDepth(Enum):
 # =============================================================================
 
 @dataclass
-class PerspectiveLearningConfig(SwarmBaseConfig):
+class PerspectiveLearningConfig(SwarmConfig):
     """Configuration for PerspectiveLearningSwarm."""
 
     # Core parameters

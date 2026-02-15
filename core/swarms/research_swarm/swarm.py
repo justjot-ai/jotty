@@ -107,7 +107,7 @@ class ResearchSwarm(DomainSwarm):
         # Initialize shared resources
         try:
             from Jotty.core.agents.dag_agents import SwarmResources
-            from Jotty.core.foundation.data_structures import SwarmConfig
+            from Jotty.core.foundation.data_structures import SwarmLearningConfig
 
             jotty_config = SwarmConfig()
             resources = SwarmResources.get_instance(jotty_config)

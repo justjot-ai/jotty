@@ -125,7 +125,7 @@ research_to_pdf_tool({'topic': 'AI trends', 'send_telegram': True})
 - [ ] Update documentation with examples
 
 ### Month 1 (Optional)
-- [ ] Regenerate all 164 skills with improved prompts
+- [ ] Regenerate all 273 skills with improved prompts
 - [ ] Implement AST-based validation
 - [ ] Dynamic MCP tool discovery
 

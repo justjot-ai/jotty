@@ -373,7 +373,7 @@ Understanding Jotty's architecture helps you use it effectively.
 |-------------|----------|
 | `Jotty.core.memory.get_memory_system()` | Access 5-level memory |
 | `Jotty.core.learning.get_td_lambda()` | TD-Lambda learning |
-| `Jotty.core.skills.get_registry()` | 164 skills |
+| `Jotty.core.skills.get_registry()` | 273 skills |
 | `Jotty.core.orchestration.Orchestrator` | Multi-agent swarms |
 | `Jotty.core.agents.AutoAgent` | Workflow automation |
 | `Jotty.core.agents.ChatAssistant` | Conversational AI |
@@ -473,7 +473,7 @@ td.update(state, action, reward, next_state)
 # Skills
 from Jotty.core.skills import get_registry
 registry = get_registry()
-skills = registry.list_skills()  # 164 skills
+skills = registry.list_skills()  # 273 skills
 
 # Swarms
 from Jotty.core.orchestration import Orchestrator

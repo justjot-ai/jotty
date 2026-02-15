@@ -55,8 +55,8 @@ class SwarmConfigImportError(HelpfulError):
         super().__init__(
             message=f"Cannot import '{attempted_import}' - this class has been renamed",
             suggestion="Use 'SwarmBaseConfig' instead:\n"
-                      f"  from ..swarm_types import SwarmBaseConfig\n"
-                      f"  class MyConfig(SwarmBaseConfig): ...",
+                      f"  from ..swarm_types import SwarmConfig\n"
+                      f"  class MyConfig(SwarmConfig): ...",
             doc_link="Jotty/CLAUDE.md - Legacy Imports section"
         )
 

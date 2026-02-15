@@ -640,7 +640,7 @@ def validate_generated_skill(self, skill_name):
 
 **Status:** ❌ Not implemented (but Jotty has lazy loading + context gates as alternative)
 
-**Impact:** Low - Jotty's 164 skills are manageable with current approach
+**Impact:** Low - Jotty's 273 skills are manageable with current approach
 
 ---
 
