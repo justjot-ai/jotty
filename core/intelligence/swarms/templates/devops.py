@@ -10,7 +10,7 @@ class DevOpsTemplate(SwarmLearning):
     AGENT_TEAM = TeamCoordinator.define(pattern=CoordinationPattern.AUTO)
     TEMPLATE_NAME = "devops"
 
-    def __init__(self, config: SwarmBaseConfig = None):
+    def __init__(self, config: SwarmBaseConfig = None) -> None:
         super().__init__(config or SwarmBaseConfig(name="DevOps", domain="devops"))
 
     async def execute(self, **kwargs) -> SwarmResult:

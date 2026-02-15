@@ -4,16 +4,16 @@ Voice routes - TTS, STT, voice chat, streaming variants.
 
 import logging
 from pathlib import Path  # noqa: F401
-from typing import Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
 
-def register_voice_routes(app, api):
+def register_voice_routes(app, api) -> Any:
     from fastapi import File, Form, HTTPException, UploadFile, WebSocket
 
     @app.get("/api/voice/config")
-    async def get_voice_config():
+    async def get_voice_config() -> dict[str, Any]:
         """
         Get voice processing configuration.
 
@@ -35,7 +35,7 @@ def register_voice_routes(app, api):
         }
 
     @app.post("/api/voice/config")
-    async def set_voice_config(request: dict):
+    async def set_voice_config(request: dict) -> Any:
         """
         Update voice processing configuration at runtime.
 
@@ -56,7 +56,7 @@ def register_voice_routes(app, api):
         return await get_voice_config()
 
     @app.post("/api/voice/tts")
-    async def text_to_speech_endpoint(request: dict):
+    async def text_to_speech_endpoint(request: dict) -> Any:
         """
         Convert text to speech.
 
@@ -86,7 +86,7 @@ def register_voice_routes(app, api):
         )
 
     @app.post("/api/voice/stt")
-    async def speech_to_text_endpoint(audio: UploadFile = File(...)):
+    async def speech_to_text_endpoint(audio: UploadFile = File(...)) -> dict[str, Any]:
         """
         Convert speech to text.
 
@@ -108,7 +108,7 @@ def register_voice_routes(app, api):
         audio: UploadFile = File(...),
         session_id: Optional[str] = Form(None),
         voice: Optional[str] = Form(None),
-    ):
+    ) -> Any:
         """
         Full voice-to-voice chat - returns raw audio.
 
@@ -170,7 +170,7 @@ def register_voice_routes(app, api):
         )
 
     @app.websocket("/ws/voice/{session_id}")
-    async def websocket_voice_chat(websocket: WebSocket, session_id: str):
+    async def websocket_voice_chat(websocket: WebSocket, session_id: str) -> None:
         """
         WebSocket endpoint for low-latency streaming voice chat.
 
@@ -331,7 +331,7 @@ def register_voice_routes(app, api):
 
     # WebSocket endpoint
     @app.post("/api/voice/stt")
-    async def speech_to_text(audio: UploadFile):
+    async def speech_to_text(audio: UploadFile) -> dict[str, Any]:
         """
         Convert speech audio to text using Groq Whisper (primary) or Deepgram (fallback).
 
@@ -354,7 +354,7 @@ def register_voice_routes(app, api):
         }
 
     @app.post("/api/voice/tts")
-    async def text_to_speech(text: str = Form(...), voice: Optional[str] = Form(None)):
+    async def text_to_speech(text: str = Form(...), voice: Optional[str] = Form(None)) -> Any:
         """
         Convert text to speech using edge-tts (Microsoft neural voices).
 
@@ -377,14 +377,14 @@ def register_voice_routes(app, api):
         return Response(content=audio_bytes, media_type="audio/mpeg")
 
     @app.get("/api/voice/voices")
-    async def list_voices():
+    async def list_voices() -> dict[str, Any]:
         """List available TTS voices."""
         from .voice import VoiceProcessor
 
         return {"voices": VoiceProcessor.get_available_voices(), "default": "en-US-AvaNeural"}
 
     @app.post("/api/voice/chat")
-    async def voice_chat(audio: UploadFile, session_id: Optional[str] = None):
+    async def voice_chat(audio: UploadFile, session_id: Optional[str] = None) -> Any:
         """
         Full voice-to-voice pipeline: STT -> LLM -> TTS.
 
@@ -427,7 +427,7 @@ def register_voice_routes(app, api):
     @app.post("/api/voice/chat/fast")
     async def voice_chat_fast(
         audio: UploadFile, session_id: Optional[str] = None, max_chars: int = 200
-    ):
+    ) -> Any:
         """
         Optimized voice pipeline for minimum latency.
 
@@ -468,7 +468,7 @@ def register_voice_routes(app, api):
         }
 
     @app.post("/api/voice/chat/turbo")
-    async def voice_chat_turbo(audio: UploadFile, session_id: Optional[str] = None):
+    async def voice_chat_turbo(audio: UploadFile, session_id: Optional[str] = None) -> Any:
         """
         Ultra-fast voice pipeline using Groq LLM (~2s total latency).
 
@@ -545,7 +545,7 @@ def register_voice_routes(app, api):
         )
 
     @app.post("/api/voice/chat/stream")
-    async def voice_chat_streaming(audio: UploadFile, session_id: Optional[str] = None):
+    async def voice_chat_streaming(audio: UploadFile, session_id: Optional[str] = None) -> Any:
         """
         Streaming voice pipeline for lower perceived latency.
 
@@ -570,7 +570,7 @@ def register_voice_routes(app, api):
             )
             return result.get("content", "") if isinstance(result, dict) else str(result)
 
-        async def generate_sse():
+        async def generate_sse() -> None:
             # 1. Speech to text
             user_text, confidence = await processor.speech_to_text(audio_data, mime_type)
 
@@ -613,7 +613,7 @@ def register_voice_routes(app, api):
     @app.post("/api/voice/chat/stream/turbo")
     async def voice_chat_streaming_turbo(
         audio: UploadFile, session_id: Optional[str] = None, voice: Optional[str] = None
-    ):
+    ) -> Any:
         """
         Ultra-fast streaming voice pipeline using Groq LLM.
 
@@ -670,7 +670,7 @@ def register_voice_routes(app, api):
                     .get("content", "I couldn't process that.")
                 )
 
-        async def generate_sse():
+        async def generate_sse() -> Any:
             # 1. Speech to text (Groq Whisper - ~250ms, or local Whisper)
             user_text, confidence = await processor.speech_to_text(audio_data, mime_type)
 
@@ -730,7 +730,7 @@ def register_voice_routes(app, api):
         session_id: Optional[str] = None,
         voice: Optional[str] = None,
         speed: Optional[float] = None,
-    ):
+    ) -> Any:
         """
         Ultra-low-latency streaming: TTS starts BEFORE LLM finishes.
 
@@ -753,7 +753,7 @@ def register_voice_routes(app, api):
         tts_voice = voice or "en-US-AvaNeural"
         tts_speed = speed or 1.0
 
-        async def generate_sse():
+        async def generate_sse() -> None:
             # 1. Speech to text (now returns tuple with confidence)
             user_text, confidence = await processor.speech_to_text(audio_data, mime_type)
 

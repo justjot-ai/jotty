@@ -3,6 +3,8 @@ DSPy Agent with MCP Tool Support
 Enables DSPy agents to call MCP tools from JustJot
 """
 
+from __future__ import annotations
+
 import json
 import logging
 import sys
@@ -54,7 +56,11 @@ class DSPyMCPAgent:
     """DSPy agent that can use MCP tools for enhanced capabilities"""
 
     def __init__(
-        self, name: str, description: str, system_prompt: Optional[str] = None, base_url: str = None
+        self,
+        name: str,
+        description: str,
+        system_prompt: Optional[str] = None,
+        base_url: str | None = None,
     ) -> None:
         """
         Initialize DSPy agent with MCP tool support

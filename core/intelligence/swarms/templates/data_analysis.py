@@ -10,7 +10,7 @@ class DataAnalysisTemplate(SwarmLearning):
     AGENT_TEAM = TeamCoordinator.define(pattern=CoordinationPattern.AUTO)
     TEMPLATE_NAME = "data_analysis"
 
-    def __init__(self, config: SwarmBaseConfig = None):
+    def __init__(self, config: SwarmBaseConfig = None) -> None:
         super().__init__(config or SwarmBaseConfig(name="DataAnalysis", domain="data_analysis"))
 
     async def execute(self, **kwargs) -> SwarmResult:

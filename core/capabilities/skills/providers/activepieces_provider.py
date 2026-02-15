@@ -8,6 +8,8 @@ provider, same pattern as N8nProvider. Config: ACTIVEPIECES_BASE_URL,
 ACTIVEPIECES_API_KEY (or apiKey in config).
 """
 
+from __future__ import annotations
+
 import logging
 import os
 import time
@@ -53,7 +55,7 @@ async def _ap_get_flows(base_url: str, headers: Dict[str, str]) -> List[Dict[str
 
 
 async def _ap_run_flow(
-    base_url: str, headers: Dict[str, str], flow_id: str, payload: Dict[str, Any] = None
+    base_url: str, headers: Dict[str, str], flow_id: str, payload: Dict[str, Any] | None = None
 ) -> Dict[str, Any]:
     """Run flow by id."""
     try:
@@ -90,7 +92,7 @@ class ActivepiecesProvider(SkillProvider):
     version = "1.0.0"
     description = "Activepieces flows as skills (one per flow)"
 
-    def __init__(self, config: Dict[str, Any] = None) -> None:
+    def __init__(self, config: Dict[str, Any] | None = None) -> None:
         super().__init__(config or {})
         self._base_url = self.config.get("base_url") or os.getenv(
             "ACTIVEPIECES_BASE_URL", DEFAULT_ACTIVEPIECES_URL
@@ -145,7 +147,7 @@ class ActivepiecesProvider(SkillProvider):
             self.is_available = False
             return True
 
-    async def execute(self, task: str, context: Dict[str, Any] = None) -> ProviderResult:
+    async def execute(self, task: str, context: Dict[str, Any] | None = None) -> ProviderResult:
         start = time.time()
         context = context or {}
         flow_id = context.get("flow_id") or context.get("skill_id")

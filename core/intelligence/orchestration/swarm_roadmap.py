@@ -17,6 +17,8 @@ Aristotle: "Understanding WHY enables prediction"
 Shannon: "Efficient state compression maximizes information"
 """
 
+from __future__ import annotations
+
 import hashlib
 import json
 import logging
@@ -153,7 +155,7 @@ class AgenticState:
         observation: str,
         reward: float,
         context_summary: str = "",
-        activated_memories: List[str] = None,
+        activated_memories: List[str] | None = None,
     ) -> Any:
         """Add a step to the trajectory."""
         step = TrajectoryStep(
@@ -297,7 +299,7 @@ class DecomposedQFunction:
     Dr. Manning: "Different objectives require different value estimates"
     """
 
-    def __init__(self, config: Dict = None) -> None:
+    def __init__(self, config: Dict | None = None) -> None:
         self.config = config or {}
 
         # Separate Q-tables for each objective
@@ -325,7 +327,7 @@ class DecomposedQFunction:
             "safety": self.config.get("alpha_safety", 0.03),
         }
 
-    def get_q_value(self, state: AgenticState, action: str, objective: str = None) -> float:
+    def get_q_value(self, state: AgenticState, action: str, objective: str | None = None) -> float:
         """Get Q-value for state-action pair."""
         state_key = state.to_key()
         key = (state_key, action)
@@ -518,7 +520,7 @@ class SubtaskState:
         self.attempts += 1
         logger.info(f"▶ Task {self.task_id} STARTED (attempt {self.attempts}/{self.max_attempts})")
 
-    def complete(self, result: Dict = None) -> None:
+    def complete(self, result: Dict | None = None) -> None:
         """Mark task as completed."""
         self.status = TaskStatus.COMPLETED
         self.completed_at = datetime.now()
@@ -591,7 +593,7 @@ class SwarmTaskBoard:
         task_id: str,
         description: str,
         actor: str = "",
-        depends_on: List[str] = None,
+        depends_on: List[str] | None = None,
         estimated_duration: float = 60.0,
         priority: float = 1.0,
         max_attempts: int = 3,
@@ -769,7 +771,7 @@ class SwarmTaskBoard:
             self.subtasks[task_id].start()
             self.current_task_id = task_id
 
-    def complete_task(self, task_id: str, result: Dict = None) -> None:
+    def complete_task(self, task_id: str, result: Dict | None = None) -> None:
         """Mark task as completed."""
         if task_id in self.subtasks:
             self.subtasks[task_id].complete(result)
@@ -1094,7 +1096,7 @@ class ThoughtLevelCredit:
     Dr. Chen: "CoT steps should get individual credit"
     """
 
-    def __init__(self, config: Dict = None) -> None:
+    def __init__(self, config: Dict | None = None) -> None:
         self.config = config or {}
         self.temporal_weight = self.config.get("temporal_weight", 0.3)
         self.tool_weight = self.config.get("tool_weight", 0.4)
@@ -1107,7 +1109,7 @@ class ThoughtLevelCredit:
         reasoning_trace: List[str],
         tool_calls: List[Dict],
         outcome: float,
-        trajectory: List[TrajectoryStep] = None,
+        trajectory: List[TrajectoryStep] | None = None,
     ) -> Dict[int, float]:
         """
         Assign credit to each step in reasoning trace.
@@ -1316,7 +1318,7 @@ class StateCheckpointer:
 
         return state, q_function, todo
 
-    def list_checkpoints(self, episode_id: str = None) -> List[Dict]:
+    def list_checkpoints(self, episode_id: str | None = None) -> List[Dict]:
         """List available checkpoints."""
         checkpoints = []
         for cp_file in self.checkpoint_dir.glob("*.json"):
@@ -1337,7 +1339,7 @@ class StateCheckpointer:
 
         return sorted(checkpoints, key=lambda x: x["timestamp"], reverse=True)
 
-    def get_latest_checkpoint(self, episode_id: str = None) -> Optional[str]:
+    def get_latest_checkpoint(self, episode_id: str | None = None) -> Optional[str]:
         """Get ID of most recent checkpoint."""
         checkpoints = self.list_checkpoints(episode_id)
         return checkpoints[0]["checkpoint_id"] if checkpoints else None

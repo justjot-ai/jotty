@@ -9,7 +9,7 @@ Formats text output for different platforms (markdown, emoji, etc.).
 class TextFormatter:
     """Format text output for different platforms."""
 
-    def __init__(self, platform: str = "generic"):
+    def __init__(self, platform: str = "generic") -> None:
         """
         Initialize formatter for specific platform.
 

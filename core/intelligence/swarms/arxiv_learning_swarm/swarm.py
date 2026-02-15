@@ -1,5 +1,7 @@
 """ArXiv Learning Swarm - Main swarm orchestrator."""
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import re
@@ -101,17 +103,17 @@ class ArxivLearningSwarm(SwarmTemplate):
         logger.info(f" Optimization mode set to: {mode}")
 
     async def _execute_domain(
-        self, paper_id: str = None, topic: str = None, **kwargs: Any
+        self, paper_id: str | None = None, topic: str | None = None, **kwargs: Any
     ) -> ArxivLearningResult:
         """Execute learning content generation."""
         return await self.learn(paper_id=paper_id, topic=topic, **kwargs)
 
     async def learn(
         self,
-        paper_id: str = None,
-        topic: str = None,
+        paper_id: str | None = None,
+        topic: str | None = None,
         depth: LearningDepth = None,
-        send_telegram: bool = None,
+        send_telegram: bool | None = None,
     ) -> ArxivLearningResult:
         """
         Create learning content from an ArXiv paper.
@@ -1475,7 +1477,10 @@ class ArxivLearningSwarm(SwarmTemplate):
 
 
 async def learn_paper(
-    paper_id: str = None, topic: str = None, depth: str = "standard", send_telegram: bool = False
+    paper_id: str | None = None,
+    topic: str | None = None,
+    depth: str = "standard",
+    send_telegram: bool = False,
 ) -> ArxivLearningResult:
     """
     One-liner paper learning.
@@ -1501,7 +1506,10 @@ async def learn_paper(
 
 
 def learn_paper_sync(
-    paper_id: str = None, topic: str = None, depth: str = "standard", send_telegram: bool = False
+    paper_id: str | None = None,
+    topic: str | None = None,
+    depth: str = "standard",
+    send_telegram: bool = False,
 ) -> ArxivLearningResult:
     """Synchronous paper learning."""
     return asyncio.run(

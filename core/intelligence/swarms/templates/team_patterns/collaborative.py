@@ -12,7 +12,7 @@ class CollaborativeTemplate(SwarmLearning):
     AGENT_TEAM = TeamCoordinator.define(pattern=CoordinationPattern.BLACKBOARD)
     TEMPLATE_NAME = "collaborative_team"
 
-    def __init__(self, config: SwarmBaseConfig = None):
+    def __init__(self, config: SwarmBaseConfig = None) -> None:
         super().__init__(
             config or SwarmBaseConfig(name="CollaborativeTeam", domain="collaboration")
         )

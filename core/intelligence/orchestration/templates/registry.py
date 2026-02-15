@@ -23,6 +23,8 @@ Usage:
     TemplateRegistry.register(MyCustomTemplate)
 """
 
+from __future__ import annotations
+
 import logging
 from typing import Any, Dict, List, Type
 
@@ -49,7 +51,7 @@ class TemplateRegistry:
     _initialized: bool = False
 
     @classmethod
-    def register(cls, template_class: Type[SwarmTemplate], name: str = None) -> None:
+    def register(cls, template_class: Type[SwarmTemplate], name: str | None = None) -> None:
         """
         Register a template class.
 

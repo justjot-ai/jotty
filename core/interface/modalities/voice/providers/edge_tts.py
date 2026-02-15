@@ -158,7 +158,9 @@ class EdgeTTSProvider:
             logger.error(f"Edge TTS streaming error: {e}", exc_info=True)
             raise
 
-    async def speech_to_text(self, audio_path: str, language: Optional[str] = None):
+    async def speech_to_text(
+        self, audio_path: str, language: Optional[str] = None
+    ) -> dict[str, Any]:
         """Edge TTS doesn't provide STT."""
         return {
             "success": False,

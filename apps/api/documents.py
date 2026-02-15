@@ -53,7 +53,7 @@ class RAGConfig:
         chunk_size: int = DEFAULT_CHUNK_SIZE,
         overlap: int = DEFAULT_OVERLAP,
         embedding_model: str = DEFAULT_EMBEDDING_MODEL,
-    ):
+    ) -> None:
         self.chunk_size = chunk_size
         self.overlap = overlap
         self.embedding_model = embedding_model
@@ -87,7 +87,7 @@ class DocumentProcessor:
     Supports configurable chunking and embedding parameters via RAGConfig.
     """
 
-    def __init__(self, config: Optional[RAGConfig] = None):
+    def __init__(self, config: Optional[RAGConfig] = None) -> None:
         self._chroma_client = None
         self._collection = None
         self._embedding_model = None
@@ -110,7 +110,7 @@ class DocumentProcessor:
                 logger.warning(f"Failed to load RAG config: {e}")
         return RAGConfig()
 
-    def save_config(self):
+    def save_config(self) -> None:
         """Save current RAG config to disk."""
         config_file = JOTTY_DIR / "rag_config.json"
         try:
@@ -146,7 +146,7 @@ class DocumentProcessor:
                 logger.error(f"Failed to load docs index: {e}")
         return {"documents": {}, "folders": {}}
 
-    def _save_docs_index(self):
+    def _save_docs_index(self) -> None:
         """Save documents index to disk."""
         try:
             DOCS_INDEX_FILE.write_text(json.dumps(self._docs_index, indent=2, default=str))
@@ -154,7 +154,7 @@ class DocumentProcessor:
             logger.error(f"Failed to save docs index: {e}")
 
     @property
-    def chroma_client(self):
+    def chroma_client(self) -> Any:
         """Lazy-load ChromaDB client."""
         if self._chroma_client is None:
             try:
@@ -171,7 +171,7 @@ class DocumentProcessor:
         return self._chroma_client
 
     @property
-    def collection(self):
+    def collection(self) -> Any:
         """Get or create the documents collection."""
         if self._collection is None:
             self._collection = self.chroma_client.get_or_create_collection(
@@ -180,7 +180,7 @@ class DocumentProcessor:
         return self._collection
 
     @property
-    def embedding_model(self):
+    def embedding_model(self) -> Any:
         """Lazy-load sentence-transformers model based on config."""
         # Reload if model changed
         if (

@@ -410,7 +410,7 @@ Reasoning: {result.reasoning[:500]}
         return result.to_dict()
 
     async def validate(
-        self, goal: str, inputs: Dict[str, Any], trajectory: List[Dict] = None
+        self, goal: str, inputs: Dict[str, Any], trajectory: List[Dict] | None = None
     ) -> ValidationResult:
         """
         Run validation.
@@ -507,7 +507,7 @@ Reasoning: {result.reasoning[:500]}
 
 
 def create_validation_agent(
-    signature: Type = None,
+    signature: Type | None = None,
     is_pre_validation: bool = True,
     model: str = "",
 ) -> ValidationAgent:

@@ -10,7 +10,7 @@ class OlympiadLearningTemplate(SwarmLearning):
     AGENT_TEAM = TeamCoordinator.define(pattern=CoordinationPattern.AUTO)
     TEMPLATE_NAME = "olympiad_learning"
 
-    def __init__(self, config: SwarmBaseConfig = None):
+    def __init__(self, config: SwarmBaseConfig = None) -> None:
         super().__init__(config or SwarmBaseConfig(name="OlympiadLearning", domain="education"))
 
     async def execute(self, **kwargs) -> SwarmResult:

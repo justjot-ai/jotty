@@ -5,6 +5,8 @@ Extracted from SwarmIntelligence for modularity.
 These are mixed into SwarmIntelligence at class definition.
 """
 
+from __future__ import annotations
+
 import logging
 import time
 from collections import defaultdict
@@ -28,7 +30,7 @@ class ResilienceMixin:
         agent: str,
         task_type: str,
         error_type: str = "unknown",
-        context: Dict = None,
+        context: Dict | None = None,
     ) -> Optional[str]:
         """
         Record task failure and auto-reassign to different agent.
@@ -72,7 +74,7 @@ class ResilienceMixin:
 
         return new_agent
 
-    def get_failure_rate(self, agent: str, task_type: str = None) -> float:
+    def get_failure_rate(self, agent: str, task_type: str | None = None) -> float:
         """Get failure rate for an agent (optionally for specific task type)."""
         profile = self.agent_profiles.get(agent)
         if not profile:
@@ -148,7 +150,7 @@ class ResilienceMixin:
         # half-open - allow one test
         return True
 
-    def get_available_agents(self, agents: List[str] = None) -> List[str]:
+    def get_available_agents(self, agents: List[str] | None = None) -> List[str]:
         """Get agents with closed or half-open circuits."""
         agents = agents or list(self.agent_profiles.keys())
         return [a for a in agents if self.check_circuit(a)]
@@ -206,7 +208,11 @@ class ResilienceMixin:
     # =========================================================================
 
     def byzantine_vote(
-        self, question: str, options: List[str], voters: List[str] = None, threshold: float = 0.67
+        self,
+        question: str,
+        options: List[str],
+        voters: List[str] | None = None,
+        threshold: float = 0.67,
     ) -> Dict[str, Any]:
         """
         Byzantine fault-tolerant voting.

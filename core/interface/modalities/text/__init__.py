@@ -31,7 +31,7 @@ class TextModality:
     Provides unified interface for text input/output across platforms.
     """
 
-    def __init__(self, platform: str = "generic"):
+    def __init__(self, platform: str = "generic") -> None:
         """
         Initialize text modality.
 

@@ -6,6 +6,8 @@ Manages CLI session state, history, and context.
 Supports cross-interface sync for CLI, Telegram, and Web UI.
 """
 
+from __future__ import annotations
+
 import json
 import logging
 import secrets
@@ -468,7 +470,7 @@ class SessionManager:
         messages = self.conversation_history[-self.context_window :]
         return [{"role": m.role, "content": m.content} for m in messages]
 
-    def get_history(self, limit: int = None) -> List[Dict[str, Any]]:
+    def get_history(self, limit: int | None = None) -> List[Dict[str, Any]]:
         """
         Get conversation history.
 
@@ -677,7 +679,7 @@ class SessionManager:
             return False
         return datetime.now() > self.expires_at
 
-    def set_temporary(self, is_temp: bool, expiry_days: int = None) -> Any:
+    def set_temporary(self, is_temp: bool, expiry_days: int | None = None) -> Any:
         """
         Set or unset temporary mode for this session.
 
@@ -693,7 +695,7 @@ class SessionManager:
             self.expires_at = None
 
     @classmethod
-    def cleanup_expired_sessions(cls, session_dir: str = None) -> List[str]:
+    def cleanup_expired_sessions(cls, session_dir: str | None = None) -> List[str]:
         """
         Remove expired temporary sessions from disk.
 
@@ -916,7 +918,7 @@ class SessionManager:
 
         return True
 
-    def get_context_for_branch(self, branch_id: str = None) -> List[Dict[str, str]]:
+    def get_context_for_branch(self, branch_id: str | None = None) -> List[Dict[str, str]]:
         """
         Get context window for a specific branch.
 

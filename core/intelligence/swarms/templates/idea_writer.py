@@ -10,7 +10,7 @@ class IdeaWriterTemplate(SwarmLearning):
     AGENT_TEAM = TeamCoordinator.define(pattern=CoordinationPattern.AUTO)
     TEMPLATE_NAME = "idea_writer"
 
-    def __init__(self, config: SwarmBaseConfig = None):
+    def __init__(self, config: SwarmBaseConfig = None) -> None:
         super().__init__(config or SwarmBaseConfig(name="IdeaWriter", domain="writing"))
 
     async def execute(self, **kwargs) -> SwarmResult:

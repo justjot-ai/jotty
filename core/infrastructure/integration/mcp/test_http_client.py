@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Minimal MCP HTTP/SSE client: one GET /sse, read endpoint then POST initialize + tools/list; responses arrive on SSE."""
+
 import asyncio
 import json
 import sys
@@ -15,7 +16,7 @@ BASE = "http://127.0.0.1:8767"
 TOKEN = None
 
 
-async def main():
+async def main() -> None:
     headers = {"Accept": "text/event-stream"}
     if TOKEN:
         headers["Authorization"] = f"Bearer {TOKEN}"
@@ -28,7 +29,7 @@ async def main():
 
     async with httpx.AsyncClient(timeout=30.0) as client:
 
-        async def read_sse():
+        async def read_sse() -> None:
             nonlocal session_id
             async with client.stream("GET", f"{BASE}/sse", headers=headers) as resp:
                 if resp.status_code != 200:

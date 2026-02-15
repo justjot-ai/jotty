@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any
 
 """
@@ -63,7 +65,7 @@ from typing import Dict, List, Optional, Type
 
 import dspy
 
-from Jotty.core.modes.agent.base import SwarmLearningAgent
+from Jotty.core.modes.agent.agents.swarm_agent import SwarmLearningAgent
 
 from .base import SwarmTemplate, TeamCoordinator, _split_field
 from .swarm_learning import AgentRole, SwarmBaseConfig, SwarmResult, register_swarm
@@ -835,7 +837,7 @@ class IdeaWriterSwarm(SwarmTemplate):
         super().__init__(config or WriterConfig())
 
     async def write(
-        self, topic: str, sections: List[str] = None, custom_outline: Outline = None
+        self, topic: str, sections: List[str] | None = None, custom_outline: Outline = None
     ) -> WriterResult:
         """
         Write content on a topic.
@@ -851,7 +853,11 @@ class IdeaWriterSwarm(SwarmTemplate):
         return await self.execute(topic, sections=sections, custom_outline=custom_outline)
 
     async def _execute_domain(
-        self, topic: str, sections: List[str] = None, custom_outline: Outline = None, **kwargs: Any
+        self,
+        topic: str,
+        sections: List[str] | None = None,
+        custom_outline: Outline = None,
+        **kwargs: Any,
     ) -> WriterResult:
         """
         Domain-specific content writing logic.

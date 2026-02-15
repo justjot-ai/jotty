@@ -5,6 +5,8 @@ Git Command
 Git integration for repository operations.
 """
 
+from __future__ import annotations
+
 import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -68,7 +70,7 @@ class GitCommand(BaseCommand):
         else:
             return await self._git_status(cli)
 
-    def _run_git(self, args: list, cwd: Path = None) -> tuple:
+    def _run_git(self, args: list, cwd: Path | None = None) -> tuple:
         """Run git command."""
         try:
             result = subprocess.run(
@@ -405,7 +407,7 @@ class GitCommand(BaseCommand):
         cli.renderer.info("Changes are still staged. Modify and re-commit as needed.")
         return CommandResult.ok(data={"undone": commit_msg})
 
-    async def _git_auto_commit(self, cli: "JottyCLI", message: str = None) -> CommandResult:
+    async def _git_auto_commit(self, cli: "JottyCLI", message: str | None = None) -> CommandResult:
         """Stage all changes and commit with [AI] prefix and Jotty AI author."""
         # Check for changes
         success, stdout, stderr = self._run_git(["status", "--porcelain"])

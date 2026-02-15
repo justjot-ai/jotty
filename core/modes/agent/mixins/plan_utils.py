@@ -1,5 +1,7 @@
 """TaskPlanner Plan Utils Mixin - Tool schema, param building, fallbacks, metadata."""
 
+from __future__ import annotations
+
 import json
 import logging
 import re
@@ -81,7 +83,7 @@ class PlanUtilsMixin:
         skill_name: str,
         task: str,
         prev_output_key: Optional[str] = None,
-        tool_name: str = None,
+        tool_name: str | None = None,
     ) -> Dict[str, Any]:
         """Build params for a skill by looking up its tool schema from registry."""
         params = {}

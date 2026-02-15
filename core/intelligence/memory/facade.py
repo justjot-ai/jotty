@@ -111,7 +111,7 @@ def get_consolidator(config: Any = None) -> "SharpWaveRippleConsolidator":
 
 
 def get_rag_retriever(
-    config: Optional[Union["MemoryConfig", "SwarmConfig"]] = None
+    config: Optional[Union["MemoryConfig", "SwarmConfig"]] = None,
 ) -> "LLMRAGRetriever":
     """
     Return an LLMRAGRetriever for LLM-powered retrieval-augmented generation.

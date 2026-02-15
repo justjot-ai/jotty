@@ -10,7 +10,7 @@ class FundamentalTemplate(SwarmLearning):
     AGENT_TEAM = TeamCoordinator.define(pattern=CoordinationPattern.AUTO)
     TEMPLATE_NAME = "fundamental"
 
-    def __init__(self, config: SwarmBaseConfig = None):
+    def __init__(self, config: SwarmBaseConfig = None) -> None:
         super().__init__(config or SwarmBaseConfig(name="Fundamental", domain="fundamental"))
 
     async def execute(self, **kwargs) -> SwarmResult:

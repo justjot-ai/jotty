@@ -13,6 +13,8 @@ Agent types:
 - Multi-round refinement loop
 """
 
+from __future__ import annotations
+
 import asyncio
 import json
 import logging
@@ -1005,7 +1007,7 @@ Auditor Required Outputs:
         return missing
 
     def _parse_result(
-        self, result: Any, round: ValidationRound, start_time: float, inputs: Dict = None
+        self, result: Any, round: ValidationRound, start_time: float, inputs: Dict | None = None
     ) -> ValidationResult:
         """Parse DSPy result into ValidationResult with all fields for memory/RL/reflection."""
         if inputs is None:

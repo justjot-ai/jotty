@@ -6,6 +6,8 @@ Extracted from swarm_intelligence.py — handles MorphAgent-inspired
 profile optimization (RCS, RDS, TRAS scoring).
 """
 
+from __future__ import annotations
+
 import logging
 import time
 from typing import Any, Dict
@@ -20,7 +22,7 @@ class MorphMixin:
     """Mixin for MorphAgent scoring and profile optimization."""
 
     def compute_morph_scores(
-        self, task: str = None, task_type: str = None
+        self, task: str | None = None, task_type: str | None = None
     ) -> Dict[str, MorphScores]:
         """
         Compute MorphAgent scores (RCS/RDS/TRAS) for all agents.

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any
 
 """
@@ -22,7 +24,7 @@ class JottyClaudeProviderAdapter:
             self._lm = self.jotty_provider.configure_dspy()
         return self._lm
 
-    def call(self, messages: list, tools: list = None, **kwargs: Any) -> dict:
+    def call(self, messages: list, tools: list | None = None, **kwargs: Any) -> dict:
         """Make LLM call using JottyClaudeProvider."""
         # Convert messages to prompt for DSPy
         lm = self._get_lm()

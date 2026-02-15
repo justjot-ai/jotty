@@ -1,5 +1,7 @@
 """SwarmMemory mixin — consolidation, serialization, and statistics."""
 
+from __future__ import annotations
+
 import hashlib
 import json
 import logging
@@ -60,7 +62,7 @@ class ConsolidationMixin:
     # CONSOLIDATION
     # =========================================================================
 
-    async def consolidate(self, episodes: List[StoredEpisode] = None) -> Any:
+    async def consolidate(self, episodes: List[StoredEpisode] | None = None) -> Any:
         """
         Run consolidation to extract higher-level knowledge.
 
@@ -380,7 +382,7 @@ CONDITIONS: {', '.join(causal_link.conditions) if causal_link.conditions else 'N
     # PROTECTION
     # =========================================================================
 
-    def protect_high_value(self, threshold: float = None) -> None:
+    def protect_high_value(self, threshold: float | None = None) -> None:
         """Mark high-value memories as protected."""
         threshold = threshold or self.config.protected_memory_threshold
 
@@ -567,7 +569,7 @@ CONDITIONS: {', '.join(causal_link.conditions) if causal_link.conditions else 'N
         }
         return stats
 
-    def get_consolidated_knowledge(self, goal: str = None, max_items: int = 10) -> str:
+    def get_consolidated_knowledge(self, goal: str | None = None, max_items: int = 10) -> str:
         """
         Get consolidated knowledge to inject into prompts.
 

@@ -6,6 +6,8 @@ Swarm-based learning, stock profiling, config pattern analysis,
 and Q-learning for stock ML optimization.
 """
 
+from __future__ import annotations
+
 import json
 import warnings
 from pathlib import Path
@@ -868,7 +870,7 @@ class StockMLQLearner:
 
         return max(0.0, min(1.0, reward))
 
-    def update(self, state: str, action: str, reward: float, next_state: str = None) -> Any:
+    def update(self, state: str, action: str, reward: float, next_state: str | None = None) -> Any:
         """
         Update Q-value using Q-learning update rule.
 

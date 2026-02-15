@@ -6,6 +6,8 @@ Combines multiple providers for complex multi-step tasks.
 Uses swarm intelligence to coordinate and learn.
 """
 
+from __future__ import annotations
+
 import logging
 import time
 from dataclasses import dataclass
@@ -43,7 +45,7 @@ class ResearchAndAnalyzeProvider(SkillProvider):
     version = "1.0.0"
     description = "Composite provider for research and analysis tasks"
 
-    def __init__(self, config: Dict[str, Any] = None) -> None:
+    def __init__(self, config: Dict[str, Any] | None = None) -> None:
         super().__init__(config)
 
         self.capabilities = [
@@ -79,7 +81,7 @@ class ResearchAndAnalyzeProvider(SkillProvider):
     def get_categories(self) -> List[SkillCategory]:
         return [SkillCategory.WEB_SEARCH, SkillCategory.DATA_EXTRACTION]
 
-    async def execute(self, task: str, context: Dict[str, Any] = None) -> ProviderResult:
+    async def execute(self, task: str, context: Dict[str, Any] | None = None) -> ProviderResult:
         """Execute composite research task."""
         start_time = time.time()
         context = context or {}
@@ -158,7 +160,7 @@ class AutomateWorkflowProvider(SkillProvider):
     version = "1.0.0"
     description = "Composite provider for multi-step automation"
 
-    def __init__(self, config: Dict[str, Any] = None) -> None:
+    def __init__(self, config: Dict[str, Any] | None = None) -> None:
         super().__init__(config)
 
         self.capabilities = [
@@ -188,7 +190,7 @@ class AutomateWorkflowProvider(SkillProvider):
     def get_categories(self) -> List[SkillCategory]:
         return [SkillCategory.TERMINAL, SkillCategory.BROWSER]
 
-    async def execute(self, task: str, context: Dict[str, Any] = None) -> ProviderResult:
+    async def execute(self, task: str, context: Dict[str, Any] | None = None) -> ProviderResult:
         """Execute multi-step automation workflow with dependency awareness."""
         start_time = time.time()
         context = context or {}
@@ -323,7 +325,7 @@ class FullStackAgentProvider(SkillProvider):
     version = "1.0.0"
     description = "Full-stack agent using all available providers"
 
-    def __init__(self, config: Dict[str, Any] = None) -> None:
+    def __init__(self, config: Dict[str, Any] | None = None) -> None:
         super().__init__(config)
 
         self.capabilities = [
@@ -353,7 +355,7 @@ class FullStackAgentProvider(SkillProvider):
     def get_categories(self) -> List[SkillCategory]:
         return list(SkillCategory)
 
-    async def execute(self, task: str, context: Dict[str, Any] = None) -> ProviderResult:
+    async def execute(self, task: str, context: Dict[str, Any] | None = None) -> ProviderResult:
         """Execute using best available providers with learning."""
         start_time = time.time()
         context = context or {}

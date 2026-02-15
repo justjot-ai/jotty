@@ -1,5 +1,7 @@
 """Research Swarm - Agent implementations."""
 
+from __future__ import annotations
+
 import asyncio
 import json
 import logging
@@ -7,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from Jotty.core.modes.agent.base import SwarmLearningAgent
+from Jotty.core.modes.agent.agents.swarm_agent import SwarmLearningAgent
 
 logger = logging.getLogger(__name__)
 
@@ -20,15 +22,37 @@ class DataFetcherAgent(SwarmLearningAgent):
         self._fetcher = None
 
     async def fetch(self, ticker: str, exchange: str = "NSE") -> Dict[str, Any]:
-        """Fetch financial data."""
+        """Fetch financial data using yfinance."""
         try:
-            from Jotty.core.capabilities.skills.research.data_fetcher import ResearchDataFetcher
+            import yfinance as yf
 
-            if not self._fetcher:
-                self._fetcher = ResearchDataFetcher()
+            # Get ticker data
+            stock = yf.Ticker(ticker)
+            info = stock.info
 
-            data = await self._fetcher.fetch_company_data(ticker, exchange)
-            data["sources"] = data.get("sources", [])
+            # Extract key financial data
+            data = {
+                "ticker": ticker,
+                "company_name": info.get("longName") or info.get("shortName") or ticker,
+                "current_price": info.get("currentPrice") or info.get("regularMarketPrice") or 0,
+                "target_mean_price": info.get("targetMeanPrice") or 0,
+                "target_low_price": info.get("targetLowPrice") or 0,
+                "target_high_price": info.get("targetHighPrice") or 0,
+                "sector": info.get("sector") or "Unknown",
+                "industry": info.get("industry") or "Unknown",
+                "market_cap": info.get("marketCap") or 0,
+                "pe_ratio": info.get("trailingPE") or 0,
+                "pb_ratio": info.get("priceToBook") or 0,
+                "revenue_growth": info.get("revenueGrowth") or 0,
+                "profit_margin": info.get("profitMargins") or 0,
+                "num_analysts": info.get("numberOfAnalystOpinions") or 0,
+                "price_history": (
+                    stock.history(period="1y").to_dict("records")
+                    if hasattr(stock, "history")
+                    else []
+                ),
+                "sources": ["Yahoo Finance"],
+            }
 
             self._broadcast(
                 "data_fetched", {"ticker": ticker, "has_data": bool(data.get("current_price"))}
@@ -37,7 +61,14 @@ class DataFetcherAgent(SwarmLearningAgent):
             return data
         except Exception as e:
             logger.error(f"DataFetcherAgent error: {e}")
-            return {"error": str(e), "sources": []}
+            return {"error": str(e), "sources": [], "ticker": ticker, "company_name": ticker}
+
+    async def _execute_impl(self, **kwargs) -> Dict[str, Any]:
+        """Execute data fetching (called by BaseAgent.execute())."""
+        context = kwargs.get("context") or {}
+        ticker = context.get("ticker") or kwargs.get("ticker") or "UNKNOWN"
+        exchange = context.get("exchange") or kwargs.get("exchange") or "US"
+        return await self.fetch(ticker, exchange)
 
 
 class WebSearchAgent(SwarmLearningAgent):
@@ -172,6 +203,13 @@ class WebSearchAgent(SwarmLearningAgent):
             logger.error(f"WebSearchAgent.search_topic error: {e}")
             return {"news_text": "", "news_count": 0, "news_items": []}
 
+    async def _execute_impl(self, **kwargs) -> Dict[str, Any]:
+        """Execute web search (called by BaseAgent.execute())."""
+        context = kwargs.get("context") or {}
+        ticker = context.get("ticker") or kwargs.get("ticker") or "UNKNOWN"
+        max_results = kwargs.get("max_results") or 25
+        return await self.search(ticker, max_results)
+
 
 class SentimentAgent(SwarmLearningAgent):
     """Analyzes sentiment from news."""
@@ -252,6 +290,25 @@ class SentimentAgent(SwarmLearningAgent):
             label = "NEUTRAL"
 
         return {"sentiment_score": score, "sentiment_label": label, "key_themes": []}
+
+    async def _execute_impl(self, **kwargs) -> Dict[str, Any]:
+        """Execute sentiment analysis (called by BaseAgent.execute())."""
+        context = kwargs.get("context") or {}
+        company = (
+            context.get("company_name")
+            or context.get("ticker")
+            or kwargs.get("company")
+            or "UNKNOWN"
+        )
+
+        # Get news from context or kwargs
+        news_text = ""
+        if "_web_searcher" in context:
+            web_data = context.get("_web_searcher") or {}
+            news_text = web_data.get("news_text", "")
+        news_text = news_text or kwargs.get("news_text") or ""
+
+        return await self.analyze(company, news_text)
 
 
 class LLMAnalysisAgent(SwarmLearningAgent):
@@ -356,6 +413,25 @@ class LLMAnalysisAgent(SwarmLearningAgent):
             "reasoning": f"Quantitative score: {score}/100",
         }
 
+    async def _execute_impl(self, **kwargs) -> Dict[str, Any]:
+        """Execute LLM analysis (called by BaseAgent.execute())."""
+        context = kwargs.get("context") or {}
+
+        # Get financial data from context
+        data = {}
+        if "_data_fetcher" in context:
+            data = context.get("_data_fetcher") or {}
+        data = data or kwargs.get("data") or {}
+
+        # Get news from context
+        news_text = ""
+        if "_web_searcher" in context:
+            web_data = context.get("_web_searcher") or {}
+            news_text = web_data.get("news_text", "")
+        news_text = news_text or kwargs.get("news_text") or ""
+
+        return await self.analyze(data, news_text)
+
 
 class PeerComparisonAgent(SwarmLearningAgent):
     """Compares stock with sector peers."""
@@ -392,20 +468,25 @@ class PeerComparisonAgent(SwarmLearningAgent):
 
             # Fetch peer data
             if not self._fetcher:
-                from Jotty.core.capabilities.skills.research.data_fetcher import ResearchDataFetcher
-
-                self._fetcher = ResearchDataFetcher()
+                # Use yfinance directly (same as DataFetcherAgent)
+                pass  # Will use yfinance in the loop below
 
             peer_data = {}
             for peer in cleaned_peers:
                 try:
-                    data = await self._fetcher.fetch_company_data(peer, exchange)
-                    if data.get("current_price"):
+                    # Use yfinance directly
+                    import yfinance as yf
+
+                    stock = yf.Ticker(peer)
+                    info = stock.info
+                    current_price = info.get("currentPrice") or info.get("regularMarketPrice") or 0
+
+                    if current_price:
                         peer_data[peer] = {
-                            "price": data.get("current_price", 0),
-                            "pe": data.get("pe_ratio", 0),
-                            "pb": data.get("pb_ratio", 0),
-                            "market_cap": data.get("market_cap", 0),
+                            "price": current_price,
+                            "pe": info.get("trailingPE") or 0,
+                            "pb": info.get("priceToBook") or 0,
+                            "market_cap": info.get("marketCap") or 0,
                         }
                 except Exception:
                     pass
@@ -457,6 +538,23 @@ class PeerComparisonAgent(SwarmLearningAgent):
         exchange_type = "US" if exchange.upper() in ("US", "NYSE", "NASDAQ") else "NSE"
         sector_peers = SECTOR_PEERS.get(sector, {}).get(exchange_type, [])
         return [p for p in sector_peers if p != ticker][:5]
+
+    async def _execute_impl(self, **kwargs) -> Dict[str, Any]:
+        """Execute peer comparison (called by BaseAgent.execute())."""
+        context = kwargs.get("context") or {}
+        ticker = context.get("ticker") or kwargs.get("ticker") or "UNKNOWN"
+        exchange = context.get("exchange") or kwargs.get("exchange") or "US"
+
+        # Get financial data from context
+        financial_data = {}
+        if "_data_fetcher" in context:
+            financial_data = context.get("_data_fetcher") or {}
+        financial_data = financial_data or kwargs.get("data") or {}
+
+        sector = financial_data.get("sector") or "Unknown"
+        industry = financial_data.get("industry") or "Unknown"
+
+        return await self.compare(ticker, sector, industry, exchange)
 
 
 class ChartGeneratorAgent(SwarmLearningAgent):
@@ -547,6 +645,19 @@ class ChartGeneratorAgent(SwarmLearningAgent):
         """Calculate simple moving average."""
         return [sum(data[i : i + window]) / window for i in range(len(data) - window + 1)]
 
+    async def _execute_impl(self, **kwargs) -> Dict[str, Any]:
+        """Execute chart generation (called by BaseAgent.execute())."""
+        context = kwargs.get("context") or {}
+        ticker = context.get("ticker") or kwargs.get("ticker") or "UNKNOWN"
+
+        # Get data from context
+        data = {}
+        if "_data_fetcher" in context:
+            data = context.get("_data_fetcher") or {}
+        data = data or kwargs.get("data") or {}
+
+        return await self.generate(ticker, data)
+
 
 class TechnicalAnalysisAgent(SwarmLearningAgent):
     """
@@ -562,7 +673,7 @@ class TechnicalAnalysisAgent(SwarmLearningAgent):
         context: Any = None,
         bus: Any = None,
         llm_module: Any = None,
-        data_path: str = None,
+        data_path: str | None = None,
     ) -> None:
         super().__init__(memory, context, bus)
         self._llm = llm_module
@@ -576,13 +687,13 @@ class TechnicalAnalysisAgent(SwarmLearningAgent):
 
                 registry = get_skills_registry()
                 registry.init()
-                skill = registry.get_skill("technical-analysis")
+                skill = registry.get_skill("analyzing-technicals")
                 self._skill_tool = skill.tools.get("technical_analysis_tool") if skill else None
             except Exception:
                 self._skill_tool = None
         return self._skill_tool
 
-    async def analyze(self, ticker: str, timeframes: List[str] = None) -> Dict[str, Any]:
+    async def analyze(self, ticker: str, timeframes: List[str] | None = None) -> Dict[str, Any]:
         """
         Analyze ticker across multiple timeframes.
 
@@ -609,7 +720,7 @@ class TechnicalAnalysisAgent(SwarmLearningAgent):
             else:
                 result = self._empty_result(ticker)
         else:
-            logger.warning("technical-analysis skill not available, returning empty result")
+            logger.warning("technical-analysis not available, returning empty result")
             result = self._empty_result(ticker)
 
         # Optional LLM summary (agent-specific, not in skill)
@@ -659,6 +770,14 @@ class TechnicalAnalysisAgent(SwarmLearningAgent):
             "summary": {},
         }
 
+    async def _execute_impl(self, **kwargs) -> Dict[str, Any]:
+        """Execute technical analysis (called by BaseAgent.execute())."""
+        context = kwargs.get("context") or {}
+        ticker = context.get("ticker") or kwargs.get("ticker") or "UNKNOWN"
+        timeframes = kwargs.get("timeframes") or ["1d", "1wk"]
+
+        return await self.analyze(ticker, timeframes)
+
 
 class EnhancedChartGeneratorAgent(SwarmLearningAgent):
     """
@@ -680,8 +799,8 @@ class EnhancedChartGeneratorAgent(SwarmLearningAgent):
         ticker: str,
         data: Dict[str, Any],
         output_dir: str,
-        timeframes: List[str] = None,
-        technical_data: Dict[str, Any] = None,
+        timeframes: List[str] | None = None,
+        technical_data: Dict[str, Any] | None = None,
         include_heiken_ashi: bool = False,
     ) -> Dict[str, Any]:
         """Generate professional multi-panel charts."""
@@ -1166,6 +1285,31 @@ class EnhancedChartGeneratorAgent(SwarmLearningAgent):
             logger.error(f"Basic chart error: {e}")
             return None
 
+    async def _execute_impl(self, **kwargs) -> Dict[str, Any]:
+        """Execute enhanced chart generation (called by BaseAgent.execute())."""
+        context = kwargs.get("context") or {}
+        ticker = context.get("ticker") or kwargs.get("ticker") or "UNKNOWN"
+
+        # Get data from context
+        financial_data = {}
+        if "_data_fetcher" in context:
+            financial_data = context.get("_data_fetcher") or {}
+        financial_data = financial_data or kwargs.get("data") or {}
+
+        # Get technical data from context
+        technical_data = {}
+        if "_technical_analyzer" in context:
+            technical_data = context.get("_technical_analyzer") or {}
+        technical_data = technical_data or kwargs.get("technical_data") or {}
+
+        output_dir = kwargs.get("output_dir") or "output/charts"
+        timeframes = kwargs.get("timeframes") or ["1d", "1wk"]
+        include_heiken_ashi = kwargs.get("include_heiken_ashi") or False
+
+        return await self.generate(
+            ticker, financial_data, output_dir, timeframes, technical_data, include_heiken_ashi
+        )
+
 
 class ScreenerAgent(SwarmLearningAgent):
     """
@@ -1191,7 +1335,7 @@ class ScreenerAgent(SwarmLearningAgent):
 
             registry = get_skills_registry()
             registry.init()
-            skill = registry.get_skill("screener-financials")
+            skill = registry.get_skill("screening-financials")
             if skill is None:
                 raise ImportError("screener-financials skill not registered")
 
@@ -1255,6 +1399,12 @@ class ScreenerAgent(SwarmLearningAgent):
         except Exception as e:
             logger.debug(f"Fallback fetch failed: {e}")
         return result
+
+    async def _execute_impl(self, **kwargs) -> Dict[str, Any]:
+        """Execute screener (called by BaseAgent.execute())."""
+        context = kwargs.get("context") or {}
+        ticker = context.get("ticker") or kwargs.get("ticker") or "UNKNOWN"
+        return await self.fetch(ticker)
 
 
 class SocialSentimentAgent(SwarmLearningAgent):
@@ -1432,6 +1582,27 @@ class SocialSentimentAgent(SwarmLearningAgent):
             },
         }
 
+    async def _execute_impl(self, **kwargs) -> Dict[str, Any]:
+        """Execute social sentiment analysis (called by BaseAgent.execute())."""
+        context = kwargs.get("context") or {}
+        company = (
+            context.get("company_name")
+            or context.get("ticker")
+            or kwargs.get("company")
+            or "UNKNOWN"
+        )
+
+        # Get news from context
+        news_text = ""
+        if "_web_searcher" in context:
+            web_data = context.get("_web_searcher") or {}
+            news_text = web_data.get("news_text", "")
+        news_text = news_text or kwargs.get("news_text") or ""
+
+        forum_text = kwargs.get("forum_text") or ""
+
+        return await self.analyze(company, news_text, forum_text)
+
 
 class ReportGeneratorAgent(SwarmLearningAgent):
     """Generates final report and handles output."""
@@ -1449,10 +1620,16 @@ class ReportGeneratorAgent(SwarmLearningAgent):
     ) -> Dict[str, Any]:
         """Generate comprehensive report."""
         try:
-            # Use enhanced research tool for professional report
-            from Jotty.core.capabilities.skills.research.enhanced_research import (
-                enhanced_stock_research_tool,
+            # Import from stock-research-comprehensive skill
+            import sys
+            from pathlib import Path
+
+            skill_path = Path(
+                "/var/www/sites/personal/stock_market/Jotty/skills/stock-research-comprehensive"
             )
+            if str(skill_path) not in sys.path:
+                sys.path.insert(0, str(skill_path))
+            from enhanced_research import enhanced_stock_research_tool
 
             params = {
                 "ticker": ticker,
@@ -1477,7 +1654,47 @@ class ReportGeneratorAgent(SwarmLearningAgent):
             logger.error(f"Report generation error: {e}")
             return {"success": False, "error": str(e)}
 
+    # =============================================================================
+    # CONVENIENCE FUNCTIONS
+    # =============================================================================
 
-# =============================================================================
-# CONVENIENCE FUNCTIONS
-# =============================================================================
+    async def _execute_impl(self, **kwargs) -> Dict[str, Any]:
+        """Execute report generation (called by BaseAgent.execute())."""
+        context = kwargs.get("context") or {}
+        ticker = context.get("ticker") or kwargs.get("ticker") or "UNKNOWN"
+
+        # Get all data from context - use proper names matching generate() signature
+        financial_data = {}
+        if "_data_fetcher" in context:
+            financial_data = context.get("_data_fetcher") or {}
+
+        llm_analysis = {}
+        if "_llm_analyzer" in context:
+            llm_analysis = context.get("_llm_analyzer") or {}
+
+        sentiment_data = {}
+        if "_sentiment_analyzer" in context:
+            sentiment_data = context.get("_sentiment_analyzer") or {}
+
+        peer_data = {}
+        if "_peer_comparator" in context:
+            peer_data = context.get("_peer_comparator") or {}
+
+        chart_data = {}
+        if "_chart_generator" in context:
+            chart_data = context.get("_chart_generator") or {}
+        chart_paths = chart_data.get("chart_paths", []) if isinstance(chart_data, dict) else []
+
+        output_dir = kwargs.get("output_dir") or "output/reports"
+        send_telegram = context.get("send_telegram", False)
+
+        return await self.generate(
+            ticker,
+            financial_data,
+            llm_analysis,
+            sentiment_data,
+            peer_data,
+            chart_paths,
+            output_dir,
+            send_telegram,
+        )

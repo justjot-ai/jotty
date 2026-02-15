@@ -31,7 +31,7 @@ from Jotty.core.infrastructure.foundation.types.execution_types import (
     MergeStrategy,
 )
 
-from .base_agent import AgentResult, AgentRuntimeConfig, BaseAgent
+from ..base.base_agent import AgentResult, AgentRuntimeConfig, BaseAgent
 
 if TYPE_CHECKING:
     from Jotty.core.intelligence.swarms.base.domain_swarm import SwarmTemplate

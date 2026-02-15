@@ -105,7 +105,7 @@ class CodeInterpreter:
         "from http",
     ]
 
-    def __init__(self, timeout: int = 30, max_output: int = 50000, use_docker: bool = True):
+    def __init__(self, timeout: int = 30, max_output: int = 50000, use_docker: bool = True) -> None:
         """
         Initialize code interpreter.
 

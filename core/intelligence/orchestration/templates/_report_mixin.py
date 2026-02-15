@@ -120,7 +120,9 @@ class ReportMixin:
         }
         self._report_data["sections"].append(profile)
 
-    def add_feature_importance(self, importance: Dict[str, float], top_n: int = None) -> None:
+    def add_feature_importance(
+        self, importance: Dict[str, float], top_n: int | None = None
+    ) -> None:
         """Add feature importance section to report."""
         if not self._report_available or not self._report_config.include_feature_importance:
             return
@@ -321,7 +323,7 @@ class ReportMixin:
         }
         self._report_data["sections"].append(section)
 
-    def generate_report(self, filename: str = None) -> Optional[str]:
+    def generate_report(self, filename: str | None = None) -> Optional[str]:
         """
         Generate the final PDF report.
 

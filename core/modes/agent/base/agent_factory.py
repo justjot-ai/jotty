@@ -19,6 +19,8 @@ Inspired by:
 All decisions made by LLM agents, not heuristics.
 """
 
+from __future__ import annotations
+
 import asyncio
 import json
 import logging
@@ -282,7 +284,7 @@ class PatternDetector:
 
         logger.info(" PatternDetector initialized (NO keyword matching)")
 
-    async def detect(self, text: str, patterns: List[str] = None) -> Dict[str, bool]:
+    async def detect(self, text: str, patterns: List[str] | None = None) -> Dict[str, bool]:
         """
         Detect patterns in text using LLM understanding.
 

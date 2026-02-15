@@ -143,7 +143,7 @@ class ChatStateMachine:
         ChatState.ERROR: [ChatState.IDLE],
     }
 
-    def __init__(self, initial_state: ChatState = ChatState.IDLE):
+    def __init__(self, initial_state: ChatState = ChatState.IDLE) -> None:
         """Initialize state machine."""
         self.context = StateContext(state=initial_state)
         self._callbacks: Dict[ChatState, list] = {}

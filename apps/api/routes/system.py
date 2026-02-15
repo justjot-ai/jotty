@@ -5,12 +5,12 @@ System routes - health, capabilities, models, agents, providers, commands, featu
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, List, Optional
 
 logger = logging.getLogger(__name__)
 
 
-def register_system_routes(app, api):
+def register_system_routes(app, api) -> Any:
     from fastapi import HTTPException
     from fastapi.responses import FileResponse
     from pydantic import BaseModel
@@ -18,7 +18,7 @@ def register_system_routes(app, api):
     static_dir = Path(__file__).parent / "static"
 
     @app.get("/")
-    async def root():
+    async def root() -> Any:
         """Serve chat UI."""
         index_file = static_dir / "index.html"
         if index_file.exists():
@@ -26,7 +26,7 @@ def register_system_routes(app, api):
         return {"message": "Jotty API", "docs": "/docs"}
 
     @app.get("/health")
-    async def health():
+    async def health() -> dict[str, Any]:
         """Health check."""
         return {"status": "ok", "timestamp": datetime.now().isoformat()}
 
@@ -35,7 +35,7 @@ def register_system_routes(app, api):
     # ==========================================================================
 
     @app.get("/api/widgets")
-    async def get_widgets():
+    async def get_widgets() -> Any:
         """Get all widgets from unified registry."""
         try:
             from Jotty.core.capabilities.registry.unified_registry import get_unified_registry
@@ -47,7 +47,7 @@ def register_system_routes(app, api):
             return {"widgets": [], "categories": []}
 
     @app.get("/api/tools")
-    async def get_tools():
+    async def get_tools() -> Any:
         """Get all tools from unified registry."""
         try:
             from Jotty.core.capabilities.registry.unified_registry import get_unified_registry
@@ -58,7 +58,7 @@ def register_system_routes(app, api):
             return {"tools": [], "categories": []}
 
     @app.get("/api/capabilities")
-    async def get_capabilities():
+    async def get_capabilities() -> dict[str, Any]:
         """Get unified tools + widgets + defaults (DRY single source of truth)."""
         # Fallback widgets and tools when registry is empty
         fallback_widgets = [
@@ -151,7 +151,7 @@ def register_system_routes(app, api):
             }
 
     @app.get("/api/agents")
-    async def list_agents():
+    async def list_agents() -> dict[str, Any]:
         """Get agents from skills registry."""
         try:
             from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
@@ -193,7 +193,7 @@ def register_system_routes(app, api):
             }
 
     @app.get("/api/providers")
-    async def list_providers():
+    async def list_providers() -> dict[str, Any]:
         """Get LM providers status with detailed model info."""
         import os
         import shutil
@@ -386,7 +386,7 @@ def register_system_routes(app, api):
         }
 
     @app.get("/api/models")
-    async def list_models():
+    async def list_models() -> dict[str, Any]:
         """Get flat list of all available models for model selector."""
         providers_response = await list_providers()
         providers = providers_response.get("providers", {})
@@ -426,7 +426,7 @@ def register_system_routes(app, api):
         model: str
 
     @app.post("/api/models/set")
-    async def set_model(request: SetModelRequest):
+    async def set_model(request: SetModelRequest) -> dict[str, Any]:
         """Set the active LLM model by storing preference (avoids DSPy threading issues)."""
         try:
             # Store model preference - will be used when creating LLM instances
@@ -460,7 +460,7 @@ def register_system_routes(app, api):
         session_id: Optional[str] = None
 
     @app.post("/api/agents/swarm")
-    async def execute_swarm(request: SwarmRequest):
+    async def execute_swarm(request: SwarmRequest) -> dict[str, Any]:
         """Execute multi-agent swarm."""
         try:
             from Jotty.core.intelligence.orchestration import Orchestrator
@@ -485,7 +485,7 @@ def register_system_routes(app, api):
 
     # CLI Commands endpoints
     @app.get("/api/features")
-    async def get_feature_flags():
+    async def get_feature_flags() -> dict[str, Any]:
         """Get feature flags for UI capabilities."""
         return {
             "features": {
@@ -505,14 +505,14 @@ def register_system_routes(app, api):
     # Speech-to-Text, Text-to-Speech, and Voice-to-Voice pipelines
 
     @app.get("/static/style.css")
-    async def get_css():
+    async def get_css() -> Any:
         css_file = static_dir / "style.css"
         if css_file.exists():
             return FileResponse(css_file, media_type="text/css")
         raise HTTPException(status_code=404, detail="CSS not found")
 
     @app.get("/static/app.js")
-    async def get_js():
+    async def get_js() -> Any:
         js_file = static_dir / "app.js"
         if js_file.exists():
             return FileResponse(js_file, media_type="application/javascript")

@@ -12,6 +12,8 @@ Usage:
     print(result['response'])
 """
 
+from __future__ import annotations
+
 import json
 import logging
 import re
@@ -179,7 +181,7 @@ class ModelChatAgent:
 
         self._initialized = True
 
-    async def chat(self, query: str, context: Dict = None) -> Dict[str, Any]:
+    async def chat(self, query: str, context: Dict | None = None) -> Dict[str, Any]:
         """
         Handle natural language query about models.
 

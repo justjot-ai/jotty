@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any
 
 """
@@ -58,7 +60,7 @@ from typing import Dict, List, Optional
 
 import dspy
 
-from Jotty.core.modes.agent.base import SwarmLearningAgent
+from Jotty.core.modes.agent.agents.swarm_agent import SwarmLearningAgent
 
 from .base import SwarmTemplate, TeamCoordinator, _split_field
 from .swarm_learning import AgentRole, SwarmBaseConfig, SwarmResult, register_swarm
@@ -666,7 +668,7 @@ class DevOpsSwarm(SwarmTemplate):
         language: str = "python",
         requirements: str = "",
         scale: str = "medium",
-        compliance: List[str] = None,
+        compliance: List[str] | None = None,
     ) -> DevOpsResult:
         """
         Design complete infrastructure.

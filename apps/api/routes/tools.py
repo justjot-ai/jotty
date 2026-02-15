@@ -4,17 +4,17 @@ Tool routes - export, preview, proxy, MCP, code execution, web search.
 
 import asyncio
 import logging
-from typing import Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
 
-def register_tools_routes(app, api):
+def register_tools_routes(app, api) -> Any:
     from fastapi import HTTPException
     from pydantic import BaseModel
 
     @app.post("/api/export")
-    async def export_content(request: dict):
+    async def export_content(request: dict) -> Any:
         """
         Export content to various formats.
 
@@ -77,7 +77,7 @@ def register_tools_routes(app, api):
             raise HTTPException(status_code=500, detail=str(e))
 
     @app.post("/api/preview")
-    async def preview_content(request: dict):
+    async def preview_content(request: dict) -> Any:
         """
         Preview content in various formats (returns HTML/text for inline display).
 
@@ -158,7 +158,7 @@ def register_tools_routes(app, api):
     # ===== VOICE CHAT ENDPOINTS =====
 
     @app.get("/api/proxy")
-    async def proxy_url(url: str):
+    async def proxy_url(url: str) -> Any:
         """
         Proxy a URL and strip headers that prevent iframe embedding.
 
@@ -253,7 +253,7 @@ def register_tools_routes(app, api):
     # ===== MCP TOOLS ENDPOINTS =====
 
     @app.get("/api/mcp/tools")
-    async def list_mcp_tools():
+    async def list_mcp_tools() -> dict[str, Any]:
         """List available MCP tools with enable/disable status."""
         try:
             from Jotty.core.infrastructure.integration.mcp_client import MCPClient
@@ -312,7 +312,7 @@ def register_tools_routes(app, api):
         arguments: dict = {}
 
     @app.post("/api/mcp/execute")
-    async def execute_mcp_tool(request: MCPExecuteRequest):
+    async def execute_mcp_tool(request: MCPExecuteRequest) -> dict[str, Any]:
         """Execute an MCP tool and return result."""
         import time
 
@@ -345,7 +345,7 @@ def register_tools_routes(app, api):
     # ===== ARTIFACTS ENDPOINTS =====
 
     @app.post("/api/artifacts/extract")
-    async def extract_artifacts(request: dict):
+    async def extract_artifacts(request: dict) -> dict[str, Any]:
         """Extract artifacts (code blocks, diagrams, etc.) from text."""
         from .artifacts import extract_artifacts as do_extract
 
@@ -357,7 +357,7 @@ def register_tools_routes(app, api):
         return {"artifacts": artifacts, "count": len(artifacts)}
 
     @app.post("/api/artifacts/render")
-    async def render_artifact(request: dict):
+    async def render_artifact(request: dict) -> dict[str, Any]:
         """
         Render an artifact to displayable format.
 
@@ -402,7 +402,7 @@ def register_tools_routes(app, api):
         timeout: int = 30
 
     @app.post("/api/code/execute")
-    async def execute_code(request: CodeExecuteRequest):
+    async def execute_code(request: CodeExecuteRequest) -> Any:
         """Execute code in sandboxed environment."""
         from .code_interpreter import execute_code as do_execute
 
@@ -414,7 +414,7 @@ def register_tools_routes(app, api):
 
     @app.get("/api/code/execute/stream")
     @app.get("/api/code/languages")
-    async def list_code_languages():
+    async def list_code_languages() -> dict[str, Any]:
         """List supported programming languages for code execution."""
         return {
             "languages": [
@@ -432,7 +432,7 @@ def register_tools_routes(app, api):
         max_results: int = 10
 
     @app.post("/api/search")
-    async def web_search(request: WebSearchRequest):
+    async def web_search(request: WebSearchRequest) -> Any:
         """
         Search the web using the existing web-search skill (DuckDuckGo).
 
@@ -463,7 +463,7 @@ def register_tools_routes(app, api):
             raise HTTPException(status_code=500, detail=str(e))
 
     @app.get("/api/search")
-    async def web_search_get(query: str, max_results: int = 10):
+    async def web_search_get(query: str, max_results: int = 10) -> Any:
         """GET endpoint for web search using existing skill."""
         try:
             import sys

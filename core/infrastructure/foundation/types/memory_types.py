@@ -7,6 +7,8 @@ memory entries, goal hierarchies, and causal knowledge.
 Extracted from data_structures.py for better organization.
 """
 
+from __future__ import annotations
+
 import hashlib
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -91,8 +93,8 @@ class GoalHierarchy:
         goal_text: str,
         domain: str = "general",
         operation_type: str = "query",
-        entities: List[str] = None,
-        parent_id: str = None,
+        entities: List[str] | None = None,
+        parent_id: str | None = None,
     ) -> str:
         """Add a new goal, auto-detecting hierarchy position."""
         goal_id = hashlib.md5(goal_text.encode()).hexdigest()

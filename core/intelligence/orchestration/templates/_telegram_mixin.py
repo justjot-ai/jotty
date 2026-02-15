@@ -58,7 +58,7 @@ class TelegramMixin:
         logger.info("Telegram notifications initialized")
 
     def send_telegram_report(
-        self, report_path: str, results: Dict[str, Any] = None, caption: str = None
+        self, report_path: str, results: Dict[str, Any] | None = None, caption: str | None = None
     ) -> bool:
         """
         Send the PDF report to Telegram.
@@ -160,7 +160,7 @@ class TelegramMixin:
             logger.error(f"Telegram message failed: {e}")
             return False
 
-    def _build_telegram_caption(self, results: Dict[str, Any] = None) -> str:
+    def _build_telegram_caption(self, results: Dict[str, Any] | None = None) -> str:
         """Build caption for Telegram message."""
         lines = [
             "<b> ML Analysis Report</b>",

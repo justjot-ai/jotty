@@ -12,6 +12,8 @@ Includes tool-awareness (Agent0) and memory integration.
 Extracted from swarm_intelligence.py for modularity.
 """
 
+from __future__ import annotations
+
 import logging
 import time
 from collections import defaultdict
@@ -377,7 +379,7 @@ class CurriculumGenerator:
         success: bool,
         tools_used: List[str],
         execution_time: float = 0.0,
-        error_type: str = None,
+        error_type: str | None = None,
     ) -> Any:
         """
         Agent0: Receive feedback from executor to adapt curriculum.
@@ -441,7 +443,7 @@ class CurriculumGenerator:
         except Exception as e:
             logger.debug(f"Could not sync tool stats: {e}")
 
-    def _query_memory_for_weaknesses(self, target_agent: str = None) -> List[str]:
+    def _query_memory_for_weaknesses(self, target_agent: str | None = None) -> List[str]:
         """
         Agent0: Query memory for patterns where agent struggled.
 

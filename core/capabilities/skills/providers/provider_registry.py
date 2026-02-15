@@ -8,6 +8,8 @@ using swarm intelligence (Q-learning, stigmergy, adaptive weights).
 Includes sandbox integration for secure execution of untrusted providers.
 """
 
+from __future__ import annotations
+
 import hashlib
 import json
 import logging
@@ -68,7 +70,7 @@ class ProviderPerformance:
     def avg_execution_time(self) -> float:
         return self.total_execution_time / max(1, self.total_calls)
 
-    def update(self, success: bool, execution_time: float, reward: float = None) -> None:
+    def update(self, success: bool, execution_time: float, reward: float | None = None) -> None:
         """Update metrics after execution."""
         self.total_calls += 1
         self.total_execution_time += execution_time
@@ -140,7 +142,7 @@ class ProviderSelector:
         category: SkillCategory,
         task: str,
         available_providers: List[SkillProvider],
-        context: Dict[str, Any] = None,
+        context: Dict[str, Any] | None = None,
     ) -> SkillProvider:
         """
         Select the best provider for a task.
@@ -192,7 +194,7 @@ class ProviderSelector:
         provider: SkillProvider,
         category: SkillCategory,
         task_hash: str,
-        context: Dict[str, Any] = None,
+        context: Dict[str, Any] | None = None,
     ) -> float:
         """Calculate score for a provider."""
         key = (category.value, task_hash)
@@ -620,7 +622,7 @@ class ProviderRegistry:
         return max(scores, key=scores.get)
 
     def get_provider_for_task(
-        self, task: str, context: Dict[str, Any] = None
+        self, task: str, context: Dict[str, Any] | None = None
     ) -> Optional[SkillProvider]:
         """
         Auto-detect category and get best provider for a task.
@@ -647,7 +649,9 @@ class ProviderRegistry:
         logger.warning(f"Could not detect category for task: {task[:50]}...")
         return self._providers.get("jotty")  # Fallback
 
-    async def auto_execute(self, task: str, context: Dict[str, Any] = None) -> "ProviderResult":
+    async def auto_execute(
+        self, task: str, context: Dict[str, Any] | None = None
+    ) -> "ProviderResult":
         """
         Autonomously detect category, select provider, and execute task.
 
@@ -675,7 +679,7 @@ class ProviderRegistry:
         return await self.execute(category, task, context)
 
     def get_best_provider(
-        self, category: SkillCategory, task: str, context: Dict[str, Any] = None
+        self, category: SkillCategory, task: str, context: Dict[str, Any] | None = None
     ) -> SkillProvider:
         """
         Get the best provider for a task using learned selection.
@@ -701,8 +705,8 @@ class ProviderRegistry:
         self,
         category: SkillCategory,
         task: str,
-        context: Dict[str, Any] = None,
-        provider_name: str = None,
+        context: Dict[str, Any] | None = None,
+        provider_name: str | None = None,
         force_sandbox: bool = False,
     ) -> ProviderResult:
         """

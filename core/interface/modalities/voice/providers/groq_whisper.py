@@ -19,7 +19,7 @@ class GroqWhisperProvider:
 
     name = "groq_whisper"
 
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: Optional[str] = None) -> None:
         self.api_key = api_key or os.getenv("GROQ_API_KEY")
 
     async def speech_to_text(
@@ -113,7 +113,7 @@ Do NOT skip or filter out any sounds."""
 
     async def text_to_speech(
         self, text: str, voice_id: Optional[str] = None, output_path: Optional[str] = None
-    ):
+    ) -> dict[str, Any]:
         """Groq doesn't provide TTS."""
         return {
             "success": False,
@@ -122,6 +122,6 @@ Do NOT skip or filter out any sounds."""
 
     async def stream_speech(
         self, text: str, voice_id: Optional[str] = None, chunk_size: int = 1024
-    ):
+    ) -> None:
         """Groq doesn't provide TTS streaming."""
         raise NotImplementedError("Groq does not provide TTS")

@@ -6,6 +6,8 @@ Includes provider adapter generation for auto-discovered packages.
 Follows DRY: Reuses existing code templates and patterns.
 """
 
+from __future__ import annotations
+
 import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
@@ -913,8 +915,8 @@ print(result)
         page_name: str,
         workflows: List[str],
         components: List[Dict[str, Any]],
-        title: str = None,
-        description: str = None,
+        title: str | None = None,
+        description: str | None = None,
     ) -> GeneratedCode:
         """
         Generate an MDX page for Morph.

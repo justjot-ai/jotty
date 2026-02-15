@@ -13,6 +13,8 @@ Capabilities:
 - Natural language to code conversion
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import time
@@ -47,7 +49,7 @@ class OpenInterpreterProvider(SkillProvider):
     version = "0.4.0"
     description = "Natural language code execution via Open Interpreter"
 
-    def __init__(self, config: Dict[str, Any] = None) -> None:
+    def __init__(self, config: Dict[str, Any] | None = None) -> None:
         super().__init__(config)
 
         self.capabilities = [
@@ -114,7 +116,7 @@ class OpenInterpreterProvider(SkillProvider):
             SkillCategory.DATA_EXTRACTION,
         ]
 
-    async def execute(self, task: str, context: Dict[str, Any] = None) -> ProviderResult:
+    async def execute(self, task: str, context: Dict[str, Any] | None = None) -> ProviderResult:
         """Execute code task via natural language."""
         start_time = time.time()
         context = context or {}

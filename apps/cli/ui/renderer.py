@@ -5,6 +5,8 @@ Rich Renderer for Jotty CLI
 Main rendering class using Rich library.
 """
 
+from __future__ import annotations
+
 import math
 import re
 import subprocess
@@ -826,7 +828,7 @@ class RichRenderer:
         self._console.print(tree)
         return tree
 
-    def _build_tree(self, parent: Any, data: Any, key: str = None) -> Any:
+    def _build_tree(self, parent: Any, data: Any, key: str | None = None) -> Any:
         """Recursively build tree."""
         if isinstance(data, dict):
             for k, v in data.items():
@@ -1019,7 +1021,7 @@ Multi-Agent AI Assistant v{version}
     # Claude Code-style Output Methods
     # =========================================================================
 
-    def task_start(self, task: str, explanation: str = None) -> Any:
+    def task_start(self, task: str, explanation: str | None = None) -> Any:
         """
         Show task start message like Claude Code.
 
@@ -1044,7 +1046,7 @@ Multi-Agent AI Assistant v{version}
         else:
             print(f"\n{count} steps")
 
-    def search_query(self, query: str, result_count: int = None) -> Any:
+    def search_query(self, query: str, result_count: int | None = None) -> Any:
         """
         Show search query with result count like Claude Code.
 
@@ -1098,7 +1100,7 @@ Multi-Agent AI Assistant v{version}
                 print(f"\n🔗 {title}")
                 print(f"   {domain}")
 
-    def reading_file(self, filepath: str, description: str = None) -> Any:
+    def reading_file(self, filepath: str, description: str | None = None) -> Any:
         """
         Show file reading operation like Claude Code.
 
@@ -1111,7 +1113,7 @@ Multi-Agent AI Assistant v{version}
         else:
             print(f"\n📄 {desc}")
 
-    def writing_file(self, filepath: str, description: str = None) -> Any:
+    def writing_file(self, filepath: str, description: str | None = None) -> Any:
         """
         Show file writing operation like Claude Code.
 
@@ -1176,7 +1178,9 @@ Multi-Agent AI Assistant v{version}
         else:
             print(f"{icon} Step {step_num}/{total}: {description}")
 
-    def tool_output(self, tool_name: str, output_path: str = None, summary: str = None) -> Any:
+    def tool_output(
+        self, tool_name: str, output_path: str | None = None, summary: str | None = None
+    ) -> Any:
         """
         Show tool output like Claude Code.
 

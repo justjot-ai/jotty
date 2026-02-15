@@ -13,6 +13,8 @@ Features:
 - Handle CJK, code, JSON specially
 """
 
+from __future__ import annotations
+
 import logging
 import re
 from functools import lru_cache
@@ -48,7 +50,7 @@ class SmartTokenizer:
         "whitespace_heavy": 5.0,  # Content with lots of whitespace
     }
 
-    def __init__(self, encoding_name: str = None) -> None:
+    def __init__(self, encoding_name: str | None = None) -> None:
         """
         Initialize tokenizer with specified encoding.
 
@@ -83,7 +85,7 @@ class SmartTokenizer:
             self._tiktoken_available = False
 
     @classmethod
-    def get_instance(cls, encoding_name: str = None) -> "SmartTokenizer":
+    def get_instance(cls, encoding_name: str | None = None) -> "SmartTokenizer":
         """
         Get singleton instance for the specified encoding.
 
@@ -290,7 +292,7 @@ class SmartTokenizer:
 
 
 @lru_cache(maxsize=1)
-def get_tokenizer(encoding: str = None) -> SmartTokenizer:
+def get_tokenizer(encoding: str | None = None) -> SmartTokenizer:
     """
     Get the default SmartTokenizer instance.
 
@@ -305,7 +307,7 @@ def get_tokenizer(encoding: str = None) -> SmartTokenizer:
     return SmartTokenizer.get_instance(encoding)
 
 
-def count_tokens(text: str, encoding: str = None) -> int:
+def count_tokens(text: str, encoding: str | None = None) -> int:
     """
     Count tokens in text.
 
@@ -321,7 +323,7 @@ def count_tokens(text: str, encoding: str = None) -> int:
     return get_tokenizer(encoding).count_tokens(text)
 
 
-def estimate_tokens(text: str, encoding: str = None) -> int:
+def estimate_tokens(text: str, encoding: str | None = None) -> int:
     """
     Alias for count_tokens for backward compatibility.
 

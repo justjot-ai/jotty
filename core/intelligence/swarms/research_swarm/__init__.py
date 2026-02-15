@@ -1,19 +1,31 @@
 """Research Swarm - Public API."""
 
-from .agents import SwarmLearningAgent  # noqa: F401
 from .agents import (
-    ChartGeneratorAgent,
-    ResearcherAgent,
-    SynthesizerAgent,
+    DataFetcherAgent,
+    EnhancedChartGeneratorAgent,
+    LLMAnalysisAgent,
+    PeerComparisonAgent,
+    ReportGeneratorAgent,
+    ScreenerAgent,
+    SentimentAgent,
+    SocialSentimentAgent,
+    TechnicalAnalysisAgent,
     WebSearchAgent,
 )
-from .swarm import ResearchSwarm
+from .swarm import ResearchSwarm, research, research_sync
 
 __all__ = [
     "ResearchSwarm",
-    "ResearcherAgent",
+    "DataFetcherAgent",
     "WebSearchAgent",
-    "SynthesizerAgent",
-    "ChartGeneratorAgent",
-    "SwarmLearningAgent",
+    "SentimentAgent",
+    "LLMAnalysisAgent",
+    "PeerComparisonAgent",
+    "EnhancedChartGeneratorAgent",
+    "ReportGeneratorAgent",
+    "TechnicalAnalysisAgent",
+    "ScreenerAgent",
+    "SocialSentimentAgent",
+    "research",
+    "research_sync",
 ]

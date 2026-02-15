@@ -5,6 +5,8 @@ Tools Command
 Execute skills directly as tools.
 """
 
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Any, Dict
 
 from .base import BaseCommand, CommandResult, ParsedArgs
@@ -38,7 +40,7 @@ class ToolsCommand(BaseCommand):
             tool_args = " ".join(args.positional[1:]) if len(args.positional) > 1 else ""
             return await self._execute_tool(tool_name, tool_args, args.flags, cli)
 
-    async def _list_tools(self, cli: "JottyCLI", category: str = None) -> CommandResult:
+    async def _list_tools(self, cli: "JottyCLI", category: str | None = None) -> CommandResult:
         """List available tools."""
         try:
             registry = cli.get_skills_registry()

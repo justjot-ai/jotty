@@ -6,6 +6,8 @@ Core temporal-difference learning:
 - GroupedValueBaseline: Task-type grouped baselines for variance reduction
 """
 
+from __future__ import annotations
+
 import hashlib
 import logging
 from datetime import datetime
@@ -87,7 +89,9 @@ class GroupedValueBaseline:
 
         logger.info("GroupedValueBaseline initialized (HRPO-inspired)")
 
-    def get_baseline(self, task_type: str, domain: str = None, action_type: str = None) -> float:
+    def get_baseline(
+        self, task_type: str, domain: str | None = None, action_type: str | None = None
+    ) -> float:
         """
         Get baseline value for a task type.
 
@@ -130,7 +134,11 @@ class GroupedValueBaseline:
         return 0.5
 
     def update_group(
-        self, task_type: str, reward: float, domain: str = None, action_type: str = None
+        self,
+        task_type: str,
+        reward: float,
+        domain: str | None = None,
+        action_type: str | None = None,
     ) -> Any:
         """
         Update group baseline from new sample.
@@ -264,7 +272,9 @@ class GroupedValueBaseline:
             old_weight = self.transfer_matrix[task_type].get(other_type, 0.0)
             self.transfer_matrix[task_type][other_type] = 0.9 * old_weight + 0.1 * similarity
 
-    def get_best_action_type(self, task_type: str, candidates: List[str] = None) -> Optional[str]:
+    def get_best_action_type(
+        self, task_type: str, candidates: List[str] | None = None
+    ) -> Optional[str]:
         """
         Get the best-performing action_type for a task_type.
 
@@ -785,7 +795,7 @@ class TDLambdaLearner:
         goal: str,
         final_reward: float,
         goal_hierarchy: Optional[GoalHierarchy] = None,
-        task_type: str = None,
+        task_type: str | None = None,
     ) -> List[Tuple[str, float, float]]:
         """
         Perform TD updates on SwarmMemory at episode end with HRPO baselines.

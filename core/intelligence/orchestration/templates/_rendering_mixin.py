@@ -432,22 +432,6 @@ window.addEventListener('scroll', () => {{
         muted_rgb = self._hex_to_rgb(t["muted"])
         table_alt_rgb = self._hex_to_rgb(t["table_alt"])
 
-        # Theme-specific LaTeX settings
-        if self.theme_name == "goldman":
-            # Goldman: serif, uppercase headers, minimal lines, cool gray bg
-            section_format = "\\\\titleformat{{\\\\section}}{{\\\\Large\\\\color{{Primary}}\\\\scshape}}{{\\\\thesection}}{{1em}}{{}}"
-            subsection_format = "\\\\titleformat{{\\\\subsection}}{{\\\\large\\\\color{{Secondary}}}}{{\\\\thesubsection}}{{1em}}{{}}"
-            _font_pkg = "\\\\usepackage{{charter}}"
-            _extra_packages = """  - \\\\usepackage{{titlesec}}
-  - {section_format}
-  - {subsection_format}""".format(
-                section_format=section_format, subsection_format=subsection_format
-            )
-        else:
-            # Professional: sans-serif, bold headers
-            _font_pkg = ""
-            _extra_packages = ""
-
         header_brand = t["header_brand"]
         footer_text = t["footer_text"]
 

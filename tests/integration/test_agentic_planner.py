@@ -38,14 +38,16 @@ except ImportError:
 # Try importing the module under test
 try:
     from Jotty.core.infrastructure.foundation.exceptions import AgentExecutionError
-    from Jotty.core.modes.agent._execution_types import ExecutionStep, TaskType
-    from Jotty.core.modes.agent.agentic_planner import DSPY_AVAILABLE as MODULE_DSPY_AVAILABLE
-    from Jotty.core.modes.agent.agentic_planner import (
+    from Jotty.core.modes.agent.planners.agentic_planner import (
+        DSPY_AVAILABLE as MODULE_DSPY_AVAILABLE,
+    )
+    from Jotty.core.modes.agent.planners.agentic_planner import (
         TaskPlan,
         TaskPlanner,
         _get_dspy,
         create_agentic_planner,
     )
+    from Jotty.core.modes.agent.types.execution_types import ExecutionStep, TaskType
 
     PLANNER_AVAILABLE = True
 except ImportError:

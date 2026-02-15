@@ -33,7 +33,7 @@ class DeploymentMixin:
         self,
         model: Any,
         X_sample: Any,
-        batch_sizes: List[int] = None,
+        batch_sizes: List[int] | None = None,
         latency_threshold_ms: float = 10.0,
         size_threshold_mb: float = 100.0,
     ) -> Any:

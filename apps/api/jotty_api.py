@@ -7,6 +7,8 @@ and folder management. Used by FastAPI routes in web/routes/.
 All execution flows through ModeRouter for consistent behavior.
 """
 
+from __future__ import annotations
+
 import logging
 import uuid
 from pathlib import Path
@@ -30,7 +32,7 @@ class JottyAPI:
     across CLI, Web, Gateway, and SDK.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._router: Optional[ModeRouter] = None
         self._registry = None
         self._cli = None  # Shared CLI instance for commands
@@ -42,7 +44,7 @@ class JottyAPI:
             self._router = get_mode_router()
         return self._router
 
-    def _get_cli(self):
+    def _get_cli(self) -> Any:
         """Get shared JottyCLI instance for command execution."""
         if self._cli is None:
             from Jotty.cli.app import JottyCLI
@@ -50,7 +52,7 @@ class JottyAPI:
             self._cli = JottyCLI(no_color=True)  # No color for web output
         return self._cli
 
-    def _get_session_registry(self):
+    def _get_session_registry(self) -> Any:
         """Get session registry."""
         if self._registry is None:
             from Jotty.cli.repl.session import get_session_registry
@@ -63,7 +65,7 @@ class JottyAPI:
     MAX_IMAGES_PER_REQUEST = 10
     ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
 
-    async def _execute_with_images(self, task: str, images: List[str], status_cb=None):
+    async def _execute_with_images(self, task: str, images: List[str], status_cb=None) -> Any:
         """
         Execute task with image attachments using multimodal LLM.
 
@@ -294,7 +296,7 @@ class JottyAPI:
         user_id: str = "web_user",
         stream_callback=None,
         status_callback=None,
-        attachments: List[Dict] = None,
+        attachments: List[Dict] | None = None,
     ) -> Dict[str, Any]:
         """
         Process a chat message with optional image attachments.
@@ -375,7 +377,7 @@ class JottyAPI:
         )
 
         # Wrap status callback to log + forward
-        def status_cb(stage, detail=""):
+        def status_cb(stage, detail="") -> None:
             logger.debug(f"Status: {stage} - {detail}")
             if status_callback:
                 try:
@@ -494,7 +496,7 @@ class JottyAPI:
         return commands
 
     async def execute_command(
-        self, command: str, args: str = "", session_id: str = None
+        self, command: str, args: str = "", session_id: str | None = None
     ) -> Dict[str, Any]:
         """
         Execute a CLI command using the shared JottyCLI instance.
@@ -513,7 +515,7 @@ class JottyAPI:
             original_print = cli.renderer.print
             captured_output = []
 
-            def capture_print(text, *args, **kwargs):
+            def capture_print(text, *args, **kwargs) -> None:
                 # Strip rich markup for web
                 import re
 
@@ -536,7 +538,7 @@ class JottyAPI:
             # Capture tree output
             original_tree = getattr(cli.renderer, "tree", None)
 
-            def capture_tree(data, **kwargs):
+            def capture_tree(data, **kwargs) -> None:
                 title = kwargs.get("title", "Data")
                 if isinstance(data, dict):
                     lines = [f"🌳 {title}:"]
@@ -551,7 +553,7 @@ class JottyAPI:
             # Capture table output - patch the tables component
             original_print_table = cli.renderer.tables.print_table
 
-            def capture_table(table):
+            def capture_table(table) -> None:
                 # Use Rich Console to render to string, then strip ANSI
                 try:
                     from io import StringIO

@@ -31,6 +31,8 @@ Usage:
     # Auto-consolidates here
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import time
@@ -543,7 +545,6 @@ import logging
 import math
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -706,7 +707,7 @@ class BrainInspiredMemoryManager:
             f"   Final: Hippocampus={len(self.hippocampus)}, Neocortex={len(self.neocortex)}"
         )
 
-    def get_consolidated_knowledge(self, query: str = None, max_items: int = 10) -> str:
+    def get_consolidated_knowledge(self, query: str | None = None, max_items: int = 10) -> str:
         """
         Get consolidated knowledge to inject into prompts.
 

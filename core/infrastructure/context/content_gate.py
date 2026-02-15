@@ -14,6 +14,8 @@ Key Insight: Chunking should be TRANSPARENT and UNIVERSAL.
 Not a separate tool called manually.
 """
 
+from __future__ import annotations
+
 import asyncio
 import json
 import logging
@@ -77,7 +79,7 @@ class RelevanceEstimator:
             self.estimator = None
 
     async def estimate_relevance(
-        self, chunk: ContextChunk, query: str, future_tasks: List[str] = None
+        self, chunk: ContextChunk, query: str, future_tasks: List[str] | None = None
     ) -> Tuple[float, str]:
         """
         Estimate relevance and extract key info.
@@ -211,7 +213,7 @@ class ContentGate:
         return ctx_utils.estimate_tokens(content)
 
     async def process(
-        self, content: str, query: str, future_tasks: List[str] = None
+        self, content: str, query: str, future_tasks: List[str] | None = None
     ) -> ProcessedContent:
         """
         Process content through the gate.
@@ -316,7 +318,7 @@ class ContentGate:
         ]
 
     def process_sync(
-        self, content: str, query: str, future_tasks: List[str] = None
+        self, content: str, query: str, future_tasks: List[str] | None = None
     ) -> ProcessedContent:
         """Synchronous version of process."""
         try:

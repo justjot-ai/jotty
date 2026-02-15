@@ -43,7 +43,7 @@ class FairnessMixin:
         y_pred: Any,
         y_prob: Any,
         sensitive_features: Dict[str, Any],
-        labels: List[str] = None,
+        labels: List[str] | None = None,
     ) -> Any:
         """
         Add fairness and bias audit for model predictions across sensitive groups.

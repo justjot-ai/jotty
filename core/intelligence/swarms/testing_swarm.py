@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any
 
 """
@@ -58,7 +60,7 @@ from typing import Dict, List, Optional
 
 import dspy
 
-from Jotty.core.modes.agent.base import SwarmLearningAgent
+from Jotty.core.modes.agent.agents.swarm_agent import SwarmLearningAgent
 
 from .base import SwarmTemplate, TeamCoordinator, _split_field
 from .swarm_learning import AgentRole, SwarmBaseConfig, SwarmResult, register_swarm
@@ -386,7 +388,7 @@ class UnitTestAgent(SwarmLearningAgent):
         self._generator = dspy.ChainOfThought(UnitTestSignature)
 
     async def generate(
-        self, code: str, unit: str, framework: str, mocks: List[str] = None
+        self, code: str, unit: str, framework: str, mocks: List[str] | None = None
     ) -> Dict[str, Any]:
         """Generate unit tests for a specific unit."""
         try:
@@ -472,7 +474,7 @@ class E2ETestAgent(SwarmLearningAgent):
         code: str,
         user_flow: str,
         framework: str = "playwright",
-        config: Dict[str, Any] = None,
+        config: Dict[str, Any] | None = None,
     ) -> Dict[str, Any]:
         """Generate E2E tests."""
         try:
@@ -618,7 +620,7 @@ class TestingSwarm(SwarmTemplate):
         super().__init__(config or TestingConfig())
 
     async def _execute_domain(
-        self, code: str, language: str = None, **kwargs: Any
+        self, code: str, language: str | None = None, **kwargs: Any
     ) -> TestingResult:
         """Execute test generation (called by SwarmTemplate.execute())."""
         return await self.generate_tests(code, language, **kwargs)
@@ -626,8 +628,8 @@ class TestingSwarm(SwarmTemplate):
     async def generate_tests(
         self,
         code: str,
-        language: str = None,
-        test_types: List[TestType] = None,
+        language: str | None = None,
+        test_types: List[TestType] | None = None,
         framework: TestFramework = None,
         **kwargs: Any,
     ) -> TestingResult:

@@ -11,6 +11,8 @@ consistently failing tools.
 Extracted from swarm_intelligence.py for modularity.
 """
 
+from __future__ import annotations
+
 import logging
 from typing import Any, Dict, List, Tuple
 
@@ -173,7 +175,7 @@ class ToolManager:
 
         return replacements
 
-    def get_active_tools(self, swarm_name: str, defaults: List[str] = None) -> List[str]:
+    def get_active_tools(self, swarm_name: str, defaults: List[str] | None = None) -> List[str]:
         """
         Return merged tool list: defaults + dynamic additions - deactivated.
 
@@ -190,7 +192,7 @@ class ToolManager:
         return list(active)
 
     def update_assignments(
-        self, swarm_name: str, add: List[str] = None, remove: List[str] = None
+        self, swarm_name: str, add: List[str] | None = None, remove: List[str] | None = None
     ) -> None:
         """
         Track tool additions/removals per swarm.

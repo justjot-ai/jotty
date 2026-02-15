@@ -15,6 +15,8 @@ Five levels:
 5. CAUSAL - Why things work (no decay) [NEW]
 """
 
+from __future__ import annotations
+
 import hashlib
 import json
 import logging
@@ -163,7 +165,7 @@ class SwarmMemory(RetrievalMixin, ConsolidationMixin):
         context: Dict[str, Any],
         goal: str,
         initial_value: float = 0.5,
-        causal_links: List[str] = None,
+        causal_links: List[str] | None = None,
         domain: Optional[str] = None,
         task_type: Optional[str] = None,
     ) -> MemoryEntry:

@@ -11,6 +11,8 @@ Usage:
     save_openapi_spec(spec, Path("sdk/openapi.json"))
 """
 
+from __future__ import annotations
+
 import json
 import logging
 from dataclasses import MISSING
@@ -24,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 def _python_type_to_openapi(
-    py_type: Any, enums_collected: Dict[str, list] = None
+    py_type: Any, enums_collected: Dict[str, list] | None = None
 ) -> Dict[str, Any]:
     """Convert a Python type annotation to OpenAPI schema."""
     origin = getattr(py_type, "__origin__", None)
@@ -72,7 +74,7 @@ def _python_type_to_openapi(
     return type_map.get(py_type, {"type": "object", "additionalProperties": True})
 
 
-def _dataclass_to_schema(cls, enums_collected: Dict[str, list] = None) -> Dict[str, Any]:
+def _dataclass_to_schema(cls, enums_collected: Dict[str, list] | None = None) -> Dict[str, Any]:
     """Convert a dataclass to OpenAPI schema, reading field types."""
     try:
         hints = get_type_hints(cls)
@@ -123,7 +125,7 @@ def generate_openapi_spec(
     title: str = "Jotty API",
     version: str = "2.0.0",
     description: str = "AI Agent Framework - Multi-agent orchestration API",
-    base_url: str = None,
+    base_url: str | None = None,
 ) -> Dict[str, Any]:
     """
     Generate OpenAPI 3.0 spec from sdk_types.py dataclasses.

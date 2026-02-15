@@ -20,7 +20,17 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
-from core.foundation.types.agent_types import AgentMessage, CommunicationType, SharedScratchpad
+try:
+    from Jotty.core.infrastructure.foundation.types.agent_types import (
+        AgentMessage,
+        CommunicationType,
+        SharedScratchpad,
+    )
+except ImportError:
+    # These types were removed; provide minimal stubs so the module loads.
+    AgentMessage = None  # type: ignore[assignment,misc]
+    CommunicationType = None  # type: ignore[assignment,misc]
+    SharedScratchpad = None  # type: ignore[assignment,misc]
 
 logger = logging.getLogger(__name__)
 

@@ -25,7 +25,7 @@ import os
 import re
 import tempfile
 from dataclasses import dataclass, field
-from typing import AsyncIterator, List, Optional, Tuple
+from typing import Any, AsyncIterator, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -184,7 +184,7 @@ class VoiceProcessor:
     - WebSocket streaming (WEBSOCKET_VOICE=1) - bidirectional audio
     """
 
-    def __init__(self, config: Optional[VoiceConfig] = None):
+    def __init__(self, config: Optional[VoiceConfig] = None) -> None:
         self.config = config or VoiceConfig()
         self._groq_client = None
         self._deepgram_client = None
@@ -209,8 +209,6 @@ class VoiceProcessor:
         # Apply onomatopoeia corrections (case-insensitive)
         for wrong, correct in ONOMATOPOEIA_CORRECTIONS.items():
             # Replace at word boundaries
-            import re
-
             pattern = re.compile(re.escape(wrong), re.IGNORECASE)
             result = pattern.sub(correct, result)
 
@@ -224,7 +222,7 @@ class VoiceProcessor:
         return result
 
     @property
-    def groq_client(self):
+    def groq_client(self) -> Any:
         """Lazy-load Groq client for Whisper STT."""
         if self._groq_client is None:
             api_key = os.environ.get("GROQ_API_KEY")
@@ -242,7 +240,7 @@ class VoiceProcessor:
         return self._groq_client
 
     @property
-    def deepgram_client(self):
+    def deepgram_client(self) -> Any:
         """Lazy-load Deepgram client (fallback)."""
         if self._deepgram_client is None:
             try:
@@ -258,7 +256,7 @@ class VoiceProcessor:
         return self._deepgram_client
 
     @property
-    def local_whisper_model(self):
+    def local_whisper_model(self) -> Any:
         """Lazy-load local faster-whisper model for lowest latency STT."""
         if self._local_whisper_model is None and self.config.use_local_whisper:
             try:
@@ -286,7 +284,7 @@ class VoiceProcessor:
         return self._local_whisper_model
 
     @staticmethod
-    def _check_cuda():
+    def _check_cuda() -> Any:
         """Check if CUDA is available."""
         try:
             import torch
@@ -361,7 +359,7 @@ class VoiceProcessor:
 
             try:
                 # Run transcription in thread pool to avoid blocking
-                def transcribe():
+                def transcribe() -> Any:
                     segments, info = model.transcribe(
                         temp_path,
                         language="en",

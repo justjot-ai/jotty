@@ -27,11 +27,11 @@ MIGRATION:
 This backward compatibility shim will be removed in a future release.
 """
 
-import sys
 import warnings
+from typing import Any
 
 
-def __getattr__(name):
+def __getattr__(name) -> Any:
     """
     Redirect imports to new location with deprecation warning.
 

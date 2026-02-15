@@ -5,6 +5,8 @@ Provides LLM-based Q-value prediction and experience management with
 NATURAL LANGUAGE Q-table for semantic generalization.
 """
 
+from __future__ import annotations
+
 import json
 import logging
 import random
@@ -111,7 +113,12 @@ class LLMQPredictor:
         )
 
     def add_experience(
-        self, state: Dict, action: Dict, reward: float, next_state: Dict = None, done: bool = False
+        self,
+        state: Dict,
+        action: Dict,
+        reward: float,
+        next_state: Dict | None = None,
+        done: bool = False,
     ) -> None:
         """
         Add experience to buffer AND update Q-table.
@@ -161,7 +168,12 @@ class LLMQPredictor:
         self._update_q_value(state_desc, action_desc, reward, next_state_desc, done)
 
     def record_outcome(
-        self, state: Dict, action: Any, reward: float, next_state: Dict = None, done: bool = False
+        self,
+        state: Dict,
+        action: Any,
+        reward: float,
+        next_state: Dict | None = None,
+        done: bool = False,
     ) -> None:
         """Record outcome - alias for add_experience() for backwards compat."""
         action_dict = action if isinstance(action, dict) else {"actor": str(action)}
@@ -572,7 +584,7 @@ class LLMQPredictor:
         state_desc: str,
         action_desc: str,
         reward: float,
-        next_state_desc: str = None,
+        next_state_desc: str | None = None,
         done: bool = False,
     ) -> Any:
         """
@@ -1107,7 +1119,7 @@ class LLMQPredictor:
                 return avg_reward, 0.3, None
             return 0.5, 0.1, None
 
-    def get_learned_context(self, state: Dict, action: Dict = None) -> str:
+    def get_learned_context(self, state: Dict, action: Dict | None = None) -> str:
         """
         Get learned context to inject into prompts.
 
@@ -1340,7 +1352,7 @@ class LLMQPredictor:
         # Clamp to [0, 1]
         return max(0.0, min(1.0, score))
 
-    def _promote_demote_memories(self, episode_reward: float = None) -> None:
+    def _promote_demote_memories(self, episode_reward: float | None = None) -> None:
         """
         Move memories between tiers based on retention scores.
 

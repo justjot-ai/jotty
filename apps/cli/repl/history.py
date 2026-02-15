@@ -5,6 +5,8 @@ History Manager
 Command history management with persistence.
 """
 
+from __future__ import annotations
+
 import logging
 from pathlib import Path
 from typing import Any, List, Optional
@@ -82,7 +84,7 @@ class HistoryManager:
         self._history.append(entry)
         self._save()
 
-    def get_entries(self, limit: int = None) -> List[str]:
+    def get_entries(self, limit: int | None = None) -> List[str]:
         """
         Get history entries.
 

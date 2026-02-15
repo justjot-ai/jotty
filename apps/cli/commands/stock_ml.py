@@ -21,6 +21,8 @@ Timeframes:
     day, 15minute, 30minute, 60minute, week
 """
 
+from __future__ import annotations
+
 import json
 import warnings
 from pathlib import Path
@@ -506,7 +508,7 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
         # Add fundamental features from Yahoo Finance if enabled
         if use_fundamentals:
             try:
-                import pandas as pd
+                import pandas as pd  # noqa: F811
 
                 from Jotty.core.capabilities.skills.ml import FundamentalFeaturesSkill
 
@@ -1141,7 +1143,7 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
             try:
                 from Jotty.core.capabilities.skills.ml import MLflowTrackerSkill
 
-                from .ml import MLCommand
+                from .ml import MLCommand  # noqa: F811
 
                 mlflow_tracker = MLflowTrackerSkill()
                 # Use stock_ml_{symbol} as experiment name for easy querying
@@ -1834,7 +1836,7 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
         if mlflow_tracker:
             run_info = await mlflow_tracker.end_run()
             if run_info:
-                from .ml import MLCommand
+                from .ml import MLCommand  # noqa: F811
 
                 auto_experiment_name = f"stock_ml_{symbol}"
                 MLCommand.save_mlflow_state(auto_experiment_name, run_info["run_id"])
@@ -2539,7 +2541,7 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
 
         return max(0.0, min(1.0, reward))
 
-    def update(self, state: str, action: str, reward: float, next_state: str = None) -> Any:
+    def update(self, state: str, action: str, reward: float, next_state: str | None = None) -> Any:
         """
         Update Q-value using Q-learning update rule.
 

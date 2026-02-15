@@ -29,7 +29,7 @@ class ElevenLabsProvider:
         "sam": "yoZ06aMxZJJ28mfd3POQ",
     }
 
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: Optional[str] = None) -> None:
         self.api_key = api_key or os.getenv("ELEVENLABS_API_KEY")
         self.base_url = "https://api.elevenlabs.io/v1"
 

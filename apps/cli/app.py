@@ -53,7 +53,7 @@ class JottyCLI:
 
     def __init__(
         self, config_path: Optional[str] = None, no_color: bool = False, debug: bool = False
-    ):
+    ) -> None:
         """Initialize CLI with shared components."""
         # Import CLI components
         from .commands import register_all_commands
@@ -130,7 +130,7 @@ class JottyCLI:
 
         logger.info("Jotty CLI initialized with shared components and all 36 commands")
 
-    async def run(self):
+    async def run(self) -> None:
         """Main REPL loop."""
         # Show welcome message
         welcome = Message(
@@ -178,7 +178,7 @@ class JottyCLI:
                 )
                 self.chat.show_error(error)
 
-    async def _handle_command(self, command: str):
+    async def _handle_command(self, command: str) -> None:
         """Handle slash commands."""
         cmd = command.split()[0]
 
@@ -243,7 +243,7 @@ class JottyCLI:
             self.chat.add_message(msg)
 
 
-async def main():
+async def main() -> None:
     """Entry point."""
     # Configure logging
     logging.basicConfig(

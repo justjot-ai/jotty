@@ -21,6 +21,8 @@ Requirements:
 - npm/node for frontend components
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import os
@@ -174,7 +176,7 @@ class MorphProvider(SkillProvider):
     version = "1.0.0"
     description = "Build AI apps with Morph (requires cloud credentials)"
 
-    def __init__(self, config: Dict[str, Any] = None) -> None:
+    def __init__(self, config: Dict[str, Any] | None = None) -> None:
         """
         Initialize MorphProvider.
 
@@ -298,7 +300,7 @@ class MorphProvider(SkillProvider):
         """Get supported skill categories."""
         return [SkillCategory.APP_BUILDING]
 
-    async def execute(self, task: str, context: Dict[str, Any] = None) -> ProviderResult:
+    async def execute(self, task: str, context: Dict[str, Any] | None = None) -> ProviderResult:
         """
         Execute a Morph-related task.
 
@@ -541,7 +543,7 @@ class MorphProvider(SkillProvider):
 
         return spec
 
-    async def create_project(self, name: str, path: Path = None) -> ProviderResult:
+    async def create_project(self, name: str, path: Path | None = None) -> ProviderResult:
         """
         Create a new Morph project.
 
@@ -792,8 +794,8 @@ class MorphProvider(SkillProvider):
         page_name: str,
         workflows: List[str],
         components: List[Dict[str, Any]],
-        title: str = None,
-        description: str = None,
+        title: str | None = None,
+        description: str | None = None,
         project: MorphProject = None,
     ) -> ProviderResult:
         """
@@ -897,7 +899,7 @@ class MorphProvider(SkillProvider):
 
         return "\n\n".join(content_parts) if content_parts else f"Welcome to {title}!"
 
-    async def _serve(self, context: Dict[str, Any] = None) -> ProviderResult:
+    async def _serve(self, context: Dict[str, Any] | None = None) -> ProviderResult:
         """Start the Morph development server."""
         project = self._current_project
         if not project:
@@ -969,7 +971,7 @@ class MorphProvider(SkillProvider):
                 error=f"Failed to start server: {e}",
             )
 
-    async def _stop_server(self, context: Dict[str, Any] = None) -> ProviderResult:
+    async def _stop_server(self, context: Dict[str, Any] | None = None) -> ProviderResult:
         """Stop the Morph development server."""
         project = self._current_project
         if not project or not project.is_running():
@@ -999,7 +1001,7 @@ class MorphProvider(SkillProvider):
                 error=f"Failed to stop server: {e}",
             )
 
-    async def _deploy(self, context: Dict[str, Any] = None) -> ProviderResult:
+    async def _deploy(self, context: Dict[str, Any] | None = None) -> ProviderResult:
         """Deploy to Morph cloud."""
         if not self.api_key:
             return ProviderResult(
@@ -1130,7 +1132,7 @@ class MorphProvider(SkillProvider):
             title=page_name.replace("_", " ").title(),
         )
 
-    def _find_available_port(self, start_port: int = None) -> int:
+    def _find_available_port(self, start_port: int | None = None) -> int:
         """Find an available port starting from start_port."""
         import socket
 
@@ -1174,6 +1176,6 @@ class MorphProvider(SkillProvider):
 
 
 # Factory function for registration
-def create_provider(config: Dict[str, Any] = None) -> MorphProvider:
+def create_provider(config: Dict[str, Any] | None = None) -> MorphProvider:
     """Create and return a MorphProvider instance."""
     return MorphProvider(config)

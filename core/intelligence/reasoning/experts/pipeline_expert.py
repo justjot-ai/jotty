@@ -5,6 +5,8 @@ A specialized expert agent for generating perfect CI/CD pipeline diagrams.
 Uses OptimizationPipeline to ensure it always produces valid pipeline visualizations.
 """
 
+from __future__ import annotations
+
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -71,10 +73,10 @@ class PipelineExpertAgent(BaseExpert):
 
             def forward(
                 self,
-                task: str = None,
-                description: str = None,
-                stages: List[str] = None,
-                learned_improvements: List[Dict] = None,
+                task: str | None = None,
+                description: str | None = None,
+                stages: List[str] | None = None,
+                learned_improvements: List[Dict] | None = None,
                 **kwargs: Any,
             ) -> Any:
                 """Generate pipeline diagram."""
@@ -221,7 +223,7 @@ class PipelineExpertAgent(BaseExpert):
     # =========================================================================
 
     async def generate_pipeline(
-        self, stages: List[str], description: str = None, **kwargs: Any
+        self, stages: List[str], description: str | None = None, **kwargs: Any
     ) -> str:
         """
         Generate a pipeline diagram.

@@ -1,4 +1,6 @@
 """
+from typing import Any
+
 Jotty MCP Server - HTTP/SSE endpoint with optional token auth.
 
 Exposes the same MCP tools as server.py (stdio) over HTTP so n8n or any client
@@ -57,14 +59,14 @@ def _get_token_from_scope(scope: dict) -> str | None:
     return x_token
 
 
-def _unauthorized(scope, receive, send, msg: str = "Missing or invalid token"):
+def _unauthorized(scope, receive, send, msg: str = "Missing or invalid token") -> Any:
     from starlette.responses import Response
 
     response = Response(msg, status_code=401, headers={"WWW-Authenticate": "Bearer"})
     return response(scope, receive, send)
 
 
-async def _check_token_and_dispatch(scope, receive, send, next_app):
+async def _check_token_and_dispatch(scope, receive, send, next_app) -> None:
     if scope["type"] != "http":
         await next_app(scope, receive, send)
         return
@@ -96,7 +98,7 @@ except ImportError as e:
 sse_transport = SseServerTransport("/messages/")
 
 
-async def handle_sse_asgi(scope, receive, send):
+async def handle_sse_asgi(scope, receive, send) -> None:
     """GET /sse -> establish SSE; client then POSTs to /messages/?session_id=..."""
     try:
         async with sse_transport.connect_sse(scope, receive, send) as streams:
@@ -116,12 +118,12 @@ async def handle_sse_asgi(scope, receive, send):
     # SSE transport already sent the response; no second response
 
 
-async def handle_post_messages_asgi(scope, receive, send):
+async def handle_post_messages_asgi(scope, receive, send) -> None:
     """POST /messages/?session_id=... -> JSON-RPC body."""
     await sse_transport.handle_post_message(scope, receive, send)
 
 
-async def main_asgi(scope, receive, send):
+async def main_asgi(scope, receive, send) -> None:
     """Dispatch by path and method; token checked first."""
     if scope["type"] != "http":
         await send({"type": "http.disconnect"})
@@ -146,7 +148,7 @@ async def main_asgi(scope, receive, send):
     await response(scope, receive, send)
 
 
-def main():
+def main() -> None:
     try:
         import uvicorn
     except ImportError:

@@ -2,21 +2,15 @@
 Jotty Agent Base Classes
 ========================
 
-Unified agent hierarchy following DRY and KISS principles:
+Core base classes for all Jotty agents.
 
-BaseAgent (ABC)
-├── DomainAgent       - Single-task executors (DSPy signatures)
-├── MetaAgent         - Self-improvement agents (evaluate/improve others)
-│   └── ValidationAgent - Pre/post validation agents (Inspector)
-└── AutonomousAgent   - Open-ended problem solvers (skill discovery)
+BaseAgent (ABC) - Abstract base class all agents inherit from
+AgentRuntimeConfig - Runtime configuration
+AgentResult - Execution results
 
 Usage:
     from Jotty.core.modes.agent.base import (
         BaseAgent, AgentRuntimeConfig, AgentResult,
-        DomainAgent, DomainAgentConfig,
-        MetaAgent, MetaAgentConfig,
-        ValidationAgent, ValidationConfig, ValidationResult,
-        AutonomousAgent, AutonomousAgentConfig,
     )
 
 Author: A-Team
@@ -26,78 +20,14 @@ Date: February 2026
 # Backwards compat: dag_types.py and others import AgentConfig from here
 from ....infrastructure.foundation.agent_config import AgentConfig  # noqa: F401
 
-# Autonomous agent for open-ended tasks
-from ..agents.autonomous_agent import (
-    AutonomousAgent,
-    AutonomousAgentConfig,
-    ExecutionStep,
-    create_autonomous_agent,
-)
-
-# Base agent and core types
+# Core base classes (from base/ directory only - no circular imports)
 from .base_agent import AgentResult, AgentRuntimeConfig, BaseAgent
 
-# Composite agent for agent/swarm unification
-from .composite_agent import CompositeAgent, CompositeAgentConfig, UnifiedResult
-
-# Domain agent for single-task execution
-from .domain_agent import DomainAgent, DomainAgentConfig, create_domain_agent
-
-# Meta agent for self-improvement
-from .meta_agent import MetaAgent, MetaAgentConfig, create_meta_agent
-
-# Skill plan executor for reusable planning/execution
-from .skill_plan_executor import SkillPlanExecutor
-
-# Shared swarm-internal base agent
-from .swarm_agent import SwarmLearningAgent
-
-# Validation agent for pre/post validation
-from .validation_agent import (
-    AgentMessage,
-    OutputTag,
-    SharedScratchpad,
-    ValidationAgent,
-    ValidationConfig,
-    ValidationResult,
-    ValidationRound,
-    create_validation_agent,
-)
-
 __all__ = [
-    # Base
+    # Core base classes
     "BaseAgent",
     "AgentRuntimeConfig",
-    "AgentConfig",
     "AgentResult",
-    # Domain
-    "DomainAgent",
-    "DomainAgentConfig",
-    "create_domain_agent",
-    # Meta
-    "MetaAgent",
-    "MetaAgentConfig",
-    "create_meta_agent",
-    # Validation
-    "ValidationAgent",
-    "ValidationConfig",
-    "ValidationResult",
-    "ValidationRound",
-    "OutputTag",
-    "SharedScratchpad",
-    "AgentMessage",
-    "create_validation_agent",
-    # Skill Plan Executor
-    "SkillPlanExecutor",
-    # Autonomous
-    "AutonomousAgent",
-    "AutonomousAgentConfig",
-    "ExecutionStep",
-    "create_autonomous_agent",
-    # Swarm agent base
-    "SwarmLearningAgent",
-    # Composite
-    "CompositeAgent",
-    "CompositeAgentConfig",
-    "UnifiedResult",
+    # Backwards compat
+    "AgentConfig",
 ]

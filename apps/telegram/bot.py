@@ -46,7 +46,7 @@ class TelegramBotFull:
     - Error handling with recovery
     """
 
-    def __init__(self, token: Optional[str] = None):
+    def __init__(self, token: Optional[str] = None) -> None:
         """Initialize Telegram bot."""
         self.token = token or os.getenv("TELEGRAM_TOKEN") or os.getenv("TELEGRAM_BOT_TOKEN")
         if not self.token:
@@ -67,7 +67,7 @@ class TelegramBotFull:
         """Get or create chat interface for this chat."""
         if chat_id not in self.sessions:
             # Create send callback - must be sync, not async (called by renderer)
-            def send_telegram_message(text: str):
+            def send_telegram_message(text: str) -> None:
                 """Send message to Telegram with MarkdownV2 formatting."""
                 try:
                     # Create task and run it
@@ -101,7 +101,7 @@ class TelegramBotFull:
             )
         return self.sessions[chat_id]
 
-    async def handle_message(self, update, context):
+    async def handle_message(self, update, context) -> None:
         """Handle incoming message."""
         try:
             chat_id = update.effective_chat.id
@@ -141,7 +141,7 @@ class TelegramBotFull:
             except Exception as e2:
                 logger.error(f"Failed to send error message to user: {e2}")
 
-    async def _handle_command(self, command: str, chat: ChatInterface, update, context):
+    async def _handle_command(self, command: str, chat: ChatInterface, update, context) -> None:
         """Handle ALL Telegram slash commands (full CLI parity)."""
         cmd = command.split()[0]
         args = command.split()[1:] if len(command.split()) > 1 else []
@@ -217,7 +217,7 @@ class TelegramBotFull:
 
     # === COMMAND IMPLEMENTATIONS ===
 
-    async def _cmd_start(self, update, context):
+    async def _cmd_start(self, update, context) -> None:
         """Start command."""
         welcome = """
 *Welcome to Jotty AI Bot\\!* 🤖
@@ -244,7 +244,7 @@ Examples:
 """
         await update.message.reply_text(welcome, parse_mode="MarkdownV2")
 
-    async def _cmd_help(self, update, context):
+    async def _cmd_help(self, update, context) -> None:
         """Help command."""
         help_text = """
 *Jotty Telegram Bot Commands*
@@ -290,7 +290,7 @@ Examples:
 """
         await update.message.reply_text(help_text, parse_mode="MarkdownV2")
 
-    async def _cmd_status(self, chat, update, context):
+    async def _cmd_status(self, chat, update, context) -> None:
         """Status command."""
         state = chat.state_machine.get_state()
         status_text = f"""📊 Bot Status
@@ -305,7 +305,7 @@ Created: {chat.session.created_at.strftime("%Y-%m-%d %H:%M")}
         # Use plain text to avoid MarkdownV2 escaping issues
         await update.message.reply_text(status_text)
 
-    async def _cmd_clear(self, chat, update, context):
+    async def _cmd_clear(self, chat, update, context) -> None:
         """Clear command."""
         msg_count = len(chat.session.messages)
         chat.clear()
@@ -313,7 +313,7 @@ Created: {chat.session.created_at.strftime("%Y-%m-%d %H:%M")}
             f"🗑️ *Chat cleared\\!*\n\nRemoved {msg_count} messages", parse_mode="MarkdownV2"
         )
 
-    async def _cmd_session(self, chat, update, context, args):
+    async def _cmd_session(self, chat, update, context, args) -> None:
         """Session commands."""
         if not args or args[0] == "info":
             session = chat.session
@@ -337,7 +337,7 @@ Message Breakdown:
         else:
             await update.message.reply_text(f"❌ Unknown session command: {args[0]}")
 
-    async def _cmd_memory(self, chat, update, context, args):
+    async def _cmd_memory(self, chat, update, context, args) -> None:
         """Memory commands."""
         if not args:
             # Memory status
@@ -368,7 +368,7 @@ Use `/memory search <query>` to search
         else:
             await update.message.reply_text(f"❌ Unknown memory command: {args[0]}")
 
-    async def _cmd_skill(self, chat, update, context, args):
+    async def _cmd_skill(self, chat, update, context, args) -> None:
         """Execute skill."""
         if not args:
             await update.message.reply_text("❌ Usage: `/skill <name>`")
@@ -380,7 +380,7 @@ Use `/memory search <query>` to search
         )
         # TODO: Execute skill via SDK
 
-    async def _cmd_skills(self, update, context):
+    async def _cmd_skills(self, update, context) -> None:
         """List skills."""
         await update.message.reply_text(
             """
@@ -400,7 +400,7 @@ _Full list: Coming soon_
             parse_mode="MarkdownV2",
         )
 
-    async def _cmd_agent(self, chat, update, context, args):
+    async def _cmd_agent(self, chat, update, context, args) -> None:
         """Run agent."""
         if not args:
             await update.message.reply_text("❌ Usage: `/agent <name>`")
@@ -412,7 +412,7 @@ _Full list: Coming soon_
         )
         # TODO: Run agent via SDK
 
-    async def _cmd_agents(self, update, context):
+    async def _cmd_agents(self, update, context) -> None:
         """List agents."""
         await update.message.reply_text(
             """
@@ -429,7 +429,7 @@ Use `/agent <name>` to run
             parse_mode="MarkdownV2",
         )
 
-    async def _cmd_swarm(self, chat, update, context, args):
+    async def _cmd_swarm(self, chat, update, context, args) -> None:
         """Swarm coordination."""
         agents = " ".join(args) if args else "researcher,coder,tester"
 
@@ -447,7 +447,7 @@ Use `/agent <name>` to run
             logger.error(f"Swarm error: {e}", exc_info=True)
             await update.message.reply_text(f"❌ Swarm error: {str(e)}")
 
-    async def _cmd_workflow(self, chat, update, context, args):
+    async def _cmd_workflow(self, chat, update, context, args) -> None:
         """Run workflow."""
         if not args:
             await update.message.reply_text(
@@ -471,7 +471,7 @@ Use `/workflow <name>`
         )
         # TODO: Run workflow via SDK
 
-    async def _cmd_model(self, update, context, args):
+    async def _cmd_model(self, update, context, args) -> None:
         """Model commands."""
         if not args:
             await update.message.reply_text(
@@ -502,7 +502,7 @@ Use `/model switch <name>`
         else:
             await update.message.reply_text(f"⚙️ Switching to: {args[0]}")
 
-    async def _cmd_config(self, update, context, args):
+    async def _cmd_config(self, update, context, args) -> None:
         """Config commands."""
         await update.message.reply_text(
             """
@@ -515,7 +515,7 @@ _Feature coming soon\\!_
             parse_mode="MarkdownV2",
         )
 
-    async def _cmd_stats(self, update, context):
+    async def _cmd_stats(self, update, context) -> None:
         """Statistics."""
         await update.message.reply_text(
             """
@@ -533,7 +533,7 @@ _Feature coming soon\\!_
             parse_mode="MarkdownV2",
         )
 
-    async def _cmd_tokens(self, update, context):
+    async def _cmd_tokens(self, update, context) -> None:
         """Token usage."""
         await update.message.reply_text(
             """
@@ -549,7 +549,7 @@ _Feature coming soon\\!_
             parse_mode="MarkdownV2",
         )
 
-    async def _cmd_cost(self, update, context):
+    async def _cmd_cost(self, update, context) -> None:
         """Cost breakdown."""
         await update.message.reply_text(
             """
@@ -565,7 +565,7 @@ _Feature coming soon\\!_
             parse_mode="MarkdownV2",
         )
 
-    async def _cmd_debug(self, chat, update, context):
+    async def _cmd_debug(self, chat, update, context) -> None:
         """Debug info."""
         import platform
 
@@ -587,7 +587,7 @@ _Feature coming soon\\!_
 """
         await update.message.reply_text(debug_info, parse_mode="MarkdownV2")
 
-    async def start(self):
+    async def start(self) -> None:
         """Start the bot."""
         # Create application
         self._application = Application.builder().token(self.token).build()
@@ -613,7 +613,7 @@ _Feature coming soon\\!_
 
             stop_event = asyncio.Event()
 
-            def signal_handler(sig, frame):
+            def signal_handler(sig, frame) -> None:
                 logger.info("Received interrupt signal, stopping...")
                 stop_event.set()
 
@@ -628,7 +628,7 @@ _Feature coming soon\\!_
             await self._application.shutdown()
 
 
-async def main():
+async def main() -> None:
     """Entry point."""
     logging.basicConfig(
         level=logging.INFO,

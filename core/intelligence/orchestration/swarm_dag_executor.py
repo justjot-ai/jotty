@@ -5,6 +5,8 @@ SwarmDAGExecutor - Extracted from Orchestrator
 DAG-based orchestration: TaskBreakdownAgent + TodoCreatorAgent + parallel stages.
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import time
@@ -32,7 +34,7 @@ class SwarmDAGExecutor:
     async def run(
         self,
         implementation_plan: str,
-        available_actors: List[Dict[str, Any]] = None,
+        available_actors: List[Dict[str, Any]] | None = None,
         status_callback: Any = None,
         **kwargs: Any,
     ) -> EpisodeResult:

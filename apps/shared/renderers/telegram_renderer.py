@@ -28,7 +28,7 @@ class TelegramMessageRenderer(MessageRenderer):
 
     MAX_MESSAGE_LENGTH = 4000  # Leave buffer for formatting
 
-    def __init__(self, send_callback=None):
+    def __init__(self, send_callback=None) -> None:
         """
         Initialize Telegram renderer.
 
@@ -242,7 +242,7 @@ class TelegramStatusRenderer(StatusRenderer):
     Displays status using emojis and text.
     """
 
-    def __init__(self, send_callback=None):
+    def __init__(self, send_callback=None) -> None:
         """
         Initialize status renderer.
 

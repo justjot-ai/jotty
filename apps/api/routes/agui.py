@@ -10,7 +10,7 @@ from typing import Any, Dict, List
 logger = logging.getLogger(__name__)
 
 
-def register_agui_routes(app, api):
+def register_agui_routes(app, api) -> Any:
     import uuid
 
     from pydantic import BaseModel
@@ -21,7 +21,7 @@ def register_agui_routes(app, api):
         messages: List[Dict[str, Any]] = []
 
     @app.post("/api/agui/run")
-    async def agui_run(request: AGUIRunRequest):
+    async def agui_run(request: AGUIRunRequest) -> Any:
         """
         AG-UI Protocol streaming endpoint.
 
@@ -41,7 +41,7 @@ def register_agui_routes(app, api):
         thread_id = request.threadId
         run_id = request.runId
 
-        async def agui_event_generator():
+        async def agui_event_generator() -> None:
             # Emit RunStarted
             yield f"data: {json.dumps({'type': 'RunStarted', 'threadId': thread_id, 'runId': run_id, 'timestamp': datetime.now().isoformat()})}\n\n"
 
@@ -62,13 +62,13 @@ def register_agui_routes(app, api):
             # Emit TextMessageStart
             yield f"data: {json.dumps({'type': 'TextMessageStart', 'messageId': message_id, 'role': 'assistant', 'timestamp': datetime.now().isoformat()})}\n\n{padding}"
 
-            def sync_stream_cb(chunk: str):
+            def sync_stream_cb(chunk: str) -> None:
                 """Emit TextMessageContent for each chunk."""
                 event_queue.put(
                     {"type": "TextMessageContent", "messageId": message_id, "delta": chunk}
                 )
 
-            def sync_status_cb(stage: str, detail: str):
+            def sync_status_cb(stage: str, detail: str) -> None:
                 """Emit ActivitySnapshot for status updates."""
                 event_queue.put(
                     {
@@ -83,7 +83,7 @@ def register_agui_routes(app, api):
                     }
                 )
 
-            def process_sync():
+            def process_sync() -> None:
                 try:
                     loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(loop)
@@ -153,7 +153,7 @@ def register_agui_routes(app, api):
         )
 
     @app.get("/api/agui/info")
-    async def agui_info():
+    async def agui_info() -> dict[str, Any]:
         """AG-UI endpoint info."""
         return {
             "protocol": "AG-UI",

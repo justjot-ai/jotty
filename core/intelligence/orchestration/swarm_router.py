@@ -15,6 +15,8 @@ This is one of the focused sub-managers that reduces Orchestrator's
 2700-line god-object into composable delegates.
 """
 
+from __future__ import annotations
+
 import logging
 import math
 from typing import Any, Callable, Dict, List, Tuple
@@ -35,10 +37,10 @@ class SwarmRouter:
 
     def __init__(
         self,
-        get_swarm_intelligence: Callable = None,
-        get_agents: Callable = None,
-        get_model_tier_router: Callable = None,
-        get_learning: Callable = None,
+        get_swarm_intelligence: Callable | None = None,
+        get_agents: Callable | None = None,
+        get_model_tier_router: Callable | None = None,
+        get_learning: Callable | None = None,
     ) -> None:
         """
         Args:

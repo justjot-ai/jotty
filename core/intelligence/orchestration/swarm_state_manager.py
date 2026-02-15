@@ -23,6 +23,8 @@ Agent-Level State:
 Integrates StateManager capabilities into orchestration architecture.
 """
 
+from __future__ import annotations
+
 import json
 import logging
 from datetime import datetime
@@ -77,7 +79,7 @@ class AgentStateTracker:
             "failed_tool_calls": 0,
         }
 
-    def record_output(self, output: Any, output_type: str = None) -> None:
+    def record_output(self, output: Any, output_type: str | None = None) -> None:
         """Record agent output."""
         self.outputs.append(
             {
@@ -89,7 +91,9 @@ class AgentStateTracker:
         self.stats["total_executions"] += 1
         self.stats["successful_executions"] += 1
 
-    def record_error(self, error: str, error_type: str = None, context: Dict = None) -> None:
+    def record_error(
+        self, error: str, error_type: str | None = None, context: Dict | None = None
+    ) -> None:
         """Record agent error."""
         self.errors.append(
             {
@@ -102,7 +106,7 @@ class AgentStateTracker:
         self.stats["total_executions"] += 1
         self.stats["failed_executions"] += 1
 
-    def record_tool_call(self, tool_name: str, success: bool, metadata: Dict = None) -> None:
+    def record_tool_call(self, tool_name: str, success: bool, metadata: Dict | None = None) -> None:
         """Record tool usage."""
         if success:
             self.tool_usage["successful"][tool_name] = (
@@ -121,7 +125,11 @@ class AgentStateTracker:
         self.trajectory.append(step)
 
     def record_validation(
-        self, validation_type: str, passed: bool, confidence: float = None, feedback: str = None
+        self,
+        validation_type: str,
+        passed: bool,
+        confidence: float | None = None,
+        feedback: str | None = None,
     ) -> None:
         """Record validation result."""
         self.validation_results.append(

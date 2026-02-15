@@ -13,6 +13,8 @@ Key features:
 - Properly integrates with DSPy's BaseLM interface
 """
 
+from __future__ import annotations
+
 import asyncio
 import json
 import logging
@@ -73,7 +75,9 @@ class AsyncClaudeCLILM(dspy.BaseLM):
                 "Claude CLI not found. Install with: npm install -g @anthropic-ai/claude-code"
             )
 
-    def __call__(self, prompt: str = None, messages: List[Dict] = None, **kwargs: Any) -> List[str]:
+    def __call__(
+        self, prompt: str | None = None, messages: List[Dict] | None = None, **kwargs: Any
+    ) -> List[str]:
         """
         Synchronous call interface (required by DSPy).
 
@@ -93,7 +97,7 @@ class AsyncClaudeCLILM(dspy.BaseLM):
             return asyncio.run(self._async_call(prompt, messages, **kwargs))
 
     async def _async_call(
-        self, prompt: str = None, messages: List[Dict] = None, **kwargs: Any
+        self, prompt: str | None = None, messages: List[Dict] | None = None, **kwargs: Any
     ) -> List[str]:
         """
         Async implementation of the LLM call.

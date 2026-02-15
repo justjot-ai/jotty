@@ -14,6 +14,8 @@ Features:
 - Causal discovery from contrasting outcomes
 """
 
+from __future__ import annotations
+
 import json
 import random
 from collections import defaultdict
@@ -101,7 +103,7 @@ class PrioritizedEpisodeBuffer:
         self.episodes: List[StoredEpisode] = []
         self.priorities: List[float] = []
 
-    def add(self, episode: StoredEpisode, td_error: float = None) -> None:
+    def add(self, episode: StoredEpisode, td_error: float | None = None) -> None:
         """Add episode with priority."""
         # Compute priority
         if td_error is not None:
@@ -164,7 +166,7 @@ class PrioritizedEpisodeBuffer:
         """Get most recent n episodes."""
         return self.episodes[-n:]
 
-    def get_by_outcome(self, success: bool, n: int = None) -> List[StoredEpisode]:
+    def get_by_outcome(self, success: bool, n: int | None = None) -> List[StoredEpisode]:
         """Get episodes by outcome."""
         filtered = [ep for ep in self.episodes if ep.success == success]
         if n:
@@ -450,7 +452,7 @@ class OfflineLearner:
         self.patterns_discovered = []
         self.counterfactual_lessons = []
 
-    def store_episode(self, episode: StoredEpisode, td_error: float = None) -> None:
+    def store_episode(self, episode: StoredEpisode, td_error: float | None = None) -> None:
         """Store episode in buffer."""
         self.buffer.add(episode, td_error)
 

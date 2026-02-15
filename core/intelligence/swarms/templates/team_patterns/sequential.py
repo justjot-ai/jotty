@@ -12,7 +12,7 @@ class SequentialTemplate(SwarmLearning):
     AGENT_TEAM = TeamCoordinator.define(pattern=CoordinationPattern.SEQUENTIAL)
     TEMPLATE_NAME = "sequential_team"
 
-    def __init__(self, config: SwarmBaseConfig = None):
+    def __init__(self, config: SwarmBaseConfig = None) -> None:
         super().__init__(config or SwarmBaseConfig(name="SequentialTeam", domain="pipeline"))
 
     async def execute(self, **kwargs) -> SwarmResult:

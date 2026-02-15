@@ -1,5 +1,3 @@
-from typing import Any
-
 #!/usr/bin/env python3
 """
 A2UI Widget Provider - Generic Widget Integration for Jotty SDK

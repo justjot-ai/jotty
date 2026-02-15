@@ -24,10 +24,10 @@ class WebSocketConnection:
     connected_at: datetime = field(default_factory=datetime.now)
     _id: str = field(default_factory=lambda: str(id(object())))
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self._id)
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         if isinstance(other, WebSocketConnection):
             return self._id == other._id
         return False
@@ -43,7 +43,7 @@ class WebSocketManager:
     - Stream tokens as they're generated
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._connections: Dict[str, Set[WebSocketConnection]] = {}
         self._lock = asyncio.Lock()
 
@@ -71,7 +71,7 @@ class WebSocketManager:
         logger.info(f"WebSocket connected: session={session_id}, user={user_id}")
         return conn
 
-    async def disconnect(self, conn: WebSocketConnection):
+    async def disconnect(self, conn: WebSocketConnection) -> None:
         """
         Remove a WebSocket connection.
 
@@ -86,7 +86,7 @@ class WebSocketManager:
 
         logger.info(f"WebSocket disconnected: session={conn.session_id}")
 
-    async def send_to_session(self, session_id: str, message: Dict[str, Any]):
+    async def send_to_session(self, session_id: str, message: Dict[str, Any]) -> None:
         """
         Send message to all connections in a session.
 
@@ -110,7 +110,9 @@ class WebSocketManager:
         for conn in dead_connections:
             await self.disconnect(conn)
 
-    async def stream_chunk(self, session_id: str, chunk: str, message_id: Optional[str] = None):
+    async def stream_chunk(
+        self, session_id: str, chunk: str, message_id: Optional[str] = None
+    ) -> None:
         """
         Stream a content chunk to session.
 
@@ -129,7 +131,7 @@ class WebSocketManager:
             },
         )
 
-    async def send_status(self, session_id: str, stage: str, detail: str = ""):
+    async def send_status(self, session_id: str, stage: str, detail: str = "") -> None:
         """
         Send status update to session.
 
@@ -150,7 +152,7 @@ class WebSocketManager:
 
     async def send_complete(
         self, session_id: str, message_id: str, content: str, output_path: Optional[str] = None
-    ):
+    ) -> None:
         """
         Send completion message to session.
 
@@ -171,7 +173,7 @@ class WebSocketManager:
             },
         )
 
-    async def send_error(self, session_id: str, error: str):
+    async def send_error(self, session_id: str, error: str) -> None:
         """
         Send error to session.
 

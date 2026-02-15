@@ -4,6 +4,8 @@ Learning health monitoring and dynamic budget management.
 Detects pathological learning behaviors and manages context budgets.
 """
 
+from __future__ import annotations
+
 import logging
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple
@@ -267,7 +269,7 @@ class DynamicBudgetManager:
 
         return selected
 
-    def get_learned_context(self, memories: Dict[str, MemoryEntry], goal: str = None) -> str:
+    def get_learned_context(self, memories: Dict[str, MemoryEntry], goal: str | None = None) -> str:
         """
         Get learned context to inject into prompts.
 

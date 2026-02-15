@@ -6,6 +6,8 @@ Simple file-based memory with TTL.
 Stores memories as JSON in ~/jotty/memory/
 """
 
+from __future__ import annotations
+
 import hashlib
 import json
 import logging
@@ -41,7 +43,7 @@ class JSONMemory:
     }
     """
 
-    def __init__(self, base_path: Path = None) -> None:
+    def __init__(self, base_path: Path | None = None) -> None:
         """Initialize JSON memory backend."""
         if base_path is None:
             base_path = Path.home() / "jotty" / "memory"

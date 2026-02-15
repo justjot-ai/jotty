@@ -10,6 +10,8 @@ All specialized coding agents used by CodingSwarm:
   CodebaseAnalyzerAgent, EditPlannerAgent
 """
 
+from __future__ import annotations
+
 import json
 import logging
 from typing import Any, Dict, List
@@ -17,7 +19,7 @@ from typing import Any, Dict, List
 import dspy
 
 from Jotty.core.intelligence.swarms.base import _split_field
-from Jotty.core.modes.agent.base import SwarmLearningAgent
+from Jotty.core.modes.agent.agents.swarm_agent import SwarmLearningAgent
 
 from .signatures import (
     APIGenerationSignature,
@@ -121,7 +123,11 @@ class DeveloperAgent(BaseCodeAgent):
         self._generator = dspy.ChainOfThought(CodeGenerationSignature)
 
     async def generate(
-        self, architecture: str, component: str, language: str, dependencies: List[str] = None
+        self,
+        architecture: str,
+        component: str,
+        language: str,
+        dependencies: List[str] | None = None,
     ) -> Dict[str, Any]:
         """Generate code for a component."""
         try:

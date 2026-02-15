@@ -2561,7 +2561,7 @@ class Orchestrator:
         return self.mas_learning
 
     def record_report_section_outcome(
-        self, section_name: str, success: bool, error: str = None
+        self, section_name: str, success: bool, error: str | None = None
     ) -> None:
         """Record report section outcome for cross-run learning."""
         try:

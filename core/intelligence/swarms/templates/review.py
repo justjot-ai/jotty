@@ -9,6 +9,8 @@ Author: Jotty Team
 Date: February 2026
 """
 
+from __future__ import annotations
+
 from typing import Any
 
 from Jotty.core.infrastructure.foundation.types.execution_types import (
@@ -31,9 +33,9 @@ try:
     )
 except ImportError:
     # Fallback if not available yet
-    from Jotty.core.modes.agent.base import SwarmLearningAgent as CodeReviewer
-    from Jotty.core.modes.agent.base import SwarmLearningAgent as PerformanceAnalyzer
-    from Jotty.core.modes.agent.base import SwarmLearningAgent as SecurityScanner
+    from Jotty.core.modes.agent.agents.swarm_agent import SwarmLearningAgent as CodeReviewer
+    from Jotty.core.modes.agent.agents.swarm_agent import SwarmLearningAgent as PerformanceAnalyzer
+    from Jotty.core.modes.agent.agents.swarm_agent import SwarmLearningAgent as SecurityScanner
 
     ReviewConfig = SwarmBaseConfig
     ReviewResult = SwarmResult
@@ -75,12 +77,12 @@ class ReviewTemplate(SwarmLearning):
     TEMPLATE_VERSION = "2.0.0"
     RESULT_CLASS = ReviewResult
 
-    def __init__(self, config: SwarmBaseConfig = None):
+    def __init__(self, config: SwarmBaseConfig = None) -> None:
         """Initialize review template."""
         super().__init__(config or ReviewConfig())
 
     async def execute(
-        self, code: str = None, language: str = "python", **kwargs: Any
+        self, code: str | None = None, language: str = "python", **kwargs: Any
     ) -> SwarmResult:
         """
         Execute code review.

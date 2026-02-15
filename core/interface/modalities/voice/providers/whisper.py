@@ -18,7 +18,7 @@ class WhisperProvider:
 
     name = "whisper"
 
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: Optional[str] = None) -> None:
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
 
     async def speech_to_text(
@@ -118,7 +118,7 @@ class WhisperProvider:
 
     async def stream_speech(
         self, text: str, voice_id: Optional[str] = None, chunk_size: int = 1024
-    ):
+    ) -> None:
         """OpenAI TTS streaming is not supported in the same way."""
         # For now, generate full audio and yield in chunks
         result = await self.text_to_speech(text, voice_id)

@@ -21,6 +21,8 @@ MLflow Integration:
     /ml titanic --mlflow --experiment myexp # Custom experiment name
 """
 
+from __future__ import annotations
+
 import json
 import os
 import warnings
@@ -144,7 +146,7 @@ class MLCommand(BaseCommand):
 
     @classmethod
     def save_mlflow_state(
-        cls, experiment_name: str, run_id: str = None, tracking_uri: str = None
+        cls, experiment_name: str, run_id: str | None = None, tracking_uri: str | None = None
     ) -> Any:
         """Save MLflow state for later retrieval."""
         cls.MLFLOW_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -309,13 +311,13 @@ class MLCommand(BaseCommand):
         self,
         query: str,
         target_col: str,
-        connection: str = None,
-        db_type: str = None,
+        connection: str | None = None,
+        db_type: str | None = None,
         host: str = "localhost",
-        port: int = None,
-        database: str = None,
-        user: str = None,
-        password: str = None,
+        port: int | None = None,
+        database: str | None = None,
+        user: str | None = None,
+        password: str | None = None,
         cli: "JottyCLI" = None,
     ) -> Any:
         """Load dataset from database using ConnectorX."""
@@ -534,7 +536,7 @@ class MLCommand(BaseCommand):
         cli: "JottyCLI",
         use_mlflow: bool = False,
         experiment_name: str = "jotty_ml",
-        tracking_uri: str = None,
+        tracking_uri: str | None = None,
         dataset_name: str = "unknown",
     ) -> Dict[str, Any]:
         """Run the full SwarmML pipeline with optional MLflow tracking."""

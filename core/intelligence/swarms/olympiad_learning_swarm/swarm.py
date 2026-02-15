@@ -26,6 +26,8 @@ Usage:
     result = await swarm.teach(topic="Number Theory")
 """
 
+from __future__ import annotations
+
 import asyncio
 import json
 import logging
@@ -130,7 +132,9 @@ class OlympiadLearningSwarm(SwarmTemplate):
         super().__init__(config or OlympiadLearningConfig())
         self._optimization_mode = self.config.optimization_mode
 
-    async def _execute_domain(self, topic: str = None, **kwargs: Any) -> OlympiadLearningResult:
+    async def _execute_domain(
+        self, topic: str | None = None, **kwargs: Any
+    ) -> OlympiadLearningResult:
         """Execute learning content generation."""
         return await self.teach(topic=topic, **kwargs)
 
@@ -138,11 +142,11 @@ class OlympiadLearningSwarm(SwarmTemplate):
         self,
         topic: str,
         subject: Subject = None,
-        student_name: str = None,
+        student_name: str | None = None,
         depth: LessonDepth = None,
         target_tier: DifficultyTier = None,
-        target_level: str = None,
-        send_telegram: bool = None,
+        target_level: str | None = None,
+        send_telegram: bool | None = None,
     ) -> OlympiadLearningResult:
         """
         Create world-class learning content for a topic.
@@ -217,7 +221,7 @@ class OlympiadLearningSwarm(SwarmTemplate):
         depth: LessonDepth,
         target_str: str,
         config: OlympiadLearningConfig,
-        send_telegram: bool = None,
+        send_telegram: bool | None = None,
     ) -> OlympiadLearningResult:
         """Execute all teaching phases using the PhaseExecutor.
 
@@ -1146,8 +1150,8 @@ class OlympiadLearningSwarm(SwarmTemplate):
         connections: Dict,
         config: OlympiadLearningConfig,
         meta_strategy: str = "",
-        speed_techniques: List[str] = None,
-        stuck_toolkit: List[str] = None,
+        speed_techniques: List[str] | None = None,
+        stuck_toolkit: List[str] | None = None,
     ) -> str:
         """Build complete markdown lesson content."""
         celebration = config.celebration_word

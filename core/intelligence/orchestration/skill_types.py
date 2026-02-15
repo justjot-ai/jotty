@@ -13,6 +13,8 @@ Note: SkillCategory and SkillResult are imported from core/skills/ml/base.py
 to follow DRY principles - single source of truth for ML skill types.
 """
 
+from __future__ import annotations
+
 import logging
 import time
 from dataclasses import dataclass, field
@@ -125,7 +127,7 @@ class ProgressTracker:
         self.stage_start_time = time.time()
         self._print_progress()
 
-    def complete_stage(self, stage_name: str, metrics: Dict = None) -> None:
+    def complete_stage(self, stage_name: str, metrics: Dict | None = None) -> None:
         """Complete current stage."""
         weight = self.STAGE_WEIGHTS.get(stage_name.upper(), 5)
         self.completed_weight += weight
@@ -144,7 +146,9 @@ class ProgressTracker:
             f"[{bar}] {pct:5.1f}% | Stage {self.current_stage}/{self.total_stages}: {self.current_stage_name:<25} | {elapsed:.0f}s"
         )
 
-    def _print_completion(self, stage_name: str, elapsed: float, metrics: Dict = None) -> Any:
+    def _print_completion(
+        self, stage_name: str, elapsed: float, metrics: Dict | None = None
+    ) -> Any:
         """Print stage completion."""
         pct = (self.completed_weight / self.total_weight) * 100
         bar_len = 30

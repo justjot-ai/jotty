@@ -5,6 +5,8 @@ Parameter Validation Utilities
 Provides reusable validation for skill tool parameters.
 """
 
+from __future__ import annotations
+
 import logging
 import re
 from pathlib import Path
@@ -44,7 +46,7 @@ class ParamValidator:
         "kindle_email": r"^[a-zA-Z0-9._%+-]+@kindle\.com$",
     }
 
-    def __init__(self, params: Dict[str, Any] = None) -> None:
+    def __init__(self, params: Dict[str, Any] | None = None) -> None:
         """
         Initialize validator with parameters.
 
@@ -62,7 +64,7 @@ class ParamValidator:
         # Don't suppress exceptions
         return False
 
-    def require(self, name: str, param_type: Type = None, message: str = None) -> Any:
+    def require(self, name: str, param_type: Type | None = None, message: str | None = None) -> Any:
         """
         Require a parameter to be present and optionally validate its type.
 
@@ -93,7 +95,11 @@ class ParamValidator:
         return value
 
     def optional(
-        self, name: str, param_type: Type = None, default: Any = None, choices: List[Any] = None
+        self,
+        name: str,
+        param_type: Type | None = None,
+        default: Any = None,
+        choices: List[Any] | None = None,
     ) -> Any:
         """
         Get an optional parameter with type checking and default value.
@@ -141,7 +147,7 @@ class ParamValidator:
         self.validated[name] = value
         return value
 
-    def require_one_of(self, *names: str, message: str = None) -> str:
+    def require_one_of(self, *names: str, message: str | None = None) -> str:
         """
         Require at least one of the specified parameters.
 
@@ -165,7 +171,7 @@ class ParamValidator:
         raise ValidationError(error_msg)
 
     def validate_pattern(
-        self, name: str, pattern: str, message: str = None, required: bool = True
+        self, name: str, pattern: str, message: str | None = None, required: bool = True
     ) -> Optional[str]:
         """
         Validate a parameter against a regex pattern.
@@ -284,10 +290,10 @@ class ParamValidator:
     def validate_range(
         self,
         name: str,
-        min_val: Union[int, float] = None,
-        max_val: Union[int, float] = None,
+        min_val: Union[int, float] | None = None,
+        max_val: Union[int, float] | None = None,
         required: bool = False,
-        default: Union[int, float] = None,
+        default: Union[int, float] | None = None,
     ) -> Optional[Union[int, float]]:
         """
         Validate a numeric parameter is within a range.

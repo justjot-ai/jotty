@@ -102,156 +102,127 @@ _LAZY_IMPORTS: dict[str, str] = {
     "OptimizationConfig": ".jotty",
     "IterationResult": ".jotty",
     "create_optimization_pipeline": ".jotty",
-    # --- foundation.data_structures (was eager) ---
-    "MemoryEntry": ".foundation.data_structures",
-    "MemoryLevel": ".foundation.data_structures",
-    "GoalValue": ".foundation.data_structures",
-    "ValidationResult": ".foundation.data_structures",
-    "EpisodeResult": ".foundation.data_structures",
-    "TaggedOutput": ".foundation.data_structures",
-    "OutputTag": ".foundation.data_structures",
-    "StoredEpisode": ".foundation.data_structures",
-    "LearningMetrics": ".foundation.data_structures",
-    "AlertType": ".foundation.data_structures",
-    "GoalHierarchy": ".foundation.data_structures",
-    "GoalNode": ".foundation.data_structures",
-    "CausalLink": ".foundation.data_structures",
-    "SharedScratchpad": ".foundation.data_structures",
-    "AgentMessage": ".foundation.data_structures",
-    "CommunicationType": ".foundation.data_structures",
-    "AgentContribution": ".foundation.data_structures",
-    "ValidationRound": ".foundation.data_structures",
-    "ContextType": ".foundation.data_structures",
-    "RichObservation": ".foundation.data_structures",
-    # --- orchestration.swarm_roadmap ---
-    "AgenticState": ".orchestration.swarm_roadmap",
-    "TrajectoryStep": ".orchestration.swarm_roadmap",
-    "DecomposedQFunction": ".orchestration.swarm_roadmap",
-    "SwarmTaskBoard": ".orchestration.swarm_roadmap",
-    "SubtaskState": ".orchestration.swarm_roadmap",
-    "TaskStatus": ".orchestration.swarm_roadmap",
-    "ThoughtLevelCredit": ".orchestration.swarm_roadmap",
-    "StateCheckpointer": ".orchestration.swarm_roadmap",
-    "TrajectoryPredictor": ".orchestration.swarm_roadmap",
-    "TodoItem": ".orchestration.swarm_roadmap",
-    # --- integration.framework_decorators ---
-    "ContextGuard": ".integration.framework_decorators",
-    "JottyDecorator": ".integration.framework_decorators",
-    "jotty_wrap": ".integration.framework_decorators",
-    "EmptyPromptHandler": ".integration.framework_decorators",
-    "JottyEnhanced": ".integration.framework_decorators",
-    # --- integration.universal_wrapper ---
-    "JottyUniversal": ".integration.universal_wrapper",
-    "SmartConfig": ".integration.universal_wrapper",
-    "jotty_universal": ".integration.universal_wrapper",
-    "detect_actor_type": ".integration.universal_wrapper",
-    "ActorType": ".integration.universal_wrapper",
-    # --- context.context_manager ---
-    "SmartContextManager": ".context.context_manager",
-    "ContextChunk": ".context.context_manager",
-    "ContextPriority": ".context.context_manager",
-    "with_smart_context": ".context.context_manager",
-    # --- memory.llm_rag ---
-    "LLMRAGRetriever": ".memory.llm_rag",
-    "SlidingWindowChunker": ".memory.llm_rag",
-    "RecencyValueRanker": ".memory.llm_rag",
-    "LLMRelevanceScorer": ".memory.llm_rag",
-    "DeduplicationEngine": ".memory.llm_rag",
-    "CausalExtractor": ".memory.llm_rag",
-    # --- learning.learning ---
-    "TDLambdaLearner": ".learning.learning",
-    "AdaptiveLearningRate": ".learning.learning",
-    "IntermediateRewardCalculator": ".learning.learning",
-    "ReasoningCreditAssigner": ".learning.learning",
-    "AdaptiveExploration": ".learning.learning",
-    "LearningHealthMonitor": ".learning.learning",
-    "DynamicBudgetManager": ".learning.learning",
-    # --- memory.cortex ---
-    "SwarmMemory": ".memory.cortex",
-    "MemoryCluster": ".memory.consolidation",
-    "MemoryLevelClassifier": ".memory.consolidation",
-    # --- agents.inspector ---
-    "MultiRoundValidator": ".agents.inspector",
-    "InternalReasoningTool": ".agents.inspector",
-    "CachingToolWrapper": ".agents.inspector",
-    # --- learning.offline_learning ---
-    "OfflineLearner": ".learning.offline_learning",
-    "PrioritizedEpisodeBuffer": ".learning.offline_learning",
-    # --- learning.predictive_cooperation ---
-    "CooperationState": ".learning.predictive_cooperation",
+    # --- foundation.data_structures ---
+    # NOTE: MemoryEntry, MemoryLevel, GoalValue, ValidationResult, EpisodeResult,
+    # TaggedOutput, OutputTag, StoredEpisode, LearningMetrics, AlertType,
+    # GoalHierarchy, GoalNode, CausalLink, SharedScratchpad, AgentMessage,
+    # CommunicationType, AgentContribution, ValidationRound, ContextType,
+    # RichObservation were removed during the migration to clean architecture.
+    # --- intelligence.orchestration.swarm_roadmap ---
+    "AgenticState": ".intelligence.orchestration.swarm_roadmap",
+    "TrajectoryStep": ".intelligence.orchestration.swarm_roadmap",
+    "DecomposedQFunction": ".intelligence.orchestration.swarm_roadmap",
+    "SwarmTaskBoard": ".intelligence.orchestration.swarm_roadmap",
+    "SubtaskState": ".intelligence.orchestration.swarm_roadmap",
+    # NOTE: TaskStatus was removed (does not exist in swarm_roadmap.py)
+    "ThoughtLevelCredit": ".intelligence.orchestration.swarm_roadmap",
+    "StateCheckpointer": ".intelligence.orchestration.swarm_roadmap",
+    "TrajectoryPredictor": ".intelligence.orchestration.swarm_roadmap",
+    "TodoItem": ".intelligence.orchestration.swarm_roadmap",
+    # --- infrastructure.context (context_manager + models) ---
+    "SmartContextManager": ".infrastructure.context.context_manager",
+    "ContextChunk": ".infrastructure.context.models",
+    "ContextPriority": ".infrastructure.context.models",
+    "with_smart_context": ".infrastructure.context.context_manager",
+    # --- intelligence.memory.llm_rag ---
+    "LLMRAGRetriever": ".intelligence.memory.llm_rag",
+    "SlidingWindowChunker": ".intelligence.memory.llm_rag",
+    "RecencyValueRanker": ".intelligence.memory.llm_rag",
+    "LLMRelevanceScorer": ".intelligence.memory.llm_rag",
+    "DeduplicationEngine": ".intelligence.memory.llm_rag",
+    "CausalExtractor": ".intelligence.memory.llm_rag",
+    # --- intelligence.learning.learning ---
+    "TDLambdaLearner": ".intelligence.learning.learning",
+    "AdaptiveLearningRate": ".intelligence.learning.learning",
+    "IntermediateRewardCalculator": ".intelligence.learning.learning",
+    "ReasoningCreditAssigner": ".intelligence.learning.learning",
+    "AdaptiveExploration": ".intelligence.learning.learning",
+    "LearningHealthMonitor": ".intelligence.learning.learning",
+    "DynamicBudgetManager": ".intelligence.learning.learning",
+    # --- intelligence.memory.cortex ---
+    "SwarmMemory": ".intelligence.memory.cortex",
+    "MemoryCluster": ".intelligence.memory.consolidation",
+    "MemoryLevelClassifier": ".intelligence.memory.consolidation",
+    # --- modes.agent.tools.inspector ---
+    "MultiRoundValidator": ".modes.agent.tools.inspector",
+    "InternalReasoningTool": ".modes.agent.tools.inspector",
+    "CachingToolWrapper": ".modes.agent.tools.inspector",
+    # --- intelligence.learning.offline_learning ---
+    "OfflineLearner": ".intelligence.learning.offline_learning",
+    "PrioritizedEpisodeBuffer": ".intelligence.learning.offline_learning",
+    # --- intelligence.learning.predictive_cooperation ---
+    "CooperationState": ".intelligence.learning.predictive_cooperation",
     # --- foundation.agent_config ---
     # AgentConfig already imported eagerly
-    # --- learning.q_learning ---
-    "LLMQPredictor": ".learning.q_learning",
+    # --- intelligence.learning.q_learning ---
+    "LLMQPredictor": ".intelligence.learning.q_learning",
     # --- capabilities ---
     "capabilities": ".capabilities",
     "explain": ".capabilities",
     # --- context.context_guard ---
-    "LLMContextManager": ".context.context_guard",
-    # --- learning.predictive_marl ---
-    "LLMTrajectoryPredictor": ".learning.predictive_marl",
-    "DivergenceMemory": ".learning.predictive_marl",
-    "CooperativeCreditAssigner": ".learning.predictive_marl",
-    "PredictedTrajectory": ".learning.predictive_marl",
-    "ActualTrajectory": ".learning.predictive_marl",
-    "Divergence": ".learning.predictive_marl",
-    "AgentModel": ".learning.predictive_marl",
-    "PredictedAction": ".learning.predictive_marl",
-    # --- memory.consolidation_engine ---
-    "BrainMode": ".memory.consolidation_engine",
-    "BrainModeConfig": ".memory.consolidation_engine",
-    "MemoryCandidate": ".memory.consolidation_engine",
-    "HippocampalExtractor": ".memory.consolidation_engine",
-    "ConsolidationResult": ".memory.consolidation_engine",
-    "SharpWaveRippleConsolidator": ".memory.consolidation_engine",
-    "BrainStateMachine": ".memory.consolidation_engine",
-    "AgentRole": ".memory.consolidation_engine",
-    "AgentAbstractor": ".memory.consolidation_engine",
-    # --- memory.memory_orchestrator ---
-    "SimpleBrain": ".memory.memory_orchestrator",
-    "BrainPreset": ".memory.memory_orchestrator",
-    "ConsolidationTrigger": ".memory.memory_orchestrator",
-    "Experience": ".memory.memory_orchestrator",
-    "calculate_chunk_size": ".memory.memory_orchestrator",
-    "get_model_context": ".memory.memory_orchestrator",
-    "load_brain_config": ".memory.memory_orchestrator",
-    # --- foundation.robust_parsing ---
-    "parse_float_robust": ".foundation.robust_parsing",
-    "parse_bool_robust": ".foundation.robust_parsing",
-    "parse_json_robust": ".foundation.robust_parsing",
-    "AdaptiveThreshold": ".foundation.robust_parsing",
-    "EpsilonGreedy": ".foundation.robust_parsing",
-    "safe_hash": ".foundation.robust_parsing",
-    "content_similarity": ".foundation.robust_parsing",
-    # --- utils.algorithmic_foundations ---
-    "ShapleyValueEstimator": ".utils.algorithmic_foundations",
-    "DifferenceRewardEstimator": ".utils.algorithmic_foundations",
-    "SurpriseEstimator": ".utils.algorithmic_foundations",
-    "MutualInformationRetriever": ".utils.algorithmic_foundations",
-    "ContentGate": ".utils.algorithmic_foundations",
-    # --- context.global_context_guard ---
-    "GlobalContextGuard": ".context.global_context_guard",
-    "OverflowDetector": ".context.global_context_guard",
-    "patch_dspy_with_guard": ".context.global_context_guard",
-    "unpatch_dspy": ".context.global_context_guard",
-    # --- integration.integration ---
-    "JottyIntegration": ".integration.integration",
-    "initialize_jotty": ".integration.integration",
-    "get_jotty": ".integration.integration",
-    # --- agents.agent_factory ---
-    "UniversalRetryHandler": ".agents.agent_factory",
-    "RetryStrategy": ".agents.agent_factory",
-    "AgentResult": ".agents.agent_factory",
-    "PatternDetector": ".agents.agent_factory",
-    "LLMCounterfactualCritic": ".agents.agent_factory",
-    "SelfRAGMemoryRetriever": ".agents.agent_factory",
-    "LLMSurpriseEstimator": ".agents.agent_factory",
+    # NOTE: LLMContextManager was removed (context_guard.py no longer exists).
+    # --- intelligence.learning.predictive_marl ---
+    "LLMTrajectoryPredictor": ".intelligence.learning.predictive_marl",
+    "DivergenceMemory": ".intelligence.learning.predictive_marl",
+    "CooperativeCreditAssigner": ".intelligence.learning.predictive_marl",
+    "PredictedTrajectory": ".intelligence.learning.predictive_marl",
+    "ActualTrajectory": ".intelligence.learning.predictive_marl",
+    "Divergence": ".intelligence.learning.predictive_marl",
+    "AgentModel": ".intelligence.learning.predictive_marl",
+    "PredictedAction": ".intelligence.learning.predictive_marl",
+    # --- intelligence.memory.consolidation_engine ---
+    "BrainMode": ".intelligence.memory.consolidation_engine",
+    "BrainModeConfig": ".intelligence.memory.consolidation_engine",
+    "MemoryCandidate": ".intelligence.memory.consolidation_engine",
+    "HippocampalExtractor": ".intelligence.memory.consolidation_engine",
+    "ConsolidationResult": ".intelligence.memory.consolidation_engine",
+    "SharpWaveRippleConsolidator": ".intelligence.memory.consolidation_engine",
+    "BrainStateMachine": ".intelligence.memory.consolidation_engine",
+    "AgentRole": ".intelligence.memory.consolidation_engine",
+    "AgentAbstractor": ".intelligence.memory.consolidation_engine",
+    # --- intelligence.memory.memory_orchestrator ---
+    "SimpleBrain": ".intelligence.memory.memory_orchestrator",
+    "BrainPreset": ".intelligence.memory.memory_orchestrator",
+    "ConsolidationTrigger": ".intelligence.memory.memory_orchestrator",
+    "Experience": ".intelligence.memory.memory_orchestrator",
+    "calculate_chunk_size": ".intelligence.memory.memory_orchestrator",
+    "get_model_context": ".intelligence.memory.memory_orchestrator",
+    "load_brain_config": ".intelligence.memory.memory_orchestrator",
+    # --- infrastructure.foundation.robust_parsing ---
+    "parse_float_robust": ".infrastructure.foundation.robust_parsing",
+    "parse_bool_robust": ".infrastructure.foundation.robust_parsing",
+    "parse_json_robust": ".infrastructure.foundation.robust_parsing",
+    "AdaptiveThreshold": ".infrastructure.foundation.robust_parsing",
+    "EpsilonGreedy": ".infrastructure.foundation.robust_parsing",
+    "safe_hash": ".infrastructure.foundation.robust_parsing",
+    "content_similarity": ".infrastructure.foundation.robust_parsing",
+    # --- infrastructure.utils.algorithmic_foundations ---
+    "ShapleyValueEstimator": ".infrastructure.utils.algorithmic_foundations",
+    "DifferenceRewardEstimator": ".infrastructure.utils.algorithmic_foundations",
+    "SurpriseEstimator": ".infrastructure.utils.algorithmic_foundations",
+    "MutualInformationRetriever": ".infrastructure.utils.algorithmic_foundations",
+    "ContentGate": ".infrastructure.utils.algorithmic_foundations",
+    # --- infrastructure.utils.algorithmic_foundations (formerly context.global_context_guard) ---
+    # GlobalContextGuard and OverflowDetector are stubs in algorithmic_foundations;
+    # patch_dspy_with_guard and unpatch_dspy live in infrastructure.context.context_manager.
+    "GlobalContextGuard": ".infrastructure.utils.algorithmic_foundations",
+    "OverflowDetector": ".infrastructure.utils.algorithmic_foundations",
+    "patch_dspy_with_guard": ".infrastructure.utils.algorithmic_foundations",
+    "unpatch_dspy": ".infrastructure.utils.algorithmic_foundations",
+    # --- modes.agent.base.agent_factory ---
+    "UniversalRetryHandler": ".modes.agent.base.agent_factory",
+    "RetryStrategy": ".modes.agent.base.agent_factory",
+    "AgentResult": ".modes.agent.base.agent_factory",
+    "PatternDetector": ".modes.agent.base.agent_factory",
+    "LLMCounterfactualCritic": ".modes.agent.base.agent_factory",
+    "SelfRAGMemoryRetriever": ".modes.agent.base.agent_factory",
+    "LLMSurpriseEstimator": ".modes.agent.base.agent_factory",
     # --- persistence.persistence ---
     # Vault already imported eagerly via jotty.py
-    # --- orchestration (PolicyExplorer etc.) ---
-    "PolicyExplorer": ".orchestration",
-    "CreditAssignment": ".orchestration",
-    "AdaptiveLearning": ".orchestration",
+    # --- intelligence.orchestration (PolicyExplorer etc.) ---
+    "PolicyExplorer": ".intelligence.orchestration",
+    "CreditAssignment": ".intelligence.orchestration",
+    "AdaptiveLearning": ".intelligence.orchestration",
 }
 
 # --- LOTUS (optional, wrapped in try/except at import time) ---

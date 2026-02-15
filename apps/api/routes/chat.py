@@ -4,17 +4,17 @@ Chat routes - messaging, streaming, WebSocket, command streaming.
 
 import asyncio
 import logging
-from typing import List, Optional
+from typing import Any, List, Optional
 
 logger = logging.getLogger(__name__)
 
 
-def register_chat_routes(app, api):
+def register_chat_routes(app, api) -> Any:
     from fastapi import HTTPException, WebSocket, WebSocketDisconnect
     from pydantic import BaseModel
 
     @app.get("/api/commands")
-    async def list_commands():
+    async def list_commands() -> dict[str, Any]:
         """List available CLI commands."""
         commands = api.get_commands()
         return {"commands": commands}
@@ -25,7 +25,7 @@ def register_chat_routes(app, api):
         session_id: Optional[str] = None
 
     @app.post("/api/commands/execute")
-    async def execute_command(request: CommandRequest):
+    async def execute_command(request: CommandRequest) -> Any:
         """Execute a CLI command."""
         result = await api.execute_command(
             command=request.command, args=request.args, session_id=request.session_id
@@ -33,7 +33,7 @@ def register_chat_routes(app, api):
         return result
 
     @app.get("/api/commands/stream")
-    async def stream_command(command: str, args: str = "", session_id: Optional[str] = None):
+    async def stream_command(command: str, args: str = "", session_id: Optional[str] = None) -> Any:
         """
         SSE streaming command execution endpoint.
 
@@ -47,7 +47,7 @@ def register_chat_routes(app, api):
 
         from starlette.responses import StreamingResponse
 
-        async def event_generator():
+        async def event_generator() -> Any:
             # Thread-safe queue for output
             output_queue = queue.Queue()
             result_holder = {"done": False, "success": True, "error": None}
@@ -58,13 +58,13 @@ def register_chat_routes(app, api):
             # Send initial event
             yield f"data: {json.dumps({'type': 'started', 'command': command})}\n\n{padding}"
 
-            def clean_text(text):
+            def clean_text(text) -> Any:
                 """Remove ANSI codes and Rich markup."""
                 clean = re.sub(r"\x1b\[[0-9;]*m", "", str(text))
                 clean = re.sub(r"\[/?[^\]]*\]", "", clean)
                 return clean.strip()
 
-            def add_output(text):
+            def add_output(text) -> None:
                 """Add text to output queue."""
                 cleaned = clean_text(text)
                 if cleaned:
@@ -72,12 +72,12 @@ def register_chat_routes(app, api):
 
             # Custom stdout wrapper
             class QueueWriter:
-                def __init__(self, q, original):
+                def __init__(self, q, original) -> None:
                     self.queue = q
                     self.original = original
                     self.buffer = ""
 
-                def write(self, text):
+                def write(self, text) -> Any:
                     if text:
                         # Also write to original for logging
                         self.original.write(text)
@@ -93,7 +93,7 @@ def register_chat_routes(app, api):
                             self.buffer += text
                     return len(text) if text else 0
 
-                def flush(self):
+                def flush(self) -> None:
                     self.original.flush()
                     if self.buffer:
                         cleaned = clean_text(self.buffer)
@@ -101,7 +101,7 @@ def register_chat_routes(app, api):
                             self.queue.put(cleaned)
                         self.buffer = ""
 
-                def isatty(self):
+                def isatty(self) -> bool:
                     return False
 
             try:
@@ -110,7 +110,7 @@ def register_chat_routes(app, api):
 
                 cli = JottyCLI(no_color=True)
 
-                def capture_print(text, *a, **kw):
+                def capture_print(text, *a, **kw) -> None:
                     add_output(text)
 
                 # Monkey-patch renderer methods
@@ -126,7 +126,7 @@ def register_chat_routes(app, api):
                 )
 
                 # Capture tree output
-                def capture_tree(data, **kwargs):
+                def capture_tree(data, **kwargs) -> None:
                     title = kwargs.get("title", "Data")
                     if isinstance(data, dict):
                         lines = [f"🌳 {title}:"]
@@ -139,7 +139,7 @@ def register_chat_routes(app, api):
                 cli.renderer.tree = capture_tree
 
                 # Capture table output
-                def capture_table(table):
+                def capture_table(table) -> None:
                     try:
                         from rich.console import Console
 
@@ -159,7 +159,7 @@ def register_chat_routes(app, api):
                 # Run command in thread
                 import concurrent.futures
 
-                def run_command_sync():
+                def run_command_sync() -> None:
                     """Run command synchronously in thread."""
                     # Redirect stdout in this thread
                     sys.stdout = queue_writer
@@ -243,7 +243,7 @@ def register_chat_routes(app, api):
         context_id: Optional[str] = None
 
     @app.post("/api/chat", response_model=ChatResponse)
-    async def chat(request: ChatRequest):
+    async def chat(request: ChatRequest) -> Any:
         """
         Send a chat message and get response.
 
@@ -258,7 +258,7 @@ def register_chat_routes(app, api):
         return ChatResponse(**result)
 
     @app.get("/api/chat/stream")
-    async def chat_stream(message: str, session_id: Optional[str] = None):
+    async def chat_stream(message: str, session_id: Optional[str] = None) -> Any:
         """
         SSE streaming chat endpoint.
 
@@ -275,16 +275,16 @@ def register_chat_routes(app, api):
         event_queue = asyncio.Queue()
         done_event = asyncio.Event()
 
-        async def process_message_async():
+        async def process_message_async() -> None:
             """Process message and put events in queue."""
             try:
 
-                async def async_stream_cb(chunk: str):
+                async def async_stream_cb(chunk: str) -> None:
                     """Async callback that puts chunks in queue."""
                     logger.info(f"STREAM_CB: '{chunk[:30]}...' queued")
                     await event_queue.put({"type": "stream", "chunk": chunk})
 
-                async def async_status_cb(stage: str, detail: str):
+                async def async_status_cb(stage: str, detail: str) -> None:
                     """Async callback that puts status in queue."""
                     logger.info(f"STATUS_CB: {stage} - {detail}")
                     await event_queue.put({"type": "status", "stage": stage, "detail": detail})
@@ -304,7 +304,7 @@ def register_chat_routes(app, api):
             finally:
                 done_event.set()
 
-        async def event_generator():
+        async def event_generator() -> None:
             # Start processing as a background task
             task = asyncio.create_task(process_message_async())
 
@@ -349,7 +349,7 @@ def register_chat_routes(app, api):
         )
 
     @app.post("/api/chat/context")
-    async def chat_with_context(request: ChatWithContextRequest):
+    async def chat_with_context(request: ChatWithContextRequest) -> Any:
         """
         Chat with document/folder context using RAG.
 
@@ -397,7 +397,7 @@ QUESTION: {request.message}"""
     @app.get("/api/chat/context/stream")
     async def chat_with_context_stream(
         message: str, context_type: str, context_id: str, session_id: Optional[str] = None
-    ):
+    ) -> Any:
         """SSE streaming chat with document/folder context."""
         import concurrent.futures
         import json
@@ -409,7 +409,7 @@ QUESTION: {request.message}"""
 
         session_id = session_id or str(uuid.uuid4())[:8]
 
-        async def event_generator():
+        async def event_generator() -> None:
             # Get context
             try:
                 processor = get_document_processor()
@@ -438,13 +438,13 @@ QUESTION: {message}"""
             result_holder = {"result": None, "done": False}
             padding = " " * 16384
 
-            def sync_stream_cb(chunk: str):
+            def sync_stream_cb(chunk: str) -> None:
                 event_queue.put({"type": "stream", "chunk": chunk})
 
-            def sync_status_cb(stage: str, detail: str):
+            def sync_status_cb(stage: str, detail: str) -> None:
                 event_queue.put({"type": "status", "stage": stage, "detail": detail})
 
-            def process_sync():
+            def process_sync() -> None:
                 try:
                     loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(loop)
@@ -512,7 +512,7 @@ QUESTION: {message}"""
         context: Optional[dict] = None
 
     @app.websocket("/ws/chat/{session_id}")
-    async def websocket_chat(websocket: WebSocket, session_id: str):
+    async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
         """
         WebSocket endpoint for streaming chat.
 
@@ -560,10 +560,10 @@ QUESTION: {message}"""
                     result_holder = {"result": None, "done": False}
 
                     # Sync callbacks that queue events
-                    def sync_stream_cb(chunk: str):
+                    def sync_stream_cb(chunk: str) -> None:
                         event_queue.put({"type": "stream", "chunk": chunk})
 
-                    def sync_status_cb(stage: str, detail: str):
+                    def sync_status_cb(stage: str, detail: str) -> None:
                         event_queue.put({"type": "status", "stage": stage, "detail": detail})
 
                     # Send processing status
@@ -575,7 +575,7 @@ QUESTION: {message}"""
                     )
 
                     # Run processing in thread
-                    def process_sync():
+                    def process_sync() -> None:
                         try:
                             loop = asyncio.new_event_loop()
                             asyncio.set_event_loop(loop)

@@ -286,10 +286,10 @@ class DriftMixin:
         self,
         X_reference: Any,
         X_current: Any,
-        feature_names: List[str] = None,
+        feature_names: List[str] | None = None,
         psi_warn: float = 0.1,
         psi_alert: float = 0.25,
-        feature_importance: Dict[str, float] = None,
+        feature_importance: Dict[str, float] | None = None,
         y_reference: Any = None,
         y_current: Any = None,
     ) -> Any:
@@ -640,7 +640,7 @@ Monitoring for distribution shift between reference (training) and current (prod
         except Exception as e:
             self._record_section_failure("Drift Analysis", e)
 
-    def _calculate_psi(self, reference: Any, current: Any, n_bins: int = None) -> float:
+    def _calculate_psi(self, reference: Any, current: Any, n_bins: int | None = None) -> float:
         """Calculate Population Stability Index between two distributions.
 
         Uses quantile-based binning by default (configurable via self.config).
@@ -683,7 +683,9 @@ Monitoring for distribution shift between reference (training) and current (prod
         psi = np.sum((cur_pct - ref_pct) * np.log(cur_pct / ref_pct))
         return float(psi)
 
-    def _calculate_js_divergence(self, reference: Any, current: Any, n_bins: int = None) -> float:
+    def _calculate_js_divergence(
+        self, reference: Any, current: Any, n_bins: int | None = None
+    ) -> float:
         """Calculate Jensen-Shannon divergence between two distributions."""
         try:
             from scipy.spatial.distance import jensenshannon

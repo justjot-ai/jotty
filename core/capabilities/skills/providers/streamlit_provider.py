@@ -15,6 +15,8 @@ When user says "Build me a chat app" or "Create a dashboard",
 this provider generates a complete Streamlit app.
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import subprocess
@@ -356,7 +358,7 @@ class StreamlitProvider(SkillProvider):
     version = "1.0.0"
     description = "Build apps with Streamlit - fully open source, no cloud required"
 
-    def __init__(self, config: Dict[str, Any] = None) -> None:
+    def __init__(self, config: Dict[str, Any] | None = None) -> None:
         """
         Initialize StreamlitProvider.
 
@@ -453,7 +455,7 @@ class StreamlitProvider(SkillProvider):
         """Get supported skill categories."""
         return [SkillCategory.APP_BUILDING]
 
-    async def execute(self, task: str, context: Dict[str, Any] = None) -> ProviderResult:
+    async def execute(self, task: str, context: Dict[str, Any] | None = None) -> ProviderResult:
         """
         Execute a Streamlit app creation task.
 
@@ -809,10 +811,10 @@ st.dataframe(df, use_container_width=True)"""
         title: str,
         icon: str = "",
         layout: str = "centered",
-        imports: List[str] = None,
+        imports: List[str] | None = None,
         body: str = "",
         description: str = "",
-        extra_deps: List[str] = None,
+        extra_deps: List[str] | None = None,
     ) -> ProviderResult:
         """
         Create a Streamlit app.
@@ -892,7 +894,7 @@ st.dataframe(df, use_container_width=True)"""
                 category=SkillCategory.APP_BUILDING,
             )
 
-    async def _serve(self, context: Dict[str, Any] = None) -> ProviderResult:
+    async def _serve(self, context: Dict[str, Any] | None = None) -> ProviderResult:
         """Start the Streamlit dev server."""
         app = self._current_app
         if not app:
@@ -959,7 +961,7 @@ st.dataframe(df, use_container_width=True)"""
                 error=f"Failed to start server: {e}",
             )
 
-    async def _stop_server(self, context: Dict[str, Any] = None) -> ProviderResult:
+    async def _stop_server(self, context: Dict[str, Any] | None = None) -> ProviderResult:
         """Stop the Streamlit dev server."""
         app = self._current_app
         if not app or not app.is_running():
@@ -989,7 +991,7 @@ st.dataframe(df, use_container_width=True)"""
                 error=f"Failed to stop server: {e}",
             )
 
-    def _find_available_port(self, start_port: int = None) -> int:
+    def _find_available_port(self, start_port: int | None = None) -> int:
         """Find an available port."""
         import socket
 
@@ -1033,6 +1035,6 @@ st.dataframe(df, use_container_width=True)"""
 
 
 # Factory function for registration
-def create_provider(config: Dict[str, Any] = None) -> StreamlitProvider:
+def create_provider(config: Dict[str, Any] | None = None) -> StreamlitProvider:
     """Create and return a StreamlitProvider instance."""
     return StreamlitProvider(config)

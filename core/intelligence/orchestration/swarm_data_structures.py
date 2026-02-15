@@ -12,6 +12,8 @@ Core data classes for swarm intelligence:
 Extracted from swarm_intelligence.py for modularity.
 """
 
+from __future__ import annotations
+
 import time
 from dataclasses import dataclass, field
 from enum import Enum
@@ -173,7 +175,7 @@ class AgentSession:
     created_at: float = field(default_factory=time.time)
     last_active: float = field(default_factory=time.time)
 
-    def add_message(self, from_agent: str, content: str, metadata: Dict = None) -> None:
+    def add_message(self, from_agent: str, content: str, metadata: Dict | None = None) -> None:
         """Add message to session."""
         self.messages.append(
             {

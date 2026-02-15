@@ -602,8 +602,6 @@ class VisualizationMixin:
                 confidences = [b["confidence"] for b in bins if b["count"] > 0]
                 accuracies = [b["accuracy"] for b in bins if b["count"] > 0]
                 counts = [b["count"] for b in bins if b["count"] > 0]
-                _gaps = [b["gap"] for b in bins if b["count"] > 0]
-
                 # 1. Reliability diagram
                 ax1.plot([0, 1], [0, 1], "k--", label="Perfect Calibration")
                 ax1.plot(
@@ -1431,7 +1429,7 @@ class VisualizationMixin:
             return ""
 
     def _create_bootstrap_auc_chart(
-        self, boot_accuracies: List[float], auc_data: Dict = None
+        self, boot_accuracies: List[float], auc_data: Dict | None = None
     ) -> str:
         """Create bootstrap distribution histogram with CI bands."""
         try:
@@ -2196,7 +2194,7 @@ Plotly.newPlot('{chart_id}', [{','.join(traces)}], {{
             self._record_chart_failure("benchmark_chart", e)
             return ""
 
-    def _create_confusion_matrix_chart(self, cm: Any, labels: List[str] = None) -> str:
+    def _create_confusion_matrix_chart(self, cm: Any, labels: List[str] | None = None) -> str:
         """Create confusion matrix heatmap."""
         try:
             import seaborn as sns

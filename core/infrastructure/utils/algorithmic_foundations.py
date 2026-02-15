@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any
 
 """
@@ -13,21 +15,52 @@ NO HARDCODING. Everything derived from algorithms or LLM estimation.
 """
 
 from ..context.content_gate import (
-    ContentChunk,
     ContentGate,
+    ContextChunk,
     ProcessedContent,
     RelevanceEstimator,
     with_content_gate,
 )
 
+# Backward-compatible alias
+ContentChunk = ContextChunk
+
 # Universal Context Management
-from ..context.global_context_guard import (
-    ContextOverflowInfo,
-    GlobalContextGuard,
-    OverflowDetector,
-    patch_dspy_with_guard,
-    unpatch_dspy,
-)
+# NOTE: global_context_guard module was removed; provide stubs so dependents load.
+try:
+    from ..context.global_context_guard import (
+        ContextOverflowInfo,
+        GlobalContextGuard,
+        OverflowDetector,
+        patch_dspy_with_guard,
+        unpatch_dspy,
+    )
+except ImportError:
+
+    class ContextOverflowInfo:  # type: ignore[no-redef]
+        """Stub — global_context_guard module no longer exists."""
+
+    class GlobalContextGuard:  # type: ignore[no-redef]
+        """Stub — global_context_guard module no longer exists."""
+
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            pass
+
+        def get_statistics(self) -> dict:
+            return {}
+
+        def wrap_function(self, func: Any) -> Any:
+            return func
+
+    class OverflowDetector:  # type: ignore[no-redef]
+        """Stub — global_context_guard module no longer exists."""
+
+    def patch_dspy_with_guard(*args: Any, **kwargs: Any) -> None:
+        """Stub — global_context_guard module no longer exists."""
+
+    def unpatch_dspy(*args: Any, **kwargs: Any) -> None:
+        """Stub — global_context_guard module no longer exists."""
+
 
 # Information Theory (Shannon)
 from ..data.information_storage import (
@@ -37,13 +70,20 @@ from ..data.information_storage import (
 )
 
 # Credit Assignment (Game Theory + MARL)
-from ..learning.algorithmic_credit import (
-    AgentContribution,
-    AlgorithmicCreditAssigner,
-    Coalition,
-    DifferenceRewardEstimator,
-    ShapleyValueEstimator,
-)
+try:
+    from core.intelligence.learning.algorithmic_credit import (
+        AgentContribution,
+        AlgorithmicCreditAssigner,
+        Coalition,
+        DifferenceRewardEstimator,
+        ShapleyValueEstimator,
+    )
+except ImportError:
+    AgentContribution = None  # type: ignore[assignment,misc]
+    AlgorithmicCreditAssigner = None  # type: ignore[assignment,misc]
+    Coalition = None  # type: ignore[assignment,misc]
+    DifferenceRewardEstimator = None  # type: ignore[assignment,misc]
+    ShapleyValueEstimator = None  # type: ignore[assignment,misc]
 
 # =============================================================================
 # UNIFIED INTERFACE
@@ -98,7 +138,9 @@ class AlgorithmicReVal:
         """Store with Shannon information weighting."""
         return await self.info_storage.store(event, context, raw_content)
 
-    async def process_content(self, content: str, query: str, future_tasks: list = None) -> Any:
+    async def process_content(
+        self, content: str, query: str, future_tasks: list | None = None
+    ) -> Any:
         """Process content through ContentGate (auto-chunk if needed)."""
         return await self.content_gate.process(content, query, future_tasks)
 

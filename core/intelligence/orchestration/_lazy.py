@@ -15,6 +15,8 @@ Usage:
     sm.planner.plan(...)  # NOW it creates SwarmPlanner
 """
 
+from __future__ import annotations
+
 import threading
 from typing import Any, Callable, Generic, TypeVar
 
@@ -39,7 +41,7 @@ class LazyComponent(Generic[T]):
     def __set_name__(self, owner: type, name: str) -> None:
         self._attr_name = f"_lazy_{name}"
 
-    def __get__(self, obj: Any, objtype: type = None) -> T:
+    def __get__(self, obj: Any, objtype: type | None = None) -> T:
         if obj is None:
             return self  # type: ignore  # class-level access returns descriptor
         # Fast path: check cache without lock

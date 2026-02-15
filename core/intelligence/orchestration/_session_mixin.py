@@ -6,6 +6,8 @@ Extracted from swarm_intelligence.py — handles isolated agent sessions
 (moltbot pattern for per-context session isolation).
 """
 
+from __future__ import annotations
+
 import hashlib
 import logging
 import time
@@ -32,7 +34,7 @@ class SessionMixin:
         return self.sessions.get(session_id)
 
     def session_send(
-        self, session_id: str, from_agent: str, content: str, metadata: Dict = None
+        self, session_id: str, from_agent: str, content: str, metadata: Dict | None = None
     ) -> bool:
         """Send message to a session (moltbot sessions_send pattern)."""
         session = self.sessions.get(session_id)
@@ -48,7 +50,7 @@ class SessionMixin:
             return session.messages[-limit:]
         return []
 
-    def sessions_list(self, agent_name: str = None) -> List[Dict]:
+    def sessions_list(self, agent_name: str | None = None) -> List[Dict]:
         """List sessions (moltbot sessions_list pattern)."""
         sessions = []
         for sid, session in self.sessions.items():

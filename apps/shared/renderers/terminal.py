@@ -44,7 +44,7 @@ class TerminalMessageRenderer(MessageRenderer):
     - Timestamps
     """
 
-    def __init__(self, console: Optional[Console] = None):
+    def __init__(self, console: Optional[Console] = None) -> None:
         """
         Initialize terminal renderer.
 
@@ -131,7 +131,7 @@ class TerminalStatusRenderer(StatusRenderer):
     - Status messages
     """
 
-    def __init__(self, console: Optional[Console] = None):
+    def __init__(self, console: Optional[Console] = None) -> None:
         """
         Initialize status renderer.
 
@@ -214,7 +214,7 @@ class TerminalInputHandler(InputHandler):
     - Confirmation dialogs
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize input handler."""
         if not DEPS_AVAILABLE:
             raise ImportError("prompt_toolkit required for TerminalInputHandler")

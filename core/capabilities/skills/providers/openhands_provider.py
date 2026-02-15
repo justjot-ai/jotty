@@ -13,6 +13,8 @@ Capabilities:
 - Process management
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import time
@@ -50,7 +52,7 @@ class OpenHandsProvider(SkillProvider):
     version = "0.38.0"
     description = "Terminal and code operations via OpenHands SDK"
 
-    def __init__(self, config: Dict[str, Any] = None) -> None:
+    def __init__(self, config: Dict[str, Any] | None = None) -> None:
         super().__init__(config)
 
         self.capabilities = [
@@ -110,7 +112,7 @@ class OpenHandsProvider(SkillProvider):
             SkillCategory.FILE_OPERATIONS,
         ]
 
-    async def execute(self, task: str, context: Dict[str, Any] = None) -> ProviderResult:
+    async def execute(self, task: str, context: Dict[str, Any] | None = None) -> ProviderResult:
         """Execute terminal/code task."""
         start_time = time.time()
         context = context or {}

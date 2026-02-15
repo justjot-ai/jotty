@@ -44,7 +44,7 @@ def get_swarm_architect_prompt() -> str:
 
 
 def get_swarm_auditor_prompt(
-    auditor_type: Literal["coordination", "goal_alignment"] = "coordination"
+    auditor_type: Literal["coordination", "goal_alignment"] = "coordination",
 ) -> str:
     """
     Get swarm auditor prompt for actor coordination or goal alignment.

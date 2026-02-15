@@ -7,6 +7,9 @@ Supports multiple models via OpenCode (GLM, Claude, GPT, etc.)
 OpenCode is like an AI SDK - it provides access to multiple models.
 This should be in Jotty behind DSPy LM abstraction, not in supervisor.
 """
+
+from __future__ import annotations
+
 import json
 import os
 import subprocess
@@ -66,7 +69,9 @@ class OpenCodeLM(BaseLM):
         arch = os.uname().machine if hasattr(os, "uname") else "unknown"
         self.use_remote = arch in ("aarch64", "arm64")
 
-    def forward(self, prompt: str = None, messages: list = None, **kwargs: Any) -> Dict:
+    def forward(
+        self, prompt: str | None = None, messages: list | None = None, **kwargs: Any
+    ) -> Dict:
         """
         DSPy BaseLM required method
         Returns OpenAI-compatible response format
@@ -109,7 +114,9 @@ class OpenCodeLM(BaseLM):
             },
         }
 
-    def __call__(self, prompt: str = None, messages: list = None, **kwargs: Any) -> Any:
+    def __call__(
+        self, prompt: str | None = None, messages: list | None = None, **kwargs: Any
+    ) -> Any:
         """
         Generate response from OpenCode (non-streaming)
         Implements BaseLM interface

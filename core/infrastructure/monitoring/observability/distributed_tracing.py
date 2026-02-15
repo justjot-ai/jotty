@@ -42,7 +42,7 @@ class DistributedTracer:
         """Lazy-load local tracer (DRY - reuse existing)."""
         if self._local_tracer is None:
             try:
-                from Jotty.core.infrastructure.monitoring.observability import get_tracer
+                from . import get_tracer
 
                 self._local_tracer = get_tracer()
             except ImportError:

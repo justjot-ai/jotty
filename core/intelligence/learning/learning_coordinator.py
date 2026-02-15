@@ -33,6 +33,8 @@ Usage:
     coordinator.save_all(episode_count=10, avg_reward=0.75)
 """
 
+from __future__ import annotations
+
 import json
 import logging
 import time
@@ -87,7 +89,7 @@ class LearningManager:
     - Support domain-based learning retrieval
     """
 
-    def __init__(self, config: Any, base_dir: str = None) -> None:
+    def __init__(self, config: Any, base_dir: str | None = None) -> None:
         """
         Initialize Learning Coordinator.
 
@@ -443,7 +445,7 @@ class LearningManager:
         reward: float,
         next_state: Optional[Dict[str, Any]] = None,
         done: bool = False,
-        domain: str = None,
+        domain: str | None = None,
     ) -> LearningUpdate:
         """
         Record an experience for an agent.
@@ -649,7 +651,7 @@ class LearningManager:
     # =========================================================================
 
     def save_all(
-        self, episode_count: int = 0, avg_reward: float = 0.0, domains: List[str] = None
+        self, episode_count: int = 0, avg_reward: float = 0.0, domains: List[str] | None = None
     ) -> Any:
         """
         Save all learning state.
@@ -787,7 +789,7 @@ class _NoOpMemory:
 _global_coordinator: Optional[LearningManager] = None
 
 
-def get_learning_coordinator(config: Any = None, base_dir: str = None) -> LearningManager:
+def get_learning_coordinator(config: Any = None, base_dir: str | None = None) -> LearningManager:
     """Get or create global learning coordinator."""
     global _global_coordinator
 

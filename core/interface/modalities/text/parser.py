@@ -11,7 +11,7 @@ from typing import Any, Dict, Optional
 class TextParser:
     """Parse text input from different platforms."""
 
-    def __init__(self, platform: str = "generic"):
+    def __init__(self, platform: str = "generic") -> None:
         """
         Initialize parser for specific platform.
 

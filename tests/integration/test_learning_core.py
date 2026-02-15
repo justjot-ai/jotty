@@ -18,13 +18,18 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 import pytest
 
 try:
-    from core.foundation.data_structures import GoalValue, MemoryEntry, MemoryLevel, SwarmConfig
-    from core.learning.adaptive_components import (
+    from core.infrastructure.foundation.data_structures import (
+        GoalValue,
+        MemoryEntry,
+        MemoryLevel,
+        SwarmConfig,
+    )
+    from core.intelligence.learning.adaptive_components import (
         AdaptiveExploration,
         AdaptiveLearningRate,
         IntermediateRewardCalculator,
     )
-    from core.learning.learning_coordinator import (
+    from core.intelligence.learning.learning_coordinator import (
         LearningManager,
         LearningSession,
         LearningUpdate,
@@ -33,8 +38,8 @@ try:
         get_learning_coordinator,
         reset_learning_coordinator,
     )
-    from core.learning.rl_components import RLComponents
-    from core.learning.td_lambda import (
+    from core.intelligence.learning.rl_components import RLComponents
+    from core.intelligence.learning.td_lambda import (
         COMACredit,
         GroupedValueBaseline,
         SkillQTable,

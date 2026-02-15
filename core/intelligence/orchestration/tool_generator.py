@@ -12,6 +12,8 @@ This enables a single LLM call where Claude decides which tools to use,
 eliminating the need for DSPy signatures or hardcoded decision logic.
 """
 
+from __future__ import annotations
+
 import logging
 import os
 from dataclasses import dataclass
@@ -1040,8 +1042,8 @@ class UnifiedToolGenerator:
         file_path: str,
         filename: str,
         format: str,
-        size: str = None,
-        description: str = None,
+        size: str | None = None,
+        description: str | None = None,
         preview: bool = False,
     ) -> Dict[str, Any]:
         """

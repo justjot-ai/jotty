@@ -19,13 +19,8 @@ from typing import Any, Callable, Dict, List, Optional, Type
 
 import dspy
 
-# Import TaggedOutput for special handling (GENERIC for any actor)
-try:
-    from jotty.data_structures import TaggedOutput
-
-    TAGGED_OUTPUT_AVAILABLE = True
-except ImportError:
-    TAGGED_OUTPUT_AVAILABLE = False
+# TaggedOutput is not available in this codebase
+TAGGED_OUTPUT_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 

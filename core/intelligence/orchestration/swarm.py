@@ -33,6 +33,8 @@ Usage:
     )
 """
 
+from __future__ import annotations
+
 import logging
 import time
 from typing import Any, Dict, List, Optional, Union
@@ -62,8 +64,8 @@ class TemplateSwarmResult:
         feature_count: int = 0,
         execution_time: float = 0.0,
         template_name: str = "",
-        stage_results: Dict[str, Any] = None,
-        metadata: Dict[str, Any] = None,
+        stage_results: Dict[str, Any] | None = None,
+        metadata: Dict[str, Any] | None = None,
     ) -> None:
         self.success = success
         self.score = score
@@ -153,7 +155,7 @@ class Swarm:
         cls,
         template: Union[str, SwarmTemplate] = "ml",
         data: pd.DataFrame = None,
-        target: str = None,
+        target: str | None = None,
         X: pd.DataFrame = None,
         y: pd.Series = None,
         time_budget: int = 300,
@@ -463,7 +465,7 @@ class Swarm:
         return await cls.solve(template=template, X=X, y=y, **kwargs)
 
     @classmethod
-    def _progress_callback(cls, stage_name: str, status: str, result: Dict = None) -> Any:
+    def _progress_callback(cls, stage_name: str, status: str, result: Dict | None = None) -> Any:
         """Progress callback for visual feedback."""
         if status == "start":
             logger.info(f"  Stage starting: {stage_name}...")

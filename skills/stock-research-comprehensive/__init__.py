@@ -5,19 +5,36 @@ Research Skills Module
 World-class broker-grade research report generation.
 """
 
-from .data_fetcher import FinancialDataConverter, ResearchDataFetcher
-from .enhanced_research import enhanced_stock_research_tool
-from .report_components import (
-    ChartGenerator,
-    CompanySnapshot,
-    DCFCalculator,
-    DCFModel,
-    FinancialStatements,
-    FinancialTablesFormatter,
-    PeerComparison,
-    PeerComparisonFormatter,
-    ReportTemplate,
-)
+# Use try/except to handle both relative and absolute imports
+try:
+    from .data_fetcher import FinancialDataConverter, ResearchDataFetcher
+    from .enhanced_research import enhanced_stock_research_tool
+    from .report_components import (
+        ChartGenerator,
+        CompanySnapshot,
+        DCFCalculator,
+        DCFModel,
+        FinancialStatements,
+        FinancialTablesFormatter,
+        PeerComparison,
+        PeerComparisonFormatter,
+        ReportTemplate,
+    )
+except ImportError:
+    # Absolute imports for when skill directory is added to sys.path
+    from data_fetcher import FinancialDataConverter, ResearchDataFetcher
+    from enhanced_research import enhanced_stock_research_tool
+    from report_components import (
+        ChartGenerator,
+        CompanySnapshot,
+        DCFCalculator,
+        DCFModel,
+        FinancialStatements,
+        FinancialTablesFormatter,
+        PeerComparison,
+        PeerComparisonFormatter,
+        ReportTemplate,
+    )
 
 __all__ = [
     # Data Classes

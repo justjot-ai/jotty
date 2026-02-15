@@ -244,7 +244,7 @@ class ChatInterface:
         status_renderer: StatusRenderer,
         input_handler: InputHandler,
         session: Optional[ChatSession] = None,
-    ):
+    ) -> None:
         """
         Initialize chat interface.
 

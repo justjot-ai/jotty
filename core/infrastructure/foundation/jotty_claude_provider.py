@@ -219,16 +219,11 @@ uvicorn.run(app, host='{self.host}', port={self.port}, log_level='warning')
                 logger.info(f" Using OpenAI wrapper LM: {model} (JSON mode, 300s timeout)")
             return self._lm
 
-        # Fallback to direct CLI
-        logger.warning(" Wrapper not available, using DirectClaudeCLI")
-        try:
-            from .direct_claude_cli_lm import DirectClaudeCLI
-
-            return DirectClaudeCLI(model="sonnet")
-        except ImportError:
-            from ..integration.direct_claude_cli_lm import DirectClaudeCLI
-
-            return DirectClaudeCLI(model="sonnet")
+        # Fallback: no wrapper available and DirectClaudeCLI was removed
+        raise ImportError(
+            "OpenAI wrapper server is not running and DirectClaudeCLI is no longer available. "
+            "Please start the wrapper server or use DirectAnthropicLM instead."
+        )
 
     def configure_dspy(self, model: Optional[str] = None) -> dspy.LM:
         """

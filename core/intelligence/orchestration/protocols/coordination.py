@@ -5,6 +5,8 @@ Extracted from SwarmIntelligence for modularity.
 These are mixed into SwarmIntelligence at class definition.
 """
 
+from __future__ import annotations
+
 import hashlib
 import logging
 import time
@@ -35,7 +37,7 @@ class CoordinationMixin:
         from_agent: str,
         to_agent: str,
         task_type: str,
-        context: Dict = None,
+        context: Dict | None = None,
         partial_result: Any = None,
         progress: float = 0.0,
         priority: int = 5,
@@ -136,7 +138,9 @@ class CoordinationMixin:
     # HIERARCHICAL SUPERVISOR TREE (SwarmSys O(log n) Pattern)
     # =========================================================================
 
-    def build_supervisor_tree(self, agents: List[str] = None, branching_factor: int = 3) -> None:
+    def build_supervisor_tree(
+        self, agents: List[str] | None = None, branching_factor: int = 3
+    ) -> None:
         """
         Build hierarchical supervisor tree for O(log n) coordination.
 
@@ -220,7 +224,7 @@ class CoordinationMixin:
                 return node.supervised_agents
         return []
 
-    def route_via_hierarchy(self, task_type: str, from_agent: str = None) -> Optional[str]:
+    def route_via_hierarchy(self, task_type: str, from_agent: str | None = None) -> Optional[str]:
         """
         Route task through hierarchy for O(log n) routing.
 
@@ -353,7 +357,7 @@ class CoordinationMixin:
 
         return messages
 
-    def gossip_query(self, query_type: str, agent: str = None) -> List[Dict]:
+    def gossip_query(self, query_type: str, agent: str | None = None) -> List[Dict]:
         """
         Query recent gossip messages by type.
 
@@ -499,7 +503,7 @@ class CoordinationMixin:
         return winner.agent_name
 
     def auto_auction(
-        self, task_id: str, task_type: str, available_agents: List[str] = None
+        self, task_id: str, task_type: str, available_agents: List[str] | None = None
     ) -> Optional[str]:
         """
         Run instant auction (no delay) for immediate task allocation.
@@ -528,7 +532,7 @@ class CoordinationMixin:
     def form_coalition(
         self,
         task_type: str,
-        required_roles: List[str] = None,
+        required_roles: List[str] | None = None,
         min_agents: int = 2,
         max_agents: int = 5,
     ) -> Optional[Coalition]:

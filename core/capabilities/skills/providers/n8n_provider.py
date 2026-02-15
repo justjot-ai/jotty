@@ -7,6 +7,8 @@ stays in n8n; we only list workflows and run by id. KISS: one provider, same
 env as CLI (N8N_BASE_URL, N8N_API_KEY).
 """
 
+from __future__ import annotations
+
 import logging
 import os
 import time
@@ -45,7 +47,7 @@ async def _n8n_get_workflows(base_url: str) -> List[Dict[str, Any]]:
 
 
 async def _n8n_run_workflow(
-    base_url: str, workflow_id: str, payload: Dict[str, Any] = None
+    base_url: str, workflow_id: str, payload: Dict[str, Any] | None = None
 ) -> Dict[str, Any]:
     """Run workflow by id. Returns n8n response or raises."""
     try:
@@ -73,7 +75,7 @@ class N8nProvider(SkillProvider):
     version = "1.0.0"
     description = "n8n workflows as skills (one per workflow)"
 
-    def __init__(self, config: Dict[str, Any] = None) -> None:
+    def __init__(self, config: Dict[str, Any] | None = None) -> None:
         super().__init__(config or {})
         self._base_url = self.config.get("base_url") or os.getenv("N8N_BASE_URL", DEFAULT_N8N_URL)
         self._skills_cache: List[ContributedSkill] = []
@@ -125,7 +127,7 @@ class N8nProvider(SkillProvider):
             self.is_available = False
             return True
 
-    async def execute(self, task: str, context: Dict[str, Any] = None) -> ProviderResult:
+    async def execute(self, task: str, context: Dict[str, Any] | None = None) -> ProviderResult:
         start = time.time()
         context = context or {}
         workflow_id = context.get("workflow_id") or context.get("skill_id")

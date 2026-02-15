@@ -14,7 +14,7 @@ import logging
 import sys
 
 
-def setup_logging(debug: bool = False):
+def setup_logging(debug: bool = False) -> None:
     """Configure logging."""
     level = logging.DEBUG if debug else logging.INFO
     logging.basicConfig(
@@ -24,7 +24,7 @@ def setup_logging(debug: bool = False):
     )
 
 
-def main():
+def main() -> None:
     """Main entry point."""
     parser = argparse.ArgumentParser(description="Run Jotty Telegram Bot")
     parser.add_argument("--debug", "-d", action="store_true", help="Enable debug logging")

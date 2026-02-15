@@ -13,6 +13,8 @@ Features:
 - Uses existing CLI credentials (no API key needed)
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 from typing import Any, Dict, List
@@ -72,7 +74,9 @@ class ClaudeSDKLM(dspy.BaseLM):
                 original_error=e,
             )
 
-    def __call__(self, prompt: str = None, messages: List[Dict] = None, **kwargs: Any) -> List[str]:
+    def __call__(
+        self, prompt: str | None = None, messages: List[Dict] | None = None, **kwargs: Any
+    ) -> List[str]:
         """
         Synchronous call interface (required by DSPy).
 
@@ -92,7 +96,7 @@ class ClaudeSDKLM(dspy.BaseLM):
             return asyncio.run(self._async_call(prompt, messages, **kwargs))
 
     async def _async_call(
-        self, prompt: str = None, messages: List[Dict] = None, **kwargs: Any
+        self, prompt: str | None = None, messages: List[Dict] | None = None, **kwargs: Any
     ) -> List[str]:
         """
         Async implementation using Claude Agent SDK.

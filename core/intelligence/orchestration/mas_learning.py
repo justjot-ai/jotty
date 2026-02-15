@@ -20,6 +20,8 @@ Usage:
     mas_learning.save_all()
 """
 
+from __future__ import annotations
+
 import hashlib
 import json
 import logging
@@ -78,7 +80,9 @@ class SessionLearning:
     agent_count: int = 0
     output_quality: float = 0.0
 
-    def get_relevance_score(self, query_topics: List[str], query_agents: List[str] = None) -> float:
+    def get_relevance_score(
+        self, query_topics: List[str], query_agents: List[str] | None = None
+    ) -> float:
         """Calculate relevance of this session to a query."""
         topic_overlap = len(set(self.task_topics) & set(query_topics))
         topic_score = topic_overlap / max(len(query_topics), 1)
@@ -214,7 +218,7 @@ class MASLearning:
         solution_description: str,
         source: str,
         success: bool,
-        context: Dict[str, Any] = None,
+        context: Dict[str, Any] | None = None,
     ) -> Any:
         """Record a fix attempt (success or failure)."""
         error_hash = self._error_hash(error)
@@ -329,7 +333,7 @@ class MASLearning:
         self._save_sessions()
 
     def load_relevant_learnings(
-        self, task_description: str, agent_types: List[str] = None, top_k: int = 5
+        self, task_description: str, agent_types: List[str] | None = None, top_k: int = 5
     ) -> Dict[str, Any]:
         """
         Load learnings relevant to the current task.

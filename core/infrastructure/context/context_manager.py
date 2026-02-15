@@ -11,6 +11,8 @@ A-Team Critical Fix: Intelligent context management that:
 This is the SMART context manager the user requested.
 """
 
+from __future__ import annotations
+
 import asyncio
 import functools
 import logging
@@ -272,7 +274,7 @@ class SmartContextManager:
     # =========================================================================
 
     def build_context(
-        self, system_prompt: str, user_input: str, additional_context: Dict[str, str] = None
+        self, system_prompt: str, user_input: str, additional_context: Dict[str, str] | None = None
     ) -> Dict[str, Any]:
         """
         Build context that fits within limits while preserving critical info.

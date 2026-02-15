@@ -155,13 +155,13 @@ class LotusOptimizer:
         # Default prompt function
         if prompt_fn is None:
 
-            def prompt_fn(item):
+            def prompt_fn(item) -> Any:
                 return f"Instruction: {instruction}\nInput: {item}\nOutput:"
 
         # Default parse function
         if parse_fn is None:
 
-            def parse_fn(response):
+            def parse_fn(response) -> Any:
                 return (response.strip(), 0.8)
 
         # Phase 1: Check cache

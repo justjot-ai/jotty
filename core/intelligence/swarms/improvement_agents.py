@@ -16,6 +16,8 @@ Extracted from base_swarm.py for modularity.
 Refactored to use BaseAgent hierarchy (Feb 2026).
 """
 
+from __future__ import annotations
+
 import json
 import logging
 from dataclasses import asdict
@@ -54,7 +56,7 @@ def _lazy_sig(name: Any) -> Any:
 
 
 # Import base class
-from Jotty.core.modes.agent.base import MetaAgent, MetaAgentConfig
+from Jotty.core.modes.agent.agents.meta_agent import MetaAgent, MetaAgentConfig
 
 from .evaluation import GoldStandardDB, ImprovementHistory
 
@@ -246,8 +248,8 @@ class PlannerAgent(MetaAgent):
     async def create_plan(
         self,
         task_description: str,
-        relevant_improvements: List[ImprovementSuggestion] = None,
-        past_plans: List[Dict[str, Any]] = None,
+        relevant_improvements: List[ImprovementSuggestion] | None = None,
+        past_plans: List[Dict[str, Any]] | None = None,
     ) -> Dict[str, Any]:
         """Create an optimized execution plan."""
         try:
@@ -325,7 +327,7 @@ class ActorAgent(MetaAgent):
         self.history = history
 
     async def execute_task(
-        self, task: str, context: Dict[str, Any], learnings: List[str] = None
+        self, task: str, context: Dict[str, Any], learnings: List[str] | None = None
     ) -> Tuple[Dict[str, Any], float, List[str]]:
         """
         Execute a task and return output, confidence, and applied learnings.
@@ -524,7 +526,7 @@ class CollapsedEvaluator(MetaAgent):
         self,
         gold_standard_id: str,
         actual_output: Dict[str, Any],
-        agent_configs: Dict[AgentRole, SwarmAgentConfig] = None,
+        agent_configs: Dict[AgentRole, SwarmAgentConfig] | None = None,
         context: str = "",
     ) -> Tuple[Evaluation, List[ImprovementSuggestion]]:
         """
@@ -561,7 +563,7 @@ class CollapsedEvaluator(MetaAgent):
         return evaluation, suggestions
 
     def _derive_suggestions(
-        self, evaluation: Evaluation, agent_configs: Dict[AgentRole, SwarmAgentConfig] = None
+        self, evaluation: Evaluation, agent_configs: Dict[AgentRole, SwarmAgentConfig] | None = None
     ) -> List[ImprovementSuggestion]:
         """
         Derive improvement suggestions directly from evaluation feedback.
@@ -647,8 +649,8 @@ class CollapsedExecutor(MetaAgent):
         self,
         task: str,
         context: Dict[str, Any],
-        suggestions: List[ImprovementSuggestion] = None,
-        learnings: List[str] = None,
+        suggestions: List[ImprovementSuggestion] | None = None,
+        learnings: List[str] | None = None,
     ) -> Tuple[Dict[str, Any], float, List[str]]:
         """
         Single LLM call: Plan + Execute + Extract learnings.

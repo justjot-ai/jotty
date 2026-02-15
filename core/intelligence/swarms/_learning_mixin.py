@@ -10,6 +10,8 @@ Knowledge retrieval/storage/context building are in _knowledge_mixin.py.
 Extracted from base_swarm.py to reduce file size.
 """
 
+from __future__ import annotations
+
 import hashlib
 import json
 import logging
@@ -250,8 +252,8 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
         execution_time: float,
         tools_used: List[str],
         task_type: str,
-        output_data: Dict[str, Any] = None,
-        input_data: Dict[str, Any] = None,
+        output_data: Dict[str, Any] | None = None,
+        input_data: Dict[str, Any] | None = None,
     ) -> Any:
         """
         Post-execution learning hook. Called at end of execute().
@@ -519,7 +521,7 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
         execution_time: float,
         success: bool,
         error: Optional[str] = None,
-        tools_used: List[str] = None,
+        tools_used: List[str] | None = None,
     ) -> Any:
         """Record execution trace for learning and Agent0 feedback."""
         trace = ExecutionTrace(

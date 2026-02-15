@@ -15,6 +15,8 @@ Usage:
     result = await pilot("Set up a FastAPI project with JWT auth and tests")
 """
 
+from __future__ import annotations
+
 import asyncio
 import json
 import logging
@@ -73,7 +75,7 @@ class PilotSwarm(SwarmTemplate):
     def __init__(self, config: PilotConfig = None) -> None:
         super().__init__(config or PilotConfig())
 
-    async def _execute_domain(self, topic: str = None, **kwargs: Any) -> PilotResult:
+    async def _execute_domain(self, topic: str | None = None, **kwargs: Any) -> PilotResult:
         """Execute goal completion."""
         return await self.run_goal(goal=topic, **kwargs)
 
@@ -81,7 +83,7 @@ class PilotSwarm(SwarmTemplate):
         self,
         goal: str,
         context: str = "",
-        send_telegram: bool = None,
+        send_telegram: bool | None = None,
     ) -> PilotResult:
         """
         Execute an autonomous goal-completion loop.
@@ -122,7 +124,7 @@ class PilotSwarm(SwarmTemplate):
         goal: str,
         context: str,
         config: PilotConfig,
-        send_telegram: bool = None,
+        send_telegram: bool | None = None,
     ) -> PilotResult:
         """Execute the Plan → Execute → Validate loop."""
 

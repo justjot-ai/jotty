@@ -51,7 +51,7 @@ def _resolve_learning_config(config: Any) -> "SwarmConfig":
 
 
 def get_learning_system(
-    config: Optional[Union["LearningConfig", "SwarmConfig"]] = None
+    config: Optional[Union["LearningConfig", "SwarmConfig"]] = None,
 ) -> "LearningManager":
     """
     Return a configured LearningManager (unified learning coordinator).
@@ -69,7 +69,7 @@ def get_learning_system(
 
 
 def get_td_lambda(
-    config: Optional[Union["LearningConfig", "SwarmConfig"]] = None
+    config: Optional[Union["LearningConfig", "SwarmConfig"]] = None,
 ) -> "TDLambdaLearner":
     """
     Return a TDLambdaLearner for temporal-difference learning.
@@ -87,7 +87,7 @@ def get_td_lambda(
 
 
 def get_credit_assigner(
-    config: Optional[Union["LearningConfig", "SwarmConfig"]] = None
+    config: Optional[Union["LearningConfig", "SwarmConfig"]] = None,
 ) -> "ReasoningCreditAssigner":
     """
     Return a ReasoningCreditAssigner for multi-step reasoning credit.
@@ -105,7 +105,7 @@ def get_credit_assigner(
 
 
 def get_offline_learner(
-    config: Optional[Union["LearningConfig", "SwarmConfig"]] = None
+    config: Optional[Union["LearningConfig", "SwarmConfig"]] = None,
 ) -> Dict[str, Any]:
     """
     Return offline learning components: OfflineLearner, CounterfactualLearner, PatternDiscovery.

@@ -18,6 +18,8 @@ Architecture: Sub-modules are extracted for maintainability.
 All classes are re-exported here for backward compatibility.
 """
 
+from __future__ import annotations
+
 import logging
 import threading
 import time
@@ -101,7 +103,7 @@ class SwarmIntelligence:
 
     DEFAULT_COLLECTIVE_MEMORY_LIMIT = 200
 
-    def __init__(self, config: Any = None, collective_memory_limit: int = None) -> None:
+    def __init__(self, config: Any = None, collective_memory_limit: int | None = None) -> None:
         self.config = config
         self.collective_memory_limit = (
             collective_memory_limit
@@ -299,7 +301,7 @@ class SwarmIntelligence:
         logger.info(f"Training mode {'enabled' if enabled else 'disabled'}")
 
     def get_training_task(
-        self, target_agent: str = None, tool_aware: bool = True
+        self, target_agent: str | None = None, tool_aware: bool = True
     ) -> Optional[SyntheticTask]:
         """
         Get a curriculum-generated training task.
@@ -331,8 +333,8 @@ class SwarmIntelligence:
         success: bool,
         tools_used: List[str],
         execution_time: float = 0.0,
-        error_type: str = None,
-        task_type: str = None,
+        error_type: str | None = None,
+        task_type: str | None = None,
     ) -> Any:
         """
         Receive feedback from executor after task completion.
@@ -385,7 +387,7 @@ class SwarmIntelligence:
         task_type: str,
         success: bool,
         execution_time: float,
-        context: Dict = None,
+        context: Dict | None = None,
         is_multi_agent: bool = False,
         agents_count: int = 1,
     ) -> Any:
@@ -453,7 +455,7 @@ class SwarmIntelligence:
         self,
         task_type: str,
         available_agents: List[str],
-        task_description: str = None,
+        task_description: str | None = None,
         use_morph_scoring: bool = True,
     ) -> Optional[str]:
         """
@@ -691,7 +693,7 @@ class SwarmIntelligence:
     # COLLECTIVE INTELLIGENCE
     # =========================================================================
 
-    def get_swarm_wisdom(self, query: str, task_type: str = None) -> Dict[str, Any]:
+    def get_swarm_wisdom(self, query: str, task_type: str | None = None) -> Dict[str, Any]:
         """
         Get collective wisdom from the swarm for a task.
 
@@ -746,7 +748,7 @@ class SwarmIntelligence:
 
         return wisdom
 
-    def format_swarm_context(self, query: str, task_type: str = None) -> str:
+    def format_swarm_context(self, query: str, task_type: str | None = None) -> str:
         """Format swarm wisdom as context for agents."""
         wisdom = self.get_swarm_wisdom(query, task_type)
 

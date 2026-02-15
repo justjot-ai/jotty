@@ -20,6 +20,8 @@ Import from here for clean access:
     )
 """
 
+from __future__ import annotations
+
 import hashlib
 import logging
 import time
@@ -138,7 +140,7 @@ class StateDescriber:
         "confidence": "Confidence: {value:.0%}" if isinstance(0, float) else "Confidence: {value}",
     }
 
-    def __init__(self, custom_templates: Dict[str, str] = None) -> None:
+    def __init__(self, custom_templates: Dict[str, str] | None = None) -> None:
         """
         Initialize describer.
 
@@ -149,7 +151,7 @@ class StateDescriber:
         if custom_templates:
             self.templates.update(custom_templates)
 
-    def describe(self, state: Dict[str, Any], include_keys: List[str] = None) -> str:
+    def describe(self, state: Dict[str, Any], include_keys: List[str] | None = None) -> str:
         """
         Convert state dict to natural language description.
 
@@ -435,7 +437,7 @@ class SimpleExperienceBuffer:
         state: Dict[str, Any],
         action: Dict[str, Any],
         reward: float,
-        next_state: Dict[str, Any] = None,
+        next_state: Dict[str, Any] | None = None,
         done: bool = False,
         **kwargs: Any,
     ) -> Any:

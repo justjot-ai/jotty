@@ -24,6 +24,8 @@ Usage:
     result = await swarm.teach(topic="Media and its influence on decisions")
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import os
@@ -128,20 +130,22 @@ class PerspectiveLearningSwarm(SwarmTemplate):
         super().__init__(config or PerspectiveLearningConfig())
         self._optimization_mode = self.config.optimization_mode
 
-    async def _execute_domain(self, topic: str = None, **kwargs: Any) -> PerspectiveLearningResult:
+    async def _execute_domain(
+        self, topic: str | None = None, **kwargs: Any
+    ) -> PerspectiveLearningResult:
         """Execute learning content generation."""
         return await self.teach(topic=topic, **kwargs)
 
     async def teach(
         self,
         topic: str,
-        student_name: str = None,
-        age_group: str = None,
-        depth: str = None,
-        languages: List[Language] = None,
-        perspectives: List[PerspectiveType] = None,
+        student_name: str | None = None,
+        age_group: str | None = None,
+        depth: str | None = None,
+        languages: List[Language] | None = None,
+        perspectives: List[PerspectiveType] | None = None,
         central_idea: str = "",
-        send_telegram: bool = None,
+        send_telegram: bool | None = None,
     ) -> PerspectiveLearningResult:
         """
         Create multi-perspective learning content for a topic.
@@ -213,7 +217,7 @@ class PerspectiveLearningSwarm(SwarmTemplate):
         perspectives: List[PerspectiveType],
         central_idea: str,
         config: PerspectiveLearningConfig,
-        send_telegram: bool = None,
+        send_telegram: bool | None = None,
     ) -> PerspectiveLearningResult:
         """Execute all teaching phases using the PhaseExecutor."""
 
@@ -1225,7 +1229,7 @@ async def teach_perspectives(
     student_name: str = "Student",
     age_group: str = "primary",
     depth: str = "standard",
-    languages: List[str] = None,
+    languages: List[str] | None = None,
     central_idea: str = "",
     send_telegram: bool = False,
 ) -> PerspectiveLearningResult:
@@ -1276,7 +1280,7 @@ def teach_perspectives_sync(
     student_name: str = "Student",
     age_group: str = "primary",
     depth: str = "standard",
-    languages: List[str] = None,
+    languages: List[str] | None = None,
     central_idea: str = "",
     send_telegram: bool = False,
 ) -> PerspectiveLearningResult:

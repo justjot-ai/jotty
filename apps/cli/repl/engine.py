@@ -5,6 +5,8 @@ REPL Engine
 Main REPL (Read-Eval-Print Loop) engine using prompt_toolkit.
 """
 
+from __future__ import annotations
+
 import logging
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, Optional
 
@@ -225,7 +227,7 @@ class REPLEngine:
         """
         self._footer_hints.state = state
 
-    def get_input_sync(self, prompt: str = None) -> str:
+    def get_input_sync(self, prompt: str | None = None) -> str:
         """
         Get input synchronously (for simple prompts).
 

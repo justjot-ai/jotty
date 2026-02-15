@@ -15,7 +15,7 @@ import logging
 import sys
 
 
-def setup_logging(debug: bool = False):
+def setup_logging(debug: bool = False) -> None:
     """Configure logging."""
     level = logging.DEBUG if debug else logging.INFO
     logging.basicConfig(
@@ -25,7 +25,7 @@ def setup_logging(debug: bool = False):
     )
 
 
-def main():
+def main() -> None:
     """Main entry point."""
     parser = argparse.ArgumentParser(description="Run Jotty Web Server")
     parser.add_argument("--host", default="0.0.0.0", help="Host to bind to (default: 0.0.0.0)")

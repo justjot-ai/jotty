@@ -466,105 +466,6 @@ class SkillDefinition:
         """Get a specific tool callable."""
         return self.tools.get(tool_name)
 
-    def get_tool_schema(self, tool_name: str) -> None:
-        """Get or build a typed ToolSchema for a tool.
-
-        Sources (highest priority first):
-        1. Cached ``_tool_schema`` on the function (set by @tool_wrapper introspection)
-        2. Existing ``ToolMetadata.parameters`` on this SkillDefinition
-        3. Live introspection of the tool function (decorator + docstring)
-        4. ``inspect.signature()`` fallback — extracts params, type annotations,
-           and required/optional from the function signature when sources 1-3
-           produce no params.
-        """
-
-        from Jotty.core.modes.agent._execution_types import ToolSchema
-
-        tool_func = self.get_tool(tool_name)
-        if tool_func is None:
-            return None
-
-        # Return cached schema if present
-        cached = getattr(tool_func, "_tool_schema", None)
-        if cached is not None:
-            return cached
-
-        # Try ToolMetadata first (richer, explicitly defined)
-        tm = self._tool_metadata.get(tool_name)
-        if tm and tm.parameters:
-            schema = ToolSchema.from_metadata(tool_name, tm.to_dict())
-        else:
-            # Build from function introspection (decorator + docstring)
-            schema = ToolSchema.from_tool_function(tool_func, tool_name)
-
-        # Fallback: inspect.signature() when no params were discovered
-        if not schema.params:
-            schema = self._schema_from_signature(tool_func, tool_name, schema)
-
-        # Cache on function for reuse
-        try:
-            tool_func._tool_schema = schema
-        except AttributeError:
-            pass  # Built-in or frozen function — skip caching
-        return schema
-
-    @staticmethod
-    def _schema_from_signature(func: Any, tool_name: str, schema: Any) -> Any:
-        """Fallback: build ToolSchema params from inspect.signature().
-
-        Extracts parameter names, type annotations, and required/optional
-        status from the function signature. Skips 'self', 'cls', and
-        dict-accepting params (the common ``params: dict`` pattern).
-        """
-        import inspect
-
-        from Jotty.core.modes.agent._execution_types import ToolParam
-
-        _TYPE_MAP = {
-            int: "int",
-            float: "float",
-            bool: "bool",
-            str: "str",
-            list: "list",
-            dict: "dict",
-        }
-        _SKIP_NAMES = {"self", "cls", "kwargs", "args"}
-
-        try:
-            sig = inspect.signature(func)
-        except (ValueError, TypeError):
-            return schema
-
-        for pname, param in sig.parameters.items():
-            if pname in _SKIP_NAMES:
-                continue
-            # Skip the common "params: dict" single-arg pattern
-            if pname == "params" and param.annotation in (dict, inspect.Parameter.empty):
-                continue
-
-            annotation = param.annotation
-            type_hint = "str"
-            if annotation is not inspect.Parameter.empty:
-                type_hint = _TYPE_MAP.get(annotation, getattr(annotation, "__name__", "str"))
-
-            required = param.default is inspect.Parameter.empty
-            default = None if required else param.default
-
-            aliases = schema._ALIASES.get(pname, [])
-
-            schema.params.append(
-                ToolParam(
-                    name=pname,
-                    type_hint=type_hint,
-                    required=required,
-                    default=default,
-                    description=f"The {pname} parameter",
-                    aliases=aliases,
-                )
-            )
-
-        return schema
-
     def is_available(self, task_context: Optional[Dict[str, Any]] = None) -> bool:
         """Check if this skill is available for the given task context.
 
@@ -1574,14 +1475,6 @@ class SkillsRegistry:
                 )
                 if spec and spec.loader:
                     module = importlib.util.module_from_spec(spec)
-                    # Pre-inject SkillStatus
-                    try:
-                        from ..utils.skill_status import SkillStatus
-
-                        module.SkillStatus = SkillStatus
-                    except ImportError:
-                        pass
-
                     spec.loader.exec_module(module)
 
                     tools = {}

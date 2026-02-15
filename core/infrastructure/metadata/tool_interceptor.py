@@ -227,8 +227,6 @@ class ToolInterceptor:
         Returns:
             List of TaggedAttempt objects
         """
-        from jotty.data_structures import TaggedAttempt
-
         attempts = []
         tool_calls = self.get_calls_for_tool(tool_name)
 
@@ -251,16 +249,16 @@ class ToolInterceptor:
             else:
                 tag = "wrong"
 
-            # Create TaggedAttempt
+            # Create tagged attempt dict (TaggedAttempt class not available)
             attempts.append(
-                TaggedAttempt(
-                    output=sql_query,
-                    tag=tag,
-                    execution_status="success" if call.success else "failed",
-                    execution_result=str(call.result),
-                    reasoning=f"Intercepted tool call #{call.attempt_number}",
-                    attempt_number=call.attempt_number,
-                )
+                {
+                    "output": sql_query,
+                    "tag": tag,
+                    "execution_status": "success" if call.success else "failed",
+                    "execution_result": str(call.result),
+                    "reasoning": f"Intercepted tool call #{call.attempt_number}",
+                    "attempt_number": call.attempt_number,
+                }
             )
 
         logger.info(f" [INTERCEPTOR] Converted {len(attempts)} tool calls to TaggedAttempts")

@@ -17,6 +17,8 @@ configurable retention. Can be serialized to disk alongside
 SwarmIntelligence state.
 """
 
+from __future__ import annotations
+
 import logging
 import time
 from collections import deque
@@ -48,7 +50,7 @@ class TimeWindow:
         self.max_points = max_points
         self._points: deque = deque(maxlen=max_points)
 
-    def add(self, value: float, labels: Dict[str, str] = None) -> None:
+    def add(self, value: float, labels: Dict[str, str] | None = None) -> None:
         """Add a data point."""
         self._points.append(MetricPoint(timestamp=time.time(), value=value, labels=labels or {}))
 

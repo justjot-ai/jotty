@@ -5,6 +5,8 @@ Export Command
 /export - Export session outputs to various formats
 """
 
+from __future__ import annotations
+
 import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -47,7 +49,9 @@ class ExportCommand(BaseCommand):
             cli.renderer.info("Available: last, history, code")
             return CommandResult.fail("Unknown export type")
 
-    async def _export_last_output(self, cli: "JottyCLI", filename: str = None) -> CommandResult:
+    async def _export_last_output(
+        self, cli: "JottyCLI", filename: str | None = None
+    ) -> CommandResult:
         """Export the last assistant output."""
 
         # Find last assistant message
@@ -69,7 +73,7 @@ class ExportCommand(BaseCommand):
 
         return CommandResult.ok(output=str(path))
 
-    async def _export_history(self, cli: "JottyCLI", filename: str = None) -> CommandResult:
+    async def _export_history(self, cli: "JottyCLI", filename: str | None = None) -> CommandResult:
         """Export full conversation history."""
 
         if not cli.session.conversation_history:
@@ -95,7 +99,7 @@ class ExportCommand(BaseCommand):
 
         return CommandResult.ok(output=str(path))
 
-    async def _export_code(self, cli: "JottyCLI", filename: str = None) -> CommandResult:
+    async def _export_code(self, cli: "JottyCLI", filename: str | None = None) -> CommandResult:
         """Export code blocks from conversation."""
         import re
 

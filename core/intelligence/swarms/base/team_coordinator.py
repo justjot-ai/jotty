@@ -32,6 +32,8 @@ Author: Jotty Team
 Date: February 2026
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import re
@@ -157,8 +159,8 @@ class TeamCoordinator:
         self,
         agent_class: Type,
         display_name: str,
-        attr_name: str = None,
-        role: str = None,
+        attr_name: str | None = None,
+        role: str | None = None,
         priority: int = 0,
     ) -> "TeamCoordinator":
         """
@@ -206,7 +208,9 @@ class TeamCoordinator:
     # COORDINATION EXECUTION
     # =========================================================================
 
-    async def execute(self, task: Any, context: Dict[str, Any] = None, **kwargs: Any) -> TeamResult:
+    async def execute(
+        self, task: Any, context: Dict[str, Any] | None = None, **kwargs: Any
+    ) -> TeamResult:
         """
         Execute the team with the configured coordination pattern.
 
@@ -920,9 +924,9 @@ class TeamCoordinator:
     async def _synthesize_outputs(
         self,
         all_outputs: Dict[str, Any],
-        round_results: List[Dict] = None,
+        round_results: List[Dict] | None = None,
         task: Any = None,
-        context: Dict[str, Any] = None,
+        context: Dict[str, Any] | None = None,
     ) -> Any:
         """
         Intelligent synthesis of multiple outputs using LLM.
@@ -1031,7 +1035,7 @@ class TeamCoordinator:
         merge_strategy: MergeStrategy = MergeStrategy.COMBINE,
         synthesis_strategy: Optional[SynthesisStrategy] = None,
         timeout: float = 0.0,
-        manager_attr: str = None,
+        manager_attr: str | None = None,
         stages: Optional[List] = None,
         quality_threshold: float = 0.8,
         max_iterations: int = 5,

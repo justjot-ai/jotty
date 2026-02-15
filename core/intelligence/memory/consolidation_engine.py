@@ -26,6 +26,8 @@ The key insight: LLM agents can benefit from the same memory
 management strategies that evolved in biological brains.
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import time
@@ -527,8 +529,8 @@ class BrainStateMachine:
     async def process_experience(
         self,
         experience: Dict[str, Any],
-        episodic_memories: List[Any] = None,
-        semantic_memories: List[Any] = None,
+        episodic_memories: List[Any] | None = None,
+        semantic_memories: List[Any] | None = None,
     ) -> Optional[MemoryCandidate]:
         """
         Process an experience, potentially triggering sleep.
@@ -567,7 +569,7 @@ class BrainStateMachine:
         return self.episodes_since_sleep >= self.config.sleep_interval
 
     async def enter_sleep_mode(
-        self, episodic_memories: List[Any] = None, semantic_memories: List[Any] = None
+        self, episodic_memories: List[Any] | None = None, semantic_memories: List[Any] | None = None
     ) -> ConsolidationResult:
         """Enter sleep mode for memory consolidation."""
         self.mode = BrainMode.OFFLINE
@@ -713,7 +715,7 @@ class AgentAbstractor:
         if agent not in self.agent_roles:
             self.agent_roles[agent] = self._infer_role(agent, stats)
 
-    def get_agent_view(self, agents: List[str] = None) -> Dict[str, Any]:
+    def get_agent_view(self, agents: List[str] | None = None) -> Dict[str, Any]:
         """
         Get agent information at appropriate detail level.
 

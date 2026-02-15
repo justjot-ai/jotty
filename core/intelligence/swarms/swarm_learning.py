@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any
 
 """
@@ -314,9 +316,9 @@ class SwarmLearning(SwarmLearningMixin, ABC):
         self,
         task_type: str,
         success: bool,
-        tools_used: List[str] = None,
+        tools_used: List[str] | None = None,
         execution_time: float = 0.0,
-        error_type: str = None,
+        error_type: str | None = None,
     ) -> Any:
         """
         Send executor feedback to SwarmIntelligence for curriculum adaptation.
@@ -478,7 +480,7 @@ class SwarmLearning(SwarmLearningMixin, ABC):
 
         return analysis
 
-    def _get_active_tools(self, default_tools: List[str] = None) -> List[str]:
+    def _get_active_tools(self, default_tools: List[str] | None = None) -> List[str]:
         """
         Get dynamic tool list: defaults + additions - deactivated.
 
@@ -656,7 +658,7 @@ class SwarmLearning(SwarmLearningMixin, ABC):
         output_data: Dict[str, Any],
         success: bool,
         phase_start: datetime,
-        tools_used: List[str] = None,
+        tools_used: List[str] | None = None,
     ) -> Any:
         """Record a phase trace with automatic timing.
         Convenience wrapper for subclasses to call after each execution phase."""
@@ -680,7 +682,7 @@ class SwarmLearning(SwarmLearningMixin, ABC):
         task_id: str,
         to_agent: str,
         task_type: str,
-        context: Dict = None,
+        context: Dict | None = None,
         partial_result: Any = None,
         progress: float = 0.0,
     ) -> Any:
@@ -731,7 +733,7 @@ class SwarmLearning(SwarmLearningMixin, ABC):
     def _form_coalition(
         self,
         task_type: str,
-        required_roles: List[str] = None,
+        required_roles: List[str] | None = None,
         min_agents: int = 2,
         max_agents: int = 5,
     ) -> Any:
@@ -813,7 +815,7 @@ class SwarmLearning(SwarmLearningMixin, ABC):
         swarm_name = self.config.name or "base_swarm"
         return self._swarm_intelligence.gossip_receive(swarm_name)
 
-    def _build_supervisor_tree(self, agents: List[str] = None) -> None:
+    def _build_supervisor_tree(self, agents: List[str] | None = None) -> None:
         """
         Build hierarchical supervisor tree for O(log n) coordination.
 
@@ -822,7 +824,7 @@ class SwarmLearning(SwarmLearningMixin, ABC):
         if self._swarm_intelligence:
             self._swarm_intelligence.build_supervisor_tree(agents)
 
-    def _get_supervisor(self, agent: str = None) -> str:
+    def _get_supervisor(self, agent: str | None = None) -> str:
         """Get supervisor for an agent (or self)."""
         if not self._swarm_intelligence:
             return None
@@ -860,7 +862,7 @@ class SwarmLearning(SwarmLearningMixin, ABC):
     # =========================================================================
 
     def _record_failure(
-        self, task_id: str, task_type: str, error_type: str = "unknown", context: Dict = None
+        self, task_id: str, task_type: str, error_type: str = "unknown", context: Dict | None = None
     ) -> str:
         """
         Record task failure and get reassignment.
@@ -883,7 +885,7 @@ class SwarmLearning(SwarmLearningMixin, ABC):
     # =========================================================================
 
     def _enqueue_task(
-        self, task_id: str, task_type: str, priority: int = 5, context: Dict = None
+        self, task_id: str, task_type: str, priority: int = 5, context: Dict | None = None
     ) -> Any:
         """Add task to priority queue."""
         if self._swarm_intelligence:
@@ -939,7 +941,9 @@ class SwarmLearning(SwarmLearningMixin, ABC):
     # BYZANTINE CONSENSUS
     # =========================================================================
 
-    def _byzantine_vote(self, question: str, options: List[str], voters: List[str] = None) -> Dict:
+    def _byzantine_vote(
+        self, question: str, options: List[str], voters: List[str] | None = None
+    ) -> Dict:
         """
         Run Byzantine fault-tolerant vote.
 
@@ -965,19 +969,19 @@ class SwarmLearning(SwarmLearningMixin, ABC):
     # CIRCUIT BREAKER
     # =========================================================================
 
-    def _record_circuit_failure(self, agent: str = None) -> None:
+    def _record_circuit_failure(self, agent: str | None = None) -> None:
         """Record failure for circuit breaker."""
         if self._swarm_intelligence:
             agent = agent or self.config.name or "base_swarm"
             self._swarm_intelligence.record_circuit_failure(agent)
 
-    def _record_circuit_success(self, agent: str = None) -> None:
+    def _record_circuit_success(self, agent: str | None = None) -> None:
         """Record success - resets circuit breaker."""
         if self._swarm_intelligence:
             agent = agent or self.config.name or "base_swarm"
             self._swarm_intelligence.record_circuit_success(agent)
 
-    def _check_circuit(self, agent: str = None) -> bool:
+    def _check_circuit(self, agent: str | None = None) -> bool:
         """Check if agent circuit is open (blocked)."""
         if not self._swarm_intelligence:
             return True
@@ -1004,13 +1008,17 @@ class SwarmLearning(SwarmLearningMixin, ABC):
     # LEADERSHIP & LIFECYCLE
     # =========================================================================
 
-    def _elect_leader(self, candidates: List[str] = None, task_type: str = None) -> str:
+    def _elect_leader(
+        self, candidates: List[str] | None = None, task_type: str | None = None
+    ) -> str:
         """Elect leader for a task."""
         if not self._swarm_intelligence:
             return candidates[0] if candidates else None
         return self._swarm_intelligence.elect_leader(candidates, task_type)
 
-    def _get_adaptive_timeout(self, agent: str = None, task_type: str = None) -> float:
+    def _get_adaptive_timeout(
+        self, agent: str | None = None, task_type: str | None = None
+    ) -> float:
         """Get adaptive timeout for agent."""
         if not self._swarm_intelligence:
             return 30.0
@@ -1141,3 +1149,38 @@ class SwarmLearning(SwarmLearningMixin, ABC):
         """Mark an improvement as applied."""
         if self._improvement_history:
             self._improvement_history.mark_applied(suggestion_id)
+
+
+# =============================================================================
+# RE-EXPORTS - Import from specialized modules for convenience
+# =============================================================================
+
+from .registry import SwarmRegistry, register_swarm
+from .swarm_types import ImprovementSuggestion, ImprovementType
+
+__all__ = [
+    # Main class
+    "SwarmLearning",
+    # Types
+    "AgentRole",
+    "EvaluationResult",
+    "ImprovementType",
+    "GoldStandard",
+    "Evaluation",
+    "ImprovementSuggestion",
+    "SwarmAgentConfig",
+    "ExecutionTrace",
+    "SwarmBaseConfig",
+    "SwarmResult",
+    # Infrastructure
+    "GoldStandardDB",
+    "ImprovementHistory",
+    # Agents
+    "ExpertAgent",
+    "ReviewerAgent",
+    "PlannerAgent",
+    "ActorAgent",
+    # Registry
+    "SwarmRegistry",
+    "register_swarm",
+]

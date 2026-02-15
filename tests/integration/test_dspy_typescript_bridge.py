@@ -3,6 +3,7 @@
 DSPy TypeScript Bridge Integration Tests
 Tests the complete flow: TypeScript → DSPy → MCP tools → response
 """
+
 import asyncio
 import sys
 from pathlib import Path

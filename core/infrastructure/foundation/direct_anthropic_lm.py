@@ -20,6 +20,8 @@ Latency comparison:
 - Direct API: ~0.5s (just inference, no subprocess)
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import os
@@ -33,16 +35,19 @@ from Jotty.core.infrastructure.foundation.exceptions import InputValidationError
 logger = logging.getLogger(__name__)
 
 # ── Singleton CostTracker for live per-call cost logging ──
+# CostTracker module does not exist yet; disable tracking to avoid ImportError.
+COST_TRACKING_AVAILABLE = False
 _cost_tracker = None
 
 
 def get_cost_tracker() -> Any:
-    """Get or create the singleton CostTracker instance."""
-    global _cost_tracker
-    if _cost_tracker is None:
-        from Jotty.core.infrastructure.monitoring.monitoring.cost_tracker import CostTracker
+    """Get or create the singleton CostTracker instance.
 
-        _cost_tracker = CostTracker(enable_tracking=True)
+    Returns None when cost tracking is unavailable.
+    """
+    global _cost_tracker
+    if not COST_TRACKING_AVAILABLE:
+        return None
     return _cost_tracker
 
 
@@ -145,7 +150,9 @@ class DirectAnthropicLM(dspy.BaseLM):
                 original_error=e,
             )
 
-    def __call__(self, prompt: str = None, messages: List[Dict] = None, **kwargs: Any) -> List[str]:
+    def __call__(
+        self, prompt: str | None = None, messages: List[Dict] | None = None, **kwargs: Any
+    ) -> List[str]:
         """Synchronous call interface (required by DSPy)."""
         try:
             asyncio.get_running_loop()
@@ -159,7 +166,7 @@ class DirectAnthropicLM(dspy.BaseLM):
             return self._sync_call(prompt, messages, **kwargs)
 
     def _sync_call(
-        self, prompt: str = None, messages: List[Dict] = None, **kwargs: Any
+        self, prompt: str | None = None, messages: List[Dict] | None = None, **kwargs: Any
     ) -> List[str]:
         """Synchronous API call using sync client."""
         # Build messages and extract system prompt
@@ -209,39 +216,46 @@ class DirectAnthropicLM(dspy.BaseLM):
 
             # Live cost tracking
             tracker = get_cost_tracker()
-            record = tracker.record_llm_call(
-                provider="anthropic",
-                model=self.model_id,
-                input_tokens=input_tokens,
-                output_tokens=output_tokens,
-                success=True,
-                duration=duration,
-            )
-            logger.info(
-                f" LLM call: {self.model_id} | "
-                f"{input_tokens}+{output_tokens} tokens | "
-                f"${record.cost:.6f} | {duration:.1f}s"
-            )
+            if tracker:
+                record = tracker.record_llm_call(
+                    provider="anthropic",
+                    model=self.model_id,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    success=True,
+                    duration=duration,
+                )
+                logger.info(
+                    f" LLM call: {self.model_id} | "
+                    f"{input_tokens}+{output_tokens} tokens | "
+                    f"${record.cost:.6f} | {duration:.1f}s"
+                )
+            else:
+                logger.info(
+                    f" LLM call: {self.model_id} | "
+                    f"{input_tokens}+{output_tokens} tokens | {duration:.1f}s"
+                )
 
             return [response_text]
 
         except Exception as e:
             duration = time.time() - call_start
             tracker = get_cost_tracker()
-            tracker.record_llm_call(
-                provider="anthropic",
-                model=self.model_id,
-                input_tokens=0,
-                output_tokens=0,
-                success=False,
-                error=str(e),
-                duration=duration,
-            )
+            if tracker:
+                tracker.record_llm_call(
+                    provider="anthropic",
+                    model=self.model_id,
+                    input_tokens=0,
+                    output_tokens=0,
+                    success=False,
+                    error=str(e),
+                    duration=duration,
+                )
             logger.error(f"DirectAnthropicLM error: {e}")
             raise
 
     async def _async_call(
-        self, prompt: str = None, messages: List[Dict] = None, **kwargs: Any
+        self, prompt: str | None = None, messages: List[Dict] | None = None, **kwargs: Any
     ) -> List[str]:
         """Async API call."""
         # Build messages and extract system prompt
@@ -293,47 +307,55 @@ class DirectAnthropicLM(dspy.BaseLM):
 
             # Live cost tracking
             tracker = get_cost_tracker()
-            record = tracker.record_llm_call(
-                provider="anthropic",
-                model=self.model_id,
-                input_tokens=input_tokens,
-                output_tokens=output_tokens,
-                success=True,
-                duration=duration,
-            )
-            logger.info(
-                f" LLM call: {self.model_id} | "
-                f"{input_tokens}+{output_tokens} tokens | "
-                f"${record.cost:.6f} | {duration:.1f}s"
-            )
+            if tracker:
+                record = tracker.record_llm_call(
+                    provider="anthropic",
+                    model=self.model_id,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    success=True,
+                    duration=duration,
+                )
+                logger.info(
+                    f" LLM call: {self.model_id} | "
+                    f"{input_tokens}+{output_tokens} tokens | "
+                    f"${record.cost:.6f} | {duration:.1f}s"
+                )
+            else:
+                logger.info(
+                    f" LLM call: {self.model_id} | "
+                    f"{input_tokens}+{output_tokens} tokens | {duration:.1f}s"
+                )
 
             return [response_text]
 
         except asyncio.TimeoutError as e:
             duration = time.time() - call_start
             tracker = get_cost_tracker()
-            tracker.record_llm_call(
-                provider="anthropic",
-                model=self.model_id,
-                input_tokens=0,
-                output_tokens=0,
-                success=False,
-                error=f"Timeout after {self.timeout}s",
-                duration=duration,
-            )
+            if tracker:
+                tracker.record_llm_call(
+                    provider="anthropic",
+                    model=self.model_id,
+                    input_tokens=0,
+                    output_tokens=0,
+                    success=False,
+                    error=f"Timeout after {self.timeout}s",
+                    duration=duration,
+                )
             raise LLMError(f"API call timed out after {self.timeout}s", original_error=e)
         except Exception as e:
             duration = time.time() - call_start
             tracker = get_cost_tracker()
-            tracker.record_llm_call(
-                provider="anthropic",
-                model=self.model_id,
-                input_tokens=0,
-                output_tokens=0,
-                success=False,
-                error=str(e),
-                duration=duration,
-            )
+            if tracker:
+                tracker.record_llm_call(
+                    provider="anthropic",
+                    model=self.model_id,
+                    input_tokens=0,
+                    output_tokens=0,
+                    success=False,
+                    error=str(e),
+                    duration=duration,
+                )
             logger.error(f"DirectAnthropicLM async error: {e}")
             raise
 

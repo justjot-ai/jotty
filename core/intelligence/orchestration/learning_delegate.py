@@ -8,6 +8,8 @@ Standalone composed class, replaces LearningDelegationMixin.
 Dependencies are passed explicitly via constructor.
 """
 
+from __future__ import annotations
+
 import logging
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
@@ -91,7 +93,7 @@ class LearningDelegate:
     def load_relevant_learnings(
         self,
         task_description: str,
-        agent_types: List[str] = None,
+        agent_types: List[str] | None = None,
     ) -> Dict[str, Any]:
         """Load learnings relevant to the current task."""
         mas = self.mas_learning
@@ -127,7 +129,7 @@ class LearningDelegate:
         agent_performances: Dict[str, Dict[str, Any]],
         total_time: float,
         success: bool,
-        fixes_applied: List[Dict[str, Any]] = None,
+        fixes_applied: List[Dict[str, Any]] | None = None,
         stigmergy_signals: int = 0,
     ) -> Any:
         """Record session results for future learning."""
@@ -142,7 +144,7 @@ class LearningDelegate:
                 success=success,
             )
 
-    def get_transferable_context(self, query: str, agent: str = None) -> str:
+    def get_transferable_context(self, query: str, agent: str | None = None) -> str:
         """Get transferable learnings as context for an agent."""
         return self.learning.get_transferable_context(query, agent)
 

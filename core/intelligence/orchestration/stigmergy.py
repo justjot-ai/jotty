@@ -13,6 +13,8 @@ This is the actual value of stigmergy: emergent routing from accumulated
 experience, not a fancy name for a TTL cache.
 """
 
+from __future__ import annotations
+
 import hashlib
 import logging
 import time
@@ -70,7 +72,7 @@ class StigmergyLayer:
         content: Any,
         agent: str,
         strength: float = 1.0,
-        metadata: Dict = None,
+        metadata: Dict | None = None,
     ) -> str:
         """
         Deposit a pheromone signal.
@@ -107,7 +109,9 @@ class StigmergyLayer:
         logger.debug(f"Stigmergy: {agent} deposited {signal_type} signal: {content}")
         return signal_id
 
-    def sense(self, signal_type: str = None, min_strength: float = 0.1) -> List[StigmergySignal]:
+    def sense(
+        self, signal_type: str | None = None, min_strength: float = 0.1
+    ) -> List[StigmergySignal]:
         """
         Sense signals with decay applied.
 
@@ -154,7 +158,12 @@ class StigmergyLayer:
         return True
 
     def record_outcome(
-        self, agent: str, task_type: str, success: bool, quality: float = 0.0, metadata: Dict = None
+        self,
+        agent: str,
+        task_type: str,
+        success: bool,
+        quality: float = 0.0,
+        metadata: Dict | None = None,
     ) -> str:
         """
         Record a task outcome as a signal. Call this after every execution.
@@ -208,7 +217,7 @@ class StigmergyLayer:
         )
 
     def recommend_agent(
-        self, task_type: str, candidates: List[str] = None
+        self, task_type: str, candidates: List[str] | None = None
     ) -> List[Tuple[str, float]]:
         """
         Recommend agents for a task type based on accumulated signals.
@@ -493,7 +502,7 @@ class StigmergyLayer:
             "avoid": failures[:top_k],
         }
 
-    def evaporate(self, decay_rate: float = None) -> int:
+    def evaporate(self, decay_rate: float | None = None) -> int:
         """
         Public evaporation method — decay all signals and prune dead ones.
 
@@ -629,7 +638,7 @@ class CrossSwarmStigmergy:
         return cls._shared_instance
 
     def register_swarm(
-        self, swarm_name: str, domain: str = "general", capabilities: List[str] = None
+        self, swarm_name: str, domain: str = "general", capabilities: List[str] | None = None
     ) -> Any:
         """Register a swarm for cross-swarm coordination."""
         self._swarm_registry[swarm_name] = {
@@ -730,7 +739,7 @@ class CrossSwarmStigmergy:
         return sorted(relevant, key=lambda x: x["urgency"], reverse=True)
 
     def get_insights_for(
-        self, swarm_name: str, insight_type: str = None, min_strength: float = 0.2
+        self, swarm_name: str, insight_type: str | None = None, min_strength: float = 0.2
     ) -> List[Dict]:
         """
         Get cross-swarm insights relevant to a swarm.

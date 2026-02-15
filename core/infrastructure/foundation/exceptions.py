@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any
 
 """
@@ -310,7 +312,7 @@ class ValidationError(JottyError):
     def __init__(
         self,
         message: str,
-        param: str = None,
+        param: str | None = None,
         value: Any = None,
         context: Optional[Dict[str, Any]] = None,
         original_error: Optional[Exception] = None,

@@ -56,7 +56,7 @@ class ByzantineVerifier:
         self.inconsistent_count = 0
 
     def verify_claim(
-        self, agent: str, claimed_success: bool, actual_result: Any, task_type: str = None
+        self, agent: str, claimed_success: bool, actual_result: Any, task_type: str | None = None
     ) -> bool:
         """
         Verify agent claim and apply trust penalty if inconsistent.

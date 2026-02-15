@@ -11,6 +11,8 @@ A-Team Design:
 - Prof. Manning: Adaptive timeout strategy
 """
 
+from __future__ import annotations
+
 import asyncio
 import functools
 import logging
@@ -320,7 +322,11 @@ class DeadLetterQueue:
         self.total_successful_retries = 0
 
     def add(
-        self, operation_name: str, args: Tuple = (), kwargs: Dict = None, error: Exception = None
+        self,
+        operation_name: str,
+        args: Tuple = (),
+        kwargs: Dict | None = None,
+        error: Exception | None = None,
     ) -> Any:
         """Add failed operation to queue."""
         failed_op = FailedOperation(

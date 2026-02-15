@@ -108,7 +108,7 @@ class ResearchCommand(BaseCommand):
             has_async_status = hasattr(cli.renderer, "send_status_async")
 
             # Register event listeners for status updates
-            async def on_skill_start(event):
+            async def on_skill_start(event) -> None:
                 """Handle skill start events."""
                 skill_name = event.data.get("skill", "unknown") if event.data else "unknown"
                 msg = f"Using skill: {skill_name}"
@@ -117,7 +117,7 @@ class ResearchCommand(BaseCommand):
                 else:
                     cli.renderer.status(msg)
 
-            async def on_thinking(event):
+            async def on_thinking(event) -> None:
                 """Handle thinking events."""
                 if has_async_status:
                     await cli.renderer.send_status_async("Thinking...")

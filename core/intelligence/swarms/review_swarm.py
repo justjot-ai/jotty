@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any
 
 """
@@ -58,7 +60,7 @@ from typing import Dict, List
 
 import dspy
 
-from Jotty.core.modes.agent.base import SwarmLearningAgent
+from Jotty.core.modes.agent.agents.swarm_agent import SwarmLearningAgent
 
 from .base import SwarmTemplate, TeamCoordinator, _split_field
 from .swarm_learning import AgentRole, SwarmBaseConfig, SwarmResult, register_swarm
@@ -465,7 +467,7 @@ class ArchitectureReviewer(SwarmLearningAgent):
         self.learned_context = learned_context
 
     async def review(
-        self, code: str, context: str, expected_patterns: List[str] = None
+        self, code: str, context: str, expected_patterns: List[str] | None = None
     ) -> Dict[str, Any]:
         """Review architecture."""
         try:
@@ -631,7 +633,7 @@ class ReviewSwarm(SwarmTemplate):
         super().__init__(config or ReviewConfig())
 
     async def review(
-        self, code: str, context: str = "", language: str = None, **kwargs: Any
+        self, code: str, context: str = "", language: str | None = None, **kwargs: Any
     ) -> ReviewResult:
         """
         Perform comprehensive code review.
@@ -649,7 +651,7 @@ class ReviewSwarm(SwarmTemplate):
         return await self.execute(code, context=context, language=language, **kwargs)
 
     async def _execute_domain(
-        self, code: str, context: str = "", language: str = None, **kwargs: Any
+        self, code: str, context: str = "", language: str | None = None, **kwargs: Any
     ) -> ReviewResult:
         """
         Perform comprehensive code review.

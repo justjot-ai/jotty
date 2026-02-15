@@ -12,6 +12,8 @@ This enables:
 - All agent capabilities accessible through Jotty
 """
 
+from __future__ import annotations
+
 import json
 import os
 from typing import Any, Dict, List, Optional
@@ -50,8 +52,8 @@ class AISDKProviderLM(BaseLM):
         self,
         provider: str,
         model: str = "sonnet",
-        base_url: str = None,
-        api_key: str = None,
+        base_url: str | None = None,
+        api_key: str | None = None,
         **kwargs: Any,
     ) -> None:
         """
@@ -247,7 +249,7 @@ class AISDKProviderLM(BaseLM):
 
 # Convenience function for easy configuration
 def configure_dspy_with_ai_sdk_provider(
-    provider: str, model: str = "sonnet", base_url: str = None, api_key: str = None
+    provider: str, model: str = "sonnet", base_url: str | None = None, api_key: str | None = None
 ) -> Any:
     """
     Configure DSPy with an AI SDK provider

@@ -26,7 +26,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Type
 
-from .base_agent import AgentRuntimeConfig, BaseAgent
+from ..base.base_agent import AgentRuntimeConfig, BaseAgent
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +66,7 @@ class MetaAgent(BaseAgent):
 
     def __init__(
         self,
-        signature: Type = None,
+        signature: Type | None = None,
         config: MetaAgentConfig = None,
         gold_db: Any = None,
         improvement_history: Any = None,
@@ -242,7 +242,7 @@ class MetaAgent(BaseAgent):
     # =========================================================================
 
     async def analyze_and_suggest_improvements(
-        self, evaluations: List[Dict[str, Any]], agent_configs: Dict[str, Any] = None
+        self, evaluations: List[Dict[str, Any]], agent_configs: Dict[str, Any] | None = None
     ) -> List[Dict[str, Any]]:
         """
         Analyze evaluations and suggest improvements.
@@ -415,7 +415,10 @@ class MetaAgent(BaseAgent):
 
 
 def create_meta_agent(
-    signature: Type = None, gold_db: Any = None, improvement_history: Any = None, model: str = ""
+    signature: Type | None = None,
+    gold_db: Any = None,
+    improvement_history: Any = None,
+    model: str = "",
 ) -> MetaAgent:
     """
     Factory function to create a MetaAgent.

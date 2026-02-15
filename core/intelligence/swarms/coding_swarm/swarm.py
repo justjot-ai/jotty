@@ -7,6 +7,8 @@ collaborative multi-agent pipelines (architecture, development, optimization,
 testing, review, documentation).
 """
 
+from __future__ import annotations
+
 import asyncio
 import json
 import logging
@@ -471,8 +473,8 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Swarm
         requirements: str,
         language: CodeLanguage = None,
         style: CodeStyle = None,
-        include_tests: bool = None,
-        include_docs: bool = None,
+        include_tests: bool | None = None,
+        include_docs: bool | None = None,
         progress_callback: Any = None,
         trace_callback: Any = None,
     ) -> CodingResult:

@@ -35,7 +35,7 @@ try:
             LATEX_VALIDATION_AVAILABLE = True
 
             # Wrapper returns (is_valid, error_msg, metadata)
-            def validate_latex(code):
+            def validate_latex(code) -> Any:
                 return validate_latex_with_openreview(code)
 
             logger.info("latex-validation Node.js wrapper available (HTTP server or CLI)")

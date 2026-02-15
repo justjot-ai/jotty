@@ -102,8 +102,6 @@ async def p2p_discovery_phase(
 
         agent_name = config["name"]
         agent = config["agent"]
-        _expert = config.get("expert")
-
         print(f"🔍 {agent_name} - Starting discovery...")
 
         # Read other discoveries from scratchpad
@@ -260,7 +258,7 @@ PREVIOUS DELIVERABLE:
     return {"deliverables": deliverables, "total_iterations": len(agents_config)}
 
 
-async def hybrid_workflow():
+async def hybrid_workflow() -> bool:
     """
     Hybrid workflow: P2P Discovery → Sequential Delivery
 
@@ -384,7 +382,7 @@ async def hybrid_workflow():
     return True
 
 
-async def main():
+async def main() -> None:
     try:
         success = await hybrid_workflow()
         exit(0 if success else 1)

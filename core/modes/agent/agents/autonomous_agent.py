@@ -28,9 +28,9 @@ from Jotty.core.infrastructure.utils.async_utils import (
     StatusReporter,
 )
 
+from ..base.base_agent import AgentRuntimeConfig, BaseAgent
+from ..executors.skill_plan_executor import SkillPlanExecutor
 from ..types.execution_types import ExecutionStep
-from .base_agent import AgentRuntimeConfig, BaseAgent
-from .skill_plan_executor import SkillPlanExecutor
 
 logger = logging.getLogger(__name__)
 

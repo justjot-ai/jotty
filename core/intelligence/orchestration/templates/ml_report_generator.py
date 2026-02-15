@@ -23,6 +23,8 @@ Features:
 - Table of contents with hyperlinks
 """
 
+from __future__ import annotations
+
 import logging
 from dataclasses import dataclass
 from datetime import datetime
@@ -71,16 +73,21 @@ class ReportContext(Protocol):
     _llm_narrative_enabled: bool
 
     def _record_section_failure(self, section_name: str, error: Exception) -> None: ...
+
     def _record_chart_failure(self, chart_name: str, error: Exception) -> None: ...
+
     def _record_internal_warning(
-        self, component: str, message: str, error: Exception = None
+        self, component: str, message: str, error: Exception | None = None
     ) -> None: ...
+
     def _store_section_data(
-        self, section_type: str, title: str, data: Dict, chart_configs: List[Dict] = None
+        self, section_type: str, title: str, data: Dict, chart_configs: List[Dict] | None = None
     ) -> None: ...
+
     def _maybe_add_narrative(
         self, section_name: str, data_context: str, section_type: str = "general"
     ) -> str: ...
+
     def _validate_inputs(self, **kwargs: Any) -> None: ...
 
 
@@ -318,7 +325,7 @@ class ProfessionalMLReport(
         theme: str = "professional",
         llm_narrative: bool = False,
         html_enabled: bool = False,
-        config: Dict = None,
+        config: Dict | None = None,
     ) -> None:
         self.output_dir = Path(output_dir).resolve()
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -575,7 +582,7 @@ class ProfessionalMLReport(
         logger.warning(f"Chart '{chart_name}' failed: {error}")
 
     def _record_internal_warning(
-        self, component: str, message: str, error: Exception = None
+        self, component: str, message: str, error: Exception | None = None
     ) -> Any:
         """Record a non-fatal internal warning for health tracking.
 
@@ -655,7 +662,7 @@ class ProfessionalMLReport(
         }
 
     def _store_section_data(
-        self, section_type: str, title: str, data: Dict, chart_configs: List[Dict] = None
+        self, section_type: str, title: str, data: Dict, chart_configs: List[Dict] | None = None
     ) -> Any:
         """Store structured section data for HTML generation."""
         self._section_data.append(
@@ -2446,7 +2453,7 @@ transparent model documentation.
                 "is_heteroscedastic": False,
             }
 
-    def generate(self, filename: str = None) -> Optional[str]:
+    def generate(self, filename: str | None = None) -> Optional[str]:
         """Generate the PDF report using Pandoc + LaTeX."""
         try:
             if not filename:
@@ -2480,7 +2487,7 @@ transparent model documentation.
     # INTERACTIVE HTML REPORT GENERATION
     # =========================================================================
 
-    def generate_html(self, filename: str = None) -> Optional[str]:
+    def generate_html(self, filename: str | None = None) -> Optional[str]:
         """
         Generate an interactive HTML report with Plotly charts and collapsible sections.
 
@@ -2510,7 +2517,7 @@ transparent model documentation.
         finally:
             self.restore_plot_style()
 
-    def generate_all(self, filename_base: str = None) -> Dict[str, Optional[str]]:
+    def generate_all(self, filename_base: str | None = None) -> Dict[str, Optional[str]]:
         """
         Generate both PDF and HTML reports.
 

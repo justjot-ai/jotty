@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any
 
 """
@@ -96,8 +98,8 @@ class PhaseExecutor:
         agent_name: str,
         agent_role: AgentRole,
         coro: Any,
-        input_data: Dict[str, Any] = None,
-        tools_used: List[str] = None,
+        input_data: Dict[str, Any] | None = None,
+        tools_used: List[str] | None = None,
     ) -> Any:
         """Execute a single agent phase with automatic tracing.
 
@@ -405,7 +407,7 @@ class SwarmTemplate(SwarmLearning):
     # =========================================================================
 
     async def execute_team(
-        self, task: Any, context: Dict[str, Any] = None, **kwargs: Any
+        self, task: Any, context: Dict[str, Any] | None = None, **kwargs: Any
     ) -> TeamResult:
         """
         Execute the agent team with its configured coordination pattern.
@@ -478,7 +480,7 @@ class SwarmTemplate(SwarmLearning):
             return await self._execute_team_with_pattern(task, context, **kwargs)
 
     async def _execute_team_with_pattern(
-        self, task: Any, context: Dict[str, Any] = None, **kwargs: Any
+        self, task: Any, context: Dict[str, Any] | None = None, **kwargs: Any
     ) -> TeamResult:
         """Execute team with current pattern (separated for AUTO selection)."""
         context = context or {}
@@ -602,8 +604,8 @@ class SwarmTemplate(SwarmLearning):
         default_tools: List[str],
         result_class: Type[SwarmResult],
         execute_fn: Callable,
-        output_data_fn: Callable = None,
-        input_data_fn: Callable = None,
+        output_data_fn: Callable | None = None,
+        input_data_fn: Callable | None = None,
     ) -> SwarmResult:
         """Wrap phase execution with standard try/except + _post_execute_learning.
 
@@ -661,8 +663,8 @@ class SwarmTemplate(SwarmLearning):
     async def run_domain(
         self,
         execute_fn: Callable,
-        output_data_fn: Callable = None,
-        input_data_fn: Callable = None,
+        output_data_fn: Callable | None = None,
+        input_data_fn: Callable | None = None,
     ) -> SwarmResult:
         """Template method wrapping _safe_execute_domain with class-level constants.
 

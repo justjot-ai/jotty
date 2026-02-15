@@ -18,7 +18,7 @@ TTS Providers (priority order):
 
 import logging
 import os
-from typing import AsyncIterator, Optional
+from typing import Any, AsyncIterator, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -44,12 +44,12 @@ except ImportError:
             has_whisper_api = False
             has_local_whisper = False
 
-            def has_groq_whisper(self):
+            def has_groq_whisper(self) -> Any:
                 return bool(os.getenv("GROQ_API_KEY"))
 
             has_edge_tts = True  # edge-tts is free, no API key needed
 
-        def get_config():
+        def get_config() -> Any:
             return MinimalConfig()
 
 

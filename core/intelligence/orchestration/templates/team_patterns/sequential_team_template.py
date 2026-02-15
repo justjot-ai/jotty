@@ -164,7 +164,7 @@ async def run_agent_with_learning(
     }
 
 
-async def sequential_team_workflow():
+async def sequential_team_workflow() -> bool:
     """
     Sequential team workflow: Agent 1 → Agent 2 → Agent 3 → ...
 
@@ -329,7 +329,7 @@ async def sequential_team_workflow():
     return True
 
 
-async def main():
+async def main() -> None:
     try:
         success = await sequential_team_workflow()
         exit(0 if success else 1)

@@ -6,6 +6,8 @@ Extracted from swarm_manager.py — delegates learning operations
 to SwarmLearningPipeline and MASLearning.
 """
 
+from __future__ import annotations
+
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -46,7 +48,7 @@ class LearningDelegationMixin:
                 logger.debug(f"Could not auto-save memory: {e}")
 
     def load_relevant_learnings(
-        self, task_description: str, agent_types: List[str] = None
+        self, task_description: str, agent_types: List[str] | None = None
     ) -> Dict[str, Any]:
         """Load learnings relevant to the current task."""
         if not hasattr(self, "mas_learning") or not self.mas_learning:
@@ -80,7 +82,7 @@ class LearningDelegationMixin:
         agent_performances: Dict[str, Dict[str, Any]],
         total_time: float,
         success: bool,
-        fixes_applied: List[Dict[str, Any]] = None,
+        fixes_applied: List[Dict[str, Any]] | None = None,
         stigmergy_signals: int = 0,
     ) -> Any:
         """Record session results for future learning."""
@@ -94,7 +96,7 @@ class LearningDelegationMixin:
                 success=success,
             )
 
-    def get_transferable_context(self, query: str, agent: str = None) -> str:
+    def get_transferable_context(self, query: str, agent: str | None = None) -> str:
         """Get transferable learnings as context for an agent."""
         return self.learning.get_transferable_context(query, agent)
 

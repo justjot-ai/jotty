@@ -15,6 +15,8 @@ Usage:
     # Returns: priority='low', assignee={'name': 'Alice'}
 """
 
+from __future__ import annotations
+
 import json
 import logging
 from pathlib import Path
@@ -33,7 +35,7 @@ class SectionSchemaRegistry:
     Provides validation and transformation for all section types.
     """
 
-    def __init__(self, api_url: str = None, lazy_load: bool = True) -> None:
+    def __init__(self, api_url: str | None = None, lazy_load: bool = True) -> None:
         if api_url is None:
             import os
 

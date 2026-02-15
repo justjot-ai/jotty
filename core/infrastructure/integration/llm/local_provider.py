@@ -54,14 +54,8 @@ class LocalLLMProvider:
         self.model_spec = model
         self._parse_model_spec()
 
-        # Ollama settings (centralized defaults)
-        try:
-            from ..foundation.config_defaults import DEFAULTS as _DEFAULTS
-
-            _ollama_default = _DEFAULTS.OLLAMA_URL
-        except ImportError:
-            _ollama_default = "http://localhost:11434"
-        self.ollama_host = os.getenv("OLLAMA_HOST", _ollama_default)
+        # Ollama settings
+        self.ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 
         # llama.cpp settings
         self.llamacpp_host = os.getenv("LLAMACPP_HOST", "http://localhost:8080")

@@ -74,7 +74,7 @@ class VoiceModality:
 
     def __init__(
         self, platform: str = "generic", stt_provider: str = "auto", tts_provider: str = "auto"
-    ):
+    ) -> None:
         """
         Initialize voice modality.
 
@@ -113,7 +113,7 @@ class VoiceModality:
         else:
             raise RuntimeError("No audio data in TTS result")
 
-    async def stream(self, text: str, **kwargs):
+    async def stream(self, text: str, **kwargs) -> None:
         """Stream text-to-speech audio."""
         async for chunk in self.tts.stream(text, **kwargs):
             yield chunk

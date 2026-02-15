@@ -11,7 +11,7 @@ import os
 
 # Add parent to path
 import sys
-from typing import Dict
+from typing import Any, Dict
 from uuid import uuid4
 
 import uvicorn
@@ -47,7 +47,7 @@ app.add_middleware(
 class WebChatSession:
     """Web chat session with shared components."""
 
-    def __init__(self, session_id: str, websocket: WebSocket):
+    def __init__(self, session_id: str, websocket: WebSocket) -> None:
         self.session_id = session_id
         self.websocket = websocket
         self.sdk = Jotty()
@@ -56,7 +56,7 @@ class WebChatSession:
         self.message_queue = []
 
         # Create send callback that queues messages
-        def queue_message(text: str):
+        def queue_message(text: str) -> None:
             """Queue message to send via WebSocket."""
             self.message_queue.append(
                 {
@@ -86,20 +86,20 @@ class WebChatSession:
         except Exception as e:
             logger.warning(f"Failed to register commands: {e}")
 
-    async def send_json(self, data: dict):
+    async def send_json(self, data: dict) -> None:
         """Send JSON data via WebSocket."""
         try:
             await self.websocket.send_json(data)
         except Exception as e:
             logger.error(f"Error sending WebSocket message: {e}")
 
-    async def send_queued_messages(self):
+    async def send_queued_messages(self) -> None:
         """Send all queued messages."""
         while self.message_queue:
             msg = self.message_queue.pop(0)
             await self.send_json(msg)
 
-    async def handle_message(self, data: dict):
+    async def handle_message(self, data: dict) -> None:
         """Handle incoming message from client."""
         message_text = data.get("content", "")
         message_type = data.get("type", "chat")
@@ -109,7 +109,7 @@ class WebChatSession:
         else:
             await self.handle_chat(message_text)
 
-    async def handle_chat(self, message_text: str):
+    async def handle_chat(self, message_text: str) -> None:
         """Handle regular chat message."""
         # Send user message back
         await self.send_json(
@@ -152,7 +152,7 @@ class WebChatSession:
                 {"type": "error", "message": str(e), "error_type": type(e).__name__}
             )
 
-    async def handle_command(self, command: str):
+    async def handle_command(self, command: str) -> None:
         """Handle slash command."""
         # Parse command
         parts = command[1:].split() if command.startswith("/") else command.split()
@@ -213,19 +213,19 @@ sessions: Dict[str, WebChatSession] = {}
 
 
 @app.get("/")
-async def read_root():
+async def read_root() -> Any:
     """Serve the React app."""
     return FileResponse("apps/web/frontend/build/index.html")
 
 
 @app.get("/health")
-async def health_check():
+async def health_check() -> dict[str, Any]:
     """Health check endpoint."""
     return {"status": "healthy", "sessions": len(sessions), "version": "1.0.0"}
 
 
 @app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
+async def websocket_endpoint(websocket: WebSocket) -> None:
     """WebSocket endpoint for chat."""
     await websocket.accept()
 
@@ -270,7 +270,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 del sessions[session_id]
 
 
-def main():
+def main() -> None:
     """Start the web server."""
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"

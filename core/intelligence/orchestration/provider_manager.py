@@ -8,6 +8,8 @@ as a standalone composed class. Replaces ProviderMixin for cleaner architecture.
 Dependencies are passed explicitly rather than inherited via mixin.
 """
 
+from __future__ import annotations
+
 import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict
@@ -110,7 +112,11 @@ class ProviderManager:
         return Path.home() / ".jotty" / "provider_learnings.json"
 
     async def execute_with_provider(
-        self, category: str, task: str, context: Dict[str, Any] = None, provider_name: str = None
+        self,
+        category: str,
+        task: str,
+        context: Dict[str, Any] | None = None,
+        provider_name: str | None = None,
     ) -> Any:
         """
         Execute a task using the skill provider system.

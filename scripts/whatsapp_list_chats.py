@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """List WhatsApp chats from the bridge store. Run from Jotty root."""
+
 import asyncio
 import sys
 from pathlib import Path

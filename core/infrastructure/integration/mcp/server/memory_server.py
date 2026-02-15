@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """
+from typing import Any
+
 MCP Server for Jotty Memory System
 Exposes Jotty's 5-level memory as MCP tools for JustJot agents
 """
+
 import asyncio
 import json
 import logging
@@ -26,7 +29,7 @@ except ImportError:
 class JottyMemoryMCPServer:
     """MCP server for Jotty memory operations"""
 
-    def __init__(self, agent_name: str = "jotty-mcp"):
+    def __init__(self, agent_name: str = "jotty-mcp") -> None:
         self.agent_name = agent_name
         self.memory = None
         self.tools = [
@@ -110,7 +113,7 @@ class JottyMemoryMCPServer:
             },
         ]
 
-    def _initialize_memory(self):
+    def _initialize_memory(self) -> None:
         """Lazy initialization of memory system"""
         if self.memory is None:
             try:
@@ -151,7 +154,6 @@ class JottyMemoryMCPServer:
 
             elif tool_name == "jotty_consolidate_memory":
                 # Run consolidation
-                _agent_name = arguments.get("agent_name", self.agent_name)
                 consolidation_result = self.memory.consolidate()
                 return {
                     "success": True,
@@ -170,7 +172,7 @@ class JottyMemoryMCPServer:
         except Exception as e:
             return {"error": str(e), "tool": tool_name}
 
-    async def run_stdio(self):
+    async def run_stdio(self) -> None:
         """Run MCP server using stdio protocol"""
         logger.info("Jotty Memory MCP Server starting (stdio mode)...")
 
@@ -207,14 +209,14 @@ class JottyMemoryMCPServer:
                 response = {"error": str(e)}
                 print(json.dumps(response), flush=True)
 
-    async def run_http(self, port: int = 8082):
+    async def run_http(self, port: int = 8082) -> Any:
         """Run MCP server using HTTP (for easier testing)"""
         from aiohttp import web
 
-        async def list_tools(request):
+        async def list_tools(request) -> Any:
             return web.json_response({"tools": self.tools})
 
-        async def call_tool(request):
+        async def call_tool(request) -> Any:
             data = await request.json()
             tool_name = data.get("name")
             arguments = data.get("arguments", {})

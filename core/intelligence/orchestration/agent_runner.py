@@ -11,6 +11,8 @@ AgentScope-inspired lifecycle hooks (Gao et al., 2025):
     runner.add_hook('post_run', my_metrics_recorder)
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import time as _time
@@ -425,7 +427,7 @@ class AgentRunner:
     # LIFECYCLE HOOKS (AgentScope-inspired)
     # =========================================================================
 
-    def add_hook(self, hook_type: str, fn: Callable, name: str = None) -> str:
+    def add_hook(self, hook_type: str, fn: Callable, name: str | None = None) -> str:
         """
         Register a hook at a lifecycle point.
 

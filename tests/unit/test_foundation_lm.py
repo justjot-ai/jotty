@@ -22,17 +22,21 @@ import pytest
 # ---------------------------------------------------------------------------
 
 try:
-    from core.foundation.config_defaults import DEFAULT_MODEL_ALIAS, DEFAULTS
-    from core.foundation.config_defaults import EPISODIC_CAPACITY as EPISODIC_CAPACITY_EXPORT
-    from core.foundation.config_defaults import (
+    from core.infrastructure.foundation.config_defaults import DEFAULT_MODEL_ALIAS, DEFAULTS
+    from core.infrastructure.foundation.config_defaults import (
+        EPISODIC_CAPACITY as EPISODIC_CAPACITY_EXPORT,
+    )
+    from core.infrastructure.foundation.config_defaults import (
         LLM_MAX_OUTPUT_TOKENS as LLM_MAX_OUTPUT_TOKENS_EXPORT,
     )
-    from core.foundation.config_defaults import (
+    from core.infrastructure.foundation.config_defaults import (
         LLM_PLANNING_MAX_TOKENS as LLM_PLANNING_MAX_TOKENS_EXPORT,
     )
-    from core.foundation.config_defaults import LLM_TEMPERATURE, LLM_TIMEOUT_SECONDS
-    from core.foundation.config_defaults import MAX_ENTRY_TOKENS as MAX_ENTRY_TOKENS_EXPORT
-    from core.foundation.config_defaults import (
+    from core.infrastructure.foundation.config_defaults import LLM_TEMPERATURE, LLM_TIMEOUT_SECONDS
+    from core.infrastructure.foundation.config_defaults import (
+        MAX_ENTRY_TOKENS as MAX_ENTRY_TOKENS_EXPORT,
+    )
+    from core.infrastructure.foundation.config_defaults import (
         MAX_RETRIES,
         MAX_TOKENS,
         MODEL_ALIASES,
@@ -41,15 +45,15 @@ try:
         MODEL_SONNET,
         RETRY_BACKOFF_SECONDS,
     )
-    from core.foundation.config_defaults import SAFETY_MARGIN as SAFETY_MARGIN_EXPORT
-    from core.foundation.config_defaults import JottyDefaults
+    from core.infrastructure.foundation.config_defaults import SAFETY_MARGIN as SAFETY_MARGIN_EXPORT
+    from core.infrastructure.foundation.config_defaults import JottyDefaults
 
     HAS_DEFAULTS = True
 except ImportError:
     HAS_DEFAULTS = False
 
 try:
-    from core.foundation.exceptions import (
+    from core.infrastructure.foundation.exceptions import (
         AgentExecutionError,
         ChunkingError,
         CircuitBreakerError,
@@ -71,8 +75,8 @@ try:
         LearningError,
         LLMError,
     )
-    from core.foundation.exceptions import MemoryError as JottyMemoryError
-    from core.foundation.exceptions import (
+    from core.infrastructure.foundation.exceptions import MemoryError as JottyMemoryError
+    from core.infrastructure.foundation.exceptions import (
         MemoryRetrievalError,
         MemoryStorageError,
         MessageDeliveryError,
@@ -84,30 +88,42 @@ try:
         RewardCalculationError,
         StorageError,
     )
-    from core.foundation.exceptions import TimeoutError as JottyTimeoutError
-    from core.foundation.exceptions import ToolExecutionError, ValidationError, wrap_exception
+    from core.infrastructure.foundation.exceptions import TimeoutError as JottyTimeoutError
+    from core.infrastructure.foundation.exceptions import (
+        ToolExecutionError,
+        ValidationError,
+        wrap_exception,
+    )
 
     HAS_EXCEPTIONS = True
 except ImportError:
     HAS_EXCEPTIONS = False
 
 try:
-    from core.foundation.protocols import ContextExtractor, DataProvider, MetadataProvider
+    from core.infrastructure.foundation.protocols import (
+        ContextExtractor,
+        DataProvider,
+        MetadataProvider,
+    )
 
     HAS_PROTOCOLS = True
 except ImportError:
     HAS_PROTOCOLS = False
 
 try:
-    from core.foundation.agent_config import AgentConfig
+    from core.infrastructure.foundation.agent_config import AgentConfig
 
     HAS_AGENT_CONFIG = True
 except ImportError:
     HAS_AGENT_CONFIG = False
 
 try:
-    from core.foundation.types.agent_types import AgentContribution, AgentMessage, SharedScratchpad
-    from core.foundation.types.enums import CommunicationType
+    from core.infrastructure.foundation.types.agent_types import (
+        AgentContribution,
+        AgentMessage,
+        SharedScratchpad,
+    )
+    from core.infrastructure.foundation.types.enums import CommunicationType
 
     HAS_AGENT_TYPES = True
 except ImportError:

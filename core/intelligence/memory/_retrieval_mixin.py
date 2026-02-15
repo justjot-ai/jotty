@@ -1,5 +1,7 @@
 """SwarmMemory mixin — retrieval methods."""
 
+from __future__ import annotations
+
 import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Set
@@ -26,7 +28,7 @@ class RetrievalMixin:
         goal: str,
         budget_tokens: int,
         top_k: int = 10,
-        levels: List[MemoryLevel] = None,
+        levels: List[MemoryLevel] | None = None,
     ) -> List[MemoryEntry]:
         """
         Fast retrieval using keyword overlap + recency + value ranking.
@@ -128,7 +130,7 @@ class RetrievalMixin:
         query: str,
         goal: str,
         budget_tokens: int,
-        levels: List[MemoryLevel] = None,
+        levels: List[MemoryLevel] | None = None,
         context_hints: str = "",
     ) -> List[MemoryEntry]:
         """
@@ -171,7 +173,7 @@ class RetrievalMixin:
         query: str,
         goal: str,
         budget_tokens: int,
-        levels: List[MemoryLevel] = None,
+        levels: List[MemoryLevel] | None = None,
         context_hints: str = "",
     ) -> List[MemoryEntry]:
         """
@@ -200,7 +202,7 @@ class RetrievalMixin:
         goal: str,
         budget_tokens: int,
         latency_budget_ms: Optional[float] = None,
-        levels: List[MemoryLevel] = None,
+        levels: List[MemoryLevel] | None = None,
         context_hints: str = "",
     ) -> List[MemoryEntry]:
         """
@@ -299,7 +301,7 @@ class RetrievalMixin:
         )
 
     def retrieve_by_domain(
-        self, domain: str, goal: str, budget_tokens: int, levels: List[MemoryLevel] = None
+        self, domain: str, goal: str, budget_tokens: int, levels: List[MemoryLevel] | None = None
     ) -> List[MemoryEntry]:
         """
         Retrieve memories filtered by domain.
@@ -349,7 +351,7 @@ class RetrievalMixin:
         return selected
 
     def retrieve_by_task_type(
-        self, task_type: str, goal: str, budget_tokens: int, levels: List[MemoryLevel] = None
+        self, task_type: str, goal: str, budget_tokens: int, levels: List[MemoryLevel] | None = None
     ) -> List[MemoryEntry]:
         """
         Retrieve memories filtered by task type.
@@ -399,7 +401,11 @@ class RetrievalMixin:
         return selected
 
     def retrieve_and_synthesize(
-        self, query: str, goal: str, levels: List[MemoryLevel] = None, context_hints: str = ""
+        self,
+        query: str,
+        goal: str,
+        levels: List[MemoryLevel] | None = None,
+        context_hints: str = "",
     ) -> str:
         """
          Brain-Inspired Synthesis Retrieval (DEFAULT mode!)
@@ -433,7 +439,11 @@ class RetrievalMixin:
         return synthesized
 
     async def retrieve_and_synthesize_async(
-        self, query: str, goal: str, levels: List[MemoryLevel] = None, context_hints: str = ""
+        self,
+        query: str,
+        goal: str,
+        levels: List[MemoryLevel] | None = None,
+        context_hints: str = "",
     ) -> str:
         """
         Async version of retrieve_and_synthesize for parallel retrieval.

@@ -5,6 +5,8 @@ Dynamically selects Architect and Auditor prompts based on task type.
 Uses pattern matching to choose specialized templates for better validation.
 """
 
+from __future__ import annotations
+
 import logging
 import re
 from pathlib import Path
@@ -24,7 +26,7 @@ class PromptSelector:
         architect_path, auditor_path = selector.select_prompts(task_description)
     """
 
-    def __init__(self, registry_path: str = None) -> None:
+    def __init__(self, registry_path: str | None = None) -> None:
         """
         Initialize the prompt selector.
 

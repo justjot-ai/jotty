@@ -20,7 +20,7 @@ Usage:
 import sys
 
 
-def main():
+def main() -> None:
     """Main entry point for Jotty CLI."""
     try:
         from Jotty.apps.cli.__main__ import main as cli_main

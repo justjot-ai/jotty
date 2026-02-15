@@ -5,6 +5,8 @@ Skills Command
 List and search skills.
 """
 
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Dict
 
 from .base import BaseCommand, CommandResult, ParsedArgs
@@ -40,7 +42,7 @@ class SkillsCommand(BaseCommand):
             return await self._list_skills(cli)
 
     async def _list_skills(
-        self, cli: "JottyCLI", category: str = None, limit: int = 50
+        self, cli: "JottyCLI", category: str | None = None, limit: int = 50
     ) -> CommandResult:
         """List all skills."""
         try:

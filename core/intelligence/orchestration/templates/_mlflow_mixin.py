@@ -81,7 +81,7 @@ class MLflowMixin:
         except Exception as e:
             logger.debug(f"Failed to log params: {e}")
 
-    def log_metrics(self, metrics: Dict[str, float], step: int = None) -> None:
+    def log_metrics(self, metrics: Dict[str, float], step: int | None = None) -> None:
         """Log metrics to MLflow."""
         if not self._mlflow_available or not self._mlflow_run:
             return

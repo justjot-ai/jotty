@@ -2,6 +2,8 @@
 Edit Mixin - Code editing pipeline with test-driven refinement.
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 from datetime import datetime
@@ -177,9 +179,9 @@ class EditMixin:
     async def edit(
         self,
         requirements: str,
-        target_files: Dict[str, str] = None,
+        target_files: Dict[str, str] | None = None,
         progress_callback: Any = None,
-        codebase_path: str = None,
+        codebase_path: str | None = None,
     ) -> CodingResult:
         """
         Edit existing code based on requirements.

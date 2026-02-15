@@ -21,7 +21,7 @@ class LocalProvider:
 
     name = "local"
 
-    def __init__(self):
+    def __init__(self) -> None:
         from ..config import get_config
 
         self.config = get_config()

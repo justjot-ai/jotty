@@ -58,7 +58,7 @@ def get_global_lm(provider: Optional[str] = None, model: Optional[str] = None, *
         return _global_lm
 
 
-def reset_global_lm():
+def reset_global_lm() -> None:
     """
     Reset global LM (for testing/reconfiguration).
 

@@ -12,6 +12,8 @@ specialization emergence, and cooperation effectiveness.
 Extracted from swarm_intelligence.py for modularity.
 """
 
+from __future__ import annotations
+
 import logging
 import math
 import time
@@ -79,7 +81,9 @@ class SwarmBenchmarks:
         if len(self.iteration_history) > 200:
             self.iteration_history = self.iteration_history[-200:]
 
-    def get_improvement_trend(self, task_type: str = None, window: int = 10) -> Dict[str, Any]:
+    def get_improvement_trend(
+        self, task_type: str | None = None, window: int = 10
+    ) -> Dict[str, Any]:
         """Split-half comparison with stddev-based noise-aware threshold."""
         history = getattr(self, "iteration_history", [])
         if task_type:
@@ -158,7 +162,9 @@ class SwarmBenchmarks:
         if len(self.cooperation_events) > 500:
             self.cooperation_events = self.cooperation_events[-500:]
 
-    def compute_metrics(self, agent_profiles: Dict[str, "AgentProfile"] = None) -> SwarmMetrics:
+    def compute_metrics(
+        self, agent_profiles: Dict[str, "AgentProfile"] | None = None
+    ) -> SwarmMetrics:
         """Compute current swarm metrics."""
         metrics = SwarmMetrics()
 
@@ -206,7 +212,9 @@ class SwarmBenchmarks:
 
         return metrics
 
-    def format_benchmark_report(self, agent_profiles: Dict[str, "AgentProfile"] = None) -> str:
+    def format_benchmark_report(
+        self, agent_profiles: Dict[str, "AgentProfile"] | None = None
+    ) -> str:
         """Generate human-readable benchmark report."""
         metrics = self.compute_metrics(agent_profiles)
 
@@ -534,7 +542,7 @@ class MASBenchRunner:
 
         return metrics
 
-    def summary(self, results: List[MASBenchResult] = None) -> str:
+    def summary(self, results: List[MASBenchResult] | None = None) -> str:
         """Generate human-readable summary of benchmark results.
 
         Args:

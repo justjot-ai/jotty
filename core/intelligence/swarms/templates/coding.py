@@ -9,6 +9,8 @@ Author: Jotty Team
 Date: February 2026
 """
 
+from __future__ import annotations
+
 from typing import Any
 
 from Jotty.core.infrastructure.foundation.types.execution_types import CoordinationPattern
@@ -27,9 +29,9 @@ try:
     )
 except ImportError:
     # Fallback
-    from Jotty.core.modes.agent.base import SwarmLearningAgent as ArchitectAgent
-    from Jotty.core.modes.agent.base import SwarmLearningAgent as DeveloperAgent
-    from Jotty.core.modes.agent.base import SwarmLearningAgent as TestWriterAgent
+    from Jotty.core.modes.agent.agents.swarm_agent import SwarmLearningAgent as ArchitectAgent
+    from Jotty.core.modes.agent.agents.swarm_agent import SwarmLearningAgent as DeveloperAgent
+    from Jotty.core.modes.agent.agents.swarm_agent import SwarmLearningAgent as TestWriterAgent
 
     CodingConfig = SwarmBaseConfig
     CodingResult = SwarmResult
@@ -91,13 +93,13 @@ class CodingTemplate(SwarmLearning):
     TEMPLATE_VERSION = "2.0.0"
     RESULT_CLASS = CodingResult
 
-    def __init__(self, config: SwarmBaseConfig = None):
+    def __init__(self, config: SwarmBaseConfig = None) -> None:
         """Initialize coding template."""
         super().__init__(config or CodingConfig())
         # Wire STAGES into agent team
         self.AGENT_TEAM.stages = self.STAGES
 
-    async def execute(self, requirements: str = None, **kwargs: Any) -> SwarmResult:
+    async def execute(self, requirements: str | None = None, **kwargs: Any) -> SwarmResult:
         """
         Execute coding workflow.
 

@@ -15,6 +15,8 @@ Author: Jotty Team
 Date: February 2026
 """
 
+from __future__ import annotations
+
 import logging
 import re
 from typing import Any, Dict, List, Optional
@@ -33,7 +35,7 @@ class PatternSelector:
         td_learner=None,
         swarm_intelligence=None,
         swarm_name: str = "base_swarm",
-    ):
+    ) -> None:
         """
         Initialize pattern selector with learning components.
 
@@ -49,7 +51,7 @@ class PatternSelector:
         self.swarm_name = swarm_name
 
     async def select_pattern(
-        self, task: Any, context: Dict[str, Any] = None, agent_count: int = 1
+        self, task: Any, context: Dict[str, Any] | None = None, agent_count: int = 1
     ) -> CoordinationPattern:
         """
         Select optimal coordination pattern.

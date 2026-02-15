@@ -2,6 +2,8 @@
 Review Mixin - Collaborative design, team planning, and review pipeline.
 """
 
+from __future__ import annotations
+
 import asyncio
 import json
 import logging
@@ -584,8 +586,8 @@ class ReviewMixin:
         architecture: str,
         files: Dict[str, str],
         main_file: Optional[str],
-        planning_result: Dict[str, Any] = None,
-        simplicity_result: Dict[str, Any] = None,
+        planning_result: Dict[str, Any] | None = None,
+        simplicity_result: Dict[str, Any] | None = None,
     ) -> tuple:
         """Orchestrate Phase 6: two-phase team review with auto-fix loop.
 

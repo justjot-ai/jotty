@@ -13,6 +13,8 @@ Features:
 - Minimal dependencies
 """
 
+from __future__ import annotations
+
 import logging
 import threading
 import time
@@ -148,7 +150,7 @@ class SimpleFallbackMemory:
         content: str,
         memory_type: MemoryType = MemoryType.EPISODIC,
         importance: float = 0.5,
-        metadata: Dict[str, Any] = None,
+        metadata: Dict[str, Any] | None = None,
     ) -> str:
         """
         Store a memory entry.

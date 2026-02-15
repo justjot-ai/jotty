@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any
 
 """
@@ -59,7 +61,7 @@ from typing import Dict, List, Optional
 
 import dspy
 
-from Jotty.core.modes.agent.base import SwarmLearningAgent
+from Jotty.core.modes.agent.agents.swarm_agent import SwarmLearningAgent
 
 from .base import SwarmTemplate, TeamCoordinator, _split_field
 from .swarm_learning import (
@@ -706,8 +708,8 @@ class LearningSwarm(SwarmTemplate):
     async def evaluate_and_improve(
         self,
         swarm_name: str,
-        evaluations: List[Evaluation] = None,
-        traces: List[ExecutionTrace] = None,
+        evaluations: List[Evaluation] | None = None,
+        traces: List[ExecutionTrace] | None = None,
     ) -> LearningResult:
         """
         Evaluate and improve a swarm.
@@ -727,8 +729,8 @@ class LearningSwarm(SwarmTemplate):
     async def _evaluate_and_improve_internal(
         self,
         swarm_name: str,
-        evaluations: List[Evaluation] = None,
-        traces: List[ExecutionTrace] = None,
+        evaluations: List[Evaluation] | None = None,
+        traces: List[ExecutionTrace] | None = None,
     ) -> LearningResult:
         """
         Internal implementation of evaluate and improve.
@@ -945,7 +947,7 @@ class LearningSwarm(SwarmTemplate):
         return result
 
     async def run_improvement_cycle(
-        self, swarm_names: List[str] = None
+        self, swarm_names: List[str] | None = None
     ) -> Dict[str, LearningResult]:
         """
         Run improvement cycle for multiple swarms.

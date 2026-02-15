@@ -11,9 +11,6 @@ All imports are lazy to avoid pulling in DSPy at module load time.
 import importlib as _importlib
 
 _LAZY_IMPORTS: dict[str, str] = {
-    # feedback_router
-    "AgenticFeedbackRouter": ".feedback_router",
-    "AgenticFeedbackSignature": ".feedback_router",
     # parameter_resolver
     "AgenticParameterResolver": ".parameter_resolver",
     "ParameterMatchingSignature": ".parameter_resolver",

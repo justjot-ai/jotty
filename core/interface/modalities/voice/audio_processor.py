@@ -19,7 +19,7 @@ class AudioProcessor:
     - Noise reduction
     """
 
-    def __init__(self, platform: str = "generic"):
+    def __init__(self, platform: str = "generic") -> None:
         """
         Initialize audio processor.
 

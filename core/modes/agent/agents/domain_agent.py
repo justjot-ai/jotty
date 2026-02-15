@@ -28,7 +28,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Type
 
-from .base_agent import AgentRuntimeConfig, BaseAgent
+from ..base.base_agent import AgentRuntimeConfig, BaseAgent
 
 logger = logging.getLogger(__name__)
 

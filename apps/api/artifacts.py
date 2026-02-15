@@ -102,7 +102,7 @@ class ArtifactExtractor:
     # Languages that render as markup
     MARKUP_LANGUAGES = {"html", "htm", "svg", "markdown", "md", "latex", "tex"}
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._code_block_pattern = re.compile(r"```(\w+)?\n([\s\S]*?)```", re.MULTILINE)
         self._inline_html_pattern = re.compile(
             r"<(!DOCTYPE|html|body|div|span|p|table|form)[^>]*>[\s\S]*?</\1>", re.IGNORECASE
@@ -247,7 +247,7 @@ class SearchResult:
         snippet: str = "",
         source: str = "",
         favicon: Optional[str] = None,
-    ):
+    ) -> None:
         self.title = title
         self.url = url
         self.snippet = snippet
@@ -289,7 +289,7 @@ class ToolCallResult:
         duration_ms: int = 0,
         success: bool = True,
         error: Optional[str] = None,
-    ):
+    ) -> None:
         self.tool_call_id = tool_call_id
         self.tool_name = tool_name
         self.arguments = arguments

@@ -5,6 +5,8 @@ Base Command Class
 Abstract base for CLI commands.
 """
 
+from __future__ import annotations
+
 import shlex
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -25,7 +27,7 @@ class CommandResult:
     should_exit: bool = False
 
     @classmethod
-    def ok(cls, output: str = None, data: Any = None) -> "CommandResult":
+    def ok(cls, output: str | None = None, data: Any = None) -> "CommandResult":
         """Create success result."""
         return cls(success=True, output=output, data=data)
 

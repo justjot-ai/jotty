@@ -15,6 +15,8 @@ Key adaptations:
 Extracted from swarm_intelligence.py for modularity.
 """
 
+from __future__ import annotations
+
 import hashlib
 import logging
 import math
@@ -594,7 +596,10 @@ class MorphScorer:
     # =========================================================================
 
     def compute_all_scores(
-        self, profiles: Dict[str, "AgentProfile"], task: str = None, task_type: str = None
+        self,
+        profiles: Dict[str, "AgentProfile"],
+        task: str | None = None,
+        task_type: str | None = None,
     ) -> Dict[str, MorphScores]:
         """
         Compute all MorphAgent scores for the swarm.

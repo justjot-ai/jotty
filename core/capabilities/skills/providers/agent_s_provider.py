@@ -15,6 +15,8 @@ Capabilities:
 Note: Agent-S achieved 72.6% on OSWorld, surpassing human performance!
 """
 
+from __future__ import annotations
+
 import logging
 import time
 from pathlib import Path
@@ -59,7 +61,7 @@ class AgentSProvider(SkillProvider):
     version = "3.0.0"
     description = "Full computer/GUI control via Agent-S"
 
-    def __init__(self, config: Dict[str, Any] = None) -> None:
+    def __init__(self, config: Dict[str, Any] | None = None) -> None:
         super().__init__(config)
 
         self.capabilities = [
@@ -125,7 +127,7 @@ class AgentSProvider(SkillProvider):
             SkillCategory.BROWSER,
         ]
 
-    async def execute(self, task: str, context: Dict[str, Any] = None) -> ProviderResult:
+    async def execute(self, task: str, context: Dict[str, Any] | None = None) -> ProviderResult:
         """Execute GUI automation task."""
         start_time = time.time()
         context = context or {}

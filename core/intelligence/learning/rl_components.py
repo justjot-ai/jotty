@@ -36,7 +36,6 @@ class RLComponents:
 
     def __init__(self, config: Any) -> None:
         self.config = config
-        self.compression_agent = None  # Lazy init
 
     def get_similar_experiences_semantic(
         self, experience_buffer: List[Dict], state: Dict, action: Dict, top_k: int = 10
@@ -170,40 +169,13 @@ class RLComponents:
                 Returns:
                     Causal explanation of why prediction was wrong
         """
-        try:
-            # Use compression agent for intelligent reflection
-            if not self.compression_agent:
-                from ..integration.compression_agent import CompressionAgent
-
-                self.compression_agent = CompressionAgent()
-
-            reflection_prompt = f"""Analyze this RL experience and explain WHY the prediction was incorrect:
-
-**State**: {str(state)}
-**Action**: {action}
-**Actual Reward**: {reward:.3f}
-**TD Error**: {td_error:.3f}
-**Context**: {context}
-
-Provide concise causal explanation (2-3 sentences):
-1. What made this different from expectations?
-2. What pattern was missed?
-3. What to learn for future?"""
-
-            # Generate reflection (limit to 200 tokens)
-            reflection = await self.compression_agent.compress(
-                content=reflection_prompt, purpose="learning_reflection", token_budget=200
+        # Template-based reflection (compression_agent module no longer exists)
+        if td_error > 0:
+            return (
+                f"Reward ({reward:.2f}) higher than predicted - action more valuable than expected."
             )
-
-            return reflection.strip()
-
-        except Exception as e:
-            logger.debug(f"WHY reflection generation failed: {e}")
-            # Fallback template
-            if td_error > 0:
-                return f"Reward ({reward:.2f}) higher than predicted - action more valuable than expected."
-            else:
-                return f"Reward ({reward:.2f}) lower than predicted - context mismatch likely."
+        else:
+            return f"Reward ({reward:.2f}) lower than predicted - context mismatch likely."
 
     def calculate_q_divergence_bonus(
         self, q_predicted: Optional[float], q_actual: float, predictability_bonus: float

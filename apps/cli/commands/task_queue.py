@@ -5,6 +5,8 @@ Task Queue Command
 Manage coding tasks via Supervisor API.
 """
 
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Any, List
 
 import aiohttp
@@ -61,7 +63,7 @@ class TaskCommand(BaseCommand):
         else:
             return await self._show_stats(cli)
 
-    async def _api_request(self, method: str, endpoint: str, data: dict = None) -> dict:
+    async def _api_request(self, method: str, endpoint: str, data: dict | None = None) -> dict:
         """Make HTTP request to Supervisor API."""
         url = f"{self.SUPERVISOR_URL}{endpoint}"
         async with aiohttp.ClientSession() as session:

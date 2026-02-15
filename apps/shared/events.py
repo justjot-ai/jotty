@@ -35,7 +35,7 @@ class ProcessedEvent:
 class EventQueue:
     """Thread-safe event queue."""
 
-    def __init__(self, maxlen: int = 1000):
+    def __init__(self, maxlen: int = 1000) -> None:
         """
         Initialize event queue.
 
@@ -79,7 +79,7 @@ class EventProcessor:
     - Status displays
     """
 
-    def __init__(self, chat_interface: ChatInterface):
+    def __init__(self, chat_interface: ChatInterface) -> None:
         """
         Initialize event processor.
 

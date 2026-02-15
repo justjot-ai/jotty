@@ -13,6 +13,8 @@ Capabilities:
 - Multi-tab support
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import time
@@ -50,7 +52,7 @@ class BrowserUseProvider(SkillProvider):
     version = "0.11.0"
     description = "Web automation via browser-use library"
 
-    def __init__(self, config: Dict[str, Any] = None) -> None:
+    def __init__(self, config: Dict[str, Any] | None = None) -> None:
         super().__init__(config)
 
         self.capabilities = [
@@ -121,7 +123,7 @@ class BrowserUseProvider(SkillProvider):
             # Try to use Claude CLI via our adapter
             import dspy
 
-            from Jotty.core.infrastructure.integration.direct_claude_cli_lm import DirectClaudeCLI
+            from Jotty.core.integration.direct_claude_cli_lm import DirectClaudeCLI
 
             self._llm = DirectClaudeCLI(model="sonnet")
             dspy.configure(lm=self._llm)
@@ -138,7 +140,7 @@ class BrowserUseProvider(SkillProvider):
             SkillCategory.FORM_AUTOMATION,
         ]
 
-    async def execute(self, task: str, context: Dict[str, Any] = None) -> ProviderResult:
+    async def execute(self, task: str, context: Dict[str, Any] | None = None) -> ProviderResult:
         """Execute browser automation task."""
         if not BROWSER_USE_AVAILABLE:
             return ProviderResult(
@@ -220,7 +222,7 @@ class BrowserUseProvider(SkillProvider):
         """Perform a web search."""
         return await self.execute(f"Search for '{query}' on {engine} and return the results")
 
-    async def extract_content(self, url: str, selectors: List[str] = None) -> ProviderResult:
+    async def extract_content(self, url: str, selectors: List[str] | None = None) -> ProviderResult:
         """Extract content from a webpage."""
         task = f"Go to {url} and extract the main content"
         if selectors:
@@ -234,7 +236,7 @@ class BrowserUseProvider(SkillProvider):
         task += ", then submit the form"
         return await self.execute(task)
 
-    async def screenshot(self, url: str = None) -> ProviderResult:
+    async def screenshot(self, url: str | None = None) -> ProviderResult:
         """Take a screenshot."""
         if url:
             return await self.execute(f"Navigate to {url} and take a screenshot")
@@ -264,7 +266,7 @@ class BrowserUseCompositeProvider(SkillProvider):
     version = "1.0.0"
     description = "Composite browser automation with data processing"
 
-    def __init__(self, config: Dict[str, Any] = None) -> None:
+    def __init__(self, config: Dict[str, Any] | None = None) -> None:
         super().__init__(config)
 
         # Sub-providers
@@ -301,7 +303,7 @@ class BrowserUseCompositeProvider(SkillProvider):
     def get_categories(self) -> List[SkillCategory]:
         return [SkillCategory.BROWSER, SkillCategory.DATA_EXTRACTION]
 
-    async def execute(self, task: str, context: Dict[str, Any] = None) -> ProviderResult:
+    async def execute(self, task: str, context: Dict[str, Any] | None = None) -> ProviderResult:
         """Execute composite task."""
         start_time = time.time()
         context = context or {}

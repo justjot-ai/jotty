@@ -9,6 +9,8 @@ Extracted from _learning_mixin.py to separate knowledge concerns from
 coordination and core learning lifecycle concerns.
 """
 
+from __future__ import annotations
+
 import json
 import logging
 import tempfile
@@ -263,7 +265,7 @@ class SwarmKnowledgeMixin:
         except Exception as e:
             logger.debug(f"Failed to store execution improvement (unexpected): {e}")
 
-    def _build_learned_context_string(self, agent_name: str = None) -> str:
+    def _build_learned_context_string(self, agent_name: str | None = None) -> str:
         """
         Convert self._learned_context into injectable prompt text.
 

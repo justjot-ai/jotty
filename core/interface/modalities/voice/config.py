@@ -46,7 +46,7 @@ class VoiceConfig:
     chunk_size: int = 1024
     stream_buffer_size: int = 4096
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Load from environment if not set."""
         self.elevenlabs_api_key = self.elevenlabs_api_key or os.getenv("ELEVENLABS_API_KEY")
         self.openai_api_key = self.openai_api_key or os.getenv("OPENAI_API_KEY")

@@ -1,4 +1,6 @@
 """
+from typing import Any
+
 WhatsApp Client (Migrated to Shared Components)
 ================================================
 
@@ -31,7 +33,7 @@ class WhatsAppRenderer:
     so we reuse TelegramMessageRenderer with WhatsApp-specific tweaks.
     """
 
-    def __init__(self, send_callback):
+    def __init__(self, send_callback) -> None:
         """
         Initialize WhatsApp renderer.
 
@@ -52,7 +54,7 @@ class WhatsAppRenderer:
         self.telegram_renderer.render_markdown(markdown)
 
     # Delegate other methods to Telegram renderer
-    def __getattr__(self, name):
+    def __getattr__(self, name) -> Any:
         return getattr(self.telegram_renderer, name)
 
 
@@ -65,7 +67,7 @@ class WhatsAppChatInterface:
         await wa.handle_message("Hello")
     """
 
-    def __init__(self, send_callback, session_id: str = "default"):
+    def __init__(self, send_callback, session_id: str = "default") -> None:
         """
         Initialize WhatsApp interface.
 

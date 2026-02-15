@@ -20,14 +20,9 @@ from .providers import PROVIDERS, LLMResponse, get_provider
 
 logger = logging.getLogger(__name__)
 
-# Optional cost tracking import (if available)
-try:
-    from ..monitoring.cost_tracker import CostTracker
-
-    COST_TRACKING_AVAILABLE = True
-except ImportError:
-    COST_TRACKING_AVAILABLE = False
-    CostTracker = None
+# CostTracker module does not exist yet; disable tracking.
+COST_TRACKING_AVAILABLE = False
+CostTracker = None
 
 
 # Default provider order for fallback

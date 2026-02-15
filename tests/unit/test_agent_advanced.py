@@ -35,7 +35,10 @@ if _jotty_parent not in sys.path:
 
 # Try importing core modules with skipif fallback
 try:
-    from Jotty.core.intelligence.swarms.base.agent_team import CoordinationPattern, MergeStrategy
+    from Jotty.core.intelligence.swarms.base.team_coordinator import (
+        CoordinationPattern,
+        MergeStrategy,
+    )
     from Jotty.core.modes.agent.agents.autonomous_agent import (
         AutonomousAgent,
         AutonomousAgentConfig,

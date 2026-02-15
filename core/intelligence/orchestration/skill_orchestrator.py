@@ -25,6 +25,8 @@ Components:
 - core/skills/ml/llm_reasoner.py: LLMFeatureReasonerSkill (imported as LLMFeatureReasoner)
 """
 
+from __future__ import annotations
+
 import logging
 from typing import Any, Callable, Dict, List
 
@@ -247,7 +249,7 @@ class SkillOrchestrator(FeatureEngineeringMixin, FeatureSelectionMixin, ModelPip
         target_metric: str = "auto",
         time_budget: int = 300,
         business_context: str = "",
-        on_stage_complete: Callable = None,
+        on_stage_complete: Callable | None = None,
     ) -> PipelineResult:
         """
         Solve any ML problem by orchestrating skills.

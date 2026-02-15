@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any
 
 """
@@ -60,7 +62,7 @@ from typing import Dict, List, Optional
 
 import dspy
 
-from Jotty.core.modes.agent.base import SwarmLearningAgent
+from Jotty.core.modes.agent.agents.swarm_agent import SwarmLearningAgent
 
 from .base import SwarmTemplate, TeamCoordinator, _safe_join, _safe_num, _split_field
 from .swarm_learning import AgentRole, SwarmBaseConfig, SwarmResult, register_swarm
@@ -838,8 +840,8 @@ class FundamentalSwarm(SwarmTemplate):
         self,
         ticker: str,
         exchange: str = "NSE",
-        financial_data: Dict[str, Any] = None,
-        market_data: Dict[str, Any] = None,
+        financial_data: Dict[str, Any] | None = None,
+        market_data: Dict[str, Any] | None = None,
     ) -> FundamentalResult:
         """
         Perform comprehensive fundamental analysis.

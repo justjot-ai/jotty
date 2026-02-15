@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any
 
 """
@@ -214,7 +216,7 @@ class JustJotMemorySyncAdapter:
     }
 
     def __init__(
-        self, cortex: Any = None, justjot_api_url: str = None, entity_type: str = "agent"
+        self, cortex: Any = None, justjot_api_url: str | None = None, entity_type: str = "agent"
     ) -> None:
         """
         Initialize sync adapter.
@@ -564,7 +566,7 @@ class JustJotMemorySyncAdapter:
             self._sync_errors.append(f"Push error: {str(e)}")
             return False
 
-    async def pull_from_justjot(self, entity_id: str = None, limit: int = 100) -> List:
+    async def pull_from_justjot(self, entity_id: str | None = None, limit: int = 100) -> List:
         """
         Pull memories from JustJot API.
 

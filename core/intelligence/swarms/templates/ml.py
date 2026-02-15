@@ -9,29 +9,21 @@ Author: Jotty Team
 Date: February 2026
 """
 
+from __future__ import annotations
+
 from typing import Any
 
 from Jotty.core.infrastructure.foundation.types.execution_types import CoordinationPattern
 
+# Import existing agents (stub - will be properly implemented later)
+from Jotty.core.modes.agent.agents.swarm_agent import SwarmLearningAgent as DataPreprocessorAgent
+from Jotty.core.modes.agent.agents.swarm_agent import SwarmLearningAgent as FeatureEngineerAgent
+from Jotty.core.modes.agent.agents.swarm_agent import SwarmLearningAgent as ModelTrainerAgent
+
 from ..swarm_learning import SwarmBaseConfig, SwarmLearning, SwarmResult
 
-# Import existing agents (will be defined/imported from SwarmML)
-try:
-    from ...orchestration.templates.swarm_ml import (
-        DataPreprocessorAgent,
-        FeatureEngineerAgent,
-        MLConfig,
-        MLResult,
-        ModelTrainerAgent,
-    )
-except ImportError:
-    # Fallback
-    from Jotty.core.modes.agent.base import SwarmLearningAgent as DataPreprocessorAgent
-    from Jotty.core.modes.agent.base import SwarmLearningAgent as FeatureEngineerAgent
-    from Jotty.core.modes.agent.base import SwarmLearningAgent as ModelTrainerAgent
-
-    MLConfig = SwarmBaseConfig
-    MLResult = SwarmResult
+MLConfig = SwarmBaseConfig  # Stub
+MLResult = SwarmResult  # Stub
 
 from ..base.team_coordinator import TeamCoordinator
 
@@ -72,14 +64,14 @@ class MLTemplate(SwarmLearning):
     TEMPLATE_VERSION = "2.0.0"
     RESULT_CLASS = MLResult
 
-    def __init__(self, config: SwarmBaseConfig = None):
+    def __init__(self, config: SwarmBaseConfig = None) -> None:
         """Initialize ML template."""
         super().__init__(config or MLConfig())
 
     async def execute(
         self,
-        data: str = None,
-        target: str = None,
+        data: str | None = None,
+        target: str | None = None,
         quality_threshold: float = 0.85,
         **kwargs: Any,
     ) -> SwarmResult:

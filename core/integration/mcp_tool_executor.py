@@ -3,6 +3,8 @@ MCP Tool Executor for DSPy
 Enables DSPy signatures to call MCP tools from JustJot
 """
 
+from __future__ import annotations
+
 import logging
 import os
 from dataclasses import dataclass
@@ -25,7 +27,7 @@ class MCPTool:
 class MCPToolExecutor:
     """Execute MCP tools from DSPy agents"""
 
-    def __init__(self, mcp_config_path: str = None, base_url: str = None) -> None:
+    def __init__(self, mcp_config_path: str | None = None, base_url: str | None = None) -> None:
         """
         Initialize with MCP server configuration
 

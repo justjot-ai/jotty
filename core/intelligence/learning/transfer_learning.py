@@ -14,6 +14,8 @@ Key Components:
 4. HIERARCHICAL MEMORY: Specific → Pattern → Meta levels
 """
 
+from __future__ import annotations
+
 import hashlib
 import json
 import logging
@@ -383,7 +385,7 @@ class PatternExtractor:
                 return pattern
         return "none"
 
-    def extract_role(self, agent_name: str, task_types_handled: List[str] = None) -> str:
+    def extract_role(self, agent_name: str, task_types_handled: List[str] | None = None) -> str:
         """Infer role from agent name or behavior."""
         name_lower = agent_name.lower()
 
@@ -484,8 +486,8 @@ class TransferableLearningStore:
         action: str,
         reward: float,
         success: bool,
-        error: str = None,
-        context: Dict = None,
+        error: str | None = None,
+        context: Dict | None = None,
     ) -> Any:
         """Record an experience and extract transferable patterns."""
         # Create experience record
@@ -632,7 +634,7 @@ class TransferableLearningStore:
                 )
 
     def get_relevant_learnings(
-        self, query: str, agent: str = None, top_k: int = 5
+        self, query: str, agent: str | None = None, top_k: int = 5
     ) -> Dict[str, Any]:
         """
         Get relevant transferable learnings for a query.
@@ -731,7 +733,7 @@ class TransferableLearningStore:
 
         return best_role
 
-    def format_context_for_agent(self, query: str, agent: str = None) -> str:
+    def format_context_for_agent(self, query: str, agent: str | None = None) -> str:
         """Format transferable learnings as context for agent prompt."""
         learnings = self.get_relevant_learnings(query, agent)
 

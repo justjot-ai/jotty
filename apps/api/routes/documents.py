@@ -4,17 +4,19 @@ Document routes - upload, list, search, RAG config.
 
 import logging
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
 
-def register_document_routes(app, api):
+def register_document_routes(app, api) -> Any:
     from fastapi import File, Form, HTTPException, UploadFile
     from pydantic import BaseModel
 
     @app.post("/api/documents/upload")
-    async def upload_document(file: UploadFile = File(...), folder_id: Optional[str] = Form(None)):
+    async def upload_document(
+        file: UploadFile = File(...), folder_id: Optional[str] = Form(None)
+    ) -> dict[str, Any]:
         """
         Upload a document for RAG processing.
 
@@ -41,7 +43,7 @@ def register_document_routes(app, api):
             raise HTTPException(status_code=500, detail=str(e))
 
     @app.get("/api/documents")
-    async def list_documents(folder_id: Optional[str] = None):
+    async def list_documents(folder_id: Optional[str] = None) -> dict[str, Any]:
         """List all documents, optionally filtered by folder."""
         from .documents import get_document_processor
 
@@ -59,7 +61,7 @@ def register_document_routes(app, api):
             return {"documents": []}
 
     @app.get("/api/documents/{doc_id}")
-    async def get_document(doc_id: str, include_text: bool = False):
+    async def get_document(doc_id: str, include_text: bool = False) -> Any:
         """Get document info and optionally its text content."""
         from .documents import get_document_processor
 
@@ -76,7 +78,7 @@ def register_document_routes(app, api):
         return result
 
     @app.delete("/api/documents/{doc_id}")
-    async def delete_document(doc_id: str):
+    async def delete_document(doc_id: str) -> dict[str, Any]:
         """Delete a document and its embeddings."""
         from .documents import get_document_processor
 
@@ -86,7 +88,7 @@ def register_document_routes(app, api):
         return {"success": success}
 
     @app.post("/api/documents/search")
-    async def search_documents(request: dict):
+    async def search_documents(request: dict) -> dict[str, Any]:
         """
         Search documents using vector similarity.
 
@@ -116,7 +118,7 @@ def register_document_routes(app, api):
     # ===== RAG CONFIGURATION ENDPOINTS =====
 
     @app.get("/api/rag/config")
-    async def get_rag_config():
+    async def get_rag_config() -> dict[str, Any]:
         """Get current RAG configuration."""
         from .documents import RAGConfig, get_document_processor
 
@@ -132,7 +134,7 @@ def register_document_routes(app, api):
         embedding_model: Optional[str] = None
 
     @app.post("/api/rag/config")
-    async def update_rag_config(request: RAGConfigUpdateRequest):
+    async def update_rag_config(request: RAGConfigUpdateRequest) -> dict[str, Any]:
         """Update RAG configuration."""
         from .documents import RAGConfig, get_document_processor
 
@@ -164,7 +166,7 @@ def register_document_routes(app, api):
         return {"success": True, "config": config.to_dict()}
 
     @app.post("/api/rag/reindex/{doc_id}")
-    async def reindex_document(doc_id: str):
+    async def reindex_document(doc_id: str) -> dict[str, Any]:
         """Re-index a document with current RAG settings."""
         from .documents import get_document_processor
 

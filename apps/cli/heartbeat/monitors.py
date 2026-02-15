@@ -11,6 +11,8 @@ Background monitors for proactive features:
 - Custom watchers
 """
 
+from __future__ import annotations
+
 import hashlib
 import logging
 import re
@@ -291,7 +293,7 @@ class WebMonitor:
         self._cli = cli
         self._watched_urls: Dict[str, Dict] = {}  # url -> {selector, last_value}
 
-    def watch_url(self, url: str, selector: str = None, description: str = "") -> Any:
+    def watch_url(self, url: str, selector: str | None = None, description: str = "") -> Any:
         """Add URL to watch."""
         self._watched_urls[url] = {
             "selector": selector,

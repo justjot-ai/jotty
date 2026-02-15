@@ -161,7 +161,7 @@ Visual representation of the ML pipeline data flow.
             self._record_section_failure("Model Benchmarking", e)
 
     def add_model_comparison(
-        self, models: Dict, X_test: Any, y_true: Any, class_labels: List[str] = None
+        self, models: Dict, X_test: Any, y_true: Any, class_labels: List[str] | None = None
     ) -> Any:
         """Add side-by-side comparison of multiple trained models.
 
@@ -300,7 +300,9 @@ Evaluating model generalization across {len(results)} different datasets.
         except Exception as e:
             self._record_section_failure("Cross-Dataset Validation", e)
 
-    def add_confusion_matrix(self, y_true: Any, y_pred: Any, labels: List[str] = None) -> None:
+    def add_confusion_matrix(
+        self, y_true: Any, y_pred: Any, labels: List[str] | None = None
+    ) -> None:
         """Add confusion matrix section."""
         try:
             self._add_confusion_matrix_impl(y_true, y_pred, labels)
@@ -640,7 +642,7 @@ Per-class calibration analysis for {n_classes} classes.
         y_true: Any,
         y_pred: Any,
         y_prob: Any,
-        feature_names: List[str] = None,
+        feature_names: List[str] | None = None,
         top_n: int = 10,
     ) -> Any:
         """
@@ -1203,7 +1205,11 @@ Choosing the right classification threshold depends on business objectives.
     # =========================================================================
 
     def add_reproducibility_section(
-        self, model: Any, params: Dict = None, random_state: int = None, environment: Dict = None
+        self,
+        model: Any,
+        params: Dict | None = None,
+        random_state: int | None = None,
+        environment: Dict | None = None,
     ) -> Any:
         """
         Add reproducibility information:
@@ -1218,7 +1224,10 @@ Choosing the right classification threshold depends on business objectives.
             self._record_section_failure("Reproducibility", e)
 
     def add_hyperparameter_visualization(
-        self, study_or_trials: Any, param_names: List[str] = None, objective_name: str = "Objective"
+        self,
+        study_or_trials: Any,
+        param_names: List[str] | None = None,
+        objective_name: str = "Objective",
     ) -> Any:
         """
         Add hyperparameter search visualization.
@@ -1632,7 +1641,7 @@ Automated scan of all analysis sections for actionable findings.
     # =========================================================================
 
     def add_class_distribution(
-        self, y_true: Any, y_pred: Any = None, labels: List[str] = None
+        self, y_true: Any, y_pred: Any = None, labels: List[str] | None = None
     ) -> None:
         """
         Add class distribution analysis with:
@@ -1827,7 +1836,7 @@ values are randomly shuffled, breaking the relationship with the target.
     # =========================================================================
 
     def add_partial_dependence(
-        self, model: Any, X: Any, feature_names: List[str] = None, top_n: int = 3
+        self, model: Any, X: Any, feature_names: List[str] | None = None, top_n: int = 3
     ) -> Any:
         """
         Add Partial Dependence Plots (PDP) with ICE lines:
@@ -1995,7 +2004,9 @@ Bootstrap resampling provides robust confidence intervals for model performance 
         except Exception as e:
             self._record_section_failure("Statistical Tests", e)
 
-    def add_score_distribution(self, y_true: Any, y_prob: Any, labels: List[str] = None) -> None:
+    def add_score_distribution(
+        self, y_true: Any, y_prob: Any, labels: List[str] | None = None
+    ) -> None:
         """
         Add predicted probability distribution by actual class:
         - KDE/histogram of predicted probabilities split by actual class
@@ -2115,8 +2126,8 @@ reveals model discrimination capability.
         self,
         model: Any,
         X_sample: Any = None,
-        layer_names: List[str] = None,
-        training_history: Dict = None,
+        layer_names: List[str] | None = None,
+        training_history: Dict | None = None,
     ) -> Any:
         """
         Add deep learning-specific analysis (conditional — only if model is a neural network).

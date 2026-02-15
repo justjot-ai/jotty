@@ -11,6 +11,8 @@ Features:
 - Tracks success/failure metrics
 """
 
+from __future__ import annotations
+
 import logging
 import random
 import subprocess
@@ -70,7 +72,7 @@ class DirectClaudeCLI(dspy.BaseLM):
     }
 
     def __init__(
-        self, model: str = "", max_retries: int = 0, base_timeout: int = None, **kwargs: Any
+        self, model: str = "", max_retries: int = 0, base_timeout: int | None = None, **kwargs: Any
     ) -> None:
         """
         Initialize Direct Claude CLI wrapper.
@@ -163,7 +165,9 @@ class DirectClaudeCLI(dspy.BaseLM):
 
         return response
 
-    def __call__(self, prompt: str = None, messages: List[Dict] = None, **kwargs: Any) -> List[str]:
+    def __call__(
+        self, prompt: str | None = None, messages: List[Dict] | None = None, **kwargs: Any
+    ) -> List[str]:
         """
         Call Claude CLI with prompt and automatic retry.
 

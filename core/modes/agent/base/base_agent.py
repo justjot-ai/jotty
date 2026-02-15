@@ -564,7 +564,11 @@ class BaseAgent(ABC):
     # =========================================================================
 
     def store_memory(
-        self, content: str, level: str = "episodic", context: Dict[str, Any] = None, goal: str = ""
+        self,
+        content: str,
+        level: str = "episodic",
+        context: Dict[str, Any] | None = None,
+        goal: str = "",
     ) -> Any:
         """
         Store content in hierarchical memory.

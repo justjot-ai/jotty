@@ -26,7 +26,7 @@ class WorldClassReportMixin:
         shap_values: Any = None,
         title: str = "ML Analysis Report",
         context: str = "",
-        filename: str = None,
+        filename: str | None = None,
     ) -> Optional[str]:
         """
         Generate a professional-grade PDF report using Pandoc + LaTeX.
@@ -163,17 +163,17 @@ class WorldClassReportMixin:
         shap_values: Any = None,
         title: str = "Comprehensive ML Analysis",
         context: str = "",
-        filename: str = None,
+        filename: str | None = None,
         include_all: bool = True,
         theme: str = "professional",
         generate_html: bool = False,
         llm_narrative: bool = False,
-        sensitive_features: Dict[str, Any] = None,
+        sensitive_features: Dict[str, Any] | None = None,
         X_reference: Any = None,
-        pipeline_steps: List[Dict] = None,
+        pipeline_steps: List[Dict] | None = None,
         study_or_trials: Any = None,
-        validation_datasets: Dict = None,
-        trained_models: Dict = None,
+        validation_datasets: Dict | None = None,
+        trained_models: Dict | None = None,
     ) -> Optional[str]:
         """
         Generate the world's most comprehensive ML report.

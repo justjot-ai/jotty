@@ -3,23 +3,23 @@ Session routes - CRUD, folders, branching, temporary sessions.
 """
 
 import logging
-from typing import List, Optional
+from typing import Any, List, Optional
 
 logger = logging.getLogger(__name__)
 
 
-def register_sessions_routes(app, api):
+def register_sessions_routes(app, api) -> Any:
     from fastapi import HTTPException
     from pydantic import BaseModel
 
     @app.get("/api/sessions")
-    async def list_sessions():
+    async def list_sessions() -> dict[str, Any]:
         """List all sessions."""
         sessions = api.get_sessions()
         return {"sessions": sessions}
 
     @app.get("/api/sessions/{session_id}")
-    async def get_session(session_id: str):
+    async def get_session(session_id: str) -> Any:
         """Get session details and history."""
         session = api.get_session(session_id)
         if session:
@@ -27,13 +27,13 @@ def register_sessions_routes(app, api):
         raise HTTPException(status_code=404, detail="Session not found")
 
     @app.delete("/api/sessions/{session_id}")
-    async def delete_session(session_id: str):
+    async def delete_session(session_id: str) -> dict[str, Any]:
         """Delete a session."""
         success = api.delete_session(session_id)
         return {"success": success}
 
     @app.post("/api/sessions/{session_id}/clear")
-    async def clear_session(session_id: str):
+    async def clear_session(session_id: str) -> dict[str, Any]:
         """Clear session history."""
         success = api.clear_session(session_id)
         return {"success": success}
@@ -45,7 +45,7 @@ def register_sessions_routes(app, api):
         folderId: Optional[str] = None
 
     @app.patch("/api/sessions/{session_id}")
-    async def update_session(session_id: str, request: SessionUpdateRequest):
+    async def update_session(session_id: str, request: SessionUpdateRequest) -> dict[str, Any]:
         """Update session metadata (title, pin, archive, folder)."""
         updates = request.dict(exclude_none=True)
         success = api.update_session(session_id, updates)
@@ -53,7 +53,7 @@ def register_sessions_routes(app, api):
 
     # Folder management endpoints
     @app.get("/api/folders")
-    async def list_folders():
+    async def list_folders() -> dict[str, Any]:
         """List all folders."""
         folders = api.get_folders()
         return {"folders": folders}
@@ -65,14 +65,14 @@ def register_sessions_routes(app, api):
         order: int = 0
 
     @app.post("/api/folders")
-    async def create_folder(request: FolderRequest):
+    async def create_folder(request: FolderRequest) -> dict[str, Any]:
         """Create a new folder."""
         folder = request.dict()
         success = api.create_folder(folder)
         return {"success": success, "folder": folder}
 
     @app.delete("/api/folders/{folder_id}")
-    async def delete_folder(folder_id: str):
+    async def delete_folder(folder_id: str) -> dict[str, Any]:
         """Delete a folder."""
         success = api.delete_folder(folder_id)
         return {"success": success}
@@ -81,7 +81,7 @@ def register_sessions_routes(app, api):
         folders: List[dict]
 
     @app.put("/api/folders/bulk")
-    async def bulk_update_folders(request: BulkFoldersRequest):
+    async def bulk_update_folders(request: BulkFoldersRequest) -> dict[str, Any]:
         """Bulk update all folders (for reordering, renaming, etc.)."""
         success = api.save_folders(request.folders)
         return {"success": success}
@@ -89,7 +89,7 @@ def register_sessions_routes(app, api):
     # ===== DOCUMENT UPLOAD & RAG ENDPOINTS =====
 
     @app.get("/api/sessions/{session_id}/branches")
-    async def list_branches(session_id: str):
+    async def list_branches(session_id: str) -> dict[str, Any]:
         """Get all branches for a session."""
         from ..cli.repl.session import InterfaceType
 
@@ -110,7 +110,7 @@ def register_sessions_routes(app, api):
         branch_name: Optional[str] = None
 
     @app.post("/api/sessions/{session_id}/branch")
-    async def create_branch(session_id: str, request: CreateBranchRequest):
+    async def create_branch(session_id: str, request: CreateBranchRequest) -> dict[str, Any]:
         """Create a new branch from a message."""
         from ..cli.repl.session import InterfaceType
 
@@ -133,7 +133,9 @@ def register_sessions_routes(app, api):
         create_branch: bool = True
 
     @app.post("/api/sessions/{session_id}/messages/{message_id}/edit")
-    async def edit_message(session_id: str, message_id: str, request: EditMessageRequest):
+    async def edit_message(
+        session_id: str, message_id: str, request: EditMessageRequest
+    ) -> dict[str, Any]:
         """Edit a message, optionally creating a new branch."""
         from ..cli.repl.session import InterfaceType
 
@@ -157,7 +159,7 @@ def register_sessions_routes(app, api):
         branch_id: str
 
     @app.post("/api/sessions/{session_id}/branch/switch")
-    async def switch_branch(session_id: str, request: SwitchBranchRequest):
+    async def switch_branch(session_id: str, request: SwitchBranchRequest) -> dict[str, Any]:
         """Switch to a different branch."""
         from ..cli.repl.session import InterfaceType
 
@@ -178,7 +180,7 @@ def register_sessions_routes(app, api):
             raise HTTPException(status_code=400, detail=str(e))
 
     @app.delete("/api/sessions/{session_id}/branches/{branch_id}")
-    async def delete_branch(session_id: str, branch_id: str):
+    async def delete_branch(session_id: str, branch_id: str) -> dict[str, Any]:
         """Delete a branch."""
         from ..cli.repl.session import InterfaceType
 
@@ -201,7 +203,7 @@ def register_sessions_routes(app, api):
         max_results: int = 10
 
     @app.get("/api/share/session/{session_id}")
-    async def get_session_share_links(session_id: str):
+    async def get_session_share_links(session_id: str) -> dict[str, Any]:
         """Get all share links for a session."""
         from Jotty.apps.cli.repl.session import get_share_link_registry
 
@@ -214,7 +216,7 @@ def register_sessions_routes(app, api):
         expiry_days: Optional[int] = 30
 
     @app.post("/api/sessions/temporary")
-    async def create_temporary_session(request: CreateTempSessionRequest = None):
+    async def create_temporary_session(request: CreateTempSessionRequest = None) -> dict[str, Any]:
         """Create a temporary (ephemeral) chat session."""
         from Jotty.apps.cli.repl.session import InterfaceType, SessionManager
 
@@ -231,7 +233,7 @@ def register_sessions_routes(app, api):
     @app.post("/api/sessions/{session_id}/temporary")
     async def toggle_session_temporary(
         session_id: str, is_temporary: bool, expiry_days: Optional[int] = 30
-    ):
+    ) -> dict[str, Any]:
         """Toggle temporary mode for a session."""
         from Jotty.apps.cli.repl.session import get_session_registry
 
@@ -255,7 +257,7 @@ def register_sessions_routes(app, api):
         }
 
     @app.post("/api/sessions/cleanup")
-    async def cleanup_expired_sessions():
+    async def cleanup_expired_sessions() -> dict[str, Any]:
         """Clean up expired temporary sessions."""
         from Jotty.apps.cli.repl.session import SessionManager
 
@@ -264,7 +266,9 @@ def register_sessions_routes(app, api):
         return {"success": True, "deleted_count": len(deleted), "deleted_sessions": deleted}
 
     @app.get("/api/sessions")
-    async def list_all_sessions(include_temporary: bool = False, include_expired: bool = False):
+    async def list_all_sessions(
+        include_temporary: bool = False, include_expired: bool = False
+    ) -> dict[str, Any]:
         """List all available sessions with filters."""
         from Jotty.apps.cli.repl.session import SessionManager
 

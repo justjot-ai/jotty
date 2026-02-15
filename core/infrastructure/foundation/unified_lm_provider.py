@@ -12,6 +12,9 @@ Consolidates ALL providers behind DSPy LM abstraction:
 All providers accessible through single DSPy LM interface.
 Automatically injects current date/time context to all LLM calls.
 """
+
+from __future__ import annotations
+
 import logging
 import os
 from datetime import datetime
@@ -63,7 +66,9 @@ class ContextAwareLM(BaseLM):
         self.provider = getattr(wrapped_lm, "provider", "unknown")
         self.history = getattr(wrapped_lm, "history", [])
 
-    def _inject_context(self, prompt: str = None, messages: List[Dict] = None) -> Tuple:
+    def _inject_context(
+        self, prompt: str | None = None, messages: List[Dict] | None = None
+    ) -> Tuple:
         """Inject current date context into prompt or messages."""
         context = f"[System Context: {get_current_context()}]"
 
@@ -94,7 +99,9 @@ class ContextAwareLM(BaseLM):
 
         return prompt, messages
 
-    def __call__(self, prompt: str = None, messages: List[Dict] = None, **kwargs: Any) -> Any:
+    def __call__(
+        self, prompt: str | None = None, messages: List[Dict] | None = None, **kwargs: Any
+    ) -> Any:
         """Call the wrapped LM with injected context."""
         prompt, messages = self._inject_context(prompt, messages)
         return self._wrapped(prompt=prompt, messages=messages, **kwargs)
@@ -155,7 +162,7 @@ class UnifiedLMProvider:
 
         # CLI providers and OpenCode use AISDKProviderLM
         try:
-            from ..integration.ai_sdk_provider_adapter import AISDKProviderLM
+            from Jotty.core.integration.ai_sdk_provider_adapter import AISDKProviderLM
 
             # Default models per provider
             default_models = {
@@ -523,7 +530,7 @@ class UnifiedLMProvider:
         claude_path = shutil.which("claude")
         if claude_path:
             try:
-                from ..integration.direct_claude_cli_lm import DirectClaudeCLI
+                from Jotty.core.integration.direct_claude_cli_lm import DirectClaudeCLI
 
                 raw_lm = DirectClaudeCLI(model="sonnet")
                 # Wrap with context injection

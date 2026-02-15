@@ -5,6 +5,8 @@ Extracted from SwarmIntelligence for modularity.
 These are mixed into SwarmIntelligence at class definition.
 """
 
+from __future__ import annotations
+
 import logging
 import time
 from typing import Any, Dict, List, Optional
@@ -26,8 +28,8 @@ class LifecycleMixin:
         task_id: str,
         task_type: str,
         priority: int = 5,
-        deadline: float = None,
-        context: Dict = None,
+        deadline: float | None = None,
+        context: Dict | None = None,
     ) -> Any:
         """
         Add task to priority queue.
@@ -185,7 +187,9 @@ class LifecycleMixin:
     # EMERGENT LEADERSHIP (Dynamic leader election)
     # =========================================================================
 
-    def elect_leader(self, candidates: List[str] = None, task_type: str = None) -> Optional[str]:
+    def elect_leader(
+        self, candidates: List[str] | None = None, task_type: str | None = None
+    ) -> Optional[str]:
         """
         Elect leader based on trust, success rate, and availability.
 
@@ -257,7 +261,7 @@ class LifecycleMixin:
     # AGENT LIFECYCLE (Spawn/retire dynamically)
     # =========================================================================
 
-    def should_spawn_agent(self, task_type: str = None) -> bool:
+    def should_spawn_agent(self, task_type: str | None = None) -> bool:
         """
         Determine if new agent should be spawned.
 
@@ -485,7 +489,7 @@ class LifecycleMixin:
             "size": len(self._result_cache),
         }
 
-    def clear_cache(self, pattern: str = None) -> None:
+    def clear_cache(self, pattern: str | None = None) -> None:
         """Clear cache entries (optionally matching pattern)."""
         if pattern:
             import fnmatch

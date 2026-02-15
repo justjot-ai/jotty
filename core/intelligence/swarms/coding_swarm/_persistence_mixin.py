@@ -2,6 +2,8 @@
 Persistence Mixin - Output file writing and ADR generation.
 """
 
+from __future__ import annotations
+
 import json
 import logging
 import re
@@ -96,7 +98,7 @@ class PersistenceMixin:
         context: str,
         decision: str,
         consequences: str,
-        participants: List[str] = None,
+        participants: List[str] | None = None,
         status: str = "Accepted",
     ) -> Optional[str]:
         """Write an Architecture Decision Record (ADR) to the adr folder.

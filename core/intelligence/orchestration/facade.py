@@ -14,6 +14,8 @@ Usage:
     components = list_components()
 """
 
+from __future__ import annotations
+
 import threading
 from typing import TYPE_CHECKING, Any, Dict, Optional, Type, Union
 
@@ -133,7 +135,7 @@ def get_provider_manager(config: Optional["SwarmConfig"] = None) -> "ProviderMan
     )
 
 
-def get_model_tier_router(default_provider: str = None) -> "ModelTierRouter":
+def get_model_tier_router(default_provider: str | None = None) -> "ModelTierRouter":
     """
     Return a ModelTierRouter instance for complexity-based LLM model selection.
 

@@ -10,6 +10,8 @@ improves over time. Without measurable improvement, "self-improving"
 is just a label.
 """
 
+from __future__ import annotations
+
 import asyncio
 import json
 import logging
@@ -129,7 +131,7 @@ class EffectivenessTracker:
 
         return report
 
-    def is_improving(self, task_type: str = None) -> bool:
+    def is_improving(self, task_type: str | None = None) -> bool:
         """Quick check: is the system improving for a given task type (or globally)?"""
         report = self.improvement_report()
         key = task_type or "_global"
@@ -1288,7 +1290,7 @@ class SwarmLearningPipeline:
     # Query methods
     # =========================================================================
 
-    def get_transferable_context(self, query: str, agent: str = None) -> str:
+    def get_transferable_context(self, query: str, agent: str | None = None) -> str:
         """Get transferable learnings as context string."""
         return self.transfer_learning.get_relevant_context(query, agent=agent)
 
@@ -1350,7 +1352,7 @@ class SwarmLearningPipeline:
             logger.debug(f"Stigmergy route lookup failed: {e}")
             return None
 
-    def get_stigmergy_warnings(self, task_type: str = None) -> list:
+    def get_stigmergy_warnings(self, task_type: str | None = None) -> list:
         """Get stigmergy warning signals, optionally filtered by task type."""
         try:
             signals = self.stigmergy.sense(signal_type="warning")
@@ -1522,7 +1524,7 @@ class SwarmLearningPipeline:
         if task_type != "_global":
             self.record_paradigm_result(paradigm, success, "_global")
 
-    def recommend_paradigm(self, task_type: str = None) -> str:
+    def recommend_paradigm(self, task_type: str | None = None) -> str:
         """
         Recommend the best discussion paradigm based on historical success rates.
 
@@ -1572,7 +1574,7 @@ class SwarmLearningPipeline:
 
         return best_paradigm
 
-    def get_paradigm_stats(self, task_type: str = None) -> Dict[str, Any]:
+    def get_paradigm_stats(self, task_type: str | None = None) -> Dict[str, Any]:
         """
         Get paradigm effectiveness stats with success rates.
 
@@ -1606,7 +1608,7 @@ class SwarmLearningPipeline:
     # Curriculum generation
     # =========================================================================
 
-    def generate_training_tasks(self, agent_profiles: dict = None, count: int = 3) -> list:
+    def generate_training_tasks(self, agent_profiles: dict | None = None, count: int = 3) -> list:
         """Generate synthetic training tasks for agents (DrZero self-curriculum)."""
         try:
             tasks = []

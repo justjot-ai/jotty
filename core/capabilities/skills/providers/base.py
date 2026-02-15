@@ -6,6 +6,8 @@ Defines the abstract base class for all skill providers and common types.
 Includes skill-to-category mapping for routing tasks to appropriate skills.
 """
 
+from __future__ import annotations
+
 import logging
 import re
 import time
@@ -430,7 +432,7 @@ class SkillProvider(ABC):
     is_initialized: bool = False
     is_available: bool = True
 
-    def __init__(self, config: Dict[str, Any] = None) -> None:
+    def __init__(self, config: Dict[str, Any] | None = None) -> None:
         """
         Initialize the provider.
 
@@ -458,7 +460,7 @@ class SkillProvider(ABC):
         pass
 
     @abstractmethod
-    async def execute(self, task: str, context: Dict[str, Any] = None) -> ProviderResult:
+    async def execute(self, task: str, context: Dict[str, Any] | None = None) -> ProviderResult:
         """
         Execute a task using this provider.
 
@@ -544,7 +546,7 @@ class JottyDefaultProvider(SkillProvider):
     version = "2.0.0"
     description = "Jotty's built-in skill implementations via SkillsRegistry"
 
-    def __init__(self, config: Dict[str, Any] = None) -> None:
+    def __init__(self, config: Dict[str, Any] | None = None) -> None:
         super().__init__(config)
 
         # Lazy-loaded skills registry
@@ -694,7 +696,7 @@ class JottyDefaultProvider(SkillProvider):
         """Get all supported categories (excluding APP_BUILDING - use specialized providers)."""
         return [cat for cat in SkillCategory if cat != SkillCategory.APP_BUILDING]
 
-    async def execute(self, task: str, context: Dict[str, Any] = None) -> ProviderResult:
+    async def execute(self, task: str, context: Dict[str, Any] | None = None) -> ProviderResult:
         """
         Execute task using the best matching skill from SkillsRegistry.
 

@@ -1,5 +1,7 @@
 """Memory consolidation components — Signatures, Validator, Classifier, MemoryCluster."""
 
+from __future__ import annotations
+
 import json
 import logging
 from dataclasses import dataclass, field
@@ -203,7 +205,6 @@ class ConsolidationValidator:
         self, pattern: str, source_memories: List[Any], pattern_type: str
     ) -> Tuple[bool, float, str]:
         """Use LLM to validate pattern."""
-        import json
 
         try:
             # Format source memories
@@ -334,7 +335,7 @@ class ConsolidationValidator:
         return is_valid, confidence, reasoning
 
     def quarantine_suspicious(
-        self, pattern: str, source_memories: List[Any] = None, reason: str = ""
+        self, pattern: str, source_memories: List[Any] | None = None, reason: str = ""
     ) -> None:
         """
         Move suspicious patterns to quarantine for review.
@@ -429,7 +430,6 @@ class MemoryLevelClassifier:
         Returns:
             (MemoryLevel, confidence, should_store)
         """
-        import json
 
         try:
             result = self.classifier(
@@ -447,90 +447,6 @@ class MemoryLevelClassifier:
             logger.debug(f"Classification failed: {e}, using heuristic")
             # Fallback to heuristic classification
             return self._heuristic_classify(experience), 0.5, True
-
-    async def _classify_with_retry(self, experience: str, context: Dict[str, Any]) -> MemoryLevel:
-        """
-        A-Team v9.0: NO HEURISTIC FALLBACKS.
-
-        If primary classification fails:
-        1. Retry with context of failure
-        2. If still fails, use FallbackClassificationAgent
-        3. NEVER use hardcoded rules
-        """
-        from Jotty.core.infrastructure.foundation.config_defaults import MAX_RETRIES
-
-        from .modern_agents import UniversalRetryHandler
-
-        retry_handler = UniversalRetryHandler(max_retries=MAX_RETRIES)
-
-        async def classify_attempt(**kwargs: Any) -> Any:
-            exp = kwargs.get("experience", "")
-            ctx = kwargs.get("context", {})
-
-            result = self.classifier(experience=exp, context=json.dumps(ctx))
-
-            level_str = (result.level or "EPISODIC").upper().strip()
-            return self.level_map.get(level_str, MemoryLevel.EPISODIC)
-
-        # Fallback agent (specialized for difficult cases)
-        async def fallback_classifier(**kwargs: Any) -> Any:
-            """
-            Specialized agent for difficult classification cases.
-
-            Gets full error context and tries harder.
-            """
-            task_info = kwargs.get("task", "")
-            errors = kwargs.get("error_history", [])
-
-            # Create a more detailed prompt with all context
-            detailed_prompt = f"""
-            DIFFICULT CLASSIFICATION TASK
-
-            The primary classifier failed with these errors:
-            {errors}
-
-            Original task: {task_info}
-
-            Please classify this experience into one of:
-            - EPISODIC: Raw events, specific instances, tool outputs
-            - SEMANTIC: Patterns, generalizations, abstractions
-            - PROCEDURAL: How-to knowledge, step sequences
-            - META: Wisdom about approach, when to use what
-            - CAUSAL: Why things work, cause-effect relationships
-
-            Think carefully and provide classification.
-            """
-
-            # Use a fresh classifier with detailed prompt
-            class DetailedClassification(dspy.Signature):
-                detailed_context = dspy.InputField()
-                experience = dspy.InputField()
-                level = dspy.OutputField()
-                confidence = dspy.OutputField()
-
-            specialist = dspy.ChainOfThought(DetailedClassification)
-            result = specialist(
-                detailed_context=detailed_prompt,
-                experience=kwargs.get("original_input", {}).get("experience", ""),
-            )
-
-            level_str = (result.level or "EPISODIC").upper().strip()
-            return self.level_map.get(level_str, MemoryLevel.EPISODIC)
-
-        result = await retry_handler.execute_with_retry(
-            agent_func=classify_attempt,
-            task_description=f"Classify memory level for: {experience}...",
-            initial_input={"experience": experience, "context": context},
-            specialist_agent=fallback_classifier,
-        )
-
-        if result.is_certain:
-            return result.value
-        else:
-            # Even specialist failed - return with uncertainty flag
-            # (This is NOT a heuristic fallback, it's explicit uncertainty)
-            logger.warning(f"Classification uncertain after all retries: {result.reasoning}")
-            return MemoryLevel.EPISODIC  # Default with logged uncertainty
 
 
 # =============================================================================

@@ -26,7 +26,7 @@ class TextToSpeech:
     Auto-selects best available provider or use specific provider.
     """
 
-    def __init__(self, platform: str = "generic", provider: str = "auto"):
+    def __init__(self, platform: str = "generic", provider: str = "auto") -> None:
         """
         Initialize TTS synthesizer.
 
@@ -38,7 +38,7 @@ class TextToSpeech:
         self.provider_name = provider
         self._provider = None
 
-    def _get_provider(self):
+    def _get_provider(self) -> Any:
         """Get or create provider instance."""
         if self._provider is None:
             self._provider = get_tts_provider(self.provider_name)

@@ -14,6 +14,8 @@ Key features:
 - DSPy BaseLM compatible
 """
 
+from __future__ import annotations
+
 import asyncio
 import json
 import logging
@@ -124,7 +126,9 @@ class PersistentClaudeCLI(dspy.BaseLM):
         self._call_count = 0
         logger.info(f"Started persistent Claude CLI process (PID: {self._process.pid})")
 
-    def __call__(self, prompt: str = None, messages: List[Dict] = None, **kwargs: Any) -> List[str]:
+    def __call__(
+        self, prompt: str | None = None, messages: List[Dict] | None = None, **kwargs: Any
+    ) -> List[str]:
         """Synchronous call interface (required by DSPy)."""
         try:
             asyncio.get_running_loop()
@@ -137,7 +141,7 @@ class PersistentClaudeCLI(dspy.BaseLM):
             return asyncio.run(self._async_call(prompt, messages, **kwargs))
 
     async def _async_call(
-        self, prompt: str = None, messages: List[Dict] = None, **kwargs: Any
+        self, prompt: str | None = None, messages: List[Dict] | None = None, **kwargs: Any
     ) -> List[str]:
         """Async implementation using persistent process."""
         # Build input text

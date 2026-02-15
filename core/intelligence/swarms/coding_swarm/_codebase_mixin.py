@@ -2,6 +2,8 @@
 Codebase Mixin - File discovery, diffing, git, and test utilities.
 """
 
+from __future__ import annotations
+
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -12,7 +14,9 @@ logger = logging.getLogger(__name__)
 
 
 class CodebaseMixin:
-    def _discover_files(self, codebase_path: str, extensions: List[str] = None) -> Dict[str, str]:
+    def _discover_files(
+        self, codebase_path: str, extensions: List[str] | None = None
+    ) -> Dict[str, str]:
         """Auto-discover source files from codebase path.
 
         Args:
@@ -374,7 +378,9 @@ class CodebaseMixin:
 
         return None
 
-    async def _run_tests(self, codebase_path: str, test_command: str = None) -> Dict[str, Any]:
+    async def _run_tests(
+        self, codebase_path: str, test_command: str | None = None
+    ) -> Dict[str, Any]:
         """Run tests in the codebase and return results.
 
         Args:

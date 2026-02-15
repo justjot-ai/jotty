@@ -133,7 +133,7 @@ class DocumentExporter:
     Professional document exporter with fallbacks and error handling.
     """
 
-    def __init__(self, temp_dir: Optional[Path] = None):
+    def __init__(self, temp_dir: Optional[Path] = None) -> None:
         self.temp_dir = temp_dir or Path(tempfile.mkdtemp(prefix="jotty_export_"))
         self.temp_dir.mkdir(parents=True, exist_ok=True)
 
@@ -348,7 +348,7 @@ class DocumentExporter:
 
         return output
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Remove temporary files."""
         try:
             shutil.rmtree(self.temp_dir)
