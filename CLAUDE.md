@@ -209,7 +209,7 @@ from Jotty.core.infrastructure.context.facade import (
 )
 
 # MONITORING — Performance, safety, observability
-from Jotty.core.infrastructure.monitoring.safety import SafetyMonitor
+from Jotty.core.infrastructure.monitoring.safety_gates import ValidatorAgent, SafetyConstraint
 from Jotty.core.infrastructure.monitoring.observability import DistributedTracing
 from Jotty.core.infrastructure.monitoring.monitoring import PerformanceTracker
 ```

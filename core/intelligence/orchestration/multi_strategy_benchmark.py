@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional
 
 from Jotty.core.infrastructure.monitoring.observability import get_distributed_tracer
 
-from ...infrastructure.monitoring.safety import get_adaptive_threshold_manager
+from ...infrastructure.monitoring.safety_gates import get_adaptive_threshold_manager
 from ..learning import get_cost_aware_td_lambda
 from .multi_swarm_coordinator import MergeStrategy, MultiSwarmCoordinator, SwarmResult
 

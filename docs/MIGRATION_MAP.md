@@ -90,7 +90,7 @@
 | `core/utils/` | `core/infrastructure/utils/` | ✅ Complete |
 | `core/monitoring/` | `core/infrastructure/monitoring/monitoring/` | ✅ Complete |
 | `core/observability/` | `core/infrastructure/monitoring/observability/` | ✅ Complete |
-| `core/safety/` | `core/infrastructure/monitoring/safety/` | ✅ Complete |
+| `core/safety/` | `core/infrastructure/monitoring/safety_gates/` | ✅ Complete |
 | `core/evaluation/` | `core/infrastructure/monitoring/evaluation/` | ✅ Complete |
 
 ---

@@ -20,7 +20,7 @@ class TestOvernightEnhancementsIntegration:
     async def test_full_stack_integration(self):
         """Test all enhancements: tracing + multi-swarm + cost-aware + adaptive."""
         from Jotty.core.infrastructure.monitoring.observability import get_distributed_tracer
-        from Jotty.core.infrastructure.monitoring.safety import get_adaptive_threshold_manager
+        from Jotty.core.infrastructure.monitoring.safety_gates import get_adaptive_threshold_manager
         from Jotty.core.intelligence.learning import get_cost_aware_td_lambda
         from Jotty.core.intelligence.orchestration import (
             get_multi_swarm_coordinator,
@@ -173,7 +173,7 @@ class TestOvernightEnhancementsIntegration:
     @pytest.mark.asyncio
     async def test_adaptive_thresholds_with_multi_swarm(self):
         """Test adaptive thresholds adjust based on multi-swarm usage."""
-        from Jotty.core.infrastructure.monitoring.safety import get_adaptive_threshold_manager
+        from Jotty.core.infrastructure.monitoring.safety_gates import get_adaptive_threshold_manager
 
         manager = get_adaptive_threshold_manager()
 
@@ -212,7 +212,7 @@ class TestIndividualEnhancements:
 
     def test_adaptive_threshold_manager_initialization(self):
         """Test adaptive threshold manager initializes correctly."""
-        from Jotty.core.infrastructure.monitoring.safety import get_adaptive_threshold_manager
+        from Jotty.core.infrastructure.monitoring.safety_gates import get_adaptive_threshold_manager
 
         manager = get_adaptive_threshold_manager()
         assert manager.adaptation_interval == 100
