@@ -108,17 +108,20 @@ class MemoryCommand(BaseCommand):
     async def _show_levels(self, cli: "JottyCLI") -> CommandResult:
         """Show memory level descriptions."""
         try:
-            # Import memory levels
-            try:
-                from ...foundation.data_structures import MemoryLevel
-            except ImportError:
-                from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
+            # Memory levels (SDK uses string levels)
+            memory_levels = [
+                "EPISODIC",
+                "SEMANTIC",
+                "PROCEDURAL",
+                "META",
+                "CAUSAL"
+            ]
 
             levels_info = {}
-            for level in MemoryLevel:
-                levels_info[level.name] = {
-                    "Value": level.value,
-                    "Description": self._get_level_description(level.name)
+            for level_name in memory_levels:
+                levels_info[level_name] = {
+                    "Value": level_name.lower(),
+                    "Description": self._get_level_description(level_name)
                 }
 
             cli.renderer.tree(levels_info, title="Memory Levels")

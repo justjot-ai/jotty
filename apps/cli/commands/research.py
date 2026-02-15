@@ -99,38 +99,39 @@ class ResearchCommand(BaseCommand):
         cli.renderer.info(f"Output: {output_format}")
 
         try:
-            # Execute via ModeRouter (canonical path)
-            from Jotty.core.interface.api.mode_router import get_mode_router
-            from Jotty.core.infrastructure.foundation.types.sdk_types import (
-                ExecutionContext, ExecutionMode, ChannelType,
-            )
+            # Execute via SDK (clean architecture)
+            # Get SDK client from CLI app
+            sdk_client = cli._get_sdk_client()
 
             # Check if renderer supports async status (Telegram)
             has_async_status = hasattr(cli.renderer, 'send_status_async')
 
-            async def async_status_callback(stage: str, detail: str = '') -> Any:
-                """Async callback for real-time status streaming."""
-                msg = f"{stage}: {detail}" if detail else stage
+            # Register event listeners for status updates
+            async def on_skill_start(event):
+                """Handle skill start events."""
+                skill_name = event.data.get('skill', 'unknown') if event.data else 'unknown'
+                msg = f"Using skill: {skill_name}"
                 if has_async_status:
                     await cli.renderer.send_status_async(msg)
                 else:
                     cli.renderer.status(msg)
 
-            def sync_status_callback(stage: str, detail: str = '') -> Any:
-                """Sync callback (for CLI)."""
-                cli.renderer.status(f"{stage}: {detail}" if detail else stage)
+            async def on_thinking(event):
+                """Handle thinking events."""
+                if has_async_status:
+                    await cli.renderer.send_status_async("Thinking...")
+                else:
+                    cli.renderer.status("Thinking...")
 
-            # Use async callback if available (Telegram), else sync (CLI)
-            status_cb = async_status_callback if has_async_status else sync_status_callback
+            # Import SDK types
+            from Jotty.sdk import SDKEventType
 
-            context = ExecutionContext(
-                mode=ExecutionMode.CHAT,
-                channel=ChannelType.CLI,
-                status_callback=status_cb,
-            )
+            # Register event handlers
+            sdk_client.on(SDKEventType.SKILL_START, on_skill_start)
+            sdk_client.on(SDKEventType.THINKING, on_thinking)
 
-            router = get_mode_router()
-            result = await router.chat(task, context)
+            # Execute via SDK
+            result = await sdk_client.chat(task)
 
             # Clear status message after completion (Telegram)
             if has_async_status and hasattr(cli.renderer, 'clear_status_message'):
