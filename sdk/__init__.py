@@ -29,7 +29,7 @@ For full documentation, see: https://docs.jotty.ai/sdk
 """
 
 # Import types for convenience
-from ..core.foundation.types.sdk_types import (
+from ..core.infrastructure.foundation.types.sdk_types import (
     ChannelType,
     ExecutionContext,
     ExecutionMode,

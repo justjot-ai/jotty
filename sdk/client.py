@@ -55,7 +55,7 @@ from datetime import datetime
 from typing import Any, AsyncIterator, Callable, Dict, Generic, List, Optional, TypeVar, Union
 
 # Import SDK types
-from ..core.foundation.types.sdk_types import (
+from ..core.infrastructure.foundation.types.sdk_types import (
     ChannelType,
     ExecutionContext,
     ExecutionMode,
