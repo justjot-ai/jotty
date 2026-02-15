@@ -20,7 +20,7 @@ import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
 
 try:
-    from Jotty.core.memory.memory_orchestrator import (
+    from Jotty.core.intelligence.memory.memory_orchestrator import (
         BrainPreset,
         ConsolidationTrigger,
         Experience,

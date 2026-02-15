@@ -1,8 +1,8 @@
 """NATO Phonetic Alphabet Skill — convert text to NATO spelling."""
 from typing import Dict, Any
 
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("nato-phonetic-alphabet")
 

@@ -12,8 +12,8 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 import os
 
-from Jotty.core.utils.skill_status import SkillStatus
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("stock-research-comprehensive")
@@ -58,7 +58,7 @@ async def comprehensive_stock_research_tool(params: Dict[str, Any]) -> Dict[str,
         if enhanced:
             # Use the new enhanced research tool
             try:
-                from Jotty.core.skills.research import enhanced_stock_research_tool
+                from Jotty.core.capabilities.skills.research import enhanced_stock_research_tool
 
                 # Map parameters
                 enhanced_params = {
@@ -84,9 +84,9 @@ async def comprehensive_stock_research_tool(params: Dict[str, Any]) -> Dict[str,
 
         # Fall back to standard research
         try:
-            from Jotty.core.registry.skills_registry import get_skills_registry
+            from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
         except ImportError:
-            from Jotty.core.registry.skills_registry import get_skills_registry
+            from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
 
         ticker = params.get('ticker', '').upper().strip()
         if not ticker:

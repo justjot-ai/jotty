@@ -18,14 +18,14 @@ def test_dspy_imports():
         return False
 
     try:
-        from Jotty.core.integration.mcp_tool_executor import MCPToolExecutor
+        from Jotty.core.infrastructure.integration.mcp_tool_executor import MCPToolExecutor
         print("✅ MCPToolExecutor imported successfully")
     except ImportError as e:
         print(f"❌ MCPToolExecutor import failed: {e}")
         return False
 
     try:
-        from Jotty.core.agents.dspy_mcp_agent import DSPyMCPAgent
+        from Jotty.core.modes.agent.dspy_mcp_agent import DSPyMCPAgent
         print("✅ DSPyMCPAgent imported successfully")
     except ImportError as e:
         print(f"❌ DSPyMCPAgent import failed: {e}")
@@ -69,7 +69,7 @@ def test_mcp_tool_executor_creation():
     print("=" * 80)
 
     try:
-        from Jotty.core.integration.mcp_tool_executor import MCPToolExecutor
+        from Jotty.core.infrastructure.integration.mcp_tool_executor import MCPToolExecutor
 
         executor = MCPToolExecutor(base_url="http://localhost:3000")
         print("✅ MCPToolExecutor created successfully")
@@ -92,7 +92,7 @@ def test_mcp_tool_discovery():
 
     try:
         import asyncio
-        from Jotty.core.integration.mcp_tool_executor import MCPToolExecutor
+        from Jotty.core.infrastructure.integration.mcp_tool_executor import MCPToolExecutor
 
         async def discover():
             executor = MCPToolExecutor(base_url="http://localhost:3000")
@@ -128,7 +128,7 @@ def test_dspy_agent_creation():
 
     try:
         import asyncio
-        from Jotty.core.agents.dspy_mcp_agent import DSPyMCPAgent
+        from Jotty.core.modes.agent.dspy_mcp_agent import DSPyMCPAgent
 
         async def create_agent():
             agent = DSPyMCPAgent(

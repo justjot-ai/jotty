@@ -16,37 +16,37 @@ from enum import Enum
 # --- Guarded imports ---
 
 try:
-    from Jotty.core.api.mode_router import RouteResult
+    from Jotty.core.interface.api.mode_router import RouteResult
     HAS_MODE_ROUTER = True
 except ImportError:
     HAS_MODE_ROUTER = False
 
 try:
-    from Jotty.core.api.mode_router import ModeRouter
+    from Jotty.core.interface.api.mode_router import ModeRouter
     HAS_MODE_ROUTER_CLASS = True
 except ImportError:
     HAS_MODE_ROUTER_CLASS = False
 
 try:
-    from Jotty.core.api.mode_router import ExecutionMode
+    from Jotty.core.interface.api.mode_router import ExecutionMode
     HAS_EXECUTION_MODE = True
 except ImportError:
     HAS_EXECUTION_MODE = False
 
 try:
-    from Jotty.core.api.unified import JottyAPI
+    from Jotty.core.interface.api.unified import JottyAPI
     HAS_JOTTY_API = True
 except ImportError:
     HAS_JOTTY_API = False
 
 try:
-    from Jotty.core.api.chat_api import ChatAPI
+    from Jotty.core.interface.api.chat_api import ChatAPI
     HAS_CHAT_API = True
 except ImportError:
     HAS_CHAT_API = False
 
 try:
-    from Jotty.core.api.workflow_api import WorkflowAPI
+    from Jotty.core.interface.api.workflow_api import WorkflowAPI
     HAS_WORKFLOW_API = True
 except ImportError:
     HAS_WORKFLOW_API = False

@@ -22,7 +22,7 @@ from dataclasses import asdict
 # ---------------------------------------------------------------------------
 
 try:
-    from Jotty.core.use_cases.base import (
+    from Jotty.core.interface.use_cases.base import (
         UseCaseType,
         UseCaseConfig,
         UseCaseResult,
@@ -33,13 +33,13 @@ except ImportError:
     HAS_USE_CASE_BASE = False
 
 try:
-    from Jotty.core.use_cases.chat.chat_context import ChatMessage, ChatContext
+    from Jotty.core.interface.use_cases.chat.chat_context import ChatMessage, ChatContext
     HAS_CHAT_CONTEXT = True
 except ImportError:
     HAS_CHAT_CONTEXT = False
 
 try:
-    from Jotty.core.use_cases.workflow.workflow_context import (
+    from Jotty.core.interface.use_cases.workflow.workflow_context import (
         WorkflowTask,
         WorkflowContext,
     )
@@ -48,13 +48,13 @@ except ImportError:
     HAS_WORKFLOW_CONTEXT = False
 
 try:
-    from Jotty.core.foundation.types import TaskStatus
+    from Jotty.core.infrastructure.foundation.types import TaskStatus
     HAS_TASK_STATUS = True
 except ImportError:
     HAS_TASK_STATUS = False
 
 try:
-    from Jotty.core.services.command_service import (
+    from Jotty.core.infrastructure.services.command_service import (
         CommandInfo,
         CommandExecutionResult,
         CommandService,
@@ -64,7 +64,7 @@ except ImportError:
     HAS_COMMAND_SERVICE = False
 
 try:
-    from Jotty.core.api.unified import JottyAPI
+    from Jotty.core.interface.api.unified import JottyAPI
     HAS_JOTTY_API = True
 except ImportError:
     HAS_JOTTY_API = False

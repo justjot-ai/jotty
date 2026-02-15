@@ -14,7 +14,7 @@ from unittest.mock import Mock, AsyncMock, patch
 @pytest.mark.asyncio
 async def test_pipeline_imports():
     """Test that pipeline utilities are properly exported."""
-    from Jotty.core.orchestration import (
+    from Jotty.core.intelligence.orchestration import (
         MultiStagePipeline,
         PipelineResult,
         StageResult,
@@ -34,7 +34,7 @@ async def test_pipeline_imports():
 @pytest.mark.asyncio
 async def test_pipeline_basic_usage():
     """Test basic pipeline creation and execution."""
-    from Jotty.core.orchestration import (
+    from Jotty.core.intelligence.orchestration import (
         MultiStagePipeline,
         SwarmAdapter,
         MergeStrategy
@@ -45,7 +45,7 @@ async def test_pipeline_basic_usage():
         name = "Mock"
 
         async def execute(self, task):
-            from Jotty.core.orchestration import SwarmResult
+            from Jotty.core.intelligence.orchestration import SwarmResult
             await asyncio.sleep(0.01)
             return SwarmResult(
                 swarm_name=self.name,
@@ -85,7 +85,7 @@ async def test_pipeline_basic_usage():
 @pytest.mark.asyncio
 async def test_pipeline_context_chaining():
     """Test that context passes between stages correctly."""
-    from Jotty.core.orchestration import (
+    from Jotty.core.intelligence.orchestration import (
         MultiStagePipeline,
         MergeStrategy
     )
@@ -95,7 +95,7 @@ async def test_pipeline_context_chaining():
         name = "ContextVerify"
 
         async def execute(self, task):
-            from Jotty.core.orchestration import SwarmResult
+            from Jotty.core.intelligence.orchestration import SwarmResult
             return SwarmResult(
                 swarm_name=self.name,
                 output=f"Received task: {task}",
@@ -131,13 +131,13 @@ async def test_pipeline_context_chaining():
 @pytest.mark.asyncio
 async def test_pipeline_multiple_context_sources():
     """Test stage receiving context from multiple previous stages."""
-    from Jotty.core.orchestration import MultiStagePipeline, MergeStrategy
+    from Jotty.core.intelligence.orchestration import MultiStagePipeline, MergeStrategy
 
     class MockSwarm:
         name = "Mock"
 
         async def execute(self, task):
-            from Jotty.core.orchestration import SwarmResult
+            from Jotty.core.intelligence.orchestration import SwarmResult
             return SwarmResult(
                 swarm_name=self.name,
                 output=f"Output: {task[:30]}",
@@ -165,13 +165,13 @@ async def test_pipeline_multiple_context_sources():
 @pytest.mark.asyncio
 async def test_pipeline_get_stage():
     """Test retrieving specific stage results."""
-    from Jotty.core.orchestration import MultiStagePipeline, MergeStrategy
+    from Jotty.core.intelligence.orchestration import MultiStagePipeline, MergeStrategy
 
     class MockSwarm:
         name = "Mock"
 
         async def execute(self, task):
-            from Jotty.core.orchestration import SwarmResult
+            from Jotty.core.intelligence.orchestration import SwarmResult
             return SwarmResult(
                 swarm_name=self.name,
                 output="Test output",
@@ -200,7 +200,7 @@ async def test_pipeline_get_stage():
 @pytest.mark.asyncio
 async def test_extract_code_from_markdown():
     """Test code extraction utility."""
-    from Jotty.core.orchestration import extract_code_from_markdown
+    from Jotty.core.intelligence.orchestration import extract_code_from_markdown
 
     # Test with language specifier
     text1 = """
@@ -243,7 +243,7 @@ async def test_extract_code_from_markdown():
 @pytest.mark.asyncio
 async def test_pipeline_print_summary():
     """Test that PipelineResult.print_summary() works."""
-    from Jotty.core.orchestration import (
+    from Jotty.core.intelligence.orchestration import (
         PipelineResult,
         StageResult,
         SwarmResult
@@ -294,7 +294,7 @@ async def test_pipeline_print_summary():
 @pytest.mark.asyncio
 async def test_create_pipeline_facade():
     """Test the create_pipeline facade function."""
-    from Jotty.core.orchestration import create_pipeline
+    from Jotty.core.intelligence.orchestration import create_pipeline
 
     pipeline = create_pipeline("Test task")
 
@@ -306,7 +306,7 @@ async def test_create_pipeline_facade():
 @pytest.mark.asyncio
 async def test_stage_config_context_template():
     """Test custom context templates."""
-    from Jotty.core.orchestration import StageConfig, StageResult, SwarmResult
+    from Jotty.core.intelligence.orchestration import StageConfig, StageResult, SwarmResult
 
     # Create stage config with custom template
     config = StageConfig(
@@ -336,13 +336,13 @@ async def test_stage_config_context_template():
 @pytest.mark.asyncio
 async def test_pipeline_with_max_context_chars():
     """Test that context is truncated to max_context_chars."""
-    from Jotty.core.orchestration import MultiStagePipeline, MergeStrategy
+    from Jotty.core.intelligence.orchestration import MultiStagePipeline, MergeStrategy
 
     class VerboseSwarm:
         name = "Verbose"
 
         async def execute(self, task):
-            from Jotty.core.orchestration import SwarmResult
+            from Jotty.core.intelligence.orchestration import SwarmResult
             # Return very long output
             long_output = "A" * 3000
             return SwarmResult(
@@ -377,7 +377,7 @@ async def test_pipeline_with_max_context_chars():
 @patch('anthropic.AsyncAnthropic')
 async def test_pipeline_with_real_api_mocked(mock_anthropic, mock_getenv):
     """Test pipeline with mocked Anthropic API."""
-    from Jotty.core.orchestration import (
+    from Jotty.core.intelligence.orchestration import (
         MultiStagePipeline,
         SwarmAdapter,
         MergeStrategy

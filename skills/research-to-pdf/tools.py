@@ -11,8 +11,8 @@ Follows Anthropic best practices:
 - Proper parameter validation
 """
 from typing import Dict, Any
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("research-to-pdf")
 
@@ -63,7 +63,7 @@ async def research_to_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         )
 
     # Get registry to access skills
-    from Jotty.core.registry import get_unified_registry
+    from Jotty.core.capabilities.registry import get_unified_registry
     registry = get_unified_registry()
 
     try:

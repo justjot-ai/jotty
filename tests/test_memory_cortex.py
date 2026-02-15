@@ -18,14 +18,14 @@ class TestSwarmMemoryCreation:
     @pytest.mark.unit
     def test_creation_with_defaults(self, minimal_jotty_config):
         """SwarmMemory creates with agent name and config."""
-        from Jotty.core.memory.cortex import SwarmMemory
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
         memory = SwarmMemory("test_agent", minimal_jotty_config)
         assert memory.agent_name == "test_agent"
 
     @pytest.mark.unit
     def test_empty_memory_statistics(self, minimal_jotty_config):
         """New memory has zero entries."""
-        from Jotty.core.memory.cortex import SwarmMemory
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
         memory = SwarmMemory("test_agent", minimal_jotty_config)
         stats = memory.get_statistics()
         assert stats['total_memories'] == 0
@@ -33,8 +33,8 @@ class TestSwarmMemoryCreation:
     @pytest.mark.unit
     def test_five_memory_levels_exist(self, minimal_jotty_config):
         """SwarmMemory has all 5 memory levels initialized."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
         for level in MemoryLevel:
             assert level in memory.memories
@@ -50,8 +50,8 @@ class TestSwarmMemoryStore:
     @pytest.mark.unit
     def test_store_episodic_memory(self, minimal_jotty_config):
         """Store creates entry at episodic level."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
         entry = memory.store(
             content="Agent used web-search and got good results",
@@ -67,8 +67,8 @@ class TestSwarmMemoryStore:
     @pytest.mark.unit
     def test_store_with_domain_and_task_type(self, minimal_jotty_config):
         """Store creates hierarchical key with domain:task_type:hash."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
         entry = memory.store(
             content="Test memory",
@@ -90,8 +90,8 @@ class TestSwarmMemoryStore:
     @pytest.mark.unit
     def test_store_multiple_levels(self, minimal_jotty_config):
         """Store works at different memory levels."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         for level in [MemoryLevel.EPISODIC, MemoryLevel.SEMANTIC, MemoryLevel.PROCEDURAL]:
@@ -108,8 +108,8 @@ class TestSwarmMemoryStore:
     @pytest.mark.unit
     def test_store_with_outcome_failure(self, minimal_jotty_config):
         """store_with_outcome routes failures to CAUSAL level."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
         entry = memory.store_with_outcome(
             content="Tool failed with error X",
@@ -125,8 +125,8 @@ class TestSwarmMemoryStore:
     @pytest.mark.unit
     def test_store_with_outcome_success(self, minimal_jotty_config):
         """store_with_outcome routes successes to SEMANTIC level."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
         entry = memory.store_with_outcome(
             content="Agent found great results",
@@ -141,8 +141,8 @@ class TestSwarmMemoryStore:
     @pytest.mark.unit
     def test_capacity_enforcement(self, minimal_jotty_config):
         """Store enforces capacity limits with eviction."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel, SwarmConfig
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel, SwarmConfig
 
         config = SwarmConfig(
             episodic_capacity=3,
@@ -176,7 +176,7 @@ class TestSwarmMemoryRetrieve:
     @pytest.mark.unit
     def test_retrieve_fast_empty(self, minimal_jotty_config):
         """retrieve_fast from empty memory returns empty list."""
-        from Jotty.core.memory.cortex import SwarmMemory
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
         memory = SwarmMemory("test_agent", minimal_jotty_config)
         results = memory.retrieve_fast(
             query="test query",
@@ -188,8 +188,8 @@ class TestSwarmMemoryRetrieve:
     @pytest.mark.unit
     def test_retrieve_fast_finds_relevant(self, minimal_jotty_config):
         """retrieve_fast returns memories matching query keywords."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         memory.store("web search returned good results for AI trends",
@@ -211,8 +211,8 @@ class TestSwarmMemoryRetrieve:
     @pytest.mark.unit
     def test_retrieve_fast_respects_budget(self, minimal_jotty_config):
         """retrieve_fast respects token budget."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         # Store many memories
@@ -235,8 +235,8 @@ class TestSwarmMemoryRetrieve:
     @pytest.mark.unit
     def test_retrieve_by_domain(self, minimal_jotty_config):
         """retrieve_by_domain filters by domain prefix."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         memory.store("coding pattern A", MemoryLevel.SEMANTIC, {},
@@ -258,8 +258,8 @@ class TestSwarmMemoryRetrieve:
     @pytest.mark.unit
     def test_retrieve_updates_access_tracking(self, minimal_jotty_config):
         """retrieve_fast updates access_count on returned memories."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         entry = memory.store("test content for tracking",
@@ -281,7 +281,7 @@ class TestSwarmMemorySerialization:
     @pytest.mark.unit
     def test_to_dict_empty(self, minimal_jotty_config):
         """to_dict on empty memory returns valid structure."""
-        from Jotty.core.memory.cortex import SwarmMemory
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
         memory = SwarmMemory("test_agent", minimal_jotty_config)
         data = memory.to_dict()
         assert data['agent_name'] == "test_agent"
@@ -290,8 +290,8 @@ class TestSwarmMemorySerialization:
     @pytest.mark.unit
     def test_round_trip_serialization(self, minimal_jotty_config):
         """to_dict/from_dict preserves data."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         memory.store("important finding", MemoryLevel.SEMANTIC, {},
@@ -310,8 +310,8 @@ class TestSwarmMemorySerialization:
     @pytest.mark.unit
     def test_statistics_correct(self, minimal_jotty_config):
         """get_statistics returns correct counts."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         memory.store("ep1", MemoryLevel.EPISODIC, {}, "g1")
@@ -326,8 +326,8 @@ class TestSwarmMemorySerialization:
     @pytest.mark.unit
     def test_consolidated_knowledge_output(self, minimal_jotty_config):
         """get_consolidated_knowledge returns formatted string."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         memory.store("Pattern: always validate inputs before execution",
@@ -349,8 +349,8 @@ class TestSwarmMemoryStoreEdgeCases:
     @pytest.mark.unit
     def test_store_at_all_five_levels(self, minimal_jotty_config):
         """Store works at all 5 memory levels."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         for level in MemoryLevel:
@@ -369,8 +369,8 @@ class TestSwarmMemoryStoreEdgeCases:
     @pytest.mark.unit
     def test_store_empty_content(self, minimal_jotty_config):
         """Store with empty string content still creates entry."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         entry = memory.store(
@@ -386,8 +386,8 @@ class TestSwarmMemoryStoreEdgeCases:
     @pytest.mark.unit
     def test_store_very_long_content_truncated(self, minimal_jotty_config):
         """Store truncates content exceeding max_entry_tokens."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         # max_entry_tokens defaults to 2000 => 8000 chars
@@ -404,8 +404,8 @@ class TestSwarmMemoryStoreEdgeCases:
     @pytest.mark.unit
     def test_store_duplicate_content_returns_existing(self, minimal_jotty_config):
         """Storing identical content at same level returns existing entry."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         entry1 = memory.store(
@@ -429,8 +429,8 @@ class TestSwarmMemoryStoreEdgeCases:
     @pytest.mark.unit
     def test_store_extracts_domain_from_context(self, minimal_jotty_config):
         """Store extracts domain from context when not provided explicitly."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         entry = memory.store(
@@ -446,8 +446,8 @@ class TestSwarmMemoryStoreEdgeCases:
     @pytest.mark.unit
     def test_store_defaults_domain_to_general(self, minimal_jotty_config):
         """Store defaults domain to 'general' when not in context or args."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         entry = memory.store(
@@ -461,8 +461,8 @@ class TestSwarmMemoryStoreEdgeCases:
     @pytest.mark.unit
     def test_store_sets_goal_value(self, minimal_jotty_config):
         """Store sets goal-conditioned value on the entry."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         entry = memory.store(
@@ -478,8 +478,8 @@ class TestSwarmMemoryStoreEdgeCases:
     @pytest.mark.unit
     def test_store_with_causal_links(self, minimal_jotty_config):
         """Store preserves causal_links list on entry."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         entry = memory.store(
@@ -495,8 +495,8 @@ class TestSwarmMemoryStoreEdgeCases:
     @pytest.mark.unit
     def test_store_metadata_contains_domain_task_type(self, minimal_jotty_config):
         """Store sets metadata with domain and task_type."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         entry = memory.store(
@@ -522,8 +522,8 @@ class TestStoreWithOutcomeEdgeCases:
     @pytest.mark.unit
     def test_store_with_outcome_neutral(self, minimal_jotty_config):
         """store_with_outcome with neutral routes to EPISODIC."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         entry = memory.store_with_outcome(
@@ -539,7 +539,7 @@ class TestStoreWithOutcomeEdgeCases:
     @pytest.mark.unit
     def test_store_with_outcome_failure_high_value(self, minimal_jotty_config):
         """Failures are stored with high initial value (0.9)."""
-        from Jotty.core.memory.cortex import SwarmMemory
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         entry = memory.store_with_outcome(
@@ -553,7 +553,7 @@ class TestStoreWithOutcomeEdgeCases:
     @pytest.mark.unit
     def test_store_with_outcome_success_low_value(self, minimal_jotty_config):
         """Successes are stored with lower initial value (0.4)."""
-        from Jotty.core.memory.cortex import SwarmMemory
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         entry = memory.store_with_outcome(
@@ -567,7 +567,7 @@ class TestStoreWithOutcomeEdgeCases:
     @pytest.mark.unit
     def test_store_with_outcome_failure_includes_context_dump(self, minimal_jotty_config):
         """Failure outcome includes full context dump in content."""
-        from Jotty.core.memory.cortex import SwarmMemory
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         entry = memory.store_with_outcome(
@@ -583,7 +583,7 @@ class TestStoreWithOutcomeEdgeCases:
     @pytest.mark.unit
     def test_store_with_outcome_success_summarizes(self, minimal_jotty_config):
         """Success outcome stores only first line summary."""
-        from Jotty.core.memory.cortex import SwarmMemory
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         entry = memory.store_with_outcome(
@@ -600,7 +600,7 @@ class TestStoreWithOutcomeEdgeCases:
     @pytest.mark.unit
     def test_store_with_outcome_passes_domain_task_type(self, minimal_jotty_config):
         """store_with_outcome forwards domain and task_type to store."""
-        from Jotty.core.memory.cortex import SwarmMemory
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         entry = memory.store_with_outcome(
@@ -625,7 +625,7 @@ class TestStoreWithSurprise:
     @pytest.mark.unit
     def test_low_surprise_skips_storage(self, minimal_jotty_config):
         """Surprise < 0.3 returns None (skipped)."""
-        from Jotty.core.memory.cortex import SwarmMemory
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         result = memory.store_with_surprise(
@@ -640,8 +640,8 @@ class TestStoreWithSurprise:
     @pytest.mark.unit
     def test_medium_surprise_stores_episodic(self, minimal_jotty_config):
         """Surprise 0.3-0.7 stores in EPISODIC level."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         result = memory.store_with_surprise(
@@ -656,8 +656,8 @@ class TestStoreWithSurprise:
     @pytest.mark.unit
     def test_high_surprise_stores_causal(self, minimal_jotty_config):
         """Surprise >= 0.7 stores in CAUSAL level with high value."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         result = memory.store_with_surprise(
@@ -673,7 +673,7 @@ class TestStoreWithSurprise:
     @pytest.mark.unit
     def test_surprise_score_clamped(self, minimal_jotty_config):
         """Surprise scores outside 0-1 are clamped."""
-        from Jotty.core.memory.cortex import SwarmMemory
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         # Score > 1.0 should be clamped to 1.0 => stored as causal
@@ -705,8 +705,8 @@ class TestRetrievalMixinAdvanced:
     @pytest.mark.unit
     def test_retrieve_fast_with_specific_levels(self, minimal_jotty_config):
         """retrieve_fast can filter by specific memory levels."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         memory.store("episodic content about AI", MemoryLevel.EPISODIC, {}, "test")
@@ -726,8 +726,8 @@ class TestRetrievalMixinAdvanced:
     @pytest.mark.unit
     def test_retrieve_fast_no_matching_keywords(self, minimal_jotty_config):
         """retrieve_fast with completely unrelated query returns by recency."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         memory.store("apple banana cherry", MemoryLevel.EPISODIC, {}, "fruit")
@@ -743,8 +743,8 @@ class TestRetrievalMixinAdvanced:
     @pytest.mark.unit
     def test_retrieve_fast_short_query_words_ignored(self, minimal_jotty_config):
         """retrieve_fast ignores query words with <= 2 characters."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         memory.store("important data analysis result", MemoryLevel.EPISODIC, {}, "test")
@@ -761,8 +761,8 @@ class TestRetrievalMixinAdvanced:
     @pytest.mark.unit
     def test_retrieve_fast_top_k_limits_results(self, minimal_jotty_config):
         """retrieve_fast respects top_k parameter."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel, SwarmConfig
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel, SwarmConfig
         config = SwarmConfig(
             episodic_capacity=100,
 
@@ -785,8 +785,8 @@ class TestRetrievalMixinAdvanced:
     @pytest.mark.unit
     def test_retrieve_fast_increments_total_accesses(self, minimal_jotty_config):
         """retrieve_fast increments memory.total_accesses counter."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
         memory.store("test data", MemoryLevel.EPISODIC, {}, "test")
 
@@ -799,8 +799,8 @@ class TestRetrievalMixinAdvanced:
     @pytest.mark.unit
     def test_retrieve_fast_updates_ucb_visits(self, minimal_jotty_config):
         """retrieve_fast increments ucb_visits on returned entries."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         entry = memory.store("test ucb content", MemoryLevel.EPISODIC, {}, "test")
@@ -812,8 +812,8 @@ class TestRetrievalMixinAdvanced:
     @pytest.mark.unit
     def test_retrieve_fast_updates_last_accessed(self, minimal_jotty_config):
         """retrieve_fast updates last_accessed timestamp."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         from datetime import datetime, timedelta
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
@@ -828,8 +828,8 @@ class TestRetrievalMixinAdvanced:
     @pytest.mark.unit
     def test_retrieve_by_task_type(self, minimal_jotty_config):
         """retrieve_by_task_type filters by task type in key."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         memory.store("date filter pattern", MemoryLevel.SEMANTIC, {},
@@ -855,8 +855,8 @@ class TestCapacityEnforcementAdvanced:
     @pytest.mark.unit
     def test_semantic_capacity_enforcement(self, minimal_jotty_config):
         """Capacity enforcement works on semantic level."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel, SwarmConfig
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel, SwarmConfig
 
         config = SwarmConfig(
             semantic_capacity=3,
@@ -880,8 +880,8 @@ class TestCapacityEnforcementAdvanced:
     @pytest.mark.unit
     def test_capacity_evicts_lowest_value_first(self, minimal_jotty_config):
         """Eviction removes lowest-value unprotected memory."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel, SwarmConfig
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel, SwarmConfig
 
         config = SwarmConfig(
             episodic_capacity=3,
@@ -907,8 +907,8 @@ class TestCapacityEnforcementAdvanced:
     @pytest.mark.unit
     def test_capacity_skips_protected_memories(self, minimal_jotty_config):
         """Eviction skips protected memories."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel, SwarmConfig
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel, SwarmConfig
 
         config = SwarmConfig(
             episodic_capacity=2,
@@ -938,7 +938,7 @@ class TestSelfRAGRetrieval:
     @pytest.mark.unit
     def test_self_rag_skips_greetings(self, minimal_jotty_config):
         """self_rag_retrieve skips retrieval for simple greetings."""
-        from Jotty.core.memory.cortex import SwarmMemory
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         should_retrieve, results, reasoning = memory.self_rag_retrieve(task="hello")
@@ -949,7 +949,7 @@ class TestSelfRAGRetrieval:
     @pytest.mark.unit
     def test_self_rag_skips_empty_memory(self, minimal_jotty_config):
         """self_rag_retrieve skips when no memories stored."""
-        from Jotty.core.memory.cortex import SwarmMemory
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         should_retrieve, results, reasoning = memory.self_rag_retrieve(
@@ -961,8 +961,8 @@ class TestSelfRAGRetrieval:
     @pytest.mark.unit
     def test_self_rag_retrieves_relevant_memories(self, minimal_jotty_config):
         """self_rag_retrieve returns relevant memories for non-trivial tasks."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         entry = memory.store(
@@ -991,7 +991,7 @@ class TestSerializationAdvanced:
     @pytest.mark.unit
     def test_to_dict_preserves_all_fields(self, minimal_jotty_config):
         """to_dict includes all expected top-level fields."""
-        from Jotty.core.memory.cortex import SwarmMemory
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
         memory = SwarmMemory("test_agent", minimal_jotty_config)
         data = memory.to_dict()
 
@@ -1005,8 +1005,8 @@ class TestSerializationAdvanced:
     @pytest.mark.unit
     def test_to_dict_memory_entry_fields(self, minimal_jotty_config):
         """to_dict includes all memory entry fields."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         memory.store("serialization test", MemoryLevel.EPISODIC, {"ctx": "val"}, "goal1")
@@ -1027,7 +1027,7 @@ class TestSerializationAdvanced:
     @pytest.mark.unit
     def test_from_dict_with_missing_optional_fields(self, minimal_jotty_config):
         """from_dict handles missing optional fields gracefully."""
-        from Jotty.core.memory.cortex import SwarmMemory
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
         from datetime import datetime
 
         data = {
@@ -1065,7 +1065,7 @@ class TestSerializationAdvanced:
     @pytest.mark.unit
     def test_from_dict_migrates_old_format_keys(self, minimal_jotty_config):
         """from_dict migrates old-format (hash-only) keys to new format."""
-        from Jotty.core.memory.cortex import SwarmMemory
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
         from datetime import datetime
         import hashlib
 
@@ -1106,8 +1106,8 @@ class TestSerializationAdvanced:
     @pytest.mark.unit
     def test_round_trip_preserves_goal_values(self, minimal_jotty_config):
         """Round-trip serialization preserves goal-conditioned values."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         entry = memory.store(
@@ -1128,8 +1128,8 @@ class TestSerializationAdvanced:
     @pytest.mark.unit
     def test_round_trip_preserves_causal_links(self, minimal_jotty_config):
         """Round-trip serialization preserves causal links."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import CausalLink
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import CausalLink
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         memory.causal_links["link1"] = CausalLink(
@@ -1150,8 +1150,8 @@ class TestSerializationAdvanced:
     @pytest.mark.unit
     def test_round_trip_preserves_protection_status(self, minimal_jotty_config):
         """Round-trip serialization preserves is_protected and protection_reason."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         entry = memory.store("protected entry", MemoryLevel.META, {}, "test")
@@ -1176,8 +1176,8 @@ class TestStatisticsAdvanced:
     @pytest.mark.unit
     def test_statistics_tracks_protected_count(self, minimal_jotty_config):
         """get_statistics correctly counts protected memories."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         entry1 = memory.store("protected", MemoryLevel.EPISODIC, {}, "test")
@@ -1190,8 +1190,8 @@ class TestStatisticsAdvanced:
     @pytest.mark.unit
     def test_statistics_tracks_causal_links(self, minimal_jotty_config):
         """get_statistics counts causal links."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import CausalLink
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import CausalLink
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         memory.causal_links["l1"] = CausalLink(cause="a", effect="b")
@@ -1203,7 +1203,7 @@ class TestStatisticsAdvanced:
     @pytest.mark.unit
     def test_consolidated_knowledge_empty_returns_empty_string(self, minimal_jotty_config):
         """get_consolidated_knowledge on empty memory returns empty string."""
-        from Jotty.core.memory.cortex import SwarmMemory
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         result = memory.get_consolidated_knowledge()
@@ -1212,8 +1212,8 @@ class TestStatisticsAdvanced:
     @pytest.mark.unit
     def test_consolidated_knowledge_with_goal(self, minimal_jotty_config):
         """get_consolidated_knowledge sorts by goal value when goal provided."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         memory.store("low value pattern", MemoryLevel.SEMANTIC, {}, "research", initial_value=0.2)
@@ -1226,8 +1226,8 @@ class TestStatisticsAdvanced:
     @pytest.mark.unit
     def test_consolidated_knowledge_includes_all_sections(self, minimal_jotty_config):
         """get_consolidated_knowledge includes patterns, procedures, wisdom, causal."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel, CausalLink
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel, CausalLink
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         memory.store("semantic pattern X", MemoryLevel.SEMANTIC, {}, "test")
@@ -1246,8 +1246,8 @@ class TestStatisticsAdvanced:
     @pytest.mark.unit
     def test_consolidated_knowledge_respects_max_items(self, minimal_jotty_config):
         """get_consolidated_knowledge limits output to max_items."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel, SwarmConfig
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel, SwarmConfig
         config = SwarmConfig(
             semantic_capacity=50,
 
@@ -1274,8 +1274,8 @@ class TestProtection:
     @pytest.mark.unit
     def test_protect_high_value_marks_above_threshold(self, minimal_jotty_config):
         """protect_high_value marks memories above threshold as protected."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         low = memory.store("low value", MemoryLevel.EPISODIC, {}, "test", initial_value=0.2)
@@ -1289,8 +1289,8 @@ class TestProtection:
     @pytest.mark.unit
     def test_protect_high_value_always_protects_meta(self, minimal_jotty_config):
         """protect_high_value always protects META level regardless of value."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         meta = memory.store("low value meta", MemoryLevel.META, {}, "test", initial_value=0.1)
@@ -1302,8 +1302,8 @@ class TestProtection:
     @pytest.mark.unit
     def test_protect_high_value_always_protects_causal(self, minimal_jotty_config):
         """protect_high_value always protects CAUSAL level regardless of value."""
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
         memory = SwarmMemory("test_agent", minimal_jotty_config)
 
         causal = memory.store("low value causal", MemoryLevel.CAUSAL, {}, "test", initial_value=0.1)
@@ -1323,7 +1323,7 @@ class TestMemoryEntryMethods:
     @pytest.mark.unit
     def test_get_value_returns_default_for_unknown_goal(self, minimal_jotty_config):
         """MemoryEntry.get_value returns default_value for unknown goals."""
-        from Jotty.core.foundation.data_structures import MemoryEntry, MemoryLevel
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryEntry, MemoryLevel
 
         entry = MemoryEntry(
             key="test:test:abc123",
@@ -1337,7 +1337,7 @@ class TestMemoryEntryMethods:
     @pytest.mark.unit
     def test_get_value_returns_goal_specific_value(self, minimal_jotty_config):
         """MemoryEntry.get_value returns goal-specific value when set."""
-        from Jotty.core.foundation.data_structures import MemoryEntry, MemoryLevel, GoalValue
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryEntry, MemoryLevel, GoalValue
 
         entry = MemoryEntry(
             key="test:test:abc123",
@@ -1352,7 +1352,7 @@ class TestMemoryEntryMethods:
     @pytest.mark.unit
     def test_get_ucb_score_infinite_for_unvisited(self, minimal_jotty_config):
         """MemoryEntry.get_ucb_score returns infinity for unvisited entries."""
-        from Jotty.core.foundation.data_structures import MemoryEntry, MemoryLevel
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryEntry, MemoryLevel
 
         entry = MemoryEntry(
             key="test:test:abc",
@@ -1367,7 +1367,7 @@ class TestMemoryEntryMethods:
     @pytest.mark.unit
     def test_get_ucb_score_finite_after_visits(self, minimal_jotty_config):
         """MemoryEntry.get_ucb_score returns finite value after visits."""
-        from Jotty.core.foundation.data_structures import MemoryEntry, MemoryLevel
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryEntry, MemoryLevel
 
         entry = MemoryEntry(
             key="test:test:abc",
@@ -1384,7 +1384,7 @@ class TestMemoryEntryMethods:
     @pytest.mark.unit
     def test_memory_entry_auto_computes_content_hash(self, minimal_jotty_config):
         """MemoryEntry auto-computes content_hash in __post_init__."""
-        from Jotty.core.foundation.data_structures import MemoryEntry, MemoryLevel
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryEntry, MemoryLevel
         import hashlib
 
         entry = MemoryEntry(
@@ -1399,7 +1399,7 @@ class TestMemoryEntryMethods:
     @pytest.mark.unit
     def test_memory_entry_auto_computes_token_count(self, minimal_jotty_config):
         """MemoryEntry auto-computes token_count from content length."""
-        from Jotty.core.foundation.data_structures import MemoryEntry, MemoryLevel
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryEntry, MemoryLevel
 
         content = "A" * 100  # 100 chars
         entry = MemoryEntry(

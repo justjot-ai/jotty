@@ -13,7 +13,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
-from Jotty.core.foundation.exceptions import ValidationError  # noqa: F401
+from Jotty.core.infrastructure.foundation.exceptions import ValidationError  # noqa: F401
 
 
 class ParamValidator:

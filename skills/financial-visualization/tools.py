@@ -19,8 +19,8 @@ import os
 import io
 import base64
 
-from Jotty.core.utils.skill_status import SkillStatus
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("financial-visualization")
@@ -191,9 +191,9 @@ async def extract_financial_data_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     if use_llm and ('financial_statements' in data_types or 'valuation_metrics' in data_types):
         try:
             try:
-                from Jotty.core.registry.skills_registry import get_skills_registry
+                from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
             except ImportError:
-                from Jotty.core.registry.skills_registry import get_skills_registry
+                from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
 
             registry = get_skills_registry()
             registry.init()
@@ -565,9 +565,9 @@ async def _generate_chart_insights(
     """Generate AI-powered insights for a chart."""
     try:
         try:
-            from Jotty.core.registry.skills_registry import get_skills_registry
+            from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
         except ImportError:
-            from Jotty.core.registry.skills_registry import get_skills_registry
+            from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
         
         registry = get_skills_registry()
         registry.init()

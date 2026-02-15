@@ -12,8 +12,8 @@ import json
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 
-from Jotty.core.utils.skill_status import SkillStatus
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("domain-name-brainstormer")
@@ -81,9 +81,9 @@ async def _generate_domain_suggestions(
     
     try:
         try:
-            from Jotty.core.registry.skills_registry import get_skills_registry
+            from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
         except ImportError:
-            from Jotty.core.registry.skills_registry import get_skills_registry
+            from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
         
         registry = get_skills_registry()
         registry.init()

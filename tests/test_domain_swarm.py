@@ -25,18 +25,18 @@ from unittest.mock import Mock, AsyncMock, MagicMock, patch
 from datetime import datetime
 from typing import Dict, Any
 
-from Jotty.core.swarms.base.agent_team import (
+from Jotty.core.intelligence.swarms.base.agent_team import (
     AgentTeam,
     AgentSpec,
     TeamResult,
     CoordinationPattern,
     MergeStrategy,
 )
-from Jotty.core.swarms.base.domain_swarm import (
+from Jotty.core.intelligence.swarms.base.domain_swarm import (
     DomainSwarm,
     PhaseExecutor,
 )
-from Jotty.core.swarms.swarm_types import (
+from Jotty.core.intelligence.swarms.swarm_types import (
     SwarmBaseConfig,
     SwarmResult,
     AgentRole,

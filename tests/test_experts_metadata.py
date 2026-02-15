@@ -21,7 +21,7 @@ from dataclasses import dataclass
 # ============================================================================
 
 try:
-    from Jotty.core.experts.expert_registry import (
+    from Jotty.core.intelligence.reasoning.experts.expert_registry import (
         ExpertRegistry,
         get_expert_registry,
     )
@@ -30,19 +30,19 @@ except ImportError:
     HAS_EXPERT_REGISTRY = False
 
 try:
-    from Jotty.core.experts.base_expert import BaseExpert, SimpleDomainExpert
+    from Jotty.core.intelligence.reasoning.experts.base_expert import BaseExpert, SimpleDomainExpert
     HAS_BASE_EXPERT = True
 except ImportError:
     HAS_BASE_EXPERT = False
 
 try:
-    from Jotty.core.experts.expert_agent import ExpertAgentConfig
+    from Jotty.core.intelligence.reasoning.experts.expert_agent import ExpertAgentConfig
     HAS_EXPERT_AGENT_CONFIG = True
 except ImportError:
     HAS_EXPERT_AGENT_CONFIG = False
 
 try:
-    from Jotty.core.metadata.tool_interceptor import (
+    from Jotty.core.infrastructure.metadata.tool_interceptor import (
         ToolCall,
         ToolInterceptor,
         ToolCallRegistry,
@@ -52,13 +52,13 @@ except ImportError:
     HAS_TOOL_INTERCEPTOR = False
 
 try:
-    from Jotty.core.metadata.metadata_tool_registry import MetadataToolRegistry
+    from Jotty.core.infrastructure.metadata.metadata_tool_registry import MetadataToolRegistry
     HAS_METADATA_TOOL_REGISTRY = True
 except ImportError:
     HAS_METADATA_TOOL_REGISTRY = False
 
 try:
-    from Jotty.core.metadata.widget_params_schema import (
+    from Jotty.core.infrastructure.metadata.widget_params_schema import (
         WidgetParamSchema,
         generate_param_docstring,
         generate_tool_examples,
@@ -491,8 +491,8 @@ class TestExpertTemplates:
     @patch("Jotty.core.experts.mermaid_expert.MermaidExpertAgent", create=True)
     def test_create_mermaid_expert(self, MockMermaid):
         """Test create_mermaid_expert factory with mocked MermaidExpertAgent."""
-        from Jotty.core.experts import expert_templates
-        from Jotty.core.experts.expert_agent import ExpertAgentConfig
+        from Jotty.core.intelligence.reasoning.experts import expert_templates
+        from Jotty.core.intelligence.reasoning.experts.expert_agent import ExpertAgentConfig
 
         mock_instance = MagicMock()
 
@@ -515,7 +515,7 @@ class TestExpertTemplates:
     @patch("Jotty.core.experts.mermaid_expert.MermaidExpertAgent", create=True)
     def test_create_mermaid_expert_with_memory(self, _):
         """Test create_mermaid_expert passes memory correctly."""
-        from Jotty.core.experts import expert_templates
+        from Jotty.core.intelligence.reasoning.experts import expert_templates
 
         mock_memory = MagicMock()
         mock_instance = MagicMock()
@@ -536,7 +536,7 @@ class TestExpertTemplates:
     @patch("Jotty.core.experts.mermaid_expert.MermaidExpertAgent", create=True)
     def test_create_mermaid_expert_with_improvements(self, _):
         """Test create_mermaid_expert passes improvements correctly."""
-        from Jotty.core.experts import expert_templates
+        from Jotty.core.intelligence.reasoning.experts import expert_templates
 
         improvements = [{"pattern": "use subgraphs"}]
         mock_instance = MagicMock()
@@ -556,7 +556,7 @@ class TestExpertTemplates:
 
     def test_create_mermaid_expert_config_fields(self):
         """Test that create_mermaid_expert creates correct ExpertAgentConfig."""
-        from Jotty.core.experts import expert_templates
+        from Jotty.core.intelligence.reasoning.experts import expert_templates
 
         mock_instance = MagicMock()
         mock_cls = MagicMock(return_value=mock_instance)
@@ -579,7 +579,7 @@ class TestExpertTemplates:
 
     def test_create_plantuml_expert(self):
         """Test create_plantuml_expert factory."""
-        from Jotty.core.experts import expert_templates
+        from Jotty.core.intelligence.reasoning.experts import expert_templates
 
         mock_instance = MagicMock()
         mock_cls = MagicMock(return_value=mock_instance)
@@ -597,7 +597,7 @@ class TestExpertTemplates:
 
     def test_create_plantuml_expert_config_fields(self):
         """Test that create_plantuml_expert creates correct ExpertAgentConfig."""
-        from Jotty.core.experts import expert_templates
+        from Jotty.core.intelligence.reasoning.experts import expert_templates
 
         mock_instance = MagicMock()
         mock_cls = MagicMock(return_value=mock_instance)
@@ -618,7 +618,7 @@ class TestExpertTemplates:
 
     def test_create_sql_expert_default_dialect(self):
         """Test create_sql_expert with default postgresql dialect."""
-        from Jotty.core.experts import expert_templates
+        from Jotty.core.intelligence.reasoning.experts import expert_templates
 
         mock_instance = MagicMock()
         mock_cls = MagicMock(return_value=mock_instance)
@@ -642,7 +642,7 @@ class TestExpertTemplates:
 
     def test_create_sql_expert_custom_dialect(self):
         """Test create_sql_expert with custom mysql dialect."""
-        from Jotty.core.experts import expert_templates
+        from Jotty.core.intelligence.reasoning.experts import expert_templates
 
         mock_instance = MagicMock()
         mock_cls = MagicMock(return_value=mock_instance)

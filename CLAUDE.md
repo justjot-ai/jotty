@@ -4,6 +4,24 @@
 
 **Main Architecture Doc:** `docs/JOTTY_ARCHITECTURE.md` - READ THIS FIRST
 
+## 🏗️ New 5-Layer Architecture
+
+Jotty is now organized in a clean 5-layer hierarchy:
+
+```
+Layer 1: INTERFACE      → External entry points (API, UI, CLI)
+Layer 2: MODES          → Execution modes (Agent, Workflow, Execution)
+Layer 3: CAPABILITIES   → Skills, Registry, Tools (273 skills!)
+Layer 4: INTELLIGENCE   → Learning, Memory, Swarms, Orchestration
+Layer 5: INFRASTRUCTURE → Foundation, Utils, Context, Monitoring
+```
+
+**Import Pattern:** `from Jotty.core.{layer}.{module} import X`
+
+Example: `from Jotty.core.intelligence.memory.facade import get_memory_system`
+
+---
+
 ## Common Tasks → Swarms (START HERE!)
 
 | Task | Swarm | Quick Example |
@@ -18,7 +36,7 @@
 
 ### Educational Content Example
 ```python
-from Jotty.core.swarms.olympiad_learning_swarm import learn_topic
+from Jotty.core.intelligence.swarms.olympiad_learning_swarm import learn_topic
 
 # Generate comprehensive learning material with PDF + HTML
 result = await learn_topic(
@@ -32,6 +50,8 @@ result = await learn_topic(
 # ✅ Generates: PDF (A4, professional) + HTML (interactive)
 # ✅ Includes: Concepts, patterns, problems, examples, real-life scenarios
 ```
+
+---
 
 ## Start Here: Discovery API
 
@@ -47,6 +67,8 @@ print(explain("memory"))    # human-readable description of any subsystem
 print(explain("learning"))
 ```
 
+---
+
 ## Three Execution Paths
 
 ```python
@@ -60,55 +82,145 @@ j.router                    # ModeRouter for chat/workflow routing
 j.chat_executor             # ChatExecutor (direct LLM tool-calling, no agents)
 
 # 3. SWARM — multi-agent coordination
-from Jotty.core.orchestration import Orchestrator
+from Jotty.core.intelligence.orchestration import Orchestrator
 swarm = Orchestrator(agents="Research AI startups")
 result = await swarm.run(goal="Research AI startups")
 ```
 
-## Subsystem Facades (direct access to any subsystem)
+---
+
+## Layer-by-Layer Access
+
+### Layer 5: INFRASTRUCTURE (Foundation)
+
+```python
+# FOUNDATION — Core data structures, configs, types
+from Jotty.core.infrastructure.foundation.data_structures import SwarmLearningConfig
+from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
+from Jotty.core.infrastructure.foundation.exceptions import JottyError
+
+# UTILS — Budget tracking, caching, circuit breakers
+from Jotty.core.infrastructure.utils.facade import (
+    get_budget_tracker,      # Track LLM costs
+    get_circuit_breaker,     # Fault tolerance
+    get_llm_cache,           # Response caching
+    get_tokenizer,           # Token counting
+)
+
+# CONTEXT — Token management, compression
+from Jotty.core.infrastructure.context.facade import (
+    get_context_manager,     # Build context within token limits
+    get_context_guard,       # Overflow protection
+    get_content_gate,        # Content filtering
+)
+
+# MONITORING — Performance, safety, observability
+from Jotty.core.infrastructure.monitoring.safety import SafetyMonitor
+from Jotty.core.infrastructure.monitoring.observability import DistributedTracing
+from Jotty.core.infrastructure.monitoring.monitoring import PerformanceTracker
+```
+
+### Layer 4: INTELLIGENCE (Brain)
 
 ```python
 # MEMORY — 5-level brain-inspired memory
-from Jotty.core.memory import get_memory_system, get_brain_manager, get_rag_retriever
-memory = get_memory_system()          # zero-config entry point
-brain = get_brain_manager()           # BrainInspiredMemoryManager
-rag = get_rag_retriever()             # LLMRAGRetriever
-
-# LEARNING — RL, credit assignment, cooperation
-from Jotty.core.learning import get_td_lambda, get_credit_assigner, get_reward_manager
-td = get_td_lambda()                  # TDLambdaLearner (gamma=0.99)
-credit = get_credit_assigner()        # ReasoningCreditAssigner
-
-# CONTEXT — token management, compression, overflow protection
-from Jotty.core.context import get_context_manager, get_context_guard, get_content_gate
-
-# SKILLS — 273 skills, 8 providers
-from Jotty.core.skills import get_registry, list_providers, list_skills
-registry = get_registry()             # UnifiedRegistry
-providers = list_providers()          # [{name, description, installed}, ...]
-
-# ORCHESTRATION — hidden components surfaced
-from Jotty.core.orchestration import (
-    get_swarm_intelligence,            # SwarmIntelligence
-    get_paradigm_executor,             # relay/debate/refinement
-    get_ensemble_manager,              # ensemble methods
-    get_provider_manager,              # LLM provider rotation
-    get_swarm_router,                  # task→swarm routing
+from Jotty.core.intelligence.memory.facade import (
+    get_memory_system,       # Zero-config entry point
+    get_brain_manager,       # BrainInspiredMemoryManager
+    get_rag_retriever,       # LLMRAGRetriever
 )
 
-# UTILITIES — cost tracking, fault tolerance, caching
-from Jotty.core.utils import get_budget_tracker, get_circuit_breaker, get_llm_cache, get_tokenizer
-budget = get_budget_tracker()          # track LLM costs
-breaker = get_circuit_breaker("svc")   # fault tolerance
-cache = get_llm_cache()                # response caching
-tok = get_tokenizer()                  # accurate token counting
+# LEARNING — RL, TD-Lambda, Q-Learning
+from Jotty.core.intelligence.learning.facade import (
+    get_td_lambda,           # TDLambdaLearner (gamma=0.99)
+    get_credit_assigner,     # ReasoningCreditAssigner
+    get_reward_manager,      # Reward management
+)
+from Jotty.core.intelligence.learning.td_lambda import TDLambdaLearner
+from Jotty.core.intelligence.learning.q_learning import QLearningManager
+
+# ORCHESTRATION — Swarm coordination
+from Jotty.core.intelligence.orchestration.facade import (
+    get_swarm_intelligence,  # SwarmIntelligence
+    get_paradigm_executor,   # Relay/debate/refinement
+    get_ensemble_manager,    # Ensemble methods
+    get_provider_manager,    # LLM provider rotation
+    get_swarm_router,        # Task→swarm routing
+)
+
+# SWARMS — Multi-agent coordination
+from Jotty.core.intelligence.swarms.base_swarm import BaseSwarm
+from Jotty.core.intelligence.swarms.base.domain_swarm import DomainSwarm
+from Jotty.core.intelligence.swarms.coding_swarm import CodingSwarm
+from Jotty.core.intelligence.swarms.research_swarm import ResearchSwarm
 ```
 
-## Usage Examples (how to actually use returned objects)
+### Layer 3: CAPABILITIES (Skills & Tools)
 
-### Memory — store, retrieve, check status
 ```python
-from Jotty.core.memory import get_memory_system
+# SKILLS — 273 skills, 8 providers
+from Jotty.core.capabilities.skills.facade import (
+    get_registry,            # Skill registry
+    list_providers,          # Available providers
+    list_skills,             # All skills
+)
+
+# REGISTRY — Unified capability registry
+from Jotty.core.capabilities.registry.unified_registry import (
+    get_unified_registry,    # Single entry point
+)
+from Jotty.core.capabilities.registry.skills_registry import SkillsRegistry
+
+# TOOLS — Tool management
+from Jotty.core.capabilities.tools.content_generation import ContentGenerator
+
+# SDK — Skill development kit
+from Jotty.core.capabilities.sdk.skill_sdk.tool_helpers import format_json
+```
+
+### Layer 2: MODES (Execution Modes)
+
+```python
+# AGENT — Agent-based execution
+from Jotty.core.modes.agent.base import (
+    BaseAgent,               # Base agent class
+    AgentRuntimeConfig,      # Runtime configuration
+    AgentResult,             # Agent results
+)
+from Jotty.core.modes.agent.base.auto_agent import AutoAgent
+from Jotty.core.modes.agent.base.chat_assistant import ChatAssistant
+from Jotty.core.modes.agent.base.domain_agent import DomainAgent
+
+# AUTONOMOUS — Autonomous execution
+from Jotty.core.modes.agent.autonomous.intent_parser import IntentParser
+
+# WORKFLOW — Workflow execution
+from Jotty.core.modes.workflow.auto_workflow import AutoWorkflow
+from Jotty.core.modes.workflow.research_workflow import ResearchWorkflow
+
+# EXECUTION — Executors
+from Jotty.core.modes.execution.executor import Executor
+```
+
+### Layer 1: INTERFACE (Entry Points)
+
+```python
+# API — Programmatic API
+from Jotty.core.interface.api.unified import JottyAPI
+from Jotty.core.interface.api.chat_api import ChatAPI
+from Jotty.core.interface.api.workflow_api import WorkflowAPI
+
+# USE CASES — Common use case implementations
+from Jotty.core.interface.use_cases.chat.chat_executor import ChatExecutor
+```
+
+---
+
+## Usage Examples
+
+### Memory — Store, Retrieve, Check Status
+```python
+from Jotty.core.intelligence.memory.facade import get_memory_system
 mem = get_memory_system()
 
 # Store (levels: episodic, semantic, procedural, meta, causal)
@@ -124,9 +236,9 @@ for r in results:
 status = mem.status()  # {'backend': 'full', 'operations': {...}, 'total_memories': N}
 ```
 
-### Learning — TD-Lambda updates
+### Learning — TD-Lambda Updates
 ```python
-from Jotty.core.learning import get_td_lambda
+from Jotty.core.intelligence.learning.facade import get_td_lambda
 td = get_td_lambda()  # gamma=0.99, lambda_trace=0.95
 
 td.update(
@@ -137,9 +249,9 @@ td.update(
 )
 ```
 
-### Budget Tracking — record LLM costs
+### Budget Tracking — Record LLM Costs
 ```python
-from Jotty.core.utils import get_budget_tracker
+from Jotty.core.infrastructure.utils.facade import get_budget_tracker
 bt = get_budget_tracker()
 
 bt.record_call("researcher", tokens_input=1000, tokens_output=500, model="gpt-4o")
@@ -148,9 +260,9 @@ bt.record_call("coder", tokens_input=500, tokens_output=200, model="gpt-4o-mini"
 usage = bt.get_usage()  # {'calls': 2, 'tokens_input': 1500, 'tokens_output': 700, ...}
 ```
 
-### LLM Cache — cache and retrieve responses
+### LLM Cache — Cache and Retrieve Responses
 ```python
-from Jotty.core.utils import get_llm_cache
+from Jotty.core.infrastructure.utils.facade import get_llm_cache
 cache = get_llm_cache()
 
 cache.set("prompt-hash-123", {"answer": "cached response"})
@@ -161,26 +273,9 @@ if hit:
 stats = cache.stats()  # CacheStats with .hits, .misses, .hit_rate
 ```
 
-### Circuit Breaker — fault tolerance
+### Context Management — Build Context Within Token Limits
 ```python
-from Jotty.core.utils import get_circuit_breaker
-cb = get_circuit_breaker("openai-api")
-
-cb.record_success()           # keeps circuit CLOSED
-cb.record_failure(Exception("timeout"))  # increments failure count
-print(cb.state)               # CircuitState.CLOSED / OPEN / HALF_OPEN
-```
-
-### Tokenizer — count tokens
-```python
-from Jotty.core.utils import get_tokenizer
-tok = get_tokenizer()
-count = tok.count_tokens("Hello world, this is a test")  # int
-```
-
-### Context Management — build context within token limits
-```python
-from Jotty.core.context import get_context_manager
+from Jotty.core.infrastructure.context.facade import get_context_manager
 ctx = get_context_manager()  # max_tokens=28000
 
 ctx.register_goal("Research AI startups")
@@ -193,45 +288,27 @@ result = ctx.build_context(
 )
 ```
 
-### Swarm Intelligence — agent routing and tracking
-```python
-from Jotty.core.orchestration import get_swarm_intelligence
-si = get_swarm_intelligence()
+---
 
-si.register_agent("researcher")
-si.record_task_result("researcher", task_type="web_search", success=True,
-                      execution_time=2.5)
-best = si.get_best_agent_for_task("web_search", available_agents=["researcher", "coder"])
-```
-
-## Top-Level Imports (shortcuts)
+## Top-Level Imports (Shortcuts)
 
 ```python
 from Jotty import (
-    capabilities,         # discovery API
-    MemorySystem,         # memory
-    BudgetTracker,        # cost tracking
-    CircuitBreaker,       # fault tolerance
-    LLMCallCache,         # caching
-    SmartTokenizer,       # tokenization
-    ChatExecutor,         # direct LLM tool-calling
-    SwarmIntelligence,    # learning intelligence
-    ParadigmExecutor,     # relay/debate/refinement
-    EnsembleManager,      # ensemble methods
-    ModelTierRouter,      # model routing
+    capabilities,         # Discovery API
+    MemorySystem,         # Memory
+    BudgetTracker,        # Cost tracking
+    CircuitBreaker,       # Fault tolerance
+    LLMCallCache,         # Caching
+    SmartTokenizer,       # Tokenization
+    ChatExecutor,         # Direct LLM tool-calling
+    SwarmIntelligence,    # Learning intelligence
+    ParadigmExecutor,     # Relay/debate/refinement
+    EnsembleManager,      # Ensemble methods
+    ModelTierRouter,      # Model routing
 )
 ```
 
-## Jotty Class Properties
-
-```python
-from Jotty import Jotty
-j = Jotty()
-j.capabilities()          # structured map of everything
-j.router                   # ModeRouter (chat/workflow/agent)
-j.chat_executor            # ChatExecutor (fast LLM tool-calling)
-j.registry                 # UnifiedRegistry (273 skills, 16 UI components)
-```
+---
 
 ## Testing Requirements
 
@@ -257,129 +334,96 @@ pytest tests/ -m unit                       # All unit tests
 pytest tests/ -m "not requires_llm"         # All offline tests
 ```
 
-## The Five Layers (Top to Bottom)
+---
+
+## Directory Structure (5-Layer Architecture)
 
 ```
-1. INTERFACE    Telegram | Slack | Discord | WhatsApp | Web | CLI | SDK
-       ↓
-2. MODES        Chat (ChatAssistant) | API (MCP) | Workflow (AutoAgent)
-       ↓
-3. REGISTRY     UnifiedRegistry → Skills (Hands) + UI (Eyes) + Memory
-       ↓
-4. BRAIN        Swarms → Agents → SwarmIntelligence → TD-Lambda
-       ↓
-5. PERSISTENCE  ~/jotty/intelligence/*.json | ~/jotty/skills/
+Jotty/
+├── core/
+│   ├── interface/           # Layer 1: Entry Points
+│   │   ├── api/             # JottyAPI, ChatAPI, WorkflowAPI
+│   │   ├── ui/              # UI components, formatters
+│   │   └── use_cases/       # Common use case implementations
+│   │
+│   ├── modes/               # Layer 2: Execution Modes
+│   │   ├── agent/
+│   │   │   ├── base/        # BaseAgent, AutoAgent, ChatAssistant
+│   │   │   └── autonomous/  # Intent parser, enhanced executor
+│   │   ├── workflow/        # Auto workflows, research, learning
+│   │   └── execution/       # Executors, intent classifiers
+│   │
+│   ├── capabilities/        # Layer 3: Skills & Tools
+│   │   ├── skills/          # 273 skills (web-search, calculator, etc.)
+│   │   ├── registry/        # Unified registry, skill registry
+│   │   ├── tools/           # Content generation tools
+│   │   ├── sdk/             # Skill development kit
+│   │   └── semantic/        # Query engine, visualization
+│   │
+│   ├── intelligence/        # Layer 4: Brain Layer
+│   │   ├── learning/        # TD-Lambda, Q-learning, RL
+│   │   ├── memory/          # 5-level memory system
+│   │   ├── orchestration/   # SwarmIntelligence, paradigms
+│   │   ├── swarms/          # BaseSwarm, domain swarms
+│   │   ├── reasoning/
+│   │   │   └── experts/     # Expert agents, templates
+│   │   └── optimization/    # Policy explorer
+│   │
+│   └── infrastructure/      # Layer 5: Foundation
+│       ├── foundation/      # Data structures, configs, types
+│       ├── utils/           # Budget tracker, cache, circuit breaker
+│       ├── context/         # Context manager, chunker, compressor
+│       ├── persistence/     # Swarm persistence
+│       ├── integration/     # LLM providers, Lotus
+│       ├── monitoring/      # Performance, safety, observability
+│       ├── data/            # Feedback router, discovery
+│       ├── metadata/        # Widget params, MCP metadata
+│       ├── services/        # Command service
+│       └── job_queue/       # Queue manager
+│
+├── cli/                     # CLI application (outside core/)
+│   ├── app.py               # JottyCLI main class
+│   ├── gateway/             # UnifiedGateway + ChannelRouter
+│   ├── commands/            # Slash commands (/run, /swarm, etc.)
+│   └── repl/                # REPL engine
+│
+├── skills/                  # Skill definitions (loaded lazily)
+├── sdk/                     # Generated client libraries
+└── web.py                   # Web server entry point
 ```
+
+---
 
 ## Key Entry Points
 
 | Entry Point | Command | Purpose |
 |-------------|---------|---------|
-| **CLI Interactive** | `python -m Jotty.cli` | REPL with slash commands |
-| **CLI Single** | `python -m Jotty.cli -c "task"` | One-off execution |
-| **Web Gateway** | `python Jotty/web.py` | HTTP/WS server (port 8766) |
-| **Gateway Only** | `python -m Jotty.cli.gateway` | Webhooks for Telegram/Slack/etc |
+| **CLI Interactive** | `python -m Jotty.core.interface.cli` | REPL with slash commands |
+| **CLI Single** | `python -m Jotty.core.interface.cli -c "task"` | One-off execution |
+| **Web Gateway** | `python -m Jotty.core.interface.web` | HTTP/WS server (port 8766) |
+| **Gateway Only** | `python -m Jotty.core.interface.cli.gateway` | Webhooks for Telegram/Slack/etc |
 
-## Legacy Imports (still work, but prefer facades above)
+---
 
-```python
-from Jotty.core.registry import get_unified_registry
-from Jotty.core.agents import AutoAgent, ChatAssistant
-from Jotty.core.swarms import BaseSwarm, CodingSwarm
-from Jotty.core.learning import TDLambdaLearner
-from Jotty.core.api import JottyAPI
-from Jotty.core.foundation.exceptions import JottyError
-from Jotty.core.swarms.swarm_types import SwarmConfig  # NOT SwarmConfig
-from Jotty.core.memory.cortex import SwarmMemory
-```
+## Important Files
 
-## Directory Structure
+| File | Purpose |
+|------|---------|
+| `core/capabilities.py` | Discovery API — `capabilities()` and `explain()` |
+| `core/intelligence/memory/facade.py` | Memory subsystem facade |
+| `core/intelligence/learning/facade.py` | Learning subsystem facade |
+| `core/infrastructure/context/facade.py` | Context subsystem facade |
+| `core/capabilities/skills/facade.py` | Skills/providers subsystem facade |
+| `core/intelligence/orchestration/facade.py` | Orchestration subsystem facade |
+| `core/infrastructure/utils/facade.py` | Utilities subsystem facade |
+| `core/capabilities/registry/unified_registry.py` | Single entry point for all capabilities |
+| `core/intelligence/swarms/base_swarm.py` | Learning hooks (_pre/_post_execute_learning) |
+| `core/intelligence/orchestration/swarm_manager.py` | SwarmIntelligence (learning state management) |
+| `cli/gateway/server.py` | UnifiedGateway (all webhooks) |
+| `cli/gateway/channels.py` | ChannelRouter (message routing) |
+| `cli/app.py` | JottyCLI (main CLI application) |
 
-```
-Jotty/
-├── cli/                    # CLI application
-│   ├── app.py              # JottyCLI main class
-│   ├── gateway/            # UnifiedGateway + ChannelRouter
-│   │   ├── server.py       # FastAPI + WebSocket server
-│   │   ├── channels.py     # ChannelRouter + ChannelType enum
-│   │   └── trust.py        # TrustManager (auth)
-│   ├── commands/           # Slash commands (/run, /swarm, etc.)
-│   ├── config/             # CLI configuration
-│   │   └── schema.py       # CLIConfig dataclass
-│   └── repl/               # REPL engine
-├── core/
-│   ├── agents/             # Agent implementations
-│   │   ├── base/           # BaseAgent, DomainAgent, MetaAgent, AutonomousAgent
-│   │   ├── auto_agent.py   # AutoAgent (workflow mode)
-│   │   └── chat_assistant.py
-│   ├── swarms/             # Swarm implementations
-│   │   ├── base_swarm.py   # BaseSwarm with learning hooks
-│   │   ├── domain_swarm.py # DomainSwarm (AgentTeam)
-│   │   └── specialized/    # CodingSwarm, TestingSwarm, etc.
-│   ├── registry/           # The unified registry system
-│   │   ├── unified_registry.py  # MAIN ENTRY: get_unified_registry()
-│   │   ├── skills_registry.py   # Skills (Hands) - 273 skills
-│   │   ├── ui_registry.py       # UI (Eyes) - 16 components
-│   │   └── api.py               # Registry HTTP API
-│   ├── api/                # Programmatic API layer
-│   │   ├── unified.py      # JottyAPI (main entry)
-│   │   ├── chat_api.py     # ChatAPI
-│   │   ├── workflow_api.py # WorkflowAPI
-│   │   └── openapi.py      # OpenAPI 3.0 spec generator
-│   ├── foundation/         # Cross-cutting concerns
-│   │   ├── exceptions.py   # 30+ exception types
-│   │   ├── data_structures.py  # SwarmConfig, etc.
-│   │   └── agent_config.py # AgentConfig
-│   ├── learning/           # TD-Lambda, memory systems
-│   ├── memory/             # SwarmMemory (5 levels)
-│   ├── orchestration/      # Orchestrator, SwarmIntelligence
-│   └── integration/        # MCP, Claude CLI LM
-├── skills/                 # Skill definitions (loaded lazily)
-├── sdk/                    # Generated client libraries
-├── web.py                  # Web server entry point
-└── docs/                   # Documentation
-    └── JOTTY_ARCHITECTURE.md  # MAIN ARCHITECTURE DOC
-```
-
-## How Learning Works
-
-1. **Pre-execution**: `BaseSwarm._pre_execute_learning()` loads context from memory
-2. **Execution**: Swarm runs agents with skills
-3. **Post-execution**: `BaseSwarm._post_execute_learning()` stores to memory, updates TD-Lambda
-4. **Persistence**: `SwarmIntelligence.save()` writes to `~/jotty/intelligence/{swarm}_{domain}.json`
-5. **Next run**: Learning auto-loads from disk
-
-## Adding New Components
-
-### New Skill
-```python
-# skills/my-skill/skill.yaml
-name: my-skill
-description: "What this skill does"
-tools:
-  - my_tool
-
-# skills/my-skill/tools.py
-def my_tool(params: dict) -> dict:
-    return {"result": "..."}
-```
-
-### New Swarm
-```python
-from Jotty.core.swarms.swarm_types import SwarmConfig
-
-class MySwarm(DomainSwarm):
-    def __init__(self):
-        super().__init__(SwarmConfig(name="MySwarm", domain="my-domain"))
-        self._define_agents([...])
-```
-
-### New Agent
-```python
-class MyAgent(DomainAgent):
-    def __init__(self):
-        super().__init__(signature=MySignature, config=DomainAgentConfig(name="MyAgent"))
-```
+---
 
 ## Environment Variables
 
@@ -393,69 +437,24 @@ class MyAgent(DomainAgent):
 | `DISCORD_PUBLIC_KEY` | Discord verification |
 | `WHATSAPP_VERIFY_TOKEN` | WhatsApp webhook (default: "jotty") |
 
-## Testing
+---
 
-```bash
-# Run architecture verification
-python3 docs/scripts/verify_architecture.py
+## Migration Notes (February 2026)
 
-# Test specific swarm
-python3 -c "
-import asyncio
-from Jotty.core.swarms import CodingSwarm
-swarm = CodingSwarm()
-result = asyncio.run(swarm.execute('Test task'))
-print(result)
-"
-```
+Jotty was reorganized from a flat 68-directory structure into a clean 5-layer hierarchy:
 
-## Type hints
+**Before:** `from Jotty.core.learning import TDLambdaLearner`
+**After:** `from Jotty.core.intelligence.learning.td_lambda import TDLambdaLearner`
 
-The codebase targets 100% type hint coverage. Use `Any` when the concrete type is dynamic or would require heavy imports; prefer concrete types for public APIs. `core/py.typed` marks the package as typed (PEP 561). In `pyproject.toml`, uncomment `disallow_untyped_defs` to enforce strict mypy once all defs are annotated.
+All imports have been updated. If you see old import paths in documentation or examples, update them to the new 5-layer structure.
 
-## Common Patterns
+---
 
-### Get all skills
-```python
-from Jotty.core.skills import get_registry
-registry = get_registry()
-skills = registry.list_skills()  # 273 skills
-```
+## Type Hints
 
-### Discover for task
-```python
-discovery = registry.discover_for_task("create a chart")
-# Returns: {'skills': [...], 'ui': [...]}
-```
+The codebase targets 100% type hint coverage. Use `Any` when the concrete type is dynamic or would require heavy imports; prefer concrete types for public APIs. `core/py.typed` marks the package as typed (PEP 561).
 
-### Convert to Claude tools
-```python
-claude_tools = registry.get_claude_tools(['web-search', 'calculator'])
-```
-
-### Run workflow
-```python
-agent = AutoAgent()
-result = await agent.execute("Research X, create report, send via telegram")
-```
-
-## Important Files
-
-| File | Purpose |
-|------|---------|
-| `core/capabilities.py` | Discovery API — `capabilities()` and `explain()` |
-| `core/memory/facade.py` | Memory subsystem facade |
-| `core/learning/facade.py` | Learning subsystem facade |
-| `core/context/facade.py` | Context subsystem facade |
-| `core/skills/facade.py` | Skills/providers subsystem facade |
-| `core/orchestration/facade.py` | Orchestration subsystem facade |
-| `core/utils/facade.py` | Utilities subsystem facade |
-| `core/registry/unified_registry.py` | Single entry point for all capabilities |
-| `core/swarms/base_swarm.py` | Learning hooks (_pre/_post_execute_learning) |
-| `core/orchestration/swarm_intelligence.py` | Learning state management |
-| `cli/gateway/server.py` | UnifiedGateway (all webhooks) |
-| `cli/gateway/channels.py` | ChannelRouter (message routing) |
-| `cli/app.py` | JottyCLI (main CLI application) |
+---
 
 ## What's NOT in This Codebase
 

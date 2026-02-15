@@ -11,8 +11,8 @@ import os
 from typing import Dict, Any, Optional
 import requests
 
-from Jotty.core.utils.skill_status import SkillStatus
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 logger = logging.getLogger(__name__)
 

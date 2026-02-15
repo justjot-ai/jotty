@@ -20,8 +20,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from Jotty.core.utils.skill_status import SkillStatus
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper, async_tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("lida-to-justjot")
@@ -50,21 +50,21 @@ class LidaToJustJotSkill:
         """Lazy load skills registry."""
         if self._registry is None:
             try:
-                from Jotty.core.registry.skills_registry import get_skills_registry
+                from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
             except ImportError:
-                from Jotty.core.registry.skills_registry import get_skills_registry
+                from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
             self._registry = get_skills_registry()
             self._registry.init()
         return self._registry
 
     def _get_viz_layer(self, df: pd.DataFrame):
         """Create VisualizationLayer from DataFrame."""
-        from Jotty.core.semantic.visualization import VisualizationLayer
+        from Jotty.core.capabilities.semantic.visualization import VisualizationLayer
         return VisualizationLayer.from_dataframe(df)
 
     def _get_idea_builder(self, viz_layer, config: Dict = None):
         """Create JustJotIdeaBuilder with config."""
-        from Jotty.core.semantic.visualization.justjot import (
+        from Jotty.core.capabilities.semantic.visualization.justjot import (
             JustJotIdeaBuilder,
             VisualizationIdeaConfig
         )
@@ -291,7 +291,7 @@ class LidaToJustJotSkill:
             )
         """
         try:
-            from Jotty.core.semantic.visualization.justjot import (
+            from Jotty.core.capabilities.semantic.visualization.justjot import (
                 JustJotIdea,
                 JustJotSection,
                 SectionTransformer,
@@ -492,7 +492,7 @@ class LidaToJustJotSkill:
 
     def get_available_section_types(self) -> List[Dict[str, str]]:
         """Get all available section types from JustJot registry."""
-        from Jotty.core.semantic.visualization.justjot import get_all_section_types
+        from Jotty.core.capabilities.semantic.visualization.justjot import get_all_section_types
 
         types = get_all_section_types()
         return [
@@ -507,7 +507,7 @@ class LidaToJustJotSkill:
 
     def get_section_types_context(self) -> str:
         """Get LLM context for section type selection."""
-        from Jotty.core.semantic.visualization.justjot import get_section_types_context
+        from Jotty.core.capabilities.semantic.visualization.justjot import get_section_types_context
         return get_section_types_context()
 
 

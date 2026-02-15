@@ -35,18 +35,18 @@ except ImportError:
 
 # Try importing the module under test
 try:
-    from Jotty.core.agents.agentic_planner import (
+    from Jotty.core.modes.agent.agentic_planner import (
         TaskPlanner,
         TaskPlan,
         create_agentic_planner,
         _get_dspy,
         DSPY_AVAILABLE as MODULE_DSPY_AVAILABLE,
     )
-    from Jotty.core.agents._execution_types import (
+    from Jotty.core.modes.agent._execution_types import (
         ExecutionStep,
         TaskType,
     )
-    from Jotty.core.foundation.exceptions import AgentExecutionError
+    from Jotty.core.infrastructure.foundation.exceptions import AgentExecutionError
     PLANNER_AVAILABLE = True
 except ImportError:
     PLANNER_AVAILABLE = False
@@ -595,7 +595,7 @@ class TestInferTaskType:
     def setup_method(self):
         self.planner = _make_mock_planner()
         # Clear the per-session cache between tests
-        from Jotty.core.agents._inference_mixin import InferenceMixin
+        from Jotty.core.modes.agent._inference_mixin import InferenceMixin
         InferenceMixin._task_type_cache.clear()
 
     def test_infer_creation_task(self):

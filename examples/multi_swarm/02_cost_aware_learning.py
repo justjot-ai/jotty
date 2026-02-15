@@ -9,8 +9,8 @@ Shows how to use cost-aware learning to train agents to prefer cheaper strategie
 import asyncio
 
 async def main():
-    from Jotty.core.learning import get_cost_aware_td_lambda
-    from Jotty.core.orchestration import SwarmAdapter, get_multi_swarm_coordinator, MergeStrategy
+    from Jotty.core.intelligence.learning import get_cost_aware_td_lambda
+    from Jotty.core.intelligence.orchestration import SwarmAdapter, get_multi_swarm_coordinator, MergeStrategy
 
     print("\n" + "="*70)
     print("EXAMPLE: Cost-Aware Learning")

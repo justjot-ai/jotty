@@ -21,49 +21,49 @@ from typing import Dict, Any, Optional, List
 # ---------------------------------------------------------------------------
 
 try:
-    from Jotty.core.use_cases.chat.chat_executor import ChatExecutor
+    from Jotty.core.interface.use_cases.chat.chat_executor import ChatExecutor
     HAS_CHAT_EXECUTOR = True
 except ImportError:
     HAS_CHAT_EXECUTOR = False
 
 try:
-    from Jotty.core.use_cases.chat.chat_orchestrator import ChatOrchestrator
+    from Jotty.core.interface.use_cases.chat.chat_orchestrator import ChatOrchestrator
     HAS_CHAT_ORCHESTRATOR = True
 except ImportError:
     HAS_CHAT_ORCHESTRATOR = False
 
 try:
-    from Jotty.core.use_cases.chat.chat_use_case import ChatUseCase
+    from Jotty.core.interface.use_cases.chat.chat_use_case import ChatUseCase
     HAS_CHAT_USE_CASE = True
 except ImportError:
     HAS_CHAT_USE_CASE = False
 
 try:
-    from Jotty.core.use_cases.chat.chat_context import ChatContext, ChatMessage
+    from Jotty.core.interface.use_cases.chat.chat_context import ChatContext, ChatMessage
     HAS_CHAT_CONTEXT = True
 except ImportError:
     HAS_CHAT_CONTEXT = False
 
 try:
-    from Jotty.core.use_cases.workflow.workflow_executor import WorkflowExecutor
+    from Jotty.core.interface.use_cases.workflow.workflow_executor import WorkflowExecutor
     HAS_WORKFLOW_EXECUTOR = True
 except ImportError:
     HAS_WORKFLOW_EXECUTOR = False
 
 try:
-    from Jotty.core.use_cases.workflow.workflow_orchestrator import WorkflowOrchestrator
+    from Jotty.core.interface.use_cases.workflow.workflow_orchestrator import WorkflowOrchestrator
     HAS_WORKFLOW_ORCHESTRATOR = True
 except ImportError:
     HAS_WORKFLOW_ORCHESTRATOR = False
 
 try:
-    from Jotty.core.use_cases.workflow.workflow_use_case import WorkflowUseCase
+    from Jotty.core.interface.use_cases.workflow.workflow_use_case import WorkflowUseCase
     HAS_WORKFLOW_USE_CASE = True
 except ImportError:
     HAS_WORKFLOW_USE_CASE = False
 
 try:
-    from Jotty.core.use_cases.workflow.workflow_context import (
+    from Jotty.core.interface.use_cases.workflow.workflow_context import (
         WorkflowContext,
         WorkflowTask,
     )
@@ -72,7 +72,7 @@ except ImportError:
     HAS_WORKFLOW_CONTEXT = False
 
 try:
-    from Jotty.core.use_cases.base import (
+    from Jotty.core.interface.use_cases.base import (
         BaseUseCase,
         UseCaseType,
         UseCaseResult,
@@ -83,7 +83,7 @@ except ImportError:
     HAS_USE_CASE_BASE = False
 
 try:
-    from Jotty.core.foundation.types import TaskStatus
+    from Jotty.core.infrastructure.foundation.types import TaskStatus
     HAS_TASK_STATUS = True
 except ImportError:
     HAS_TASK_STATUS = False

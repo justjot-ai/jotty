@@ -10,8 +10,8 @@ from pathlib import Path
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 import os
-from Jotty.core.utils.skill_status import SkillStatus
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("mcp-builder")
@@ -210,7 +210,7 @@ async def _create_node_server(server_path: Path, server_name: str, include_examp
     server_content = '''import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 const server = new Server({
   name: "mcp-server",

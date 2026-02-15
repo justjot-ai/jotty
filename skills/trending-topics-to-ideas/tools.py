@@ -13,8 +13,8 @@ import logging
 from typing import Dict, Any, List
 from datetime import datetime
 
-from Jotty.core.utils.skill_status import SkillStatus
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("trending-topics-to-ideas")
@@ -164,7 +164,7 @@ Format the synthesis with clear sections and bullet points where appropriate."""
             
             if use_mcp_client:
                 try:
-                    from Jotty.core.integration.mcp_client import MCPClient
+                    from Jotty.core.infrastructure.integration.mcp_client import MCPClient
                     from pathlib import Path
                     
                     server_path = "/var/www/sites/personal/stock_market/JustJot.ai/dist/mcp/server.js"
@@ -306,9 +306,9 @@ async def trending_topics_to_ideas_tool(params: Dict[str, Any]) -> Dict[str, Any
 
     try:
         try:
-            from Jotty.core.registry.skills_registry import get_skills_registry
+            from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
         except ImportError:
-            from Jotty.core.registry.skills_registry import get_skills_registry
+            from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
         
         registry = get_skills_registry()
         registry.init()

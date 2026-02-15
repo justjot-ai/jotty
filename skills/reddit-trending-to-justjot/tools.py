@@ -13,8 +13,8 @@ import logging
 from typing import Dict, Any
 from datetime import datetime
 
-from Jotty.core.utils.skill_status import SkillStatus
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("reddit-trending-to-justjot")
@@ -82,9 +82,9 @@ async def reddit_trending_to_justjot_tool(params: Dict[str, Any]) -> Dict[str, A
 
     try:
         try:
-            from Jotty.core.registry.skills_registry import get_skills_registry
+            from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
         except ImportError:
-            from Jotty.core.registry.skills_registry import get_skills_registry
+            from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
         
         topic = params.get('topic')
         if not topic:
@@ -192,7 +192,7 @@ async def reddit_trending_to_justjot_tool(params: Dict[str, Any]) -> Dict[str, A
         
         if use_mcp_client:
             try:
-                from Jotty.core.integration.mcp_client import MCPClient
+                from Jotty.core.infrastructure.integration.mcp_client import MCPClient
                 from pathlib import Path
                 
                 server_path = "/var/www/sites/personal/stock_market/JustJot.ai/dist/mcp/server.js"

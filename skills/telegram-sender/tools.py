@@ -12,12 +12,12 @@ from pathlib import Path
 from typing import Dict, Any
 
 # Use centralized utilities
-from Jotty.core.utils.env_loader import load_jotty_env
-from Jotty.core.utils.api_client import BaseAPIClient
-from Jotty.core.utils.tool_helpers import (
+from Jotty.core.infrastructure.utils.env_loader import load_jotty_env
+from Jotty.core.infrastructure.utils.api_client import BaseAPIClient
+from Jotty.core.infrastructure.utils.tool_helpers import (
     tool_response, tool_error, async_tool_wrapper
 )
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 # Load environment variables
 load_jotty_env()

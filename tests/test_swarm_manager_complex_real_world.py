@@ -52,10 +52,10 @@ logger.setLevel(logging.INFO)
 
 def _make_four_agent_relay_swarm():
     """4 agents in relay order: Researcher → Analyst → Writer → Editor."""
-    from Jotty.core.orchestration.swarm_manager import Orchestrator
-    from Jotty.core.foundation.agent_config import AgentConfig
-    from Jotty.core.agents.auto_agent import AutoAgent
-    from Jotty.core.foundation.data_structures import SwarmConfig
+    from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
+    from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
+    from Jotty.core.modes.agent.auto_agent import AutoAgent
+    from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
 
     agents = [
         AgentConfig(
@@ -105,10 +105,10 @@ def _make_four_agent_relay_swarm():
 
 def _make_three_agent_fanout_swarm():
     """3 agents for parallel fanout: each gets a distinct sub-goal."""
-    from Jotty.core.orchestration.swarm_manager import Orchestrator
-    from Jotty.core.foundation.agent_config import AgentConfig
-    from Jotty.core.agents.auto_agent import AutoAgent
-    from Jotty.core.foundation.data_structures import SwarmConfig
+    from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
+    from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
+    from Jotty.core.modes.agent.auto_agent import AutoAgent
+    from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
 
     agents = [
         AgentConfig(
@@ -291,10 +291,10 @@ async def test_complex_debate_two_agents_then_synthesize():
     Debate: two agents take opposing sides, then we get a combined view.
     Real-world: decision support (e.g. build vs buy, architecture choice).
     """
-    from Jotty.core.orchestration.swarm_manager import Orchestrator
-    from Jotty.core.foundation.agent_config import AgentConfig
-    from Jotty.core.agents.auto_agent import AutoAgent
-    from Jotty.core.foundation.data_structures import SwarmConfig
+    from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
+    from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
+    from Jotty.core.modes.agent.auto_agent import AutoAgent
+    from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
 
     agents = [
         AgentConfig(
@@ -353,10 +353,10 @@ async def test_complex_refinement_draft_then_edit():
     """
     Refinement: one agent drafts, the other edits. Real-world: content pipeline.
     """
-    from Jotty.core.orchestration.swarm_manager import Orchestrator
-    from Jotty.core.foundation.agent_config import AgentConfig
-    from Jotty.core.agents.auto_agent import AutoAgent
-    from Jotty.core.foundation.data_structures import SwarmConfig
+    from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
+    from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
+    from Jotty.core.modes.agent.auto_agent import AutoAgent
+    from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
 
     agents = [
         AgentConfig(

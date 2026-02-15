@@ -20,7 +20,7 @@ import pytest
 # Imports with fallback
 # ---------------------------------------------------------------------------
 try:
-    from Jotty.core.learning.learning_coordinator import (
+    from Jotty.core.intelligence.learning.learning_coordinator import (
         LearningManager,
         LearningSession,
         LearningUpdate,

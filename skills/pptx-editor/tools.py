@@ -15,9 +15,9 @@ import xml.etree.ElementTree as ET
 from typing import Dict, Any, List, Optional
 from pathlib import Path
 
-from Jotty.core.utils.skill_status import SkillStatus
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.env_loader import load_jotty_env
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.env_loader import load_jotty_env
 
 load_jotty_env()
 

@@ -95,7 +95,7 @@ def result(s):
 # 1. INIT SPEED — Is lazy init actually fast?
 # ══════════════════════════════════════════════════════════════════════
 async def test_1_init_speed() -> Score:
-    from Jotty.core.orchestration.swarm_manager import Orchestrator
+    from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
     sc = Score(name="Init Speed & Lazy Loading")
     t0 = time.time()
     try:
@@ -122,7 +122,7 @@ async def test_1_init_speed() -> Score:
 # 2. LIFECYCLE — startup → run → shutdown via context manager
 # ══════════════════════════════════════════════════════════════════════
 async def test_2_lifecycle() -> Score:
-    from Jotty.core.orchestration.swarm_manager import Orchestrator
+    from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
     sc = Score(name="Lifecycle Management")
     t0 = time.time()
     try:
@@ -155,7 +155,7 @@ async def test_2_lifecycle() -> Score:
 # 3. INTENT PARSING — NL → structured task graph
 # ══════════════════════════════════════════════════════════════════════
 async def test_3_intent_parsing() -> Score:
-    from Jotty.core.orchestration.swarm_manager import Orchestrator
+    from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
     sc = Score(name="Intent Parsing (NL → Task Graph)")
     t0 = time.time()
     try:
@@ -201,7 +201,7 @@ async def test_4_real_llm() -> Score:
     t0 = time.time()
     try:
         import dspy
-        from Jotty.core.foundation.direct_anthropic_lm import DirectAnthropicLM, is_api_key_available
+        from Jotty.core.infrastructure.foundation.direct_anthropic_lm import DirectAnthropicLM, is_api_key_available
 
         if not is_api_key_available():
             sc.error = "No ANTHROPIC_API_KEY"
@@ -248,7 +248,7 @@ async def test_4_real_llm() -> Score:
 # 5. SWARM INTELLIGENCE — Stigmergy + Byzantine + Benchmarks
 # ══════════════════════════════════════════════════════════════════════
 async def test_5_swarm_intelligence() -> Score:
-    from Jotty.core.orchestration.swarm_intelligence import SwarmIntelligence
+    from Jotty.core.intelligence.orchestration.swarm_intelligence import SwarmIntelligence
     sc = Score(name="Swarm Intelligence (Advanced)")
     t0 = time.time()
     try:
@@ -318,7 +318,7 @@ async def test_5_swarm_intelligence() -> Score:
 # 6. LEARNING PIPELINE — Does it track episodes and adapt?
 # ══════════════════════════════════════════════════════════════════════
 async def test_6_learning() -> Score:
-    from Jotty.core.orchestration.swarm_manager import Orchestrator
+    from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
     sc = Score(name="Learning Pipeline")
     t0 = time.time()
     try:
@@ -329,7 +329,7 @@ async def test_6_learning() -> Score:
         pre = sm.learning.episode_count
 
         # Simulate two episode results
-        from Jotty.core.foundation.data_structures import EpisodeResult
+        from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult
         for i in range(2):
             fake_result = EpisodeResult(
                 output=f"Result {i}", success=True,
@@ -377,10 +377,10 @@ async def test_6_learning() -> Score:
 @pytest.mark.timeout(120)
 @pytest.mark.skipif(not os.getenv('ANTHROPIC_API_KEY'), reason="Requires ANTHROPIC_API_KEY for real LLM calls")
 async def test_7_multi_agent() -> Score:
-    from Jotty.core.orchestration.swarm_manager import Orchestrator
-    from Jotty.core.foundation.data_structures import EpisodeResult
-    from Jotty.core.foundation.agent_config import AgentConfig
-    from Jotty.core.agents.auto_agent import AutoAgent
+    from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
+    from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult
+    from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
+    from Jotty.core.modes.agent.auto_agent import AutoAgent
 
     sc = Score(name="Multi-Agent Coordination")
     t0 = time.time()
@@ -457,7 +457,7 @@ async def test_7_multi_agent() -> Score:
 # ══════════════════════════════════════════════════════════════════════
 @pytest.mark.skipif(not os.getenv('ANTHROPIC_API_KEY'), reason="Requires ANTHROPIC_API_KEY for real LLM calls")
 async def test_8_full_pipeline() -> Score:
-    from Jotty.core.orchestration.swarm_manager import Orchestrator
+    from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
     sc = Score(name="Full Pipeline (Real LLM E2E)")
     t0 = time.time()
     try:

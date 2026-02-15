@@ -14,12 +14,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
-from Jotty.core.utils.env_loader import load_jotty_env
-from Jotty.core.utils.api_client import BaseAPIClient
-from Jotty.core.utils.tool_helpers import (
+from Jotty.core.infrastructure.utils.env_loader import load_jotty_env
+from Jotty.core.infrastructure.utils.api_client import BaseAPIClient
+from Jotty.core.infrastructure.utils.tool_helpers import (
     tool_response, tool_error, async_tool_wrapper
 )
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 # Load environment variables
 load_jotty_env()
@@ -322,13 +322,13 @@ class N8nDynamicSkillRegistrar:
 
         if registry is None:
             try:
-                from Jotty.core.registry import get_unified_registry
+                from Jotty.core.capabilities.registry import get_unified_registry
                 registry = get_unified_registry()
             except Exception:
                 logger.debug("Could not get registry for dynamic skill registration")
                 return 0
 
-        from Jotty.core.registry.skills_registry import SkillDefinition, SkillType
+        from Jotty.core.capabilities.registry.skills_registry import SkillDefinition, SkillType
 
         count = 0
         workflows = result.get("data", [])

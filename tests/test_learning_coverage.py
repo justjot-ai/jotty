@@ -20,12 +20,12 @@ class TestEffectivenessTracker:
     """Tests for EffectivenessTracker improvement measurement."""
 
     def test_initial_not_improving(self):
-        from Jotty.core.orchestration.learning_pipeline import EffectivenessTracker
+        from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
         tracker = EffectivenessTracker(recent_window=5, historical_window=10)
         assert tracker.is_improving() is False
 
     def test_record_and_report(self):
-        from Jotty.core.orchestration.learning_pipeline import EffectivenessTracker
+        from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
         tracker = EffectivenessTracker(recent_window=3, historical_window=5)
 
         for _ in range(5):
@@ -38,7 +38,7 @@ class TestEffectivenessTracker:
         assert report["analysis"]["recent_success_rate"] > report["analysis"]["historical_success_rate"]
 
     def test_improvement_detected(self):
-        from Jotty.core.orchestration.learning_pipeline import EffectivenessTracker
+        from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
         tracker = EffectivenessTracker(recent_window=3, historical_window=5)
 
         # Historical: mostly failures
@@ -51,7 +51,7 @@ class TestEffectivenessTracker:
         assert tracker.is_improving("search") is True
 
     def test_no_improvement_when_declining(self):
-        from Jotty.core.orchestration.learning_pipeline import EffectivenessTracker
+        from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
         tracker = EffectivenessTracker(recent_window=3, historical_window=5)
 
         # Historical: all successes
@@ -64,7 +64,7 @@ class TestEffectivenessTracker:
         assert tracker.is_improving("code") is False
 
     def test_serialization_roundtrip(self):
-        from Jotty.core.orchestration.learning_pipeline import EffectivenessTracker
+        from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
         tracker = EffectivenessTracker()
         tracker.record("task_a", success=True, quality=0.8, agent="agent1")
         tracker.record("task_b", success=False, quality=0.3, agent="agent2")
@@ -76,7 +76,7 @@ class TestEffectivenessTracker:
         assert len(restored._global) == 2
 
     def test_global_vs_per_task(self):
-        from Jotty.core.orchestration.learning_pipeline import EffectivenessTracker
+        from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
         tracker = EffectivenessTracker(recent_window=3, historical_window=5)
 
         for _ in range(5):
@@ -99,8 +99,8 @@ class TestTDLambdaLearning:
     """Tests for TD-Lambda learning updates."""
 
     def test_update_modifies_state(self):
-        from Jotty.core.learning.td_lambda import TDLambdaLearner
-        from Jotty.core.foundation.data_structures import SwarmConfig
+        from Jotty.core.intelligence.learning.td_lambda import TDLambdaLearner
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
 
         learner = TDLambdaLearner(config=SwarmConfig())
         state = {"task": "research", "agent": "r1"}
@@ -111,8 +111,8 @@ class TestTDLambdaLearning:
         # Should not raise and should have processed the update
 
     def test_gamma_and_lambda_configurable(self):
-        from Jotty.core.learning.td_lambda import TDLambdaLearner
-        from Jotty.core.foundation.configs.learning import LearningConfig
+        from Jotty.core.intelligence.learning.td_lambda import TDLambdaLearner
+        from Jotty.core.infrastructure.foundation.configs.learning import LearningConfig
 
         config = LearningConfig(gamma=0.5, lambda_trace=0.3, alpha=0.1)
         learner = TDLambdaLearner(config=config)
@@ -120,8 +120,8 @@ class TestTDLambdaLearning:
         assert learner.lambda_trace == 0.3
 
     def test_multiple_updates_accumulate(self):
-        from Jotty.core.learning.td_lambda import TDLambdaLearner
-        from Jotty.core.foundation.data_structures import SwarmConfig
+        from Jotty.core.intelligence.learning.td_lambda import TDLambdaLearner
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
 
         learner = TDLambdaLearner(config=SwarmConfig())
         for i in range(5):
@@ -143,12 +143,12 @@ class TestCreditAssignment:
     """Tests for CreditAssignment component."""
 
     def test_credit_assignment_creates(self):
-        from Jotty.core.orchestration.credit_assignment import CreditAssignment
+        from Jotty.core.intelligence.orchestration.credit_assignment import CreditAssignment
         ca = CreditAssignment()
         assert ca is not None
 
     def test_record_improvement_application(self):
-        from Jotty.core.orchestration.credit_assignment import CreditAssignment
+        from Jotty.core.intelligence.orchestration.credit_assignment import CreditAssignment
         ca = CreditAssignment()
         improvement = {"id": "imp_1", "description": "Better prompt", "credit": 0.0}
         credit = ca.record_improvement_application(

@@ -25,7 +25,7 @@ from unittest.mock import Mock, MagicMock, patch, mock_open
 
 # Try importing the module under test
 try:
-    from Jotty.core.registry.tool_collection import (
+    from Jotty.core.capabilities.registry.tool_collection import (
         ToolCollection,
         HUGGINGFACE_HUB_AVAILABLE,
         MCP_AVAILABLE,

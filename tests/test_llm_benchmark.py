@@ -116,7 +116,7 @@ def main():
     # ── 1. DirectAnthropicLM (Haiku) ──
     if os.environ.get("ANTHROPIC_API_KEY"):
         try:
-            from Jotty.core.foundation.direct_anthropic_lm import DirectAnthropicLM
+            from Jotty.core.infrastructure.foundation.direct_anthropic_lm import DirectAnthropicLM
             lm = DirectAnthropicLM(model="haiku", max_tokens=1024)
             all_results["anthropic-haiku"] = benchmark_provider(
                 "DirectAnthropicLM (Haiku)", lm, PROMPTS
@@ -167,7 +167,7 @@ def main():
     import shutil
     if shutil.which("claude"):
         try:
-            from Jotty.core.foundation.persistent_claude_lm import PersistentClaudeCLI
+            from Jotty.core.infrastructure.foundation.persistent_claude_lm import PersistentClaudeCLI
             lm = PersistentClaudeCLI(model="haiku")
             # Only test simple prompt — CLI is slow
             print(f"\n{B}{'─'*60}{E}")

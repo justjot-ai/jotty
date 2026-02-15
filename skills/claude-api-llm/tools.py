@@ -22,8 +22,8 @@ import time as _time
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
-from Jotty.core.utils.skill_status import SkillStatus
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -76,8 +76,8 @@ class ClaudeAPIClient:
         except ImportError:
             pass
 
-        from Jotty.core.foundation.anthropic_client_kwargs import get_anthropic_client_kwargs
-        from Jotty.core.foundation.config_defaults import MODEL_SONNET
+        from Jotty.core.infrastructure.foundation.anthropic_client_kwargs import get_anthropic_client_kwargs
+        from Jotty.core.infrastructure.foundation.config_defaults import MODEL_SONNET
 
         kwargs = get_anthropic_client_kwargs()
         self._client = anthropic.Anthropic(**kwargs)
@@ -232,7 +232,7 @@ class ClaudeAPIClient:
     def _track_cost(self, response) -> None:
         """Track API call cost via CostTracker."""
         try:
-            from Jotty.core.foundation.direct_anthropic_lm import get_cost_tracker
+            from Jotty.core.infrastructure.foundation.direct_anthropic_lm import get_cost_tracker
             usage = getattr(response, "usage", None)
             if usage:
                 tracker = get_cost_tracker()
@@ -540,7 +540,7 @@ class AgenticToolExecutor:
             return {"success": False, "error": "command is required"}
 
         try:
-            from Jotty.core.orchestration.sandbox_manager import (
+            from Jotty.core.intelligence.orchestration.sandbox_manager import (
                 SandboxManager, TrustLevel,
             )
             trust_map = {

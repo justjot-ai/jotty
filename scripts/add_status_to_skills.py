@@ -29,7 +29,7 @@ def already_has_status(content: str) -> bool:
 
 def add_status_import(content: str) -> str:
     """Add SkillStatus import after other imports."""
-    import_line = "from Jotty.core.utils.skill_status import SkillStatus\n"
+    import_line = "from Jotty.core.infrastructure.utils.skill_status import SkillStatus\n"
 
     # Find last import line
     lines = content.split('\n')

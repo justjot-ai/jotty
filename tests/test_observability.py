@@ -10,7 +10,7 @@ import math
 import pytest
 from unittest.mock import Mock, MagicMock, patch
 
-from Jotty.core.observability.metrics import (
+from Jotty.core.infrastructure.monitoring.observability.metrics import (
     ExecutionRecord,
     AgentMetrics,
     MetricsCollector,

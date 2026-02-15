@@ -7,7 +7,7 @@ Demonstrates:
 - Checking memory system status
 """
 import asyncio
-from Jotty.core.memory import get_memory_system
+from Jotty.core.intelligence.memory import get_memory_system
 
 
 async def main():

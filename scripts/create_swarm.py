@@ -150,7 +150,7 @@ DESCRIBE: Describe what this swarm does and when to use it.
 ## 🚀 Quick Start
 
 ```python
-from Jotty.core.swarms.{swarm_snake} import {swarm_pascal}
+from Jotty.core.intelligence.swarms.{swarm_snake} import {swarm_pascal}
 
 swarm = {swarm_pascal}()
 result = await swarm.execute("your task here")
@@ -159,7 +159,7 @@ result = await swarm.execute("your task here")
 ## 📋 Configuration
 
 ```python
-from Jotty.core.swarms.{swarm_snake}.types import {swarm_pascal}Config
+from Jotty.core.intelligence.swarms.{swarm_snake}.types import {swarm_pascal}Config
 
 config = {swarm_pascal}Config(
     custom_param="value",

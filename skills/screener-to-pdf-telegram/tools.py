@@ -15,8 +15,8 @@ from typing import Dict, Any, List
 from datetime import datetime
 import json
 
-from Jotty.core.utils.skill_status import SkillStatus
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("screener-to-pdf-telegram")
@@ -46,9 +46,9 @@ async def screener_analyze_pdf_telegram_tool(params: Dict[str, Any]) -> Dict[str
     status.set_callback(params.pop('_status_callback', None))
     try:
         try:
-            from Jotty.core.registry.skills_registry import get_skills_registry
+            from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
         except ImportError:
-            from Jotty.core.registry.skills_registry import get_skills_registry
+            from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
         
         symbols = params.get('symbols')
         if not symbols:

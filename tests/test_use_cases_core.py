@@ -8,7 +8,7 @@ import time
 from unittest.mock import MagicMock, AsyncMock
 from dataclasses import dataclass
 
-from Jotty.core.use_cases.base import (
+from Jotty.core.interface.use_cases.base import (
     UseCaseType,
     UseCaseConfig,
     UseCaseResult,

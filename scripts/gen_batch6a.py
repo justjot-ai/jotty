@@ -21,8 +21,8 @@ create_skill(
     eval_input={"operation": "determinant", "matrix_a": [[1, 2], [3, 4]]},
     tools_code=r'''"""Matrix calculator — add, multiply, transpose, determinant, inverse."""
 from typing import Dict, Any, List
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("matrix-calculator")
 
@@ -108,8 +108,8 @@ create_skill(
 import statistics as st
 import math
 from typing import Dict, Any, List
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("statistics-calculator")
 
@@ -176,8 +176,8 @@ create_skill(
     eval_input={"operation": "is_prime", "number": 97},
     tools_code=r'''"""Prime number tool — primality, sieve, factorization, nth prime."""
 from typing import Dict, Any, List
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("prime-number-tool")
 
@@ -277,8 +277,8 @@ create_skill(
     tools_code=r'''"""Fibonacci generator — sequence, membership check, golden ratio."""
 import math
 from typing import Dict, Any, List
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("fibonacci-generator")
 
@@ -353,8 +353,8 @@ create_skill(
     eval_input={"algorithm": "bubble", "array": [5, 3, 1, 4, 2]},
     tools_code=r'''"""Sorting visualizer — step-by-step sorting demonstrations."""
 from typing import Dict, Any, List, Tuple
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("sorting-visualizer")
 
@@ -450,8 +450,8 @@ create_skill(
     tools_code=r'''"""Graph algorithms — Dijkstra, BFS, cycle detection, topological sort."""
 import heapq
 from typing import Dict, Any, List, Optional
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("graph-algorithms")
 
@@ -564,8 +564,8 @@ create_skill(
     eval_input={"operation": "caesar", "text": "hello", "shift": 3},
     tools_code=r'''"""Encryption tool — educational ciphers (Caesar, Vigenere, ROT13, XOR)."""
 from typing import Dict, Any
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("encryption-tool")
 
@@ -654,8 +654,8 @@ create_skill(
 import math
 from collections import Counter
 from typing import Dict, Any, List, Tuple
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("compression-analyzer")
 
@@ -753,8 +753,8 @@ create_skill(
     eval_input={"structure": "stack", "operations": [{"op": "push", "value": 1}, {"op": "push", "value": 2}, {"op": "pop"}]},
     tools_code=r'''"""Data structure tool — stack, queue, linked list, BST demonstrations."""
 from typing import Dict, Any, List, Optional
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("data-structure-tool")
 
@@ -899,8 +899,8 @@ create_skill(
     tools_code=r'''"""Algorithm complexity — Big-O analysis, comparison, ASCII plots."""
 import math
 from typing import Dict, Any, List
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("algorithm-complexity")
 

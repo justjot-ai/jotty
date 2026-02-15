@@ -36,7 +36,7 @@ except ImportError:
     HAS_PANDAS = False
 
 try:
-    from Jotty.core.skills.ml.base import (
+    from Jotty.core.capabilities.skills.ml.base import (
         SkillCategory,
         SkillResult,
         MLSkill,
@@ -48,31 +48,31 @@ except ImportError:
     HAS_BASE = False
 
 try:
-    from Jotty.core.skills.ml.eda import EDASkill
+    from Jotty.core.capabilities.skills.ml.eda import EDASkill
     HAS_EDA = True
 except ImportError:
     HAS_EDA = False
 
 try:
-    from Jotty.core.skills.ml.feature_engineering import FeatureEngineeringSkill
+    from Jotty.core.capabilities.skills.ml.feature_engineering import FeatureEngineeringSkill
     HAS_FE = True
 except ImportError:
     HAS_FE = False
 
 try:
-    from Jotty.core.skills.ml.model_selection import ModelSelectionSkill
+    from Jotty.core.capabilities.skills.ml.model_selection import ModelSelectionSkill
     HAS_MS = True
 except ImportError:
     HAS_MS = False
 
 try:
-    from Jotty.core.skills.ml.ensemble import EnsembleSkill
+    from Jotty.core.capabilities.skills.ml.ensemble import EnsembleSkill
     HAS_ENS = True
 except ImportError:
     HAS_ENS = False
 
 try:
-    from Jotty.core.skills.ml.backtest_report import (
+    from Jotty.core.capabilities.skills.ml.backtest_report import (
         BacktestMetrics,
         TradeStatistics,
         ModelResults,
@@ -83,7 +83,7 @@ except ImportError:
     HAS_BT_REPORT = False
 
 try:
-    from Jotty.core.skills.ml.backtest_engine import (
+    from Jotty.core.capabilities.skills.ml.backtest_engine import (
         TransactionCosts,
         RiskMetrics,
         StatisticalTests,

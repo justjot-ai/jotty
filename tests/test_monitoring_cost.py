@@ -16,7 +16,7 @@ from typing import Dict, Any
 
 # --- cost_tracker imports ---
 try:
-    from Jotty.core.monitoring.cost_tracker import (
+    from Jotty.core.infrastructure.monitoring.monitoring.cost_tracker import (
         PRICING_TABLE,
         DEFAULT_PRICING,
         LLMCallRecord,
@@ -29,7 +29,7 @@ except ImportError:
 
 # --- monitoring_framework imports ---
 try:
-    from Jotty.core.monitoring.monitoring_framework import (
+    from Jotty.core.infrastructure.monitoring.monitoring.monitoring_framework import (
         MonitoringFramework,
         ExecutionStatus,
         ExecutionMetrics,
@@ -41,7 +41,7 @@ except ImportError:
 
 # --- efficiency_metrics imports ---
 try:
-    from Jotty.core.monitoring.efficiency_metrics import (
+    from Jotty.core.infrastructure.monitoring.monitoring.efficiency_metrics import (
         EfficiencyMetrics,
         EfficiencyReport,
     )

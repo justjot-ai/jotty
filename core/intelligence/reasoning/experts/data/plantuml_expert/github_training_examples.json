@@ -1,0 +1,52 @@
+{
+  "source": "https://github.com/joelparkerhenderson/plantuml-examples",
+  "total_examples": 5,
+  "loaded_at": "2026-02-15T10:56:23.431468",
+  "gold_standards": [
+    {
+      "task": "Generate activity diagram: activity diagram",
+      "context": {
+        "description": "activity diagram",
+        "diagram_type": "activity",
+        "source": "github:joelparkerhenderson/plantuml-examples"
+      },
+      "gold_standard": "@startuml\nskinparam monochrome true\nstart\n-> Starting;\n:Activity 1;\nif (Question) then (yes)\n  :Option 1;\nelse (no)\n  :Option 2;\nendif\n:Activity 2;\n-> Stopping;\nstop\n@enduml\n"
+    },
+    {
+      "task": "Generate component diagram: ArchiMate Elements",
+      "context": {
+        "description": "ArchiMate Elements",
+        "diagram_type": "component",
+        "source": "github:joelparkerhenderson/plantuml-examples"
+      },
+      "gold_standard": "@startuml\n!include <archimate/Archimate>\n\ntitle ArchiMate Elements\n\n' Motivation Elements\nMotivation_Stakeholder(Stakeholder, \"Stakeholder\")\nMotivation_Driver(Driver, \"Driver\")\nMotivation_Assessment(Motivation_Assessment, \"Assessment\")\nMotivation_Goal(Goal, \"Goal\")\nMotivation_Outcome(Outcome, \"Outcome\")\nMotivation_Principle(Principle, \"Principle\")\nMotivation_Requirement(Requirement, \"Requirement\")\nMotivation_Constraint(Constraint, \"Constraint\")\nMotivation_Meaning(Meaning, \"Meaning\")\nMotivation_Value(Value, \"Value\")\n\n' Strategy Elements\nStrategy_Resource(Resource, \"Resource\")\nStrategy_Capability(Capability, \"Capability\")\nStrategy_CourseOfAction(CourseOfAction, \"Course Of Action\")\nStrategy_ValueStream(ValueStream, \"Strategy Value Stream\")\n\n' Business Elements\nBusiness_Actor(Business_Actor, \"Business Actor\")\nBusiness_Role(Business_Role, \"Business Role\")\nBusiness_Collaboration(Business_Collaboration, \"Business Collaboration\")\nBusiness_Interface(Business_Interface, \"Business Interface\")\nBusiness_Process(Business_Process, \"Business Process\")\nBusiness_Function(Business_Function, \"Business Function\")\nBusiness_Interaction(Business_Interaction, \"Business Interaction\")\nBusiness_Event(Business_Event, \"Business Event\")\nBusiness_Service(Business_Service, \"Business Service\")\nBusiness_Object(Business_Object, \"Business Object\")\nBusiness_Contract(Business_Contract, \"Contract\")\nBusiness_Representation(Business_Representation, \"Representation\")\nBusiness_Product(Business_Product, \"Product\")\nBusiness_Location(Business_Location, \"Business Location\")\n\n' Application Elements\nApplication_Component(Application_Component, \"Application Component\")\nApplication_Collaboration(Application_Collaboration, \"Application Collaboration\")\nApplication_Interface(Application_Interface, \"Application Interface\")\nApplication_Function(Application_Function, \"Application Function\")\nApplication_Interaction(Application_Interaction, \"Application Interaction\")\nApplication_Process(Application_Process, \"Application Process\")\nApplication_Event(Application_Event, \"Application Event\")\nApplication_Service(Application_Service, \"Application Service\")\nApplication_DataObject(Application_DataObject, \"Data Object\")\n\n' Technology Elements\nTechnology_Node(Node, \"Node\")\nTechnology_Device(Device, \"Device\")\nTechnology_SystemSoftware(SystemSoftware, \"System Software\")\nTechnology_Collaboration(Technology_Collaboration, \"Technology Collaboration\")\nTechnology_Interface(Technology_Interface, \"Technology Interface\")\nTechnology_Path(Path, \"Path\")\nTechnology_CommunicationNetwork(CommunicationNetwork, \"Communication Network\")\nTechnology_Function(Technology_Function, \"Technology Function\")\nTechnology_Process(Technology_Process, \"Technology Process\")\nTechnology_Interaction(Technology_Interaction, \"Technology Interaction\")\nTechnology_Event(Technology_Event, \"Technology Event\")\nTechnology_Service(Technology_Service, \"Technology Service\")\nTechnology_Artifact(Artifact, \"Artifact\")\n\n'Physical Elements\nPhysical_Equipment(Equipment, \"Equipment\")\nPhysical_Facility(Facility, \"Facility\")\nPhysical_DistributionNetwork(DistributionNetwork, \"Distribution Network\")\nPhysical_Material(Material, \"Material\")\n\n'Implementation Elements\nImplementation_WorkPackage(WorkPackage, \"Work Package\")\nImplementation_Deliverable(Deliverable, \"Deliverable\")\nImplementation_Event(Implementation_Event, \"Implementation Event\")\nImplementation_Plateau(Plateau, \"Plateau\")\nImplementation_Gap(Gap, \"Gap\")\n\n'Other Elements\nGrouping(Grouping, \"Grouping\") {\n    Junction_Or(Junction_Or, \"or\")\n    Junction_And(Junction_And, \"and\")\n}\nGroup(Group, \"Group\") {\n    Other_Location(Other_Location, \"Location\")\n}\n\n@enduml"
+    },
+    {
+      "task": "Generate unknown diagram: ArchiMate Modeling Layers",
+      "context": {
+        "description": "ArchiMate Modeling Layers",
+        "diagram_type": "unknown",
+        "source": "github:joelparkerhenderson/plantuml-examples"
+      },
+      "gold_standard": "@startuml\n!include <archimate/Archimate>\nsprite $stakeholder jar:archimate/motivation-stakeholder\nsprite $capability jar:archimate/strategy-capability\nsprite $product jar:archimate/business-product\n\ntitle ArchiMate Modeling Layers\n\nGrouping(Stakeholders, \"Stakeholders\") {\n    Motivation_Stakeholder(Stakeholder1, \"Stakeholder 1\")\n    Motivation_Stakeholder(Stakeholder2, \"Stakeholder 2\")\n}\n\nGrouping(Drivers, \"Drivers\") {\n    Motivation_Driver(Driver1, \"Driver 1\")\n    Motivation_Driver(Driver2, \"Driver 2\")\n}\n\nGrouping(Assessments, \"Assessments\") {\n    Motivation_Assessment(Assessment1, \"Assessment 1\")\n    Motivation_Assessment(Assessment2, \"Assessment 2\")\n}\n\nGrouping(Goals, \"Goals\") {\n    Motivation_Goal(Goal1, \"Goal 1\")\n    Motivation_Goal(Goal2, \"Goal 2\")\n}\n\nGrouping(Outcomes, \"Outcomes\") {\n    Motivation_Outcome(Outcome1, \"Outcome 1\")\n    Motivation_Outcome(Outcome2, \"Outcome 2\")\n}\n\nGrouping(Requirements, \"Requirements\") {\n    Motivation_Requirement(Requirement1, \"Requirement 1\")\n    Motivation_Requirement(Requirement2, \"Requirement 2\")\n}\n\n@enduml"
+    },
+    {
+      "task": "Generate unknown diagram: ArchiMate Modeling",
+      "context": {
+        "description": "ArchiMate Modeling",
+        "diagram_type": "unknown",
+        "source": "github:joelparkerhenderson/plantuml-examples"
+      },
+      "gold_standard": "@startuml\n!include <archimate/Archimate>\nsprite $stakeholder jar:archimate/motivation-stakeholder\nsprite $capability jar:archimate/strategy-capability\nsprite $product jar:archimate/business-product\n\ntitle ArchiMate Modeling\nMotivation_Stakeholder(Stakeholder, \"Stakeholder\")\nStrategy_Capability(Capability, \"Capability\")\nBusiness_Product(Product, \"Product\")\nRel_Assignment(Stakeholder, Capability, \"Can Do\")\nRel_Assignment(Capability, Product, \"By Using\")\n\nlegend left\nLegend\n====\n<$stakeholder> Stakeholder\n<$capability> Capability\n<$product> Product\nendlegend\n\n@enduml"
+    },
+    {
+      "task": "Generate unknown diagram: archimate sprites",
+      "context": {
+        "description": "archimate sprites",
+        "diagram_type": "unknown",
+        "source": "github:joelparkerhenderson/plantuml-examples"
+      },
+      "gold_standard": "@startuml\nlistsprite\n@enduml"
+    }
+  ]
+}

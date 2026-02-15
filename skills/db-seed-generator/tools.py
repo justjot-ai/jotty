@@ -3,8 +3,8 @@ import random
 import string
 import json
 from typing import Dict, Any, List
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 status = SkillStatus("db-seed-generator")
 
 _FIRST = ["Alice","Bob","Carol","Dave","Eve","Frank","Grace","Hank","Ivy","Jack",

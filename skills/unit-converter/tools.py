@@ -1,7 +1,7 @@
 """Unit converter — length, weight, temperature, volume, speed."""
 from typing import Dict, Any
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 status = SkillStatus("unit-converter")
 
 _LENGTH = {"m": 1, "ft": 0.3048, "in": 0.0254, "km": 1000, "mi": 1609.344, "cm": 0.01, "mm": 0.001, "yd": 0.9144}

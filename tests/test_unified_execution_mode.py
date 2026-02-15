@@ -17,7 +17,7 @@ async def test_execution_mode_imports():
     """Test that all imports work"""
     print("🧪 Test 1: Imports")
     try:
-        from Jotty.core.orchestration import ExecutionMode, WorkflowMode, ChatMode, ChatMessage
+        from Jotty.core.intelligence.orchestration import ExecutionMode, WorkflowMode, ChatMode, ChatMessage
         from Jotty.core.queue import SQLiteTaskQueue
         print("✅ All imports successful")
         return True
@@ -29,7 +29,7 @@ async def test_execution_mode_creation():
     """Test ExecutionMode creation"""
     print("\n🧪 Test 2: ExecutionMode Creation")
     try:
-        from Jotty.core.orchestration import ExecutionMode
+        from Jotty.core.intelligence.orchestration import ExecutionMode
         
         # Test that ExecutionMode can be instantiated (without Conductor for now)
         # We'll test with Conductor in integration tests
@@ -122,7 +122,7 @@ async def test_backward_compatibility():
     """Test backward-compatible wrappers"""
     print("\n🧪 Test 5: Backward Compatibility")
     try:
-        from Jotty.core.orchestration import WorkflowMode, ChatMode
+        from Jotty.core.intelligence.orchestration import WorkflowMode, ChatMode
         
         # Test that wrappers exist and can be imported
         assert WorkflowMode is not None, "WorkflowMode should exist"
@@ -140,7 +140,7 @@ async def test_execution_mode_properties():
     """Test ExecutionMode properties and methods"""
     print("\n🧪 Test 6: ExecutionMode Properties")
     try:
-        from Jotty.core.orchestration import ExecutionMode
+        from Jotty.core.intelligence.orchestration import ExecutionMode
         
         # Test that ExecutionMode has expected methods
         assert hasattr(ExecutionMode, 'execute'), "Should have execute method"
@@ -163,7 +163,7 @@ async def test_chat_message():
     """Test ChatMessage dataclass"""
     print("\n🧪 Test 7: ChatMessage")
     try:
-        from Jotty.core.orchestration import ChatMessage
+        from Jotty.core.intelligence.orchestration import ChatMessage
         
         msg = ChatMessage(role="user", content="Hello")
         assert msg.role == "user", "Role should match"

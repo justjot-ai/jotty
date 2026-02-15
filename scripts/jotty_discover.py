@@ -133,7 +133,7 @@ def main():
         module = f"Jotty.core.swarms.{top_swarm}"
         print(f"   from {module} import *")
     else:
-        print(f"   from Jotty.core.swarms import {top_swarm.replace('_swarm', '').title()}Swarm")
+        print(f"   from Jotty.core.intelligence.swarms import {top_swarm.replace('_swarm', '').title()}Swarm")
 
 
 if __name__ == "__main__":

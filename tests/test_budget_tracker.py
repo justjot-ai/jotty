@@ -14,7 +14,7 @@ import threading
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 
-from Jotty.core.utils.budget_tracker import (
+from Jotty.core.infrastructure.utils.budget_tracker import (
     BudgetScope,
     BudgetExceededError,
     BudgetUsage,

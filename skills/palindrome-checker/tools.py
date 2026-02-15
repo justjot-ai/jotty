@@ -1,8 +1,8 @@
 """Palindrome checker — check, find substrings, generate."""
 import re
 from typing import Dict, Any, List
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 status = SkillStatus("palindrome-checker")
 
 _KNOWN = ["racecar", "level", "deified", "civic", "rotor", "kayak", "madam",

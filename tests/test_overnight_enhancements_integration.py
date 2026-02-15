@@ -18,10 +18,10 @@ class TestOvernightEnhancementsIntegration:
     @pytest.mark.asyncio
     async def test_full_stack_integration(self):
         """Test all enhancements: tracing + multi-swarm + cost-aware + adaptive."""
-        from Jotty.core.observability import get_distributed_tracer
-        from Jotty.core.orchestration import SwarmAdapter, get_multi_swarm_coordinator, MergeStrategy
-        from Jotty.core.learning import get_cost_aware_td_lambda
-        from Jotty.core.safety import get_adaptive_threshold_manager
+        from Jotty.core.infrastructure.monitoring.observability import get_distributed_tracer
+        from Jotty.core.intelligence.orchestration import SwarmAdapter, get_multi_swarm_coordinator, MergeStrategy
+        from Jotty.core.intelligence.learning import get_cost_aware_td_lambda
+        from Jotty.core.infrastructure.monitoring.safety import get_adaptive_threshold_manager
 
         # Initialize all components
         tracer = get_distributed_tracer("integration-test")
@@ -76,8 +76,8 @@ class TestOvernightEnhancementsIntegration:
     @patch('anthropic.AsyncAnthropic')
     async def test_multi_swarm_with_cost_tracking(self, mock_anthropic, mock_getenv):
         """Test multi-swarm execution with cost-aware learning."""
-        from Jotty.core.orchestration import SwarmAdapter, get_multi_swarm_coordinator, MergeStrategy
-        from Jotty.core.learning import get_cost_aware_td_lambda
+        from Jotty.core.intelligence.orchestration import SwarmAdapter, get_multi_swarm_coordinator, MergeStrategy
+        from Jotty.core.intelligence.learning import get_cost_aware_td_lambda
 
         # Mock API
         mock_getenv.return_value = "sk-test"
@@ -127,8 +127,8 @@ class TestOvernightEnhancementsIntegration:
     @pytest.mark.asyncio
     async def test_distributed_tracing_with_multi_swarm(self):
         """Test distributed tracing propagates through multi-swarm."""
-        from Jotty.core.observability import get_distributed_tracer
-        from Jotty.core.orchestration import SwarmAdapter, get_multi_swarm_coordinator, MergeStrategy
+        from Jotty.core.infrastructure.monitoring.observability import get_distributed_tracer
+        from Jotty.core.intelligence.orchestration import SwarmAdapter, get_multi_swarm_coordinator, MergeStrategy
 
         tracer = get_distributed_tracer("test-service")
         coordinator = get_multi_swarm_coordinator()
@@ -139,7 +139,7 @@ class TestOvernightEnhancementsIntegration:
                 self.name = name
 
             async def execute(self, task):
-                from Jotty.core.orchestration.multi_swarm_coordinator import SwarmResult
+                from Jotty.core.intelligence.orchestration.multi_swarm_coordinator import SwarmResult
                 await asyncio.sleep(0.01)  # Simulate work
                 return SwarmResult(
                     swarm_name=self.name,
@@ -169,8 +169,8 @@ class TestOvernightEnhancementsIntegration:
     @pytest.mark.asyncio
     async def test_adaptive_thresholds_with_multi_swarm(self):
         """Test adaptive thresholds adjust based on multi-swarm usage."""
-        from Jotty.core.safety import get_adaptive_threshold_manager
-        from Jotty.core.orchestration import SwarmAdapter, get_multi_swarm_coordinator, MergeStrategy
+        from Jotty.core.infrastructure.monitoring.safety import get_adaptive_threshold_manager
+        from Jotty.core.intelligence.orchestration import SwarmAdapter, get_multi_swarm_coordinator, MergeStrategy
 
         manager = get_adaptive_threshold_manager()
 
@@ -203,7 +203,7 @@ class TestIndividualEnhancements:
 
     def test_distributed_tracer_initialization(self):
         """Test distributed tracer initializes correctly."""
-        from Jotty.core.observability.distributed_tracing import (
+        from Jotty.core.infrastructure.monitoring.observability.distributed_tracing import (
             get_distributed_tracer, reset_distributed_tracer,
         )
         reset_distributed_tracer()
@@ -212,7 +212,7 @@ class TestIndividualEnhancements:
 
     def test_adaptive_threshold_manager_initialization(self):
         """Test adaptive threshold manager initializes correctly."""
-        from Jotty.core.safety import get_adaptive_threshold_manager
+        from Jotty.core.infrastructure.monitoring.safety import get_adaptive_threshold_manager
 
         manager = get_adaptive_threshold_manager()
         assert manager.adaptation_interval == 100
@@ -220,7 +220,7 @@ class TestIndividualEnhancements:
 
     def test_cost_aware_learner_initialization(self):
         """Test cost-aware learner initializes correctly."""
-        from Jotty.core.learning import get_cost_aware_td_lambda
+        from Jotty.core.intelligence.learning import get_cost_aware_td_lambda
 
         learner = get_cost_aware_td_lambda(cost_sensitivity=1.0)
         assert learner.cost_sensitivity == 1.0
@@ -228,7 +228,7 @@ class TestIndividualEnhancements:
 
     def test_multi_swarm_coordinator_initialization(self):
         """Test multi-swarm coordinator initializes correctly."""
-        from Jotty.core.orchestration.multi_swarm_coordinator import (
+        from Jotty.core.intelligence.orchestration.multi_swarm_coordinator import (
             get_multi_swarm_coordinator, reset_multi_swarm_coordinator,
         )
         reset_multi_swarm_coordinator()
@@ -237,7 +237,7 @@ class TestIndividualEnhancements:
 
     def test_incremental_consolidator_initialization(self):
         """Test incremental consolidator initializes correctly."""
-        from Jotty.core.memory import get_incremental_consolidator
+        from Jotty.core.intelligence.memory import get_incremental_consolidator
 
         consolidator = get_incremental_consolidator()
         assert consolidator.batch_size == 1

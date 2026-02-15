@@ -37,29 +37,29 @@ if _jotty_parent not in sys.path:
 
 # Try importing core modules with skipif fallback
 try:
-    from Jotty.core.agents.base.base_agent import BaseAgent, AgentRuntimeConfig, AgentResult
-    from Jotty.core.agents.base.meta_agent import MetaAgent, MetaAgentConfig, create_meta_agent
-    from Jotty.core.agents.base.composite_agent import (
+    from Jotty.core.modes.agent.base.base_agent import BaseAgent, AgentRuntimeConfig, AgentResult
+    from Jotty.core.modes.agent.base.meta_agent import MetaAgent, MetaAgentConfig, create_meta_agent
+    from Jotty.core.modes.agent.base.composite_agent import (
         CompositeAgent, CompositeAgentConfig, UnifiedResult,
     )
-    from Jotty.core.swarms.base.agent_team import CoordinationPattern, MergeStrategy
-    from Jotty.core.agents.base.autonomous_agent import (
+    from Jotty.core.intelligence.swarms.base.agent_team import CoordinationPattern, MergeStrategy
+    from Jotty.core.modes.agent.base.autonomous_agent import (
         AutonomousAgent, AutonomousAgentConfig, ExecutionContextManager,
         create_autonomous_agent,
     )
-    from Jotty.core.agents.base.skill_plan_executor import SkillPlanExecutor, ToolCallCache
+    from Jotty.core.modes.agent.base.skill_plan_executor import SkillPlanExecutor, ToolCallCache
     AGENTS_AVAILABLE = True
 except ImportError as e:
     AGENTS_AVAILABLE = False
 
 try:
-    from Jotty.core.agents.auto_agent import AutoAgent
+    from Jotty.core.modes.agent.auto_agent import AutoAgent
     AUTO_AGENT_AVAILABLE = True
 except ImportError:
     AUTO_AGENT_AVAILABLE = False
 
 try:
-    from Jotty.core.agents._execution_types import (
+    from Jotty.core.modes.agent._execution_types import (
         ExecutionStep, TaskType, AgenticExecutionResult,
     )
     EXEC_TYPES_AVAILABLE = True

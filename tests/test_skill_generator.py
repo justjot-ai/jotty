@@ -35,13 +35,13 @@ except ImportError:
 
 # Try importing the modules under test
 try:
-    from Jotty.core.registry.skill_generator import SkillGenerator, get_skill_generator
+    from Jotty.core.capabilities.registry.skill_generator import SkillGenerator, get_skill_generator
     SKILL_GENERATOR_AVAILABLE = True
 except ImportError:
     SKILL_GENERATOR_AVAILABLE = False
 
 try:
-    from Jotty.core.registry.skills_manifest import (
+    from Jotty.core.capabilities.registry.skills_manifest import (
         SkillsManifest, SkillInfo, CategoryInfo, get_skills_manifest,
     )
     SKILLS_MANIFEST_AVAILABLE = True
@@ -56,7 +56,7 @@ except ImportError:
 def _reset_generator_singleton():
     """Reset the module-level SkillGenerator singleton."""
     try:
-        import Jotty.core.registry.skill_generator as mod
+        import Jotty.core.capabilities.registry.skill_generator as mod
         mod._generator_instance = None
     except ImportError:
         pass
@@ -65,7 +65,7 @@ def _reset_generator_singleton():
 def _reset_manifest_singleton():
     """Reset the module-level SkillsManifest singleton."""
     try:
-        import Jotty.core.registry.skills_manifest as mod
+        import Jotty.core.capabilities.registry.skills_manifest as mod
         mod._manifest_instance = None
     except ImportError:
         pass

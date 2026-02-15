@@ -11,7 +11,7 @@ from unittest.mock import Mock, patch, MagicMock
 from dataclasses import fields
 
 try:
-    from Jotty.core.learning.transfer_learning import (
+    from Jotty.core.intelligence.learning.transfer_learning import (
         AbstractPattern, RoleProfile, MetaPattern, SemanticEmbedder,
     )
     HAS_TRANSFER = True
@@ -19,13 +19,13 @@ except ImportError:
     HAS_TRANSFER = False
 
 try:
-    from Jotty.core.learning.shaped_rewards import RewardCondition
+    from Jotty.core.intelligence.learning.shaped_rewards import RewardCondition
     HAS_REWARDS = True
 except ImportError:
     HAS_REWARDS = False
 
 try:
-    from Jotty.core.learning.reasoning_credit import ReasoningCreditAssigner
+    from Jotty.core.intelligence.learning.reasoning_credit import ReasoningCreditAssigner
     HAS_CREDIT = True
 except ImportError:
     HAS_CREDIT = False

@@ -39,7 +39,7 @@ class TestSwarmAdapter:
     @pytest.mark.asyncio
     async def test_from_swarms_with_run_method(self, mock_swarm):
         """Test adapting swarm with run() method."""
-        from Jotty.core.orchestration.swarm_adapter import SwarmAdapter
+        from Jotty.core.intelligence.orchestration.swarm_adapter import SwarmAdapter
 
         # Adapt swarms
         adapted = SwarmAdapter.from_swarms([mock_swarm])
@@ -61,8 +61,8 @@ class TestSwarmAdapter:
     @pytest.mark.asyncio
     async def test_from_swarms_with_execute_method(self):
         """Test swarm that already has execute() method."""
-        from Jotty.core.orchestration.swarm_adapter import SwarmAdapter
-        from Jotty.core.orchestration.multi_swarm_coordinator import SwarmResult
+        from Jotty.core.intelligence.orchestration.swarm_adapter import SwarmAdapter
+        from Jotty.core.intelligence.orchestration.multi_swarm_coordinator import SwarmResult
 
         # Create swarm with execute()
         class AlreadyCompatible:
@@ -87,7 +87,7 @@ class TestSwarmAdapter:
     @pytest.mark.asyncio
     async def test_from_agents(self, mock_agent):
         """Test adapting agents to swarms."""
-        from Jotty.core.orchestration.swarm_adapter import SwarmAdapter
+        from Jotty.core.intelligence.orchestration.swarm_adapter import SwarmAdapter
 
         # Adapt agents
         adapted = SwarmAdapter.from_agents([mock_agent])
@@ -110,7 +110,7 @@ class TestSwarmAdapter:
     @patch('anthropic.AsyncAnthropic')
     async def test_quick_swarms(self, mock_anthropic_class, mock_getenv):
         """Test creating quick swarms from prompts."""
-        from Jotty.core.orchestration.swarm_adapter import SwarmAdapter
+        from Jotty.core.intelligence.orchestration.swarm_adapter import SwarmAdapter
 
         # Mock API key
         mock_getenv.return_value = "sk-test-key"
@@ -148,7 +148,7 @@ class TestSwarmAdapter:
     @pytest.mark.asyncio
     async def test_adapter_error_handling(self):
         """Test error handling in adapters."""
-        from Jotty.core.orchestration.swarm_adapter import SwarmAdapter
+        from Jotty.core.intelligence.orchestration.swarm_adapter import SwarmAdapter
 
         # Create swarm that raises error
         class FailingSwarm:
@@ -178,7 +178,7 @@ class TestSwarmAdapterIntegration:
     @patch('anthropic.AsyncAnthropic')
     async def test_full_integration(self, mock_anthropic_class, mock_getenv):
         """Test complete workflow: SwarmAdapter + Coordinator."""
-        from Jotty.core.orchestration import (
+        from Jotty.core.intelligence.orchestration import (
             SwarmAdapter,
             get_multi_swarm_coordinator,
             MergeStrategy
@@ -222,7 +222,7 @@ class TestSwarmAdapterIntegration:
 async def test_swarm_adapter_exports():
     """Test that SwarmAdapter is properly exported."""
     # Should be importable from orchestration
-    from Jotty.core.orchestration import SwarmAdapter
+    from Jotty.core.intelligence.orchestration import SwarmAdapter
 
     assert SwarmAdapter is not None
     assert hasattr(SwarmAdapter, 'quick_swarms')

@@ -9,8 +9,8 @@ from typing import Dict, Any
 from pathlib import Path
 import sys
 
-from Jotty.core.utils.skill_status import SkillStatus
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Add parent directory to path to import other skills
 
@@ -22,9 +22,9 @@ jotty_root = current_dir.parent.parent
 sys.path.insert(0, str(jotty_root))
 
 try:
-    from Jotty.core.registry.skills_registry import get_skills_registry
+    from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
 except ImportError:
-    from Jotty.core.registry.skills_registry import get_skills_registry
+    from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
 
 logger = logging.getLogger(__name__)
 

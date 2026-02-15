@@ -10,13 +10,13 @@ import pytest
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
 from datetime import datetime
 
-from Jotty.core.agents.base.composite_agent import (
+from Jotty.core.modes.agent.base.composite_agent import (
     CompositeAgent,
     CompositeAgentConfig,
     UnifiedResult,
 )
-from Jotty.core.swarms.swarm_types import SwarmResult, ExecutionTrace, AgentRole
-from Jotty.core.swarms.base.agent_team import CoordinationPattern, MergeStrategy
+from Jotty.core.intelligence.swarms.swarm_types import SwarmResult, ExecutionTrace, AgentRole
+from Jotty.core.intelligence.swarms.base.agent_team import CoordinationPattern, MergeStrategy
 
 
 def _make_mock_base_agent(name="MockAgent", timeout=120.0):
@@ -293,8 +293,8 @@ class TestCompositeAgent:
 
 
 # Import _COORDINATION_DISPATCH for dispatch table tests
-from Jotty.core.agents.base.composite_agent import _COORDINATION_DISPATCH
-from Jotty.core.agents.base.base_agent import AgentResult
+from Jotty.core.modes.agent.base.composite_agent import _COORDINATION_DISPATCH
+from Jotty.core.modes.agent.base.base_agent import AgentResult
 
 
 def _make_successful_agent_result(output, agent_name="TestAgent"):

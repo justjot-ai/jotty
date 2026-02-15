@@ -31,7 +31,7 @@ except ImportError:
 
 # Try importing the modules under test
 try:
-    from Jotty.core.orchestration.swarm_roadmap import (
+    from Jotty.core.intelligence.orchestration.swarm_roadmap import (
         TaskStatus,
         TrajectoryStep,
         SubtaskState,

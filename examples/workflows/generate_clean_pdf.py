@@ -12,8 +12,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
 async def main():
-    from Jotty.core.swarms.olympiad_learning_swarm import learn_topic
-    from Jotty.core.swarms.olympiad_learning_swarm.pdf_generator import (
+    from Jotty.core.intelligence.swarms.olympiad_learning_swarm import learn_topic
+    from Jotty.core.intelligence.swarms.olympiad_learning_swarm.pdf_generator import (
         generate_lesson_pdf,
         generate_lesson_html
     )

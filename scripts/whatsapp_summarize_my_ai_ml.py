@@ -40,7 +40,7 @@ def _ensure_llm_from_env():
         import dspy
         if dspy.settings.lm is not None:
             return
-        from Jotty.core.foundation.direct_anthropic_lm import DirectAnthropicLM
+        from Jotty.core.infrastructure.foundation.direct_anthropic_lm import DirectAnthropicLM
         dspy.configure(lm=DirectAnthropicLM(model="sonnet"))
     except Exception:
         pass
@@ -73,7 +73,7 @@ async def main():
                 return 1
             text = file_arg.read_text(encoding="utf-8", errors="replace")
             _ensure_llm_from_env()
-            from Jotty.core.registry.skills_registry import get_skills_registry
+            from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
             reg = get_skills_registry()
             reg.init()
             sum_skill = reg.get_skill("summarize")
@@ -128,7 +128,7 @@ async def main():
     print(f"Store after wait: {stats.get('chat_count', 0)} chats, {len(stats.get('message_jids') or [])} message JIDs")
 
     _ensure_llm_from_env()
-    from Jotty.core.registry.skills_registry import get_skills_registry
+    from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
     reg = get_skills_registry()
     reg.init()
     skill = reg.get_skill("whatsapp-reader")

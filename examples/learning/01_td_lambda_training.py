@@ -8,7 +8,7 @@ Demonstrates:
 - Understanding eligibility traces
 """
 import asyncio
-from Jotty.core.learning import get_td_lambda
+from Jotty.core.intelligence.learning import get_td_lambda
 
 
 async def main():

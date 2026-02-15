@@ -38,7 +38,7 @@ def _make_predictor(**config_overrides):
     """Create an LLMQPredictor with mocked dspy internals."""
     with patch('dspy.ChainOfThought') as mock_cot:
         mock_cot.return_value = MagicMock()
-        from Jotty.core.learning.q_learning import LLMQPredictor
+        from Jotty.core.intelligence.learning.q_learning import LLMQPredictor
         config = _make_config(**config_overrides)
         predictor = LLMQPredictor(config)
     return predictor

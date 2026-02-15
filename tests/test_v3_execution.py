@@ -17,7 +17,7 @@ import asyncio
 from pathlib import Path
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
 
-from Jotty.core.execution.types import (
+from Jotty.core.modes.execution.types import (
     ExecutionConfig,
     ExecutionTier,
     ExecutionResult,
@@ -27,7 +27,7 @@ from Jotty.core.execution.types import (
     StreamEvent,
     StreamEventType,
 )
-from Jotty.core.execution.tier_detector import TierDetector
+from Jotty.core.modes.execution.tier_detector import TierDetector
 
 
 # =============================================================================
@@ -558,7 +558,7 @@ class TestObservability:
         assert result.success is False
         assert "LLM down" in result.error
 
-        from Jotty.core.observability.metrics import get_metrics
+        from Jotty.core.infrastructure.monitoring.observability.metrics import get_metrics
         errors = get_metrics().recent_errors(limit=5)
         assert len(errors) >= 1
         assert "LLM down" in errors[0]['error']
@@ -714,7 +714,7 @@ class TestJottyFacade:
     def test_get_recent_errors_with_data(self):
         """get_recent_errors returns errors after recording failure."""
         jotty = self._make_jotty()
-        from Jotty.core.observability.metrics import get_metrics
+        from Jotty.core.infrastructure.monitoring.observability.metrics import get_metrics
         get_metrics().record_execution(
             agent_name="test_agent",
             task_type="test",
@@ -869,7 +869,7 @@ class TestErrorHandling:
             config=ExecutionConfig(tier=ExecutionTier.DIRECT),
         )
 
-        from Jotty.core.observability.metrics import get_metrics
+        from Jotty.core.infrastructure.monitoring.observability.metrics import get_metrics
         agent_metrics = get_metrics().get_agent_metrics('tier_1')
         assert agent_metrics is not None
         assert agent_metrics.failed >= 1
@@ -885,7 +885,7 @@ class TestErrorHandling:
         )
 
         # Trace should exist in history (end_trace called in except block)
-        from Jotty.core.observability.tracing import get_tracer
+        from Jotty.core.infrastructure.monitoring.observability.tracing import get_tracer
         traces = get_tracer().get_trace_history()
         assert len(traces) >= 1
 
@@ -1089,7 +1089,7 @@ class TestErrorClassification:
 
     def test_error_type_values(self):
         """ErrorType enum has all expected members."""
-        from Jotty.core.execution.types import ErrorType
+        from Jotty.core.modes.execution.types import ErrorType
         assert ErrorType.NONE.value == "none"
         assert ErrorType.INFRASTRUCTURE.value == "infrastructure"
         assert ErrorType.LOGIC.value == "logic"
@@ -1098,40 +1098,40 @@ class TestErrorClassification:
 
     def test_error_type_classify_infrastructure(self):
         """Infrastructure errors are classified correctly."""
-        from Jotty.core.execution.types import ErrorType
+        from Jotty.core.modes.execution.types import ErrorType
         assert ErrorType.classify("Connection timeout after 30s") == ErrorType.INFRASTRUCTURE
         assert ErrorType.classify("Rate limit exceeded (429)") == ErrorType.INFRASTRUCTURE
         assert ErrorType.classify("503 Service Unavailable") == ErrorType.INFRASTRUCTURE
 
     def test_error_type_classify_environment(self):
         """Environment/proxy errors are classified correctly."""
-        from Jotty.core.execution.types import ErrorType
+        from Jotty.core.modes.execution.types import ErrorType
         assert ErrorType.classify("SSL certificate verify failed") == ErrorType.ENVIRONMENT
         assert ErrorType.classify("Zscaler proxy blocked request") == ErrorType.ENVIRONMENT
         assert ErrorType.classify("TLS handshake error") == ErrorType.ENVIRONMENT
 
     def test_error_type_classify_data(self):
         """Data errors are classified correctly."""
-        from Jotty.core.execution.types import ErrorType
+        from Jotty.core.modes.execution.types import ErrorType
         assert ErrorType.classify("Empty result set") == ErrorType.DATA
         assert ErrorType.classify("No results found for query") == ErrorType.DATA
         assert ErrorType.classify("Invalid JSON: parse error") == ErrorType.DATA
 
     def test_error_type_classify_logic(self):
         """Logic errors are classified correctly."""
-        from Jotty.core.execution.types import ErrorType
+        from Jotty.core.modes.execution.types import ErrorType
         assert ErrorType.classify("Element not found: #submit-btn") == ErrorType.LOGIC
         assert ErrorType.classify("Syntax error in expression") == ErrorType.LOGIC
         assert ErrorType.classify("Missing required parameter 'query'") == ErrorType.LOGIC
 
     def test_error_type_classify_fallback(self):
         """Unknown errors default to INFRASTRUCTURE (retryable)."""
-        from Jotty.core.execution.types import ErrorType
+        from Jotty.core.modes.execution.types import ErrorType
         assert ErrorType.classify("Something weird happened") == ErrorType.INFRASTRUCTURE
 
     def test_validation_status_values(self):
         """ValidationStatus enum has all expected members."""
-        from Jotty.core.execution.types import ValidationStatus
+        from Jotty.core.modes.execution.types import ValidationStatus
         assert ValidationStatus.PASS.value == "pass"
         assert ValidationStatus.FAIL.value == "fail"
         assert ValidationStatus.EXTERNAL_ERROR.value == "external_error"
@@ -1139,7 +1139,7 @@ class TestErrorClassification:
 
     def test_validation_verdict_ok(self):
         """ValidationVerdict.ok() creates a passing verdict."""
-        from Jotty.core.execution.types import ValidationVerdict, ValidationStatus, ErrorType
+        from Jotty.core.modes.execution.types import ValidationVerdict, ValidationStatus, ErrorType
         v = ValidationVerdict.ok("All good", confidence=0.95)
         assert v.is_pass is True
         assert v.status == ValidationStatus.PASS
@@ -1148,7 +1148,7 @@ class TestErrorClassification:
 
     def test_validation_verdict_from_error(self):
         """ValidationVerdict.from_error() auto-classifies and sets retryable."""
-        from Jotty.core.execution.types import ValidationVerdict, ValidationStatus, ErrorType
+        from Jotty.core.modes.execution.types import ValidationVerdict, ValidationStatus, ErrorType
         v = ValidationVerdict.from_error("Connection timeout after 30s")
         assert v.is_pass is False
         assert v.error_type == ErrorType.INFRASTRUCTURE
@@ -1157,14 +1157,14 @@ class TestErrorClassification:
 
     def test_validation_verdict_from_logic_error_not_retryable(self):
         """Logic errors are not marked retryable."""
-        from Jotty.core.execution.types import ValidationVerdict, ErrorType
+        from Jotty.core.modes.execution.types import ValidationVerdict, ErrorType
         v = ValidationVerdict.from_error("Element not found: #missing selector")
         assert v.error_type == ErrorType.LOGIC
         assert v.retryable is False
 
     def test_validation_verdict_fields(self):
         """ValidationVerdict fields default correctly."""
-        from Jotty.core.execution.types import ValidationVerdict, ValidationStatus, ErrorType
+        from Jotty.core.modes.execution.types import ValidationVerdict, ValidationStatus, ErrorType
         v = ValidationVerdict(
             status=ValidationStatus.FAIL,
             error_type=ErrorType.DATA,
@@ -1190,7 +1190,7 @@ class TestToolResultProcessor:
 
     def test_process_strips_binary(self):
         """Binary/base64 data is replaced with size placeholder."""
-        from Jotty.core.agents.base.skill_plan_executor import ToolResultProcessor
+        from Jotty.core.modes.agent.base.skill_plan_executor import ToolResultProcessor
         processor = ToolResultProcessor()
         result = processor.process({
             'success': True,
@@ -1203,7 +1203,7 @@ class TestToolResultProcessor:
 
     def test_process_converts_sets(self):
         """Sets are converted to sorted lists."""
-        from Jotty.core.agents.base.skill_plan_executor import ToolResultProcessor
+        from Jotty.core.modes.agent.base.skill_plan_executor import ToolResultProcessor
         processor = ToolResultProcessor()
         result = processor.process({'tags': {'b', 'a', 'c'}})
         assert isinstance(result['tags'], list)
@@ -1211,7 +1211,7 @@ class TestToolResultProcessor:
 
     def test_process_truncates_large_values(self):
         """Large string values are truncated while preserving keys."""
-        from Jotty.core.agents.base.skill_plan_executor import ToolResultProcessor
+        from Jotty.core.modes.agent.base.skill_plan_executor import ToolResultProcessor
         processor = ToolResultProcessor()
         result = processor.process({
             'status': 'ok',
@@ -1224,14 +1224,14 @@ class TestToolResultProcessor:
 
     def test_process_adds_execution_time(self):
         """Elapsed time is added to result."""
-        from Jotty.core.agents.base.skill_plan_executor import ToolResultProcessor
+        from Jotty.core.modes.agent.base.skill_plan_executor import ToolResultProcessor
         processor = ToolResultProcessor()
         result = processor.process({'success': True}, elapsed=1.5)
         assert result['_execution_time_ms'] == 1500.0
 
     def test_process_non_dict_input(self):
         """Non-dict input is wrapped in output key."""
-        from Jotty.core.agents.base.skill_plan_executor import ToolResultProcessor
+        from Jotty.core.modes.agent.base.skill_plan_executor import ToolResultProcessor
         processor = ToolResultProcessor()
         result = processor.process("plain string")
         assert 'output' in result
@@ -1239,7 +1239,7 @@ class TestToolResultProcessor:
 
     def test_process_preserves_small_results(self):
         """Small results pass through unchanged (except set conversion)."""
-        from Jotty.core.agents.base.skill_plan_executor import ToolResultProcessor
+        from Jotty.core.modes.agent.base.skill_plan_executor import ToolResultProcessor
         processor = ToolResultProcessor()
         original = {'success': True, 'path': '/tmp/file.txt', 'bytes': 42}
         result = processor.process(original)
@@ -1489,7 +1489,7 @@ class TestCompletionReviewer:
 
     def test_reviewer_fallback_on_success(self):
         """Fallback heuristic returns 'complete' when result has success=True."""
-        from Jotty.core.agents.inspector import CompletionReviewer
+        from Jotty.core.modes.agent.inspector import CompletionReviewer
         reviewer = CompletionReviewer()
 
         # Mock the predictor to raise, forcing fallback
@@ -1509,7 +1509,7 @@ class TestCompletionReviewer:
 
     def test_reviewer_fallback_on_failure(self):
         """Fallback heuristic returns 'partial' when result has success=False."""
-        from Jotty.core.agents.inspector import CompletionReviewer
+        from Jotty.core.modes.agent.inspector import CompletionReviewer
         reviewer = CompletionReviewer()
 
         reviewer._predictor = Mock(side_effect=Exception("No LLM"))
@@ -1537,7 +1537,7 @@ class TestContextCompressionRetry:
 
     def test_compress_context_preserves_header_and_tail(self):
         """_compress_context keeps first 20% and last portion."""
-        from Jotty.core.agents._inference_mixin import InferenceMixin
+        from Jotty.core.modes.agent._inference_mixin import InferenceMixin
         text = "HEADER " * 100 + "MIDDLE " * 500 + "TAIL " * 100
         compressed = InferenceMixin._compress_context(text, 1000)
         assert len(compressed) <= 1100  # Allow some slack for marker
@@ -1547,14 +1547,14 @@ class TestContextCompressionRetry:
 
     def test_compress_context_noop_for_small(self):
         """Small texts pass through unchanged."""
-        from Jotty.core.agents._inference_mixin import InferenceMixin
+        from Jotty.core.modes.agent._inference_mixin import InferenceMixin
         text = "short text"
         assert InferenceMixin._compress_context(text, 1000) == text
 
     @pytest.mark.asyncio
     async def test_compression_retry_succeeds_first_try(self):
         """No compression when call succeeds on first try."""
-        from Jotty.core.agents._inference_mixin import InferenceMixin
+        from Jotty.core.modes.agent._inference_mixin import InferenceMixin
 
         mixin = InferenceMixin()
 
@@ -1569,7 +1569,7 @@ class TestContextCompressionRetry:
     @pytest.mark.asyncio
     async def test_compression_retry_on_overflow(self):
         """Retries with compression on context_length_exceeded."""
-        from Jotty.core.agents._inference_mixin import InferenceMixin
+        from Jotty.core.modes.agent._inference_mixin import InferenceMixin
 
         mixin = InferenceMixin()
         call_count = 0
@@ -1590,7 +1590,7 @@ class TestContextCompressionRetry:
     @pytest.mark.asyncio
     async def test_compression_retry_raises_non_overflow(self):
         """Non-overflow errors are raised immediately, not retried."""
-        from Jotty.core.agents._inference_mixin import InferenceMixin
+        from Jotty.core.modes.agent._inference_mixin import InferenceMixin
 
         mixin = InferenceMixin()
 
@@ -1775,14 +1775,14 @@ class TestParameterResolver:
 
     def test_resolve_simple_passthrough(self):
         """Params with no templates pass through unchanged."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
         resolver = ParameterResolver({})
         result = resolver.resolve({'query': 'test', 'max': 5})
         assert result == {'query': 'test', 'max': 5}
 
     def test_resolve_template_substitution(self):
         """${ref} templates are resolved from outputs."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
         outputs = {'step_0': {'path': '/tmp/report.pdf', 'success': True}}
         resolver = ParameterResolver(outputs)
         result = resolver.resolve({'file': '${step_0.path}'})
@@ -1790,7 +1790,7 @@ class TestParameterResolver:
 
     def test_resolve_bare_key_to_path(self):
         """Bare output keys (e.g. 'step_0') resolve to matching field."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
         outputs = {'step_0': {'path': '/tmp/result.txt', 'success': True}}
         resolver = ParameterResolver(outputs)
         result = resolver.resolve({'path': 'step_0'})
@@ -1798,7 +1798,7 @@ class TestParameterResolver:
 
     def test_resolve_nested_dict(self):
         """Nested dict params are resolved recursively."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
         outputs = {'step_0': {'url': 'https://example.com'}}
         resolver = ParameterResolver(outputs)
         result = resolver.resolve({'config': {'target': '${step_0.url}'}})
@@ -1806,26 +1806,26 @@ class TestParameterResolver:
 
     def test_resolve_max_depth_protection(self):
         """Deeply nested params hit max depth and return as-is."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
         resolver = ParameterResolver({})
         result = resolver.resolve({'key': 'val'}, _depth=11)
         assert result == {'key': 'val'}
 
     def test_is_bad_content_short(self):
         """Short strings are detected as bad content."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
         resolver = ParameterResolver({})
         assert resolver._is_bad_content("too short") is True
 
     def test_is_bad_content_success_json(self):
         """Success JSON responses are detected as bad content."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
         resolver = ParameterResolver({})
         assert resolver._is_bad_content('{"success": true, "bytes_written": 42}') is True
 
     def test_is_bad_content_good(self):
         """Real content passes the check."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
         resolver = ParameterResolver({})
         # Must be >300 chars or >80 chars without instruction prefixes
         good_content = "Python is a versatile language used in web development, data science, and AI. " * 5
@@ -1833,21 +1833,21 @@ class TestParameterResolver:
 
     def test_resolve_path_dotted(self):
         """Dotted paths like 'step_0.output' are resolved."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
         outputs = {'step_0': {'output': 'hello world'}}
         resolver = ParameterResolver(outputs)
         assert resolver.resolve_path('step_0.output') == 'hello world'
 
     def test_resolve_path_array_index(self):
         """Array index paths like 'step_0.items[0]' are resolved."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
         outputs = {'step_0': {'items': ['first', 'second']}}
         resolver = ParameterResolver(outputs)
         assert resolver.resolve_path('step_0.items[0]') == 'first'
 
     def test_resolve_path_missing_returns_unresolved(self):
         """Missing path keys return unresolved path (no broadcast scan)."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
         outputs = {'step_0': {'content': 'actual content that is long enough to be valid for fallback resolution purposes'}}
         resolver = ParameterResolver(outputs)
         result = resolver.resolve_path('step_99.content')
@@ -1856,7 +1856,7 @@ class TestParameterResolver:
 
     def test_sanitize_command_long_text(self):
         """Long non-command text in 'command' param gets auto-fixed."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
         outputs = {'step_0': {'path': '/tmp/script.py', 'success': True}}
         resolver = ParameterResolver(outputs)
         long_text = "This is a very long text " * 20  # > 150 chars, > 15 spaces
@@ -1865,7 +1865,7 @@ class TestParameterResolver:
 
     def test_sanitize_path_long_content(self):
         """Long content in 'path' param gets auto-fixed to real path."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
         outputs = {'step_0': {'path': '/tmp/output.txt', 'success': True}}
         resolver = ParameterResolver(outputs)
         long_content = "x" * 300  # > 200 chars
@@ -1874,7 +1874,7 @@ class TestParameterResolver:
 
     def test_find_best_content(self):
         """_find_best_content returns longest valid content from outputs."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
         short_content = "short"
         good_content = "A" * 200
         outputs = {
@@ -1886,7 +1886,7 @@ class TestParameterResolver:
 
     def test_aggregate_research_outputs(self):
         """Research outputs are aggregated into formatted markdown."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
         outputs = {
             'research_0': {
                 'query': 'AI trends',
@@ -1902,7 +1902,7 @@ class TestParameterResolver:
 
     def test_backward_compat_import(self):
         """ParameterResolver can still be imported from skill_plan_executor."""
-        from Jotty.core.agents.base.skill_plan_executor import ParameterResolver
+        from Jotty.core.modes.agent.base.skill_plan_executor import ParameterResolver
         assert ParameterResolver is not None
         resolver = ParameterResolver({})
         assert resolver.resolve({'key': 'val'}) == {'key': 'val'}
@@ -1918,7 +1918,7 @@ class TestParadigmExecutorUnit:
 
     def test_aggregate_empty_results(self):
         """Empty results produce failed EpisodeResult."""
-        from Jotty.core.orchestration.paradigm_executor import ParadigmExecutor
+        from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor
         from unittest.mock import Mock
         manager = Mock()
         manager.episode_count = 0
@@ -1929,8 +1929,8 @@ class TestParadigmExecutorUnit:
 
     def test_aggregate_single_result(self):
         """Single result is returned as-is."""
-        from Jotty.core.orchestration.paradigm_executor import ParadigmExecutor
-        from Jotty.core.foundation.data_structures import EpisodeResult
+        from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor
+        from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult
         from unittest.mock import Mock
         manager = Mock()
         executor = ParadigmExecutor(manager)
@@ -1944,8 +1944,8 @@ class TestParadigmExecutorUnit:
 
     def test_aggregate_multiple_results(self):
         """Multiple results are combined with merged contributions."""
-        from Jotty.core.orchestration.paradigm_executor import ParadigmExecutor
-        from Jotty.core.foundation.data_structures import EpisodeResult
+        from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor
+        from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult
         from unittest.mock import Mock
         manager = Mock()
         manager.episode_count = 1
@@ -1976,7 +1976,7 @@ class TestTrainingDaemonUnit:
 
     def test_status_not_running(self):
         """Status shows not running when no daemon task exists."""
-        from Jotty.core.orchestration.training_daemon import TrainingDaemon
+        from Jotty.core.intelligence.orchestration.training_daemon import TrainingDaemon
         from unittest.mock import Mock
         manager = Mock()
         daemon = TrainingDaemon(manager)
@@ -1988,7 +1988,7 @@ class TestTrainingDaemonUnit:
 
     def test_pending_count_no_learning(self):
         """Pending count returns 0 when learning unavailable."""
-        from Jotty.core.orchestration.training_daemon import TrainingDaemon
+        from Jotty.core.intelligence.orchestration.training_daemon import TrainingDaemon
         from unittest.mock import Mock
         manager = Mock()
         manager.learning.pending_training_count.side_effect = Exception("no learning")
@@ -1997,7 +1997,7 @@ class TestTrainingDaemonUnit:
 
     def test_stop_not_running(self):
         """Stop returns False when daemon is not running."""
-        from Jotty.core.orchestration.training_daemon import TrainingDaemon
+        from Jotty.core.intelligence.orchestration.training_daemon import TrainingDaemon
         from unittest.mock import Mock
         manager = Mock()
         daemon = TrainingDaemon(manager)
@@ -2014,14 +2014,14 @@ class TestPlanParsing:
 
     def test_normalize_raw_plan_list_passthrough(self):
         """Lists pass through normalization unchanged."""
-        from Jotty.core.agents._plan_utils_mixin import PlanUtilsMixin
+        from Jotty.core.modes.agent._plan_utils_mixin import PlanUtilsMixin
         mixin = PlanUtilsMixin()
         result = mixin._normalize_raw_plan([{'step': 1}])
         assert result == [{'step': 1}]
 
     def test_normalize_raw_plan_json_string(self):
         """JSON string is parsed to list."""
-        from Jotty.core.agents._plan_utils_mixin import PlanUtilsMixin
+        from Jotty.core.modes.agent._plan_utils_mixin import PlanUtilsMixin
         import json
         mixin = PlanUtilsMixin()
         plan_data = [{'skill_name': 'web-search', 'tool_name': 'search'}]
@@ -2031,7 +2031,7 @@ class TestPlanParsing:
 
     def test_normalize_raw_plan_code_block(self):
         """JSON in markdown code block is extracted."""
-        from Jotty.core.agents._plan_utils_mixin import PlanUtilsMixin
+        from Jotty.core.modes.agent._plan_utils_mixin import PlanUtilsMixin
         import json
         mixin = PlanUtilsMixin()
         plan_data = [{'skill_name': 'test'}]
@@ -2041,14 +2041,14 @@ class TestPlanParsing:
 
     def test_normalize_raw_plan_empty(self):
         """None/empty input returns empty list."""
-        from Jotty.core.agents._plan_utils_mixin import PlanUtilsMixin
+        from Jotty.core.modes.agent._plan_utils_mixin import PlanUtilsMixin
         mixin = PlanUtilsMixin()
         assert mixin._normalize_raw_plan(None) == []
         assert mixin._normalize_raw_plan('') == []
 
     def test_extract_comparison_entities_vs(self):
         """'vs' pattern extracts entities."""
-        from Jotty.core.agents._plan_utils_mixin import PlanUtilsMixin
+        from Jotty.core.modes.agent._plan_utils_mixin import PlanUtilsMixin
         mixin = PlanUtilsMixin()
         result = mixin._extract_comparison_entities("Compare Python vs JavaScript")
         assert len(result) == 2
@@ -2057,21 +2057,21 @@ class TestPlanParsing:
 
     def test_extract_comparison_entities_between(self):
         """'difference between X and Y' pattern works."""
-        from Jotty.core.agents._plan_utils_mixin import PlanUtilsMixin
+        from Jotty.core.modes.agent._plan_utils_mixin import PlanUtilsMixin
         mixin = PlanUtilsMixin()
         result = mixin._extract_comparison_entities("difference between React and Vue, create report")
         assert len(result) == 2
 
     def test_extract_comparison_entities_none(self):
         """Non-comparison tasks return empty list."""
-        from Jotty.core.agents._plan_utils_mixin import PlanUtilsMixin
+        from Jotty.core.modes.agent._plan_utils_mixin import PlanUtilsMixin
         mixin = PlanUtilsMixin()
         result = mixin._extract_comparison_entities("Research AI trends")
         assert result == []
 
     def test_extract_comparison_entities_triple(self):
         """Three-way comparison extracts all entities."""
-        from Jotty.core.agents._plan_utils_mixin import PlanUtilsMixin
+        from Jotty.core.modes.agent._plan_utils_mixin import PlanUtilsMixin
         mixin = PlanUtilsMixin()
         result = mixin._extract_comparison_entities("Compare Python vs JavaScript vs Ruby")
         assert len(result) == 3
@@ -2306,7 +2306,7 @@ class TestEffectivenessTracker:
 
     def test_record_and_report(self):
         """Basic record + improvement_report."""
-        from Jotty.core.orchestration.learning_pipeline import EffectivenessTracker
+        from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
         tracker = EffectivenessTracker(recent_window=3, historical_window=10)
         tracker.record("analysis", success=True, quality=0.8)
         tracker.record("analysis", success=False, quality=0.2)
@@ -2317,7 +2317,7 @@ class TestEffectivenessTracker:
 
     def test_split_windows(self):
         """Records split into recent and historical correctly."""
-        from Jotty.core.orchestration.learning_pipeline import EffectivenessTracker
+        from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
         tracker = EffectivenessTracker(recent_window=2, historical_window=10)
         # Add 5 records
         for i in range(5):
@@ -2328,7 +2328,7 @@ class TestEffectivenessTracker:
 
     def test_split_windows_few_records(self):
         """With fewer records than recent_window, all go to recent."""
-        from Jotty.core.orchestration.learning_pipeline import EffectivenessTracker
+        from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
         tracker = EffectivenessTracker(recent_window=10, historical_window=50)
         tracker.record("task", success=True, quality=0.5)
         recent, historical = tracker._split_windows(tracker._records["task"])
@@ -2337,7 +2337,7 @@ class TestEffectivenessTracker:
 
     def test_rate_empty(self):
         """_rate of empty list returns (0.0, 0.0)."""
-        from Jotty.core.orchestration.learning_pipeline import EffectivenessTracker
+        from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
         tracker = EffectivenessTracker()
         rate, quality = tracker._rate([])
         assert rate == 0.0
@@ -2345,7 +2345,7 @@ class TestEffectivenessTracker:
 
     def test_rate_calculation(self):
         """_rate computes success rate and avg quality correctly."""
-        from Jotty.core.orchestration.learning_pipeline import EffectivenessTracker
+        from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
         import time
         tracker = EffectivenessTracker()
         records = [
@@ -2359,7 +2359,7 @@ class TestEffectivenessTracker:
 
     def test_is_improving_insufficient_history(self):
         """is_improving returns False without enough historical data."""
-        from Jotty.core.orchestration.learning_pipeline import EffectivenessTracker
+        from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
         tracker = EffectivenessTracker(recent_window=2, historical_window=10)
         tracker.record("task", success=True, quality=0.9)
         tracker.record("task", success=True, quality=0.9)
@@ -2368,7 +2368,7 @@ class TestEffectivenessTracker:
 
     def test_is_improving_with_trend(self):
         """is_improving returns True when recent > historical and enough data."""
-        from Jotty.core.orchestration.learning_pipeline import EffectivenessTracker
+        from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
         tracker = EffectivenessTracker(recent_window=3, historical_window=10)
         # Historical: all failures (5 records)
         for _ in range(5):
@@ -2380,7 +2380,7 @@ class TestEffectivenessTracker:
 
     def test_is_improving_global(self):
         """is_improving() without task_type checks global."""
-        from Jotty.core.orchestration.learning_pipeline import EffectivenessTracker
+        from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
         tracker = EffectivenessTracker(recent_window=3, historical_window=10)
         # Historical: failures
         for _ in range(5):
@@ -2392,7 +2392,7 @@ class TestEffectivenessTracker:
 
     def test_to_dict_roundtrip(self):
         """to_dict / from_dict roundtrip preserves data."""
-        from Jotty.core.orchestration.learning_pipeline import EffectivenessTracker
+        from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
         tracker = EffectivenessTracker(recent_window=5, historical_window=20)
         tracker.record("analysis", success=True, quality=0.8, agent="planner")
         tracker.record("analysis", success=False, quality=0.3, agent="executor")
@@ -2409,7 +2409,7 @@ class TestEffectivenessTracker:
 
     def test_quality_clamped(self):
         """Quality values are clamped to [0.0, 1.0]."""
-        from Jotty.core.orchestration.learning_pipeline import EffectivenessTracker
+        from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
         tracker = EffectivenessTracker()
         tracker.record("task", success=True, quality=-0.5)
         tracker.record("task", success=True, quality=2.0)
@@ -2419,7 +2419,7 @@ class TestEffectivenessTracker:
 
     def test_report_trend_positive(self):
         """Report shows positive trend when recent beats historical."""
-        from Jotty.core.orchestration.learning_pipeline import EffectivenessTracker
+        from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
         tracker = EffectivenessTracker(recent_window=2, historical_window=10)
         # All historical failures
         for _ in range(5):
@@ -2434,7 +2434,7 @@ class TestEffectivenessTracker:
 
     def test_report_trend_negative(self):
         """Report shows negative trend when recent is worse."""
-        from Jotty.core.orchestration.learning_pipeline import EffectivenessTracker
+        from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
         tracker = EffectivenessTracker(recent_window=2, historical_window=10)
         # Historical successes
         for _ in range(5):
@@ -2448,7 +2448,7 @@ class TestEffectivenessTracker:
 
     def test_multiple_task_types(self):
         """Different task types tracked independently."""
-        from Jotty.core.orchestration.learning_pipeline import EffectivenessTracker
+        from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
         tracker = EffectivenessTracker()
         tracker.record("analysis", success=True, quality=0.9)
         tracker.record("coding", success=False, quality=0.2)
@@ -2469,25 +2469,25 @@ class TestAsyncUtils:
 
     def test_safe_status_none_callback(self):
         """safe_status with None callback is a no-op."""
-        from Jotty.core.utils.async_utils import safe_status
+        from Jotty.core.infrastructure.utils.async_utils import safe_status
         safe_status(None, "Planning", "step 1")  # Should not raise
 
     def test_safe_status_calls_callback(self):
         """safe_status invokes the callback with stage and detail."""
-        from Jotty.core.utils.async_utils import safe_status
+        from Jotty.core.infrastructure.utils.async_utils import safe_status
         cb = Mock()
         safe_status(cb, "Planning", "step 1")
         cb.assert_called_once_with("Planning", "step 1")
 
     def test_safe_status_suppresses_exception(self):
         """safe_status swallows callback exceptions."""
-        from Jotty.core.utils.async_utils import safe_status
+        from Jotty.core.infrastructure.utils.async_utils import safe_status
         cb = Mock(side_effect=RuntimeError("callback broken"))
         safe_status(cb, "Planning", "step 1")  # Should not raise
 
     def test_status_reporter_calls_callback_and_logs(self):
         """StatusReporter invokes callback and logs."""
-        from Jotty.core.utils.async_utils import StatusReporter
+        from Jotty.core.infrastructure.utils.async_utils import StatusReporter
         cb = Mock()
         mock_logger = Mock()
         reporter = StatusReporter(cb, mock_logger, emoji="")
@@ -2497,7 +2497,7 @@ class TestAsyncUtils:
 
     def test_status_reporter_with_prefix(self):
         """StatusReporter.with_prefix() prepends prefix to stage."""
-        from Jotty.core.utils.async_utils import StatusReporter
+        from Jotty.core.infrastructure.utils.async_utils import StatusReporter
         cb = Mock()
         reporter = StatusReporter(cb)
         sub = reporter.with_prefix("[agent1]")
@@ -2506,7 +2506,7 @@ class TestAsyncUtils:
 
     def test_status_reporter_no_callback(self):
         """StatusReporter with None callback only logs."""
-        from Jotty.core.utils.async_utils import StatusReporter
+        from Jotty.core.infrastructure.utils.async_utils import StatusReporter
         mock_logger = Mock()
         reporter = StatusReporter(None, mock_logger)
         reporter("Planning", "detail")
@@ -2514,7 +2514,7 @@ class TestAsyncUtils:
 
     def test_ensure_async_wraps_sync(self):
         """ensure_async wraps a sync function to be awaitable."""
-        from Jotty.core.utils.async_utils import ensure_async
+        from Jotty.core.infrastructure.utils.async_utils import ensure_async
         def sync_fn(x):
             return x * 2
         async_fn = ensure_async(sync_fn)
@@ -2522,7 +2522,7 @@ class TestAsyncUtils:
 
     def test_ensure_async_passthrough_async(self):
         """ensure_async returns async functions unchanged."""
-        from Jotty.core.utils.async_utils import ensure_async
+        from Jotty.core.infrastructure.utils.async_utils import ensure_async
         async def async_fn(x):
             return x * 2
         result = ensure_async(async_fn)
@@ -2531,7 +2531,7 @@ class TestAsyncUtils:
     @pytest.mark.asyncio
     async def test_ensure_async_result(self):
         """ensure_async wrapped function returns correct result."""
-        from Jotty.core.utils.async_utils import ensure_async
+        from Jotty.core.infrastructure.utils.async_utils import ensure_async
         def sync_fn(x):
             return x * 2
         async_fn = ensure_async(sync_fn)
@@ -2541,7 +2541,7 @@ class TestAsyncUtils:
     @pytest.mark.asyncio
     async def test_gather_with_limit(self):
         """gather_with_limit runs coroutines with concurrency limiting."""
-        from Jotty.core.utils.async_utils import gather_with_limit
+        from Jotty.core.infrastructure.utils.async_utils import gather_with_limit
         results = []
         async def task(n):
             results.append(n)
@@ -2552,7 +2552,7 @@ class TestAsyncUtils:
 
     def test_agent_event_creation(self):
         """AgentEvent initializes with correct fields."""
-        from Jotty.core.utils.async_utils import AgentEvent
+        from Jotty.core.infrastructure.utils.async_utils import AgentEvent
         event = AgentEvent(type="tool_start", data={"skill": "web-search"}, agent_id="agent1")
         assert event.type == "tool_start"
         assert event.data == {"skill": "web-search"}
@@ -2561,13 +2561,13 @@ class TestAsyncUtils:
 
     def test_agent_event_unknown_type_no_error(self):
         """AgentEvent with unknown type doesn't raise (just logs debug)."""
-        from Jotty.core.utils.async_utils import AgentEvent
+        from Jotty.core.infrastructure.utils.async_utils import AgentEvent
         event = AgentEvent(type="unknown_type")  # Should not raise
         assert event.type == "unknown_type"
 
     def test_broadcaster_singleton(self):
         """AgentEventBroadcaster.get_instance() returns singleton."""
-        from Jotty.core.utils.async_utils import AgentEventBroadcaster
+        from Jotty.core.infrastructure.utils.async_utils import AgentEventBroadcaster
         AgentEventBroadcaster.reset_instance()
         try:
             b1 = AgentEventBroadcaster.get_instance()
@@ -2578,7 +2578,7 @@ class TestAsyncUtils:
 
     def test_broadcaster_reset(self):
         """reset_instance() creates fresh singleton on next call."""
-        from Jotty.core.utils.async_utils import AgentEventBroadcaster
+        from Jotty.core.infrastructure.utils.async_utils import AgentEventBroadcaster
         AgentEventBroadcaster.reset_instance()
         try:
             b1 = AgentEventBroadcaster.get_instance()
@@ -2590,7 +2590,7 @@ class TestAsyncUtils:
 
     def test_broadcaster_subscribe_and_emit(self):
         """subscribe + emit delivers events to listeners."""
-        from Jotty.core.utils.async_utils import AgentEventBroadcaster, AgentEvent
+        from Jotty.core.infrastructure.utils.async_utils import AgentEventBroadcaster, AgentEvent
         AgentEventBroadcaster.reset_instance()
         try:
             bus = AgentEventBroadcaster.get_instance()
@@ -2605,7 +2605,7 @@ class TestAsyncUtils:
 
     def test_broadcaster_unsubscribe(self):
         """unsubscribe removes listener."""
-        from Jotty.core.utils.async_utils import AgentEventBroadcaster, AgentEvent
+        from Jotty.core.infrastructure.utils.async_utils import AgentEventBroadcaster, AgentEvent
         AgentEventBroadcaster.reset_instance()
         try:
             bus = AgentEventBroadcaster.get_instance()
@@ -2620,7 +2620,7 @@ class TestAsyncUtils:
 
     def test_broadcaster_emit_suppresses_listener_error(self):
         """emit swallows exceptions from listeners."""
-        from Jotty.core.utils.async_utils import AgentEventBroadcaster, AgentEvent
+        from Jotty.core.infrastructure.utils.async_utils import AgentEventBroadcaster, AgentEvent
         AgentEventBroadcaster.reset_instance()
         try:
             bus = AgentEventBroadcaster.get_instance()
@@ -2635,7 +2635,7 @@ class TestAsyncUtils:
 
     def test_broadcaster_unsubscribe_nonexistent(self):
         """unsubscribe with non-subscribed callback is a no-op."""
-        from Jotty.core.utils.async_utils import AgentEventBroadcaster
+        from Jotty.core.infrastructure.utils.async_utils import AgentEventBroadcaster
         AgentEventBroadcaster.reset_instance()
         try:
             bus = AgentEventBroadcaster.get_instance()
@@ -2653,13 +2653,13 @@ class TestCircuitBreaker:
     """Test CircuitBreaker state machine."""
 
     def test_initial_state_closed(self):
-        from Jotty.core.execution.types import CircuitBreaker, CircuitState
+        from Jotty.core.modes.execution.types import CircuitBreaker, CircuitState
         cb = CircuitBreaker("test", failure_threshold=3, cooldown_seconds=10)
         assert cb.state == CircuitState.CLOSED
         assert cb.allow_request()
 
     def test_trips_after_threshold(self):
-        from Jotty.core.execution.types import CircuitBreaker, CircuitState
+        from Jotty.core.modes.execution.types import CircuitBreaker, CircuitState
         cb = CircuitBreaker("test", failure_threshold=3, cooldown_seconds=60)
         for _ in range(3):
             cb.record_failure()
@@ -2667,7 +2667,7 @@ class TestCircuitBreaker:
         assert not cb.allow_request()
 
     def test_resets_on_success(self):
-        from Jotty.core.execution.types import CircuitBreaker, CircuitState
+        from Jotty.core.modes.execution.types import CircuitBreaker, CircuitState
         cb = CircuitBreaker("test", failure_threshold=3, cooldown_seconds=60)
         cb.record_failure()
         cb.record_failure()
@@ -2676,7 +2676,7 @@ class TestCircuitBreaker:
         assert cb.allow_request()
 
     def test_half_open_after_cooldown(self):
-        from Jotty.core.execution.types import CircuitBreaker, CircuitState
+        from Jotty.core.modes.execution.types import CircuitBreaker, CircuitState
         cb = CircuitBreaker("test", failure_threshold=2, cooldown_seconds=0.01)
         cb.record_failure()
         cb.record_failure()
@@ -2687,7 +2687,7 @@ class TestCircuitBreaker:
         assert cb.allow_request()
 
     def test_manual_reset(self):
-        from Jotty.core.execution.types import CircuitBreaker, CircuitState
+        from Jotty.core.modes.execution.types import CircuitBreaker, CircuitState
         cb = CircuitBreaker("test", failure_threshold=1, cooldown_seconds=999)
         cb.record_failure()
         assert cb.state == CircuitState.OPEN
@@ -2700,12 +2700,12 @@ class TestAdaptiveTimeout:
     """Test AdaptiveTimeout P95 calculation."""
 
     def test_default_when_no_observations(self):
-        from Jotty.core.execution.types import AdaptiveTimeout
+        from Jotty.core.modes.execution.types import AdaptiveTimeout
         at = AdaptiveTimeout(default_seconds=30)
         assert at.get("unknown_op") == 30.0
 
     def test_adaptive_after_observations(self):
-        from Jotty.core.execution.types import AdaptiveTimeout
+        from Jotty.core.modes.execution.types import AdaptiveTimeout
         at = AdaptiveTimeout(default_seconds=30, min_seconds=1, max_seconds=100)
         for _ in range(10):
             at.record("llm_call", 2.0)
@@ -2714,7 +2714,7 @@ class TestAdaptiveTimeout:
         assert timeout < 30.0  # Should be much less than default
 
     def test_respects_min_max(self):
-        from Jotty.core.execution.types import AdaptiveTimeout
+        from Jotty.core.modes.execution.types import AdaptiveTimeout
         at = AdaptiveTimeout(min_seconds=5, max_seconds=10)
         for _ in range(10):
             at.record("fast_op", 0.1)
@@ -2730,27 +2730,27 @@ class TestDeadLetterQueue:
     """Test DLQ enqueue/retry/resolve."""
 
     def test_enqueue_and_size(self):
-        from Jotty.core.execution.types import DeadLetterQueue, ErrorType
+        from Jotty.core.modes.execution.types import DeadLetterQueue, ErrorType
         dlq = DeadLetterQueue(max_size=10)
         dlq.enqueue("search", {"query": "test"}, "timeout", ErrorType.INFRASTRUCTURE)
         assert dlq.size == 1
 
     def test_get_retryable(self):
-        from Jotty.core.execution.types import DeadLetterQueue, ErrorType
+        from Jotty.core.modes.execution.types import DeadLetterQueue, ErrorType
         dlq = DeadLetterQueue()
         dlq.enqueue("op1", {}, "error1", ErrorType.INFRASTRUCTURE)
         retryable = dlq.get_retryable()
         assert len(retryable) == 1
 
     def test_mark_resolved(self):
-        from Jotty.core.execution.types import DeadLetterQueue, ErrorType
+        from Jotty.core.modes.execution.types import DeadLetterQueue, ErrorType
         dlq = DeadLetterQueue()
         letter = dlq.enqueue("op1", {}, "error1")
         dlq.mark_resolved(letter)
         assert dlq.size == 0
 
     def test_retry_all(self):
-        from Jotty.core.execution.types import DeadLetterQueue, ErrorType
+        from Jotty.core.modes.execution.types import DeadLetterQueue, ErrorType
         dlq = DeadLetterQueue()
         dlq.enqueue("op1", {}, "error1")
         dlq.enqueue("op2", {}, "error2")
@@ -2759,7 +2759,7 @@ class TestDeadLetterQueue:
         assert dlq.size == 0
 
     def test_max_size_eviction(self):
-        from Jotty.core.execution.types import DeadLetterQueue
+        from Jotty.core.modes.execution.types import DeadLetterQueue
         dlq = DeadLetterQueue(max_size=2)
         dlq.enqueue("op1", {}, "e1")
         dlq.enqueue("op2", {}, "e2")
@@ -2772,13 +2772,13 @@ class TestTimeoutWarning:
     """Test TimeoutWarning threshold detection."""
 
     def test_no_warning_before_threshold(self):
-        from Jotty.core.execution.types import TimeoutWarning
+        from Jotty.core.modes.execution.types import TimeoutWarning
         tw = TimeoutWarning(timeout_seconds=100)
         tw.start()
         assert tw.check() is None  # Just started
 
     def test_warning_at_threshold(self):
-        from Jotty.core.execution.types import TimeoutWarning
+        from Jotty.core.modes.execution.types import TimeoutWarning
         tw = TimeoutWarning(timeout_seconds=0.01)
         tw.start()
         import time
@@ -2788,7 +2788,7 @@ class TestTimeoutWarning:
         assert "TIMEOUT WARNING" in warning
 
     def test_is_expired(self):
-        from Jotty.core.execution.types import TimeoutWarning
+        from Jotty.core.modes.execution.types import TimeoutWarning
         tw = TimeoutWarning(timeout_seconds=0.01)
         tw.start()
         import time
@@ -2796,7 +2796,7 @@ class TestTimeoutWarning:
         assert tw.is_expired
 
     def test_fraction_used(self):
-        from Jotty.core.execution.types import TimeoutWarning
+        from Jotty.core.modes.execution.types import TimeoutWarning
         tw = TimeoutWarning(timeout_seconds=100)
         tw.start()
         assert tw.fraction_used < 0.01
@@ -2811,7 +2811,7 @@ class TestProactiveContextGuard:
     """Test proactive context guard assembly."""
 
     def test_fits_in_budget(self):
-        from Jotty.core.agents._inference_mixin import InferenceMixin, ContextPriority
+        from Jotty.core.modes.agent._inference_mixin import InferenceMixin, ContextPriority
         mixin = InferenceMixin()
         sections = [
             (ContextPriority.CRITICAL, "instruction", "Do X"),
@@ -2823,7 +2823,7 @@ class TestProactiveContextGuard:
         assert "tool1" in result
 
     def test_compresses_low_priority(self):
-        from Jotty.core.agents._inference_mixin import InferenceMixin, ContextPriority
+        from Jotty.core.modes.agent._inference_mixin import InferenceMixin, ContextPriority
         mixin = InferenceMixin()
         # Create sections where LOW is very large
         sections = [
@@ -2835,7 +2835,7 @@ class TestProactiveContextGuard:
         assert len(result) < 100000  # Should be compressed
 
     def test_estimate_tokens(self):
-        from Jotty.core.agents._inference_mixin import InferenceMixin
+        from Jotty.core.modes.agent._inference_mixin import InferenceMixin
         tokens = InferenceMixin._estimate_tokens("Hello world test")
         assert tokens > 0
         assert tokens < 100
@@ -2850,13 +2850,13 @@ class TestReActMode:
     """Test ReAct execution mode configuration."""
 
     def test_react_config_defaults(self):
-        from Jotty.core.agents.base.domain_agent import DomainAgentConfig
+        from Jotty.core.modes.agent.base.domain_agent import DomainAgentConfig
         config = DomainAgentConfig(use_react=True)
         assert config.use_react is True
         assert config.max_react_iters == 5
 
     def test_react_mode_disabled_by_default(self):
-        from Jotty.core.agents.base.domain_agent import DomainAgentConfig
+        from Jotty.core.modes.agent.base.domain_agent import DomainAgentConfig
         config = DomainAgentConfig()
         assert config.use_react is False
 
@@ -2870,7 +2870,7 @@ class TestAnalyzedRetry:
     """Test LLM-analyzed retry and trajectory preservation."""
 
     def _make_agent(self):
-        from Jotty.core.agents.base.base_agent import BaseAgent, AgentRuntimeConfig
+        from Jotty.core.modes.agent.base.base_agent import BaseAgent, AgentRuntimeConfig
         class _Dummy(BaseAgent):
             async def _execute_impl(self, **kw):
                 return {}
@@ -2895,7 +2895,7 @@ class TestAnalyzedRetry:
 
     @pytest.mark.asyncio
     async def test_trajectory_preserved_across_retries(self):
-        from Jotty.core.agents.base.base_agent import BaseAgent, AgentRuntimeConfig
+        from Jotty.core.modes.agent.base.base_agent import BaseAgent, AgentRuntimeConfig
 
         call_count = 0
         class FailThenSucceed(BaseAgent):
@@ -2926,19 +2926,19 @@ class TestToolCallCache:
     """Test ToolCallCache TTL and LRU."""
 
     def test_cache_set_and_get(self):
-        from Jotty.core.agents.base.skill_plan_executor import ToolCallCache
+        from Jotty.core.modes.agent.base.skill_plan_executor import ToolCallCache
         cache = ToolCallCache(ttl_seconds=60)
         key = cache.make_key("web-search", "search_tool", {"query": "test"})
         cache.set(key, {"result": "data"})
         assert cache.get(key) == {"result": "data"}
 
     def test_cache_miss(self):
-        from Jotty.core.agents.base.skill_plan_executor import ToolCallCache
+        from Jotty.core.modes.agent.base.skill_plan_executor import ToolCallCache
         cache = ToolCallCache()
         assert cache.get("nonexistent") is None
 
     def test_cache_ttl_expiry(self):
-        from Jotty.core.agents.base.skill_plan_executor import ToolCallCache
+        from Jotty.core.modes.agent.base.skill_plan_executor import ToolCallCache
         cache = ToolCallCache(ttl_seconds=0.01)
         key = "test"
         cache.set(key, "value")
@@ -2947,7 +2947,7 @@ class TestToolCallCache:
         assert cache.get(key) is None
 
     def test_cache_max_size_eviction(self):
-        from Jotty.core.agents.base.skill_plan_executor import ToolCallCache
+        from Jotty.core.modes.agent.base.skill_plan_executor import ToolCallCache
         cache = ToolCallCache(max_size=2)
         cache.set("k1", "v1")
         cache.set("k2", "v2")
@@ -2955,7 +2955,7 @@ class TestToolCallCache:
         assert cache.size == 2
 
     def test_deterministic_key(self):
-        from Jotty.core.agents.base.skill_plan_executor import ToolCallCache
+        from Jotty.core.modes.agent.base.skill_plan_executor import ToolCallCache
         k1 = ToolCallCache.make_key("s", "t", {"a": 1, "b": 2})
         k2 = ToolCallCache.make_key("s", "t", {"b": 2, "a": 1})
         assert k1 == k2  # Same regardless of dict order
@@ -2966,7 +2966,7 @@ class TestDAGExecution:
     """Test DAG dependency graph and parallel grouping."""
 
     def test_build_dependency_graph(self):
-        from Jotty.core.agents.base.skill_plan_executor import SkillPlanExecutor
+        from Jotty.core.modes.agent.base.skill_plan_executor import SkillPlanExecutor
         executor = SkillPlanExecutor(skills_registry=None)
         steps = [Mock(depends_on=[]), Mock(depends_on=[0]), Mock(depends_on=[0])]
         graph = executor._build_dependency_graph(steps)
@@ -2975,7 +2975,7 @@ class TestDAGExecution:
         assert graph[2] == [0]
 
     def test_find_parallel_groups(self):
-        from Jotty.core.agents.base.skill_plan_executor import SkillPlanExecutor
+        from Jotty.core.modes.agent.base.skill_plan_executor import SkillPlanExecutor
         executor = SkillPlanExecutor(skills_registry=None)
         # Step 0: no deps, Step 1: depends on 0, Step 2: depends on 0
         steps = [Mock(depends_on=[]), Mock(depends_on=[0]), Mock(depends_on=[0])]
@@ -2984,7 +2984,7 @@ class TestDAGExecution:
         assert set(layers[1]) == {1, 2}  # Steps 1,2 in parallel
 
     def test_sequential_chain(self):
-        from Jotty.core.agents.base.skill_plan_executor import SkillPlanExecutor
+        from Jotty.core.modes.agent.base.skill_plan_executor import SkillPlanExecutor
         executor = SkillPlanExecutor(skills_registry=None)
         steps = [Mock(depends_on=[]), Mock(depends_on=[0]), Mock(depends_on=[1])]
         layers = executor._find_parallel_groups(steps)
@@ -3000,18 +3000,18 @@ class TestSkillQTable:
     """Test Q-learning for skill selection."""
 
     def test_initial_q_value(self):
-        from Jotty.core.learning.td_lambda import SkillQTable
+        from Jotty.core.intelligence.learning.td_lambda import SkillQTable
         q = SkillQTable()
         assert q.get_q("research", "web-search") == 0.5  # Optimistic default
 
     def test_update_q_value(self):
-        from Jotty.core.learning.td_lambda import SkillQTable
+        from Jotty.core.intelligence.learning.td_lambda import SkillQTable
         q = SkillQTable(alpha=0.5)
         q.update("research", "web-search", reward=1.0)
         assert q.get_q("research", "web-search") > 0.5
 
     def test_select_ranks_by_q(self):
-        from Jotty.core.learning.td_lambda import SkillQTable
+        from Jotty.core.intelligence.learning.td_lambda import SkillQTable
         q = SkillQTable(epsilon=0.0)  # No exploration
         q.update("research", "good-skill", reward=0.9)
         q.update("research", "bad-skill", reward=0.1)
@@ -3019,7 +3019,7 @@ class TestSkillQTable:
         assert ranked[0] == "good-skill"
 
     def test_serialization(self):
-        from Jotty.core.learning.td_lambda import SkillQTable
+        from Jotty.core.intelligence.learning.td_lambda import SkillQTable
         q = SkillQTable()
         q.update("test", "s1", 0.8)
         data = q.to_dict()
@@ -3032,12 +3032,12 @@ class TestCOMACredit:
     """Test counterfactual credit assignment."""
 
     def test_initial_credit_zero(self):
-        from Jotty.core.learning.td_lambda import COMACredit
+        from Jotty.core.intelligence.learning.td_lambda import COMACredit
         coma = COMACredit()
         assert coma.get_credit("unknown") == 0.0
 
     def test_credit_after_episodes(self):
-        from Jotty.core.learning.td_lambda import COMACredit
+        from Jotty.core.intelligence.learning.td_lambda import COMACredit
         coma = COMACredit()
         # Agent A present in good episodes
         coma.record_episode(0.9, {"A": 0.5, "B": 0.4})
@@ -3048,7 +3048,7 @@ class TestCOMACredit:
         assert credit_a > 0  # A helps the team
 
     def test_get_all_credits(self):
-        from Jotty.core.learning.td_lambda import COMACredit
+        from Jotty.core.intelligence.learning.td_lambda import COMACredit
         coma = COMACredit()
         coma.record_episode(0.9, {"A": 0.5, "B": 0.4})
         credits = coma.get_all_credits()
@@ -3061,16 +3061,16 @@ class TestGetLearnedContext:
     """Test learned context generation for LLM prompts."""
 
     def test_empty_when_no_data(self):
-        from Jotty.core.learning.td_lambda import TDLambdaLearner, get_learned_context
-        from Jotty.core.foundation.data_structures import SwarmConfig
+        from Jotty.core.intelligence.learning.td_lambda import TDLambdaLearner, get_learned_context
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
         learner = TDLambdaLearner(SwarmConfig())
         ctx = get_learned_context(learner, task_type="unknown_type")
         # May be empty if no data for this type
         assert isinstance(ctx, str)
 
     def test_includes_baseline_info(self):
-        from Jotty.core.learning.td_lambda import TDLambdaLearner, SkillQTable, get_learned_context
-        from Jotty.core.foundation.data_structures import SwarmConfig
+        from Jotty.core.intelligence.learning.td_lambda import TDLambdaLearner, SkillQTable, get_learned_context
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
         learner = TDLambdaLearner(SwarmConfig())
         # Populate some data
         learner.grouped_baseline.update_group("research", 0.8)
@@ -3092,7 +3092,7 @@ class TestDataFlowDependencies:
     """Test data-flow dependency inference."""
 
     def test_infer_no_deps(self):
-        from Jotty.core.agents.agentic_planner import TaskPlanner
+        from Jotty.core.modes.agent.agentic_planner import TaskPlanner
         steps = [
             Mock(output_key="out_0", params={"query": "test"}, depends_on=[]),
             Mock(output_key="out_1", params={"query": "other"}, depends_on=[]),
@@ -3102,7 +3102,7 @@ class TestDataFlowDependencies:
         assert result[1].depends_on == []
 
     def test_infer_template_dependency(self):
-        from Jotty.core.agents.agentic_planner import TaskPlanner
+        from Jotty.core.modes.agent.agentic_planner import TaskPlanner
         steps = [
             Mock(output_key="research_out", params={"query": "AI"}, depends_on=[]),
             Mock(output_key="summary_out", params={"text": "{{research_out}}"}, depends_on=[]),
@@ -3120,7 +3120,7 @@ class TestToolStats:
     """Test per-tool performance statistics."""
 
     def test_record_and_get(self):
-        from Jotty.core.agents._execution_types import ToolStats
+        from Jotty.core.modes.agent._execution_types import ToolStats
         ts = ToolStats()
         ts.record("web-search", "search_tool", success=True, latency_ms=1200)
         ts.record("web-search", "search_tool", success=True, latency_ms=800)
@@ -3130,7 +3130,7 @@ class TestToolStats:
         assert abs(stats['success_rate'] - 2/3) < 0.01
 
     def test_summary_string(self):
-        from Jotty.core.agents._execution_types import ToolStats
+        from Jotty.core.modes.agent._execution_types import ToolStats
         ts = ToolStats()
         ts.record("s", "t", True, 1000)
         summary = ts.get_summary("s", "t")
@@ -3138,7 +3138,7 @@ class TestToolStats:
         assert "1 calls" in summary
 
     def test_no_history(self):
-        from Jotty.core.agents._execution_types import ToolStats
+        from Jotty.core.modes.agent._execution_types import ToolStats
         ts = ToolStats()
         assert ts.get_stats("x", "y")['call_count'] == 0
 
@@ -3148,7 +3148,7 @@ class TestCapabilityIndex:
     """Test tool I/O chaining graph."""
 
     def test_register_and_find_chain(self):
-        from Jotty.core.agents._execution_types import CapabilityIndex
+        from Jotty.core.modes.agent._execution_types import CapabilityIndex
         idx = CapabilityIndex()
         idx.register("search", inputs=["query"], outputs=["search_results"])
         idx.register("summarize", inputs=["search_results"], outputs=["summary"])
@@ -3156,21 +3156,21 @@ class TestCapabilityIndex:
         assert chain == ["search", "summarize"]
 
     def test_no_chain_exists(self):
-        from Jotty.core.agents._execution_types import CapabilityIndex
+        from Jotty.core.modes.agent._execution_types import CapabilityIndex
         idx = CapabilityIndex()
         idx.register("search", inputs=["query"], outputs=["search_results"])
         chain = idx.find_chain("query", "nonexistent_type")
         assert chain == []
 
     def test_direct_chain(self):
-        from Jotty.core.agents._execution_types import CapabilityIndex
+        from Jotty.core.modes.agent._execution_types import CapabilityIndex
         idx = CapabilityIndex()
         idx.register("tool1", inputs=["a"], outputs=["b"])
         chain = idx.find_chain("a", "b")
         assert chain == ["tool1"]
 
     def test_three_hop_chain(self):
-        from Jotty.core.agents._execution_types import CapabilityIndex
+        from Jotty.core.modes.agent._execution_types import CapabilityIndex
         idx = CapabilityIndex()
         idx.register("t1", inputs=["a"], outputs=["b"])
         idx.register("t2", inputs=["b"], outputs=["c"])
@@ -3188,16 +3188,16 @@ class TestSelfRAG:
     """Test self-RAG retrieval gating."""
 
     def test_skip_for_greeting(self):
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import SwarmConfig
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
         mem = SwarmMemory(agent_name="test", config=SwarmConfig())
         should, results, reason = mem.self_rag_retrieve("hello")
         assert should is False
         assert "greeting" in reason.lower() or "simple" in reason.lower()
 
     def test_skip_when_empty(self):
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import SwarmConfig
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
         mem = SwarmMemory(agent_name="test", config=SwarmConfig())
         should, results, reason = mem.self_rag_retrieve("complex research task about AI")
         assert should is False
@@ -3209,15 +3209,15 @@ class TestSurpriseMemory:
     """Test surprise-based memory storage."""
 
     def test_routine_skipped(self):
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import SwarmConfig
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
         mem = SwarmMemory(agent_name="test", config=SwarmConfig())
         result = mem.store_with_surprise("routine event", surprise_score=0.1, context={})
         assert result is None  # Skipped
 
     def test_surprising_stored_causal(self):
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import SwarmConfig, MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig, MemoryLevel
         mem = SwarmMemory(agent_name="test", config=SwarmConfig())
         result = mem.store_with_surprise(
             "unexpected API failure pattern",
@@ -3230,8 +3230,8 @@ class TestSurpriseMemory:
         assert len(mem.memories[MemoryLevel.CAUSAL]) > 0
 
     def test_notable_stored_episodic(self):
-        from Jotty.core.memory.cortex import SwarmMemory
-        from Jotty.core.foundation.data_structures import SwarmConfig, MemoryLevel
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig, MemoryLevel
         mem = SwarmMemory(agent_name="test", config=SwarmConfig())
         result = mem.store_with_surprise(
             "notable event",
@@ -3251,31 +3251,31 @@ class TestFailureRouter:
     """Test failure routing decisions."""
 
     def test_timeout_routes_to_retry(self):
-        from Jotty.core.agents.inspector import FailureRouter
+        from Jotty.core.modes.agent.inspector import FailureRouter
         router = FailureRouter()
         action = router.route("Connection timeout after 30s", "web-search")
         assert action['action'] == 'retry_with_backoff'
 
     def test_rate_limit_routes_to_wait(self):
-        from Jotty.core.agents.inspector import FailureRouter
+        from Jotty.core.modes.agent.inspector import FailureRouter
         router = FailureRouter()
         action = router.route("rate_limit exceeded, retry in 60 seconds", "llm")
         assert action['action'] == 'wait_and_retry'
 
     def test_not_found_routes_to_alternative(self):
-        from Jotty.core.agents.inspector import FailureRouter
+        from Jotty.core.modes.agent.inspector import FailureRouter
         router = FailureRouter()
         action = router.route("resource not_found: 404", "web-search")
         assert action['action'] == 'try_alternative'
 
     def test_logic_error_with_alternative(self):
-        from Jotty.core.agents.inspector import FailureRouter
+        from Jotty.core.modes.agent.inspector import FailureRouter
         router = FailureRouter()
         action = router.route("invalid selector syntax", "browser-automation")
         assert action['action'] in ('try_alternative', 'replan')
 
     def test_ssl_routes_to_bypass(self):
-        from Jotty.core.agents.inspector import FailureRouter
+        from Jotty.core.modes.agent.inspector import FailureRouter
         router = FailureRouter()
         action = router.route("SSL certificate verification failed", "http-client")
         assert action['action'] == 'use_env_bypass'
@@ -3290,22 +3290,22 @@ class TestErrorClassificationExtended:
     """Extended tests for ErrorType.classify()."""
 
     def test_environment_detection(self):
-        from Jotty.core.execution.types import ErrorType
+        from Jotty.core.modes.execution.types import ErrorType
         assert ErrorType.classify("SSL handshake failed") == ErrorType.ENVIRONMENT
         assert ErrorType.classify("Zscaler proxy block") == ErrorType.ENVIRONMENT
 
     def test_logic_before_data(self):
-        from Jotty.core.execution.types import ErrorType
+        from Jotty.core.modes.execution.types import ErrorType
         # "element not found" should be LOGIC, not DATA
         assert ErrorType.classify("element not found in DOM") == ErrorType.LOGIC
 
     def test_data_detection(self):
-        from Jotty.core.execution.types import ErrorType
+        from Jotty.core.modes.execution.types import ErrorType
         assert ErrorType.classify("empty result set") == ErrorType.DATA
         assert ErrorType.classify("invalid json response") == ErrorType.DATA
 
     def test_infrastructure_default(self):
-        from Jotty.core.execution.types import ErrorType
+        from Jotty.core.modes.execution.types import ErrorType
         assert ErrorType.classify("something unknown happened") == ErrorType.INFRASTRUCTURE
 
 
@@ -3318,20 +3318,20 @@ class TestValidationVerdictExtended:
     """Extended tests for ValidationVerdict."""
 
     def test_ok_verdict(self):
-        from Jotty.core.execution.types import ValidationVerdict, ValidationStatus
+        from Jotty.core.modes.execution.types import ValidationVerdict, ValidationStatus
         v = ValidationVerdict.ok("all good", confidence=0.95)
         assert v.is_pass
         assert v.confidence == 0.95
 
     def test_from_error_retryable(self):
-        from Jotty.core.execution.types import ValidationVerdict, ErrorType
+        from Jotty.core.modes.execution.types import ValidationVerdict, ErrorType
         v = ValidationVerdict.from_error("connection timeout")
         assert not v.is_pass
         assert v.retryable
         assert v.error_type == ErrorType.INFRASTRUCTURE
 
     def test_from_error_not_retryable(self):
-        from Jotty.core.execution.types import ValidationVerdict, ErrorType
+        from Jotty.core.modes.execution.types import ValidationVerdict, ErrorType
         v = ValidationVerdict.from_error("syntax error in selector")
         assert not v.is_pass
         assert not v.retryable  # Logic errors aren't retryable
@@ -3349,7 +3349,7 @@ class TestComplexityGate:
     @pytest.mark.asyncio
     async def test_should_skip_planning_direct(self):
         """ComplexityGate returns True for DIRECT classification."""
-        from Jotty.core.execution.executor import ComplexityGate
+        from Jotty.core.modes.execution.executor import ComplexityGate
         gate = ComplexityGate()
         mock_response = Mock()
         mock_response.content = [Mock(text="DIRECT")]
@@ -3362,7 +3362,7 @@ class TestComplexityGate:
     @pytest.mark.asyncio
     async def test_should_skip_planning_tools(self):
         """ComplexityGate returns False for TOOLS classification."""
-        from Jotty.core.execution.executor import ComplexityGate
+        from Jotty.core.modes.execution.executor import ComplexityGate
         gate = ComplexityGate()
         mock_response = Mock()
         mock_response.content = [Mock(text="TOOLS")]
@@ -3375,7 +3375,7 @@ class TestComplexityGate:
     @pytest.mark.asyncio
     async def test_should_skip_planning_error_defaults_false(self):
         """ComplexityGate defaults to False (proceed with planning) on error."""
-        from Jotty.core.execution.executor import ComplexityGate
+        from Jotty.core.modes.execution.executor import ComplexityGate
         gate = ComplexityGate()
         mock_client = AsyncMock()
         mock_client.messages.create = AsyncMock(side_effect=RuntimeError("API down"))
@@ -3386,7 +3386,7 @@ class TestComplexityGate:
     @pytest.mark.asyncio
     async def test_should_skip_planning_empty_response(self):
         """ComplexityGate returns False for empty LLM response."""
-        from Jotty.core.execution.executor import ComplexityGate
+        from Jotty.core.modes.execution.executor import ComplexityGate
         gate = ComplexityGate()
         mock_response = Mock()
         mock_response.content = []
@@ -3399,7 +3399,7 @@ class TestComplexityGate:
     @pytest.mark.asyncio
     async def test_truncates_long_goal(self):
         """ComplexityGate truncates goal to 500 chars."""
-        from Jotty.core.execution.executor import ComplexityGate
+        from Jotty.core.modes.execution.executor import ComplexityGate
         gate = ComplexityGate()
         mock_response = Mock()
         mock_response.content = [Mock(text="TOOLS")]
@@ -3425,7 +3425,7 @@ class TestFallbackValidator:
     @pytest.mark.asyncio
     async def test_validate_parses_json(self):
         """_FallbackValidator parses JSON from LLM response."""
-        from Jotty.core.execution.executor import _FallbackValidator
+        from Jotty.core.modes.execution.executor import _FallbackValidator
         mock_provider = AsyncMock()
         mock_provider.generate = AsyncMock(return_value={
             'content': '{"success": true, "confidence": 0.9, "feedback": "good", "reasoning": "looks fine"}'
@@ -3438,7 +3438,7 @@ class TestFallbackValidator:
     @pytest.mark.asyncio
     async def test_validate_extracts_json_from_text(self):
         """_FallbackValidator extracts JSON embedded in text."""
-        from Jotty.core.execution.executor import _FallbackValidator
+        from Jotty.core.modes.execution.executor import _FallbackValidator
         mock_provider = AsyncMock()
         mock_provider.generate = AsyncMock(return_value={
             'content': 'Here is my evaluation: {"success": false, "confidence": 0.4, "feedback": "incomplete", "reasoning": "missing data"}'
@@ -3451,7 +3451,7 @@ class TestFallbackValidator:
     @pytest.mark.asyncio
     async def test_validate_no_json_returns_default(self):
         """_FallbackValidator returns default when no JSON in response."""
-        from Jotty.core.execution.executor import _FallbackValidator
+        from Jotty.core.modes.execution.executor import _FallbackValidator
         mock_provider = AsyncMock()
         mock_provider.generate = AsyncMock(return_value={
             'content': 'The result looks good and complete.'
@@ -3464,7 +3464,7 @@ class TestFallbackValidator:
     @pytest.mark.asyncio
     async def test_validate_error_returns_safe_default(self):
         """_FallbackValidator returns safe default on LLM error."""
-        from Jotty.core.execution.executor import _FallbackValidator
+        from Jotty.core.modes.execution.executor import _FallbackValidator
         mock_provider = AsyncMock()
         mock_provider.generate = AsyncMock(side_effect=RuntimeError("API error"))
         validator = _FallbackValidator(mock_provider)
@@ -3562,8 +3562,8 @@ class TestSmartTruncate:
 
     def _make_validator_agent(self):
         """Create a minimal ValidatorAgent for testing utility methods."""
-        from Jotty.core.agents.inspector import ValidatorAgent
-        from Jotty.core.foundation.data_structures import SwarmConfig, SharedScratchpad
+        from Jotty.core.modes.agent.inspector import ValidatorAgent
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig, SharedScratchpad
         from pathlib import Path
         from unittest.mock import patch
 
@@ -3621,8 +3621,8 @@ class TestCachingToolWrapper:
 
     def test_calls_tool_and_caches(self):
         """CachingToolWrapper calls tool and stores result in scratchpad."""
-        from Jotty.core.agents.inspector import CachingToolWrapper
-        from Jotty.core.foundation.data_structures import SharedScratchpad
+        from Jotty.core.modes.agent.inspector import CachingToolWrapper
+        from Jotty.core.infrastructure.foundation.data_structures import SharedScratchpad
         tool = Mock(name="test_tool", description="test desc")
         tool.return_value = {"result": "success"}
         scratchpad = SharedScratchpad()
@@ -3634,8 +3634,8 @@ class TestCachingToolWrapper:
 
     def test_returns_cached_result(self):
         """CachingToolWrapper returns cached result on cache hit."""
-        from Jotty.core.agents.inspector import CachingToolWrapper
-        from Jotty.core.foundation.data_structures import SharedScratchpad
+        from Jotty.core.modes.agent.inspector import CachingToolWrapper
+        from Jotty.core.infrastructure.foundation.data_structures import SharedScratchpad
         tool = Mock(name="test_tool", description="test desc")
         tool.return_value = {"result": "success"}
         scratchpad = SharedScratchpad()
@@ -3648,8 +3648,8 @@ class TestCachingToolWrapper:
 
     def test_handles_tool_exception(self):
         """CachingToolWrapper returns error dict when tool raises."""
-        from Jotty.core.agents.inspector import CachingToolWrapper
-        from Jotty.core.foundation.data_structures import SharedScratchpad
+        from Jotty.core.modes.agent.inspector import CachingToolWrapper
+        from Jotty.core.infrastructure.foundation.data_structures import SharedScratchpad
         tool = Mock(name="error_tool", description="")
         tool.side_effect = RuntimeError("tool failed")
         scratchpad = SharedScratchpad()
@@ -3665,8 +3665,8 @@ class TestMultiRoundValidatorUnit:
 
     def _make_validator(self):
         """Create MultiRoundValidator with mock agents."""
-        from Jotty.core.agents.inspector import MultiRoundValidator
-        from Jotty.core.foundation.data_structures import SwarmConfig
+        from Jotty.core.modes.agent.inspector import MultiRoundValidator
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
         config = SwarmConfig()
         config.refinement_on_low_confidence = 0.6
         config.refinement_on_disagreement = True
@@ -3719,14 +3719,14 @@ class TestCompletionReviewer:
 
     def test_init_lazy_predictor(self):
         """CompletionReviewer initializes without creating predictor."""
-        from Jotty.core.agents.inspector import CompletionReviewer
+        from Jotty.core.modes.agent.inspector import CompletionReviewer
         reviewer = CompletionReviewer()
         assert reviewer._predictor is None
 
     @pytest.mark.asyncio
     async def test_review_completion_fallback_on_success(self):
         """CompletionReviewer falls back to heuristic when predictor errors, success=True."""
-        from Jotty.core.agents.inspector import CompletionReviewer
+        from Jotty.core.modes.agent.inspector import CompletionReviewer
         reviewer = CompletionReviewer()
         # Mock predictor — will fail in the async-in-thread path
         reviewer._predictor = MagicMock()
@@ -3743,7 +3743,7 @@ class TestCompletionReviewer:
     @pytest.mark.asyncio
     async def test_review_completion_fallback_on_failure(self):
         """CompletionReviewer falls back to heuristic when predictor errors, success=False."""
-        from Jotty.core.agents.inspector import CompletionReviewer
+        from Jotty.core.modes.agent.inspector import CompletionReviewer
         reviewer = CompletionReviewer()
         reviewer._predictor = MagicMock()
 
@@ -3767,27 +3767,27 @@ class TestLLMProvider:
 
     def test_default_provider_anthropic(self):
         """LLMProvider defaults to anthropic provider."""
-        from Jotty.core.execution.executor import LLMProvider
+        from Jotty.core.modes.execution.executor import LLMProvider
         provider = LLMProvider()
         assert provider._provider_name == 'anthropic'
         assert 'claude' in provider._model
 
     def test_custom_model(self):
         """LLMProvider accepts custom model."""
-        from Jotty.core.execution.executor import LLMProvider
+        from Jotty.core.modes.execution.executor import LLMProvider
         provider = LLMProvider(model='claude-haiku-4-5-20251001')
         assert provider._model == 'claude-haiku-4-5-20251001'
 
     def test_lazy_client_init(self):
         """Client is not created until first use."""
-        from Jotty.core.execution.executor import LLMProvider
+        from Jotty.core.modes.execution.executor import LLMProvider
         provider = LLMProvider()
         assert provider._client is None
 
     @pytest.mark.asyncio
     async def test_generate_anthropic(self):
         """LLMProvider.generate calls anthropic API correctly."""
-        from Jotty.core.execution.executor import LLMProvider
+        from Jotty.core.modes.execution.executor import LLMProvider
         provider = LLMProvider()
         mock_block = Mock()
         mock_block.text = "Hello response"
@@ -3951,8 +3951,8 @@ class RealOrchestratorIntegrationTest:
         # ------------------------------------------------------------------
         self.section("INIT: Registry + Executor")
 
-        from Jotty.core.registry.skills_registry import get_skills_registry
-        from Jotty.core.agents.base.skill_plan_executor import SkillPlanExecutor
+        from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
+        from Jotty.core.modes.agent.base.skill_plan_executor import SkillPlanExecutor
 
         sr = get_skills_registry()
         sr.init()
@@ -4220,7 +4220,7 @@ class TestToolCallCache:
     @pytest.mark.unit
     def test_make_key_deterministic(self):
         """make_key produces same key for same inputs."""
-        from Jotty.core.agents.base.skill_plan_executor import ToolCallCache
+        from Jotty.core.modes.agent.base.skill_plan_executor import ToolCallCache
         k1 = ToolCallCache.make_key("web-search", "search", {"query": "AI"})
         k2 = ToolCallCache.make_key("web-search", "search", {"query": "AI"})
         assert k1 == k2
@@ -4228,7 +4228,7 @@ class TestToolCallCache:
     @pytest.mark.unit
     def test_make_key_different_params(self):
         """make_key produces different keys for different params."""
-        from Jotty.core.agents.base.skill_plan_executor import ToolCallCache
+        from Jotty.core.modes.agent.base.skill_plan_executor import ToolCallCache
         k1 = ToolCallCache.make_key("web-search", "search", {"query": "AI"})
         k2 = ToolCallCache.make_key("web-search", "search", {"query": "ML"})
         assert k1 != k2
@@ -4236,7 +4236,7 @@ class TestToolCallCache:
     @pytest.mark.unit
     def test_make_key_sorts_params(self):
         """make_key is order-independent for params."""
-        from Jotty.core.agents.base.skill_plan_executor import ToolCallCache
+        from Jotty.core.modes.agent.base.skill_plan_executor import ToolCallCache
         k1 = ToolCallCache.make_key("s", "t", {"a": 1, "b": 2})
         k2 = ToolCallCache.make_key("s", "t", {"b": 2, "a": 1})
         assert k1 == k2
@@ -4244,7 +4244,7 @@ class TestToolCallCache:
     @pytest.mark.unit
     def test_get_set(self):
         """set() stores value, get() retrieves it."""
-        from Jotty.core.agents.base.skill_plan_executor import ToolCallCache
+        from Jotty.core.modes.agent.base.skill_plan_executor import ToolCallCache
         cache = ToolCallCache(ttl_seconds=60)
         key = cache.make_key("s", "t", {"x": 1})
         cache.set(key, {"result": "data"})
@@ -4253,7 +4253,7 @@ class TestToolCallCache:
     @pytest.mark.unit
     def test_get_miss(self):
         """get() returns None for missing key."""
-        from Jotty.core.agents.base.skill_plan_executor import ToolCallCache
+        from Jotty.core.modes.agent.base.skill_plan_executor import ToolCallCache
         cache = ToolCallCache()
         assert cache.get("nonexistent") is None
 
@@ -4261,7 +4261,7 @@ class TestToolCallCache:
     def test_ttl_expiry(self):
         """get() returns None for expired entries."""
         import time as _time
-        from Jotty.core.agents.base.skill_plan_executor import ToolCallCache
+        from Jotty.core.modes.agent.base.skill_plan_executor import ToolCallCache
         cache = ToolCallCache(ttl_seconds=0)  # Immediate expiry
         key = "test_key"
         cache.set(key, "value")
@@ -4271,7 +4271,7 @@ class TestToolCallCache:
     @pytest.mark.unit
     def test_lru_eviction(self):
         """Oldest entry is evicted when max_size is reached."""
-        from Jotty.core.agents.base.skill_plan_executor import ToolCallCache
+        from Jotty.core.modes.agent.base.skill_plan_executor import ToolCallCache
         cache = ToolCallCache(max_size=2)
         cache.set("a", 1)
         cache.set("b", 2)
@@ -4283,7 +4283,7 @@ class TestToolCallCache:
     @pytest.mark.unit
     def test_clear(self):
         """clear() empties the cache."""
-        from Jotty.core.agents.base.skill_plan_executor import ToolCallCache
+        from Jotty.core.modes.agent.base.skill_plan_executor import ToolCallCache
         cache = ToolCallCache()
         cache.set("a", 1)
         cache.set("b", 2)
@@ -4295,7 +4295,7 @@ class TestToolCallCache:
     @pytest.mark.unit
     def test_size_property(self):
         """size property returns number of cached entries."""
-        from Jotty.core.agents.base.skill_plan_executor import ToolCallCache
+        from Jotty.core.modes.agent.base.skill_plan_executor import ToolCallCache
         cache = ToolCallCache()
         assert cache.size == 0
         cache.set("a", 1)
@@ -4304,7 +4304,7 @@ class TestToolCallCache:
     @pytest.mark.unit
     def test_overwrite_existing_key(self):
         """Setting existing key updates value without eviction."""
-        from Jotty.core.agents.base.skill_plan_executor import ToolCallCache
+        from Jotty.core.modes.agent.base.skill_plan_executor import ToolCallCache
         cache = ToolCallCache(max_size=2)
         cache.set("a", 1)
         cache.set("b", 2)
@@ -4321,7 +4321,7 @@ class TestSkillPlanExecutorDAG:
     """Tests for dependency graph and parallel group detection."""
 
     def _make_executor(self):
-        from Jotty.core.agents.base.skill_plan_executor import SkillPlanExecutor
+        from Jotty.core.modes.agent.base.skill_plan_executor import SkillPlanExecutor
         mock_registry = MagicMock()
         return SkillPlanExecutor(skills_registry=mock_registry)
 
@@ -4402,7 +4402,7 @@ class TestSkillExclusions:
     """Tests for skill exclusion management."""
 
     def _make_executor(self):
-        from Jotty.core.agents.base.skill_plan_executor import SkillPlanExecutor
+        from Jotty.core.modes.agent.base.skill_plan_executor import SkillPlanExecutor
         return SkillPlanExecutor(skills_registry=MagicMock())
 
     @pytest.mark.unit
@@ -4440,7 +4440,7 @@ class TestFailureRouter:
     @pytest.mark.unit
     def test_timeout_pattern(self):
         """Timeout errors route to retry_with_backoff."""
-        from Jotty.core.agents.inspector import FailureRouter
+        from Jotty.core.modes.agent.inspector import FailureRouter
         router = FailureRouter()
         result = router.route("Connection timeout after 30s", "web-search")
         assert result['action'] == 'retry_with_backoff'
@@ -4449,7 +4449,7 @@ class TestFailureRouter:
     @pytest.mark.unit
     def test_rate_limit_pattern(self):
         """Rate limit errors route to wait_and_retry."""
-        from Jotty.core.agents.inspector import FailureRouter
+        from Jotty.core.modes.agent.inspector import FailureRouter
         router = FailureRouter()
         result = router.route("Rate_limit exceeded, retry after 60s", "claude-cli-llm")
         assert result['action'] == 'wait_and_retry'
@@ -4458,7 +4458,7 @@ class TestFailureRouter:
     @pytest.mark.unit
     def test_not_found_pattern(self):
         """Not found errors route to try_alternative."""
-        from Jotty.core.agents.inspector import FailureRouter
+        from Jotty.core.modes.agent.inspector import FailureRouter
         router = FailureRouter()
         result = router.route("Resource not_found at endpoint", "http-client")
         assert result['action'] == 'try_alternative'
@@ -4466,7 +4466,7 @@ class TestFailureRouter:
     @pytest.mark.unit
     def test_permission_pattern(self):
         """Permission errors route to escalate."""
-        from Jotty.core.agents.inspector import FailureRouter
+        from Jotty.core.modes.agent.inspector import FailureRouter
         router = FailureRouter()
         result = router.route("Permission denied: insufficient access", "file-manager")
         assert result['action'] == 'escalate'
@@ -4474,7 +4474,7 @@ class TestFailureRouter:
     @pytest.mark.unit
     def test_parse_error_pattern(self):
         """Parse errors route to retry_with_fix."""
-        from Jotty.core.agents.inspector import FailureRouter
+        from Jotty.core.modes.agent.inspector import FailureRouter
         router = FailureRouter()
         result = router.route("parse_error: unexpected token", "json-parser")
         assert result['action'] == 'retry_with_fix'
@@ -4482,7 +4482,7 @@ class TestFailureRouter:
     @pytest.mark.unit
     def test_infrastructure_fallback(self):
         """Unknown infrastructure errors fall back to retry_with_backoff."""
-        from Jotty.core.agents.inspector import FailureRouter
+        from Jotty.core.modes.agent.inspector import FailureRouter
         result = FailureRouter().route("Connection reset by peer", "web-search")
         assert result['action'] == 'retry_with_backoff'
         assert result['error_type'] == 'infrastructure'
@@ -4490,7 +4490,7 @@ class TestFailureRouter:
     @pytest.mark.unit
     def test_data_error_fallback(self):
         """Data errors route to validate_inputs."""
-        from Jotty.core.agents.inspector import FailureRouter
+        from Jotty.core.modes.agent.inspector import FailureRouter
         result = FailureRouter().route("invalid JSON format in response body", "api-client")
         assert result['action'] == 'validate_inputs'
         assert result['error_type'] == 'data'
@@ -4498,7 +4498,7 @@ class TestFailureRouter:
     @pytest.mark.unit
     def test_find_alternatives(self):
         """_find_alternatives returns known alternatives."""
-        from Jotty.core.agents.inspector import FailureRouter
+        from Jotty.core.modes.agent.inspector import FailureRouter
         router = FailureRouter()
         alts = router._find_alternatives("web-search")
         assert "http-client" in alts
@@ -4506,14 +4506,14 @@ class TestFailureRouter:
     @pytest.mark.unit
     def test_find_alternatives_unknown(self):
         """_find_alternatives returns empty for unknown skills."""
-        from Jotty.core.agents.inspector import FailureRouter
+        from Jotty.core.modes.agent.inspector import FailureRouter
         router = FailureRouter()
         assert router._find_alternatives("nonexistent-skill") == []
 
     @pytest.mark.unit
     def test_logic_error_with_alternative(self):
         """Logic error with available alternative suggests it."""
-        from Jotty.core.agents.inspector import FailureRouter
+        from Jotty.core.modes.agent.inspector import FailureRouter
         router = FailureRouter()
         # "SyntaxError" classified as LOGIC, web-search has alternatives
         result = router.route("SyntaxError: invalid syntax in template", "web-search")
@@ -4523,7 +4523,7 @@ class TestFailureRouter:
     @pytest.mark.unit
     def test_logic_error_no_alternative(self):
         """Logic error without alternative routes to replan."""
-        from Jotty.core.agents.inspector import FailureRouter
+        from Jotty.core.modes.agent.inspector import FailureRouter
         router = FailureRouter()
         result = router.route("SyntaxError: invalid syntax in template", "custom-tool")
         assert result['action'] == 'replan'
@@ -4542,7 +4542,7 @@ class TestCheckRequiredFields:
 
     def _make_validator(self, is_architect=True):
         """Create a ValidatorAgent shell bypassing __init__."""
-        from Jotty.core.agents.inspector import ValidatorAgent
+        from Jotty.core.modes.agent.inspector import ValidatorAgent
         v = object.__new__(ValidatorAgent)
         v.is_architect = is_architect
         return v
@@ -4611,7 +4611,7 @@ class TestSmartTruncateExpanded:
 
     def _make_validator(self):
         """Create ValidatorAgent shell bypassing __init__."""
-        from Jotty.core.agents.inspector import ValidatorAgent
+        from Jotty.core.modes.agent.inspector import ValidatorAgent
         v = object.__new__(ValidatorAgent)
         return v
 
@@ -4667,7 +4667,7 @@ class TestValidatorStatistics:
     @pytest.mark.unit
     def test_statistics_initial(self):
         """Initial statistics have zero counts."""
-        from Jotty.core.agents.inspector import ValidatorAgent
+        from Jotty.core.modes.agent.inspector import ValidatorAgent
         v = object.__new__(ValidatorAgent)
         v.agent_name = "test_auditor"
         v.is_architect = False
@@ -4685,7 +4685,7 @@ class TestValidatorStatistics:
     @pytest.mark.unit
     def test_statistics_with_calls(self):
         """Statistics reflect call and approval counts."""
-        from Jotty.core.agents.inspector import ValidatorAgent
+        from Jotty.core.modes.agent.inspector import ValidatorAgent
         v = object.__new__(ValidatorAgent)
         v.agent_name = "test_arch"
         v.is_architect = True
@@ -4710,7 +4710,7 @@ class TestInternalReasoningTool:
     @pytest.mark.unit
     def test_call_with_memory_scope(self):
         """InternalReasoningTool retrieves memories for memory scope."""
-        from Jotty.core.agents.inspector import InternalReasoningTool
+        from Jotty.core.modes.agent.inspector import InternalReasoningTool
         mock_memory = MagicMock()
         mock_entry = MagicMock()
         mock_entry.content = "past experience"
@@ -4727,7 +4727,7 @@ class TestInternalReasoningTool:
     @pytest.mark.unit
     def test_call_with_causal_scope(self):
         """InternalReasoningTool retrieves causal knowledge for causal scope."""
-        from Jotty.core.agents.inspector import InternalReasoningTool
+        from Jotty.core.modes.agent.inspector import InternalReasoningTool
         mock_memory = MagicMock()
         mock_causal = MagicMock()
         mock_causal.cause = "type annotation"
@@ -4745,7 +4745,7 @@ class TestInternalReasoningTool:
     @pytest.mark.unit
     def test_call_with_all_scope(self):
         """InternalReasoningTool retrieves both memories and causal for 'all' scope."""
-        from Jotty.core.agents.inspector import InternalReasoningTool
+        from Jotty.core.modes.agent.inspector import InternalReasoningTool
         mock_memory = MagicMock()
         mock_entry = MagicMock(content="mem", default_value=0.5)
         mock_causal = MagicMock(cause="C", effect="E", confidence=0.7)
@@ -4760,7 +4760,7 @@ class TestInternalReasoningTool:
     @pytest.mark.unit
     def test_tool_name_and_description(self):
         """InternalReasoningTool has name 'reason_about'."""
-        from Jotty.core.agents.inspector import InternalReasoningTool
+        from Jotty.core.modes.agent.inspector import InternalReasoningTool
         tool = InternalReasoningTool(memory=MagicMock(), config=MagicMock())
         assert tool.name == "reason_about"
         assert "reasoning" in tool.description.lower()
@@ -4776,7 +4776,7 @@ class TestExecutionResult:
     @pytest.mark.unit
     def test_to_dict_basic(self):
         """to_dict produces JSON-serializable dict."""
-        from Jotty.core.execution.types import ExecutionResult, ExecutionTier
+        from Jotty.core.modes.execution.types import ExecutionResult, ExecutionTier
         result = ExecutionResult(
             output="Hello world",
             tier=ExecutionTier.DIRECT,
@@ -4797,7 +4797,7 @@ class TestExecutionResult:
     @pytest.mark.unit
     def test_to_dict_with_steps(self):
         """to_dict counts steps."""
-        from Jotty.core.execution.types import ExecutionResult, ExecutionTier, ExecutionStep
+        from Jotty.core.modes.execution.types import ExecutionResult, ExecutionTier, ExecutionStep
         steps = [ExecutionStep(step_num=1, description="s1"), ExecutionStep(step_num=2, description="s2")]
         result = ExecutionResult(output="out", tier=ExecutionTier.AGENTIC, steps=steps)
         d = result.to_dict()
@@ -4806,7 +4806,7 @@ class TestExecutionResult:
     @pytest.mark.unit
     def test_str_success(self):
         """__str__ shows OK for successful result."""
-        from Jotty.core.execution.types import ExecutionResult, ExecutionTier
+        from Jotty.core.modes.execution.types import ExecutionResult, ExecutionTier
         result = ExecutionResult(
             output="x", tier=ExecutionTier.DIRECT, success=True,
             llm_calls=2, latency_ms=100.0, cost_usd=0.005,
@@ -4819,7 +4819,7 @@ class TestExecutionResult:
     @pytest.mark.unit
     def test_str_failure(self):
         """__str__ shows FAIL for failed result."""
-        from Jotty.core.execution.types import ExecutionResult, ExecutionTier
+        from Jotty.core.modes.execution.types import ExecutionResult, ExecutionTier
         result = ExecutionResult(
             output=None, tier=ExecutionTier.AGENTIC, success=False, error="timeout",
         )
@@ -4830,7 +4830,7 @@ class TestExecutionResult:
     @pytest.mark.unit
     def test_defaults(self):
         """ExecutionResult defaults are sensible."""
-        from Jotty.core.execution.types import ExecutionResult, ExecutionTier
+        from Jotty.core.modes.execution.types import ExecutionResult, ExecutionTier
         result = ExecutionResult(output="x", tier=ExecutionTier.DIRECT)
         assert result.success is True
         assert result.error is None
@@ -4850,7 +4850,7 @@ class TestExecutionStepProperties:
     @pytest.mark.unit
     def test_duration_ms_complete(self):
         """duration_ms computes from started_at and completed_at."""
-        from Jotty.core.execution.types import ExecutionStep
+        from Jotty.core.modes.execution.types import ExecutionStep
         from datetime import datetime, timedelta
         start = datetime(2026, 1, 1, 12, 0, 0)
         end = start + timedelta(seconds=2.5)
@@ -4860,28 +4860,28 @@ class TestExecutionStepProperties:
     @pytest.mark.unit
     def test_duration_ms_incomplete(self):
         """duration_ms returns None when not started or not completed."""
-        from Jotty.core.execution.types import ExecutionStep
+        from Jotty.core.modes.execution.types import ExecutionStep
         step = ExecutionStep(step_num=1, description="test")
         assert step.duration_ms is None
 
     @pytest.mark.unit
     def test_is_complete_with_result(self):
         """is_complete is True when result is set."""
-        from Jotty.core.execution.types import ExecutionStep
+        from Jotty.core.modes.execution.types import ExecutionStep
         step = ExecutionStep(step_num=1, description="test", result="done")
         assert step.is_complete is True
 
     @pytest.mark.unit
     def test_is_complete_with_error(self):
         """is_complete is True when error is set."""
-        from Jotty.core.execution.types import ExecutionStep
+        from Jotty.core.modes.execution.types import ExecutionStep
         step = ExecutionStep(step_num=1, description="test", error="failed")
         assert step.is_complete is True
 
     @pytest.mark.unit
     def test_is_complete_pending(self):
         """is_complete is False when neither result nor error is set."""
-        from Jotty.core.execution.types import ExecutionStep
+        from Jotty.core.modes.execution.types import ExecutionStep
         step = ExecutionStep(step_num=1, description="test")
         assert step.is_complete is False
 
@@ -4896,7 +4896,7 @@ class TestExecutionPlanProperties:
     @pytest.mark.unit
     def test_total_steps(self):
         """total_steps counts all steps."""
-        from Jotty.core.execution.types import ExecutionPlan, ExecutionStep
+        from Jotty.core.modes.execution.types import ExecutionPlan, ExecutionStep
         plan = ExecutionPlan(goal="test", steps=[
             ExecutionStep(step_num=1, description="s1"),
             ExecutionStep(step_num=2, description="s2"),
@@ -4907,7 +4907,7 @@ class TestExecutionPlanProperties:
     @pytest.mark.unit
     def test_parallelizable_steps(self):
         """parallelizable_steps counts steps that can run in parallel."""
-        from Jotty.core.execution.types import ExecutionPlan, ExecutionStep
+        from Jotty.core.modes.execution.types import ExecutionPlan, ExecutionStep
         plan = ExecutionPlan(goal="test", steps=[
             ExecutionStep(step_num=1, description="s1", can_parallelize=True),
             ExecutionStep(step_num=2, description="s2", can_parallelize=False),
@@ -4918,7 +4918,7 @@ class TestExecutionPlanProperties:
     @pytest.mark.unit
     def test_empty_plan(self):
         """Empty plan has 0 steps."""
-        from Jotty.core.execution.types import ExecutionPlan
+        from Jotty.core.modes.execution.types import ExecutionPlan
         plan = ExecutionPlan(goal="nothing", steps=[])
         assert plan.total_steps == 0
         assert plan.parallelizable_steps == 0
@@ -4934,21 +4934,21 @@ class TestValidationVerdict:
     @pytest.mark.unit
     def test_is_pass_true(self):
         """is_pass is True for PASS status."""
-        from Jotty.core.execution.types import ValidationVerdict, ValidationStatus
+        from Jotty.core.modes.execution.types import ValidationVerdict, ValidationStatus
         v = ValidationVerdict(status=ValidationStatus.PASS)
         assert v.is_pass is True
 
     @pytest.mark.unit
     def test_is_pass_false(self):
         """is_pass is False for non-PASS status."""
-        from Jotty.core.execution.types import ValidationVerdict, ValidationStatus
+        from Jotty.core.modes.execution.types import ValidationVerdict, ValidationStatus
         v = ValidationVerdict(status=ValidationStatus.FAIL)
         assert v.is_pass is False
 
     @pytest.mark.unit
     def test_ok_factory(self):
         """ok() creates a passing verdict."""
-        from Jotty.core.execution.types import ValidationVerdict, ValidationStatus, ErrorType
+        from Jotty.core.modes.execution.types import ValidationVerdict, ValidationStatus, ErrorType
         v = ValidationVerdict.ok(reason="all good", confidence=0.95)
         assert v.status == ValidationStatus.PASS
         assert v.reason == "all good"
@@ -4958,7 +4958,7 @@ class TestValidationVerdict:
     @pytest.mark.unit
     def test_from_error_infrastructure(self):
         """from_error classifies timeout as INFRASTRUCTURE and retryable."""
-        from Jotty.core.execution.types import ValidationVerdict, ValidationStatus, ErrorType
+        from Jotty.core.modes.execution.types import ValidationVerdict, ValidationStatus, ErrorType
         v = ValidationVerdict.from_error("Connection timeout after 30s")
         assert v.status == ValidationStatus.FAIL
         assert v.error_type == ErrorType.INFRASTRUCTURE
@@ -4968,7 +4968,7 @@ class TestValidationVerdict:
     @pytest.mark.unit
     def test_from_error_logic(self):
         """from_error classifies syntax errors as LOGIC and not retryable."""
-        from Jotty.core.execution.types import ValidationVerdict, ErrorType
+        from Jotty.core.modes.execution.types import ValidationVerdict, ErrorType
         v = ValidationVerdict.from_error("SyntaxError: invalid selector")
         assert v.error_type == ErrorType.LOGIC
         assert v.retryable is False
@@ -4976,7 +4976,7 @@ class TestValidationVerdict:
     @pytest.mark.unit
     def test_from_error_environment(self):
         """from_error classifies SSL errors as ENVIRONMENT and retryable."""
-        from Jotty.core.execution.types import ValidationVerdict, ErrorType
+        from Jotty.core.modes.execution.types import ValidationVerdict, ErrorType
         v = ValidationVerdict.from_error("SSL certificate verification failed")
         assert v.error_type == ErrorType.ENVIRONMENT
         assert v.retryable is True
@@ -4984,7 +4984,7 @@ class TestValidationVerdict:
     @pytest.mark.unit
     def test_from_error_data(self):
         """from_error classifies parse errors as DATA and not retryable."""
-        from Jotty.core.execution.types import ValidationVerdict, ErrorType
+        from Jotty.core.modes.execution.types import ValidationVerdict, ErrorType
         v = ValidationVerdict.from_error("Empty result set returned")
         assert v.error_type == ErrorType.DATA
         assert v.retryable is False
@@ -4992,7 +4992,7 @@ class TestValidationVerdict:
     @pytest.mark.unit
     def test_from_error_populates_issues(self):
         """from_error adds error message to issues list."""
-        from Jotty.core.execution.types import ValidationVerdict
+        from Jotty.core.modes.execution.types import ValidationVerdict
         v = ValidationVerdict.from_error("something broke")
         assert len(v.issues) == 1
         assert v.issues[0] == "something broke"
@@ -5008,7 +5008,7 @@ class TestDeadLetterQueue:
     @pytest.mark.unit
     def test_enqueue_and_size(self):
         """enqueue adds items and size reports correctly."""
-        from Jotty.core.execution.types import DeadLetterQueue, ErrorType
+        from Jotty.core.modes.execution.types import DeadLetterQueue, ErrorType
         dlq = DeadLetterQueue()
         dlq.enqueue("web_search", {"query": "test"}, "timeout", ErrorType.INFRASTRUCTURE)
         assert dlq.size == 1
@@ -5016,7 +5016,7 @@ class TestDeadLetterQueue:
     @pytest.mark.unit
     def test_get_retryable(self):
         """get_retryable returns items under max_retries."""
-        from Jotty.core.execution.types import DeadLetterQueue, ErrorType
+        from Jotty.core.modes.execution.types import DeadLetterQueue, ErrorType
         dlq = DeadLetterQueue()
         letter = dlq.enqueue("op", {}, "error", ErrorType.INFRASTRUCTURE)
         retryable = dlq.get_retryable()
@@ -5026,7 +5026,7 @@ class TestDeadLetterQueue:
     @pytest.mark.unit
     def test_get_retryable_excludes_exhausted(self):
         """get_retryable excludes items at max_retries."""
-        from Jotty.core.execution.types import DeadLetterQueue, ErrorType
+        from Jotty.core.modes.execution.types import DeadLetterQueue, ErrorType
         dlq = DeadLetterQueue()
         letter = dlq.enqueue("op", {}, "error", ErrorType.INFRASTRUCTURE)
         letter.retry_count = letter.max_retries  # Exhaust retries
@@ -5036,7 +5036,7 @@ class TestDeadLetterQueue:
     @pytest.mark.unit
     def test_mark_resolved(self):
         """mark_resolved removes item from queue."""
-        from Jotty.core.execution.types import DeadLetterQueue, ErrorType
+        from Jotty.core.modes.execution.types import DeadLetterQueue, ErrorType
         dlq = DeadLetterQueue()
         letter = dlq.enqueue("op", {}, "error", ErrorType.INFRASTRUCTURE)
         assert dlq.size == 1
@@ -5046,7 +5046,7 @@ class TestDeadLetterQueue:
     @pytest.mark.unit
     def test_retry_all_success(self):
         """retry_all calls executor and removes successful items."""
-        from Jotty.core.execution.types import DeadLetterQueue, ErrorType
+        from Jotty.core.modes.execution.types import DeadLetterQueue, ErrorType
         dlq = DeadLetterQueue()
         dlq.enqueue("op1", {}, "error1", ErrorType.INFRASTRUCTURE)
         dlq.enqueue("op2", {}, "error2", ErrorType.INFRASTRUCTURE)
@@ -5057,7 +5057,7 @@ class TestDeadLetterQueue:
     @pytest.mark.unit
     def test_retry_all_partial_failure(self):
         """retry_all handles mixed success/failure."""
-        from Jotty.core.execution.types import DeadLetterQueue, ErrorType
+        from Jotty.core.modes.execution.types import DeadLetterQueue, ErrorType
         dlq = DeadLetterQueue()
         dlq.enqueue("good", {}, "err", ErrorType.INFRASTRUCTURE)
         dlq.enqueue("bad", {}, "err", ErrorType.INFRASTRUCTURE)
@@ -5068,7 +5068,7 @@ class TestDeadLetterQueue:
     @pytest.mark.unit
     def test_retry_all_increments_retry_count(self):
         """retry_all increments retry_count even on failure."""
-        from Jotty.core.execution.types import DeadLetterQueue, ErrorType
+        from Jotty.core.modes.execution.types import DeadLetterQueue, ErrorType
         dlq = DeadLetterQueue()
         letter = dlq.enqueue("op", {}, "error", ErrorType.INFRASTRUCTURE)
         dlq.retry_all(lambda l: False)  # All fail
@@ -5077,7 +5077,7 @@ class TestDeadLetterQueue:
     @pytest.mark.unit
     def test_max_size_eviction(self):
         """Exceeding max_size evicts oldest entry."""
-        from Jotty.core.execution.types import DeadLetterQueue, ErrorType
+        from Jotty.core.modes.execution.types import DeadLetterQueue, ErrorType
         dlq = DeadLetterQueue(max_size=2)
         dlq.enqueue("first", {}, "err", ErrorType.INFRASTRUCTURE)
         dlq.enqueue("second", {}, "err", ErrorType.INFRASTRUCTURE)
@@ -5093,7 +5093,7 @@ class TestDeadLetterQueue:
     @pytest.mark.unit
     def test_clear(self):
         """clear empties the queue."""
-        from Jotty.core.execution.types import DeadLetterQueue, ErrorType
+        from Jotty.core.modes.execution.types import DeadLetterQueue, ErrorType
         dlq = DeadLetterQueue()
         dlq.enqueue("op1", {}, "err", ErrorType.INFRASTRUCTURE)
         dlq.enqueue("op2", {}, "err", ErrorType.INFRASTRUCTURE)
@@ -5111,7 +5111,7 @@ class TestTimeoutWarning:
     @pytest.mark.unit
     def test_initial_state(self):
         """TimeoutWarning starts with zero elapsed."""
-        from Jotty.core.execution.types import TimeoutWarning
+        from Jotty.core.modes.execution.types import TimeoutWarning
         tw = TimeoutWarning(timeout_seconds=120)
         assert tw.elapsed == 0.0
         assert tw.is_expired is False
@@ -5119,28 +5119,28 @@ class TestTimeoutWarning:
     @pytest.mark.unit
     def test_check_before_start(self):
         """check returns None before start() is called."""
-        from Jotty.core.execution.types import TimeoutWarning
+        from Jotty.core.modes.execution.types import TimeoutWarning
         tw = TimeoutWarning(timeout_seconds=120)
         assert tw.check() is None
 
     @pytest.mark.unit
     def test_fraction_used_zero_timeout(self):
         """fraction_used returns 1.0 for zero timeout."""
-        from Jotty.core.execution.types import TimeoutWarning
+        from Jotty.core.modes.execution.types import TimeoutWarning
         tw = TimeoutWarning(timeout_seconds=0)
         assert tw.fraction_used == 1.0
 
     @pytest.mark.unit
     def test_remaining_before_start(self):
         """remaining returns full timeout before start."""
-        from Jotty.core.execution.types import TimeoutWarning
+        from Jotty.core.modes.execution.types import TimeoutWarning
         tw = TimeoutWarning(timeout_seconds=120)
         assert tw.remaining == 120.0
 
     @pytest.mark.unit
     def test_start_resets_triggered(self):
         """start() clears previously triggered thresholds."""
-        from Jotty.core.execution.types import TimeoutWarning
+        from Jotty.core.modes.execution.types import TimeoutWarning
         tw = TimeoutWarning(timeout_seconds=120)
         tw._triggered.add(0.80)
         tw.start()
@@ -5149,7 +5149,7 @@ class TestTimeoutWarning:
     @pytest.mark.unit
     def test_check_triggers_80_percent(self):
         """check triggers 80% warning."""
-        from Jotty.core.execution.types import TimeoutWarning
+        from Jotty.core.modes.execution.types import TimeoutWarning
         tw = TimeoutWarning(timeout_seconds=100)
         tw._start_time = 1.0  # Manually set
         import time
@@ -5162,7 +5162,7 @@ class TestTimeoutWarning:
     @pytest.mark.unit
     def test_one_shot_triggering(self):
         """Each threshold only triggers once."""
-        from Jotty.core.execution.types import TimeoutWarning
+        from Jotty.core.modes.execution.types import TimeoutWarning
         import time as time_mod
         tw = TimeoutWarning(timeout_seconds=100)
         tw._start_time = time_mod.time() - 85  # 85% elapsed
@@ -5176,7 +5176,7 @@ class TestTimeoutWarning:
     @pytest.mark.unit
     def test_is_expired(self):
         """is_expired True when elapsed >= timeout."""
-        from Jotty.core.execution.types import TimeoutWarning
+        from Jotty.core.modes.execution.types import TimeoutWarning
         import time as time_mod
         tw = TimeoutWarning(timeout_seconds=10)
         tw._start_time = time_mod.time() - 20  # Well past expiry
@@ -5193,14 +5193,14 @@ class TestAdaptiveTimeoutExpanded:
     @pytest.mark.unit
     def test_default_with_no_observations(self):
         """Returns default_seconds when no observations exist."""
-        from Jotty.core.execution.types import AdaptiveTimeout
+        from Jotty.core.modes.execution.types import AdaptiveTimeout
         at = AdaptiveTimeout(default_seconds=30.0)
         assert at.get("llm_call") == 30.0
 
     @pytest.mark.unit
     def test_default_with_insufficient_observations(self):
         """Returns default when fewer than 3 observations."""
-        from Jotty.core.execution.types import AdaptiveTimeout
+        from Jotty.core.modes.execution.types import AdaptiveTimeout
         at = AdaptiveTimeout(default_seconds=30.0)
         at.record("llm_call", 2.0)
         at.record("llm_call", 3.0)
@@ -5209,7 +5209,7 @@ class TestAdaptiveTimeoutExpanded:
     @pytest.mark.unit
     def test_adaptive_with_observations(self):
         """With 3+ observations, returns P95 * multiplier."""
-        from Jotty.core.execution.types import AdaptiveTimeout
+        from Jotty.core.modes.execution.types import AdaptiveTimeout
         at = AdaptiveTimeout(default_seconds=30.0, min_seconds=1.0, max_seconds=300.0)
         for t in [1.0, 2.0, 3.0, 4.0, 5.0]:
             at.record("op", t)
@@ -5222,7 +5222,7 @@ class TestAdaptiveTimeoutExpanded:
     @pytest.mark.unit
     def test_min_bound(self):
         """Timeout never goes below min_seconds."""
-        from Jotty.core.execution.types import AdaptiveTimeout
+        from Jotty.core.modes.execution.types import AdaptiveTimeout
         at = AdaptiveTimeout(default_seconds=30.0, min_seconds=10.0)
         for t in [0.01, 0.02, 0.03, 0.04]:
             at.record("fast_op", t)
@@ -5232,7 +5232,7 @@ class TestAdaptiveTimeoutExpanded:
     @pytest.mark.unit
     def test_max_bound(self):
         """Timeout never exceeds max_seconds."""
-        from Jotty.core.execution.types import AdaptiveTimeout
+        from Jotty.core.modes.execution.types import AdaptiveTimeout
         at = AdaptiveTimeout(default_seconds=30.0, max_seconds=50.0)
         for t in [100.0, 200.0, 300.0, 400.0]:
             at.record("slow_op", t)
@@ -5242,7 +5242,7 @@ class TestAdaptiveTimeoutExpanded:
     @pytest.mark.unit
     def test_separate_operations(self):
         """Different operations have independent observations."""
-        from Jotty.core.execution.types import AdaptiveTimeout
+        from Jotty.core.modes.execution.types import AdaptiveTimeout
         at = AdaptiveTimeout(default_seconds=30.0, min_seconds=1.0)
         for t in [1.0, 2.0, 3.0, 4.0]:
             at.record("fast", t)
@@ -5263,7 +5263,7 @@ class TestCircuitBreakerExpanded:
     @pytest.mark.unit
     def test_initial_state_closed(self):
         """CircuitBreaker starts CLOSED."""
-        from Jotty.core.execution.types import CircuitBreaker, CircuitState
+        from Jotty.core.modes.execution.types import CircuitBreaker, CircuitState
         cb = CircuitBreaker("test", failure_threshold=3)
         assert cb.state == CircuitState.CLOSED
         assert cb.allow_request() is True
@@ -5271,7 +5271,7 @@ class TestCircuitBreakerExpanded:
     @pytest.mark.unit
     def test_failures_below_threshold(self):
         """Stays CLOSED with failures below threshold."""
-        from Jotty.core.execution.types import CircuitBreaker, CircuitState
+        from Jotty.core.modes.execution.types import CircuitBreaker, CircuitState
         cb = CircuitBreaker("test", failure_threshold=3)
         cb.record_failure()
         cb.record_failure()
@@ -5281,7 +5281,7 @@ class TestCircuitBreakerExpanded:
     @pytest.mark.unit
     def test_trips_to_open(self):
         """Trips to OPEN when failures reach threshold."""
-        from Jotty.core.execution.types import CircuitBreaker, CircuitState
+        from Jotty.core.modes.execution.types import CircuitBreaker, CircuitState
         cb = CircuitBreaker("test", failure_threshold=3)
         cb.record_failure()
         cb.record_failure()
@@ -5292,7 +5292,7 @@ class TestCircuitBreakerExpanded:
     @pytest.mark.unit
     def test_cooldown_to_half_open(self):
         """Transitions to HALF_OPEN after cooldown."""
-        from Jotty.core.execution.types import CircuitBreaker, CircuitState
+        from Jotty.core.modes.execution.types import CircuitBreaker, CircuitState
         cb = CircuitBreaker("test", failure_threshold=1, cooldown_seconds=0.01)
         cb.record_failure()
         assert cb.state == CircuitState.OPEN
@@ -5304,7 +5304,7 @@ class TestCircuitBreakerExpanded:
     @pytest.mark.unit
     def test_success_resets_to_closed(self):
         """record_success resets to CLOSED from any state."""
-        from Jotty.core.execution.types import CircuitBreaker, CircuitState
+        from Jotty.core.modes.execution.types import CircuitBreaker, CircuitState
         cb = CircuitBreaker("test", failure_threshold=1, cooldown_seconds=0.01)
         cb.record_failure()
         assert cb.state == CircuitState.OPEN
@@ -5318,7 +5318,7 @@ class TestCircuitBreakerExpanded:
     @pytest.mark.unit
     def test_half_open_failure_reopens(self):
         """Failure in HALF_OPEN trips back to OPEN."""
-        from Jotty.core.execution.types import CircuitBreaker, CircuitState
+        from Jotty.core.modes.execution.types import CircuitBreaker, CircuitState
         cb = CircuitBreaker("test", failure_threshold=1, cooldown_seconds=0.01)
         cb.record_failure()
         import time
@@ -5330,7 +5330,7 @@ class TestCircuitBreakerExpanded:
     @pytest.mark.unit
     def test_manual_reset(self):
         """reset() manually returns to CLOSED."""
-        from Jotty.core.execution.types import CircuitBreaker, CircuitState
+        from Jotty.core.modes.execution.types import CircuitBreaker, CircuitState
         cb = CircuitBreaker("test", failure_threshold=1)
         cb.record_failure()
         assert cb.state == CircuitState.OPEN
@@ -5350,14 +5350,14 @@ class TestIOContractFields:
 
     def test_execution_step_defaults(self):
         """ExecutionStep has empty I/O contracts by default."""
-        from Jotty.core.agents._execution_types import ExecutionStep as AgenticStep
+        from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
         step = AgenticStep('skill', 'tool', {}, 'desc')
         assert step.inputs_needed == {}
         assert step.outputs_produced == []
 
     def test_execution_step_with_io_contracts(self):
         """ExecutionStep accepts I/O contract fields."""
-        from Jotty.core.agents._execution_types import ExecutionStep as AgenticStep
+        from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
         step = AgenticStep(
             'file-operations', 'write_file_tool', {'path': 'out.py'},
             'Write generated code',
@@ -5371,7 +5371,7 @@ class TestIOContractFields:
 
     def test_execution_step_schema_with_io_contracts(self):
         """ExecutionStepSchema Pydantic model accepts I/O contract fields."""
-        from Jotty.core.agents._execution_types import ExecutionStepSchema
+        from Jotty.core.modes.agent._execution_types import ExecutionStepSchema
         if ExecutionStepSchema is None:
             pytest.skip("Pydantic not available")
         schema = ExecutionStepSchema(
@@ -5387,7 +5387,7 @@ class TestIOContractFields:
 
     def test_execution_step_schema_defaults(self):
         """ExecutionStepSchema has empty I/O contracts by default."""
-        from Jotty.core.agents._execution_types import ExecutionStepSchema
+        from Jotty.core.modes.agent._execution_types import ExecutionStepSchema
         if ExecutionStepSchema is None:
             pytest.skip("Pydantic not available")
         schema = ExecutionStepSchema(skill_name='test', tool_name='test_tool')
@@ -5400,7 +5400,7 @@ class TestScopedAutoWire:
     """Test ToolSchema.auto_wire with scoped_keys parameter."""
 
     def _make_schema(self, params):
-        from Jotty.core.agents._execution_types import ToolSchema, ToolParam
+        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
         return ToolSchema('test', params=[ToolParam(name=p, required=True) for p in params])
 
     def test_scoped_content_only_from_dependencies(self):
@@ -5445,7 +5445,7 @@ class TestScopedAutoWire:
 
     def test_scoped_keys_priority_ordering(self):
         """Scoped keys are checked before fallback keys."""
-        from Jotty.core.agents._execution_types import ToolSchema, ToolParam
+        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
         schema = ToolSchema('test', params=[ToolParam(name='query', required=True)])
         outputs = {
             'step_0': {'query': 'fallback query'},
@@ -5461,8 +5461,8 @@ class TestScopedResolution:
 
     def test_io_contract_literal_resolution(self):
         """Literal sources in inputs_needed are resolved directly."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
-        from Jotty.core.agents._execution_types import ExecutionStep as AgenticStep
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
 
         step = AgenticStep(
             'file-operations', 'write_file_tool', {},
@@ -5475,8 +5475,8 @@ class TestScopedResolution:
 
     def test_io_contract_step_reference_resolution(self):
         """Step references in inputs_needed resolve from outputs."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
-        from Jotty.core.agents._execution_types import ExecutionStep as AgenticStep
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
 
         outputs = {
             'step_0': {'generated_code': 'print("hello")', 'path': '/tmp/test.py'},
@@ -5492,8 +5492,8 @@ class TestScopedResolution:
 
     def test_io_contract_does_not_override_templates(self):
         """If param already has a template, inputs_needed should not override it."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
-        from Jotty.core.agents._execution_types import ExecutionStep as AgenticStep
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
 
         outputs = {'step_0': {'text': 'resolved text'}}
         step = AgenticStep(
@@ -5509,7 +5509,7 @@ class TestScopedResolution:
 
     def test_is_template_detection(self):
         """_is_template correctly identifies template references."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
         assert ParameterResolver._is_template('${step_0.content}')
         assert ParameterResolver._is_template('{step_0}')
         assert not ParameterResolver._is_template('plain text')
@@ -5517,7 +5517,7 @@ class TestScopedResolution:
 
     def test_resolve_missing_path_scoped(self):
         """_resolve_missing_path uses scoped resolution — no broadcast scan."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
 
         outputs = {
             'step_0': {'content': 'wrong content from step 0', 'path': '/init.py'},
@@ -5535,7 +5535,7 @@ class TestScopedResolution:
 
     def test_resolve_missing_path_adjacent_step(self):
         """Adjacent step (N-1) is checked as fallback."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
 
         outputs = {
             'step_0': {'generated_code': 'code content here', 'path': '/test.py'},
@@ -5548,8 +5548,8 @@ class TestScopedResolution:
 
     def test_scoped_auto_wire_with_depends_on(self):
         """auto_wire scoping via depends_on narrows the search to dependency outputs."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
-        from Jotty.core.agents._execution_types import (
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent._execution_types import (
             ExecutionStep as AgenticStep, ToolSchema, ToolParam,
         )
 
@@ -5578,13 +5578,13 @@ class TestSemanticParamResolver:
 
     def test_init_creates_resolver(self):
         """SemanticParamResolver initializes without error."""
-        from Jotty.core.agents.base.step_processors import SemanticParamResolver
+        from Jotty.core.modes.agent.base.step_processors import SemanticParamResolver
         resolver = SemanticParamResolver()
         assert resolver._matcher is None  # Lazy init
 
     def test_non_high_stakes_returns_none(self):
         """Non-high-stakes params (e.g. 'query') return None immediately."""
-        from Jotty.core.agents.base.step_processors import SemanticParamResolver
+        from Jotty.core.modes.agent.base.step_processors import SemanticParamResolver
         resolver = SemanticParamResolver()
         result = resolver.resolve('query', 'Search for data', {'step_0': {'text': 'hello'}})
         assert result is None
@@ -5592,14 +5592,14 @@ class TestSemanticParamResolver:
     @patch('Jotty.core.agents.base.step_processors._DSPY_AVAILABLE', False)
     def test_no_dspy_returns_none(self):
         """Without DSPy, resolver returns None gracefully."""
-        from Jotty.core.agents.base.step_processors import SemanticParamResolver
+        from Jotty.core.modes.agent.base.step_processors import SemanticParamResolver
         resolver = SemanticParamResolver()
         result = resolver.resolve('content', 'Write file', {'step_0': {'text': 'hello'}})
         assert result is None
 
     def test_high_stakes_with_mock_dspy(self):
         """High-stakes param resolves when DSPy returns high-confidence match."""
-        from Jotty.core.agents.base.step_processors import SemanticParamResolver
+        from Jotty.core.modes.agent.base.step_processors import SemanticParamResolver
 
         resolver = SemanticParamResolver()
         mock_matcher = Mock()
@@ -5615,7 +5615,7 @@ class TestSemanticParamResolver:
 
     def test_low_confidence_returns_none(self):
         """Low confidence match returns None."""
-        from Jotty.core.agents.base.step_processors import SemanticParamResolver
+        from Jotty.core.modes.agent.base.step_processors import SemanticParamResolver
 
         resolver = SemanticParamResolver()
         mock_matcher = Mock()
@@ -5631,7 +5631,7 @@ class TestSemanticParamResolver:
 
     def test_no_match_returns_none(self):
         """NO_MATCH response returns None."""
-        from Jotty.core.agents.base.step_processors import SemanticParamResolver
+        from Jotty.core.modes.agent.base.step_processors import SemanticParamResolver
 
         resolver = SemanticParamResolver()
         mock_matcher = Mock()
@@ -5647,7 +5647,7 @@ class TestSemanticParamResolver:
 
     def test_empty_outputs_returns_none(self):
         """Empty outputs dict returns None."""
-        from Jotty.core.agents.base.step_processors import SemanticParamResolver
+        from Jotty.core.modes.agent.base.step_processors import SemanticParamResolver
         resolver = SemanticParamResolver()
         resolver._matcher = Mock()  # Won't be called
         result = resolver.resolve('content', 'Write file', {})
@@ -5664,7 +5664,7 @@ class TestDependencyResultsInjection:
             'step_0': {'content': 'step 0 data', 'path': '/tmp/a.py'},
             'step_1': {'results': [{'title': 'Result 1'}]},
         }
-        from Jotty.core.agents._execution_types import ExecutionStep as AgenticStep
+        from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
         step = AgenticStep(
             'claude-cli-llm', 'generate_text_tool',
             {'prompt': 'Summarize the data'},
@@ -5693,7 +5693,7 @@ class TestPlanParsingIOContracts:
 
     def test_plan_step_with_io_contracts(self):
         """Steps with I/O contracts have them parsed into ExecutionStep."""
-        from Jotty.core.agents._execution_types import ExecutionStep as AgenticStep
+        from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
 
         # Simulate what _parse_plan_to_steps does
         raw_inputs = {'content': 'step_0.generated_code', 'path': 'literal:stats.py'}
@@ -5715,7 +5715,7 @@ class TestPlanParsingIOContracts:
 
     def test_plan_step_without_io_contracts(self):
         """Steps without I/O contracts get empty defaults."""
-        from Jotty.core.agents._execution_types import ExecutionStep as AgenticStep
+        from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
 
         raw_inputs = None
         raw_outputs = 'not_a_list'
@@ -5741,7 +5741,7 @@ class TestContentFieldScopingRegression:
 
     def test_scoped_auto_wire_prevents_wrong_content(self):
         """auto_wire with scoped_keys prevents step_0 content leaking to step_2."""
-        from Jotty.core.agents._execution_types import ToolSchema, ToolParam
+        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
 
         schema = ToolSchema('write_file_tool', params=[
             ToolParam(name='content', required=True),
@@ -5762,7 +5762,7 @@ class TestContentFieldScopingRegression:
 
     def test_unscoped_auto_wire_gets_most_recent(self):
         """Without scoped_keys, auto_wire uses most recent (backward compat)."""
-        from Jotty.core.agents._execution_types import ToolSchema, ToolParam
+        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
 
         schema = ToolSchema('write_file_tool', params=[
             ToolParam(name='content', required=True),
@@ -5778,7 +5778,7 @@ class TestContentFieldScopingRegression:
 
     def test_find_in_outputs_no_longer_scans_content_fields(self):
         """Strategy 3 in _find_in_outputs no longer uses _CONTENT_FIELDS broadcast."""
-        from Jotty.core.agents._execution_types import ToolSchema, ToolParam
+        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
 
         schema = ToolSchema('test', params=[
             ToolParam(name='content', required=True),
@@ -5810,8 +5810,8 @@ class TestRealWorldCodeGenPipeline:
 
     def test_code_gen_write_execute_full_pipeline(self):
         """Full 3-step code gen pipeline resolves content correctly."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
-        from Jotty.core.agents._execution_types import (
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent._execution_types import (
             ExecutionStep as AgenticStep, ToolSchema, ToolParam,
         )
 
@@ -5848,8 +5848,8 @@ class TestRealWorldCodeGenPipeline:
 
     def test_code_gen_wrong_step_content_blocked(self):
         """Step 2 (write stats.py) must NOT get __init__.py from step 0."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
-        from Jotty.core.agents._execution_types import (
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent._execution_types import (
             ExecutionStep as AgenticStep, ToolSchema, ToolParam,
         )
 
@@ -5893,8 +5893,8 @@ class TestRealWorldCodeGenPipeline:
 
     def test_shell_exec_after_file_write(self):
         """Step 3 (shell exec) gets correct file path from step 2."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
-        from Jotty.core.agents._execution_types import (
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent._execution_types import (
             ExecutionStep as AgenticStep, ToolSchema, ToolParam,
         )
 
@@ -5930,8 +5930,8 @@ class TestRealWorldResearchSynthesis:
 
     def test_comparison_synthesis_uses_correct_research(self):
         """Synthesis step (step 2) gets both search results from steps 0 and 1."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
-        from Jotty.core.agents._execution_types import (
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent._execution_types import (
             ExecutionStep as AgenticStep, ToolSchema, ToolParam,
         )
 
@@ -5978,8 +5978,8 @@ class TestRealWorldResearchSynthesis:
 
     def test_pdf_step_gets_synthesis_not_raw_search(self):
         """PDF creation step gets the synthesis output, not raw search JSON."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
-        from Jotty.core.agents._execution_types import (
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent._execution_types import (
             ExecutionStep as AgenticStep, ToolSchema, ToolParam,
         )
 
@@ -6049,8 +6049,8 @@ class TestRealWorldMultiFileProject:
 
     def test_init_file_gets_init_content(self):
         """__init__.py write step gets __init__ content, not main.py or utils.py."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
-        from Jotty.core.agents._execution_types import (
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent._execution_types import (
             ExecutionStep as AgenticStep, ToolSchema, ToolParam,
         )
 
@@ -6079,8 +6079,8 @@ class TestRealWorldMultiFileProject:
 
     def test_main_file_gets_main_content(self):
         """main.py write step gets main content, not __init__.py or utils.py."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
-        from Jotty.core.agents._execution_types import (
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent._execution_types import (
             ExecutionStep as AgenticStep, ToolSchema, ToolParam,
         )
 
@@ -6109,8 +6109,8 @@ class TestRealWorldMultiFileProject:
 
     def test_utils_file_gets_utils_content(self):
         """utils.py write step gets utils content, not __init__.py or main.py."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
-        from Jotty.core.agents._execution_types import (
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent._execution_types import (
             ExecutionStep as AgenticStep, ToolSchema, ToolParam,
         )
 
@@ -6139,8 +6139,8 @@ class TestRealWorldMultiFileProject:
 
     def test_all_three_files_get_unique_content(self):
         """All 3 write steps produce different content — no cross-contamination."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
-        from Jotty.core.agents._execution_types import (
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent._execution_types import (
             ExecutionStep as AgenticStep, ToolSchema, ToolParam,
         )
 
@@ -6187,8 +6187,8 @@ class TestRealWorldWebScrapeAnalyze:
 
     def test_analysis_step_receives_scraped_data(self):
         """Analysis step (step 1) should get scraped data from step 0."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
-        from Jotty.core.agents._execution_types import (
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent._execution_types import (
             ExecutionStep as AgenticStep, ToolSchema, ToolParam,
         )
 
@@ -6221,8 +6221,8 @@ class TestRealWorldWebScrapeAnalyze:
 
     def test_report_step_gets_analysis_not_scrape(self):
         """Report write step (step 2) gets analysis output, not raw scrape."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
-        from Jotty.core.agents._execution_types import (
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent._execution_types import (
             ExecutionStep as AgenticStep, ToolSchema, ToolParam,
         )
 
@@ -6279,7 +6279,7 @@ class TestRealWorldDependencyResults:
 
     def test_synthesis_step_gets_all_dependency_outputs(self):
         """Synthesis step depending on 3 research steps gets all outputs."""
-        from Jotty.core.agents._execution_types import ExecutionStep as AgenticStep
+        from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
 
         outputs = {
             'step_0': {'query': 'React features', 'results': [{'title': 'React 20'}], 'success': True},
@@ -6306,7 +6306,7 @@ class TestRealWorldDependencyResults:
 
     def test_no_injection_when_context_already_present(self):
         """If 'context' param already exists, don't inject _dependency_results."""
-        from Jotty.core.agents._execution_types import ExecutionStep as AgenticStep
+        from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
 
         outputs = {'step_0': {'content': 'data', 'success': True}}
         step = AgenticStep(
@@ -6322,7 +6322,7 @@ class TestRealWorldDependencyResults:
 
     def test_no_injection_without_depends_on(self):
         """Steps without depends_on get no injection."""
-        from Jotty.core.agents._execution_types import ExecutionStep as AgenticStep
+        from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
 
         outputs = {'step_0': {'content': 'data'}}
         step = AgenticStep(
@@ -6345,8 +6345,8 @@ class TestRealWorldReplanRecovery:
 
     def test_replan_step_resolves_from_surviving_outputs(self):
         """After replan, new step correctly resolves from pre-replan outputs."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
-        from Jotty.core.agents._execution_types import (
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent._execution_types import (
             ExecutionStep as AgenticStep, ToolSchema, ToolParam,
         )
 
@@ -6389,8 +6389,8 @@ class TestRealWorldReplanRecovery:
 
     def test_replan_with_custom_output_keys(self):
         """Replan steps referencing custom output_keys resolve correctly."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
-        from Jotty.core.agents._execution_types import ExecutionStep as AgenticStep
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
 
         outputs = {
             'weather_data': {
@@ -6427,8 +6427,8 @@ class TestRealWorldEdgeCases:
 
     def test_empty_io_contracts_backward_compat(self):
         """Steps without I/O contracts still resolve via templates (backward compat)."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
-        from Jotty.core.agents._execution_types import ExecutionStep as AgenticStep
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
 
         outputs = {
             'step_0': {'content': 'Generated report content with enough length to pass threshold checks easily', 'success': True},
@@ -6450,8 +6450,8 @@ class TestRealWorldEdgeCases:
 
     def test_literal_prefix_with_special_chars(self):
         """Literal sources with special characters resolve correctly."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
-        from Jotty.core.agents._execution_types import ExecutionStep as AgenticStep
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
 
         step = AgenticStep(
             'file-operations', 'write_file_tool', {},
@@ -6470,8 +6470,8 @@ class TestRealWorldEdgeCases:
 
     def test_mixed_literal_and_step_references(self):
         """Mix of literal and step references in same inputs_needed."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
-        from Jotty.core.agents._execution_types import ExecutionStep as AgenticStep
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
 
         outputs = {
             'codegen': {
@@ -6498,8 +6498,8 @@ class TestRealWorldEdgeCases:
 
     def test_io_contract_unresolved_source_falls_through(self):
         """When inputs_needed source doesn't resolve, template/auto-wire take over."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
-        from Jotty.core.agents._execution_types import (
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent._execution_types import (
             ExecutionStep as AgenticStep, ToolSchema, ToolParam,
         )
 
@@ -6529,8 +6529,8 @@ class TestRealWorldEdgeCases:
 
     def test_step_with_no_outputs_yet(self):
         """First step in a plan (no previous outputs) resolves correctly."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
-        from Jotty.core.agents._execution_types import (
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent._execution_types import (
             ExecutionStep as AgenticStep, ToolSchema, ToolParam,
         )
 
@@ -6553,7 +6553,7 @@ class TestRealWorldEdgeCases:
 
     def test_deeply_nested_step_reference(self):
         """Dotted path with nested field access (step_0.results[0].title)."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
 
         outputs = {
             'step_0': {
@@ -6574,7 +6574,7 @@ class TestRealWorldEdgeCases:
 
     def test_large_output_truncation_in_dependency_results(self):
         """Large outputs are truncated to 500 chars in dependency injection."""
-        from Jotty.core.agents._execution_types import ExecutionStep as AgenticStep
+        from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
 
         large_content = 'x' * 2000
         outputs = {
@@ -6611,7 +6611,7 @@ class TestCodeFenceExtraction:
     """Test ParameterResolver._extract_code_from_fences() for LLM preamble stripping."""
 
     def _extract(self, value: str) -> str:
-        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
         return ParameterResolver._extract_code_from_fences(value)
 
     def test_no_fences_returns_original(self):
@@ -6716,7 +6716,7 @@ class TestCodeFenceExtraction:
 
     def test_sanitize_content_calls_extraction(self):
         """_sanitize_content_param integrates code fence extraction."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
         resolver = ParameterResolver({})
         value = (
             "I'll create a calculator:\n\n"
@@ -6729,7 +6729,7 @@ class TestCodeFenceExtraction:
 
     def test_non_content_key_skips_extraction(self):
         """_sanitize_content_param only applies to 'content' key."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
         resolver = ParameterResolver({})
         value = "I'll create: ```python\ncode\n```"
         result = resolver._sanitize_content_param('query', value)
@@ -6743,8 +6743,8 @@ class TestCodeFenceExtractionInExecuteStep:
     @pytest.mark.asyncio
     async def test_file_write_strips_fences(self):
         """file-operations/write_file_tool strips LLM preamble from content."""
-        from Jotty.core.agents.base.skill_plan_executor import SkillPlanExecutor
-        from Jotty.core.agents._execution_types import ExecutionStep as AgentStep
+        from Jotty.core.modes.agent.base.skill_plan_executor import SkillPlanExecutor
+        from Jotty.core.modes.agent._execution_types import ExecutionStep as AgentStep
 
         mock_registry = MagicMock()
         mock_skill = MagicMock()
@@ -7381,7 +7381,7 @@ class TestSkillSubstitution:
     @pytest.mark.asyncio
     async def test_substitution_when_api_key_available(self):
         """execute_step swaps claude-cli-llm to claude-api-llm when key is set."""
-        from Jotty.core.agents.base.skill_plan_executor import SkillPlanExecutor
+        from Jotty.core.modes.agent.base.skill_plan_executor import SkillPlanExecutor
 
         mock_registry = Mock()
         mock_api_skill = Mock()
@@ -7407,7 +7407,7 @@ class TestSkillSubstitution:
     @pytest.mark.asyncio
     async def test_no_substitution_without_api_key(self):
         """execute_step keeps claude-cli-llm when no API key."""
-        from Jotty.core.agents.base.skill_plan_executor import SkillPlanExecutor
+        from Jotty.core.modes.agent.base.skill_plan_executor import SkillPlanExecutor
 
         mock_registry = Mock()
         mock_cli_skill = Mock()
@@ -7429,7 +7429,7 @@ class TestSkillSubstitution:
     @pytest.mark.asyncio
     async def test_no_substitution_for_other_skills(self):
         """execute_step doesn't substitute non-claude-cli-llm skills."""
-        from Jotty.core.agents.base.skill_plan_executor import SkillPlanExecutor
+        from Jotty.core.modes.agent.base.skill_plan_executor import SkillPlanExecutor
 
         mock_registry = Mock()
         mock_skill = Mock()
@@ -7456,17 +7456,17 @@ class TestExtractOutputText:
 
     def test_string_passthrough(self):
         """Plain strings are returned as-is."""
-        from Jotty.core.orchestration.paradigm_executor import _extract_output_text
+        from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
         assert _extract_output_text("hello world") == "hello world"
 
     def test_none_returns_empty(self):
         """None returns empty string."""
-        from Jotty.core.orchestration.paradigm_executor import _extract_output_text
+        from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
         assert _extract_output_text(None) == ""
 
     def test_agentic_execution_result_extracts_final_output(self):
         """AgenticExecutionResult-like objects extract .final_output cleanly."""
-        from Jotty.core.orchestration.paradigm_executor import _extract_output_text
+        from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
         mock_result = Mock()
         mock_result.final_output = "This is the clean analysis text."
         mock_result.outputs = {}
@@ -7474,7 +7474,7 @@ class TestExtractOutputText:
 
     def test_agentic_execution_result_extracts_from_outputs_dict(self):
         """When final_output is None, extracts from .outputs dict values."""
-        from Jotty.core.orchestration.paradigm_executor import _extract_output_text
+        from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
         mock_result = Mock()
         mock_result.final_output = None
         mock_result.outputs = {"step_0": {"content": "The real content here"}}
@@ -7484,7 +7484,7 @@ class TestExtractOutputText:
 
     def test_episode_result_unwraps_nested(self):
         """EpisodeResult wrapping an AgenticExecutionResult is unwrapped."""
-        from Jotty.core.orchestration.paradigm_executor import _extract_output_text
+        from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
         inner = Mock()
         inner.final_output = "Deep clean text"
         inner.outputs = {}
@@ -7494,12 +7494,12 @@ class TestExtractOutputText:
 
     def test_dict_extracts_content_field(self):
         """Dict output extracts 'content' field."""
-        from Jotty.core.orchestration.paradigm_executor import _extract_output_text
+        from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
         assert _extract_output_text({"content": "abc", "meta": "x"}) == "abc"
 
     def test_does_not_produce_repr_string(self):
         """Verify output never contains AgenticExecutionResult repr markers."""
-        from Jotty.core.orchestration.paradigm_executor import _extract_output_text
+        from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
         mock_result = Mock()
         mock_result.final_output = "Clean output"
         mock_result.outputs = {}
@@ -7509,7 +7509,7 @@ class TestExtractOutputText:
 
     def test_summary_fallback(self):
         """Falls back to .summary when no other fields match."""
-        from Jotty.core.orchestration.paradigm_executor import _extract_output_text
+        from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
         obj = Mock(spec=['summary'])
         obj.summary = "Summary text"
         assert _extract_output_text(obj) == "Summary text"
@@ -7521,7 +7521,7 @@ class TestSmartExtractFilenameResolution:
 
     def test_filename_key_extracted(self):
         """_smart_extract resolves 'filename' key from tool response."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
         resolver = ParameterResolver({})
         json_str = json.dumps({
             "filename": "/tmp/output.py",
@@ -7533,7 +7533,7 @@ class TestSmartExtractFilenameResolution:
 
     def test_filepath_key_extracted(self):
         """_smart_extract resolves 'filepath' key."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
         resolver = ParameterResolver({})
         json_str = json.dumps({
             "filepath": "/tmp/result.txt",
@@ -7544,7 +7544,7 @@ class TestSmartExtractFilenameResolution:
 
     def test_file_path_param_scans_outputs(self):
         """file_path param name scans outputs for path-like keys."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
         resolver = ParameterResolver({
             "step_0": {"filename": "/tmp/code.py", "success": True},
         })
@@ -7554,7 +7554,7 @@ class TestSmartExtractFilenameResolution:
 
     def test_resolve_path_large_dict_extracts_field(self):
         """resolve_path with a large dict extracts relevant field instead of full JSON."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
         large_content = "x" * 600
         resolver = ParameterResolver({
             "step_0": {
@@ -7570,7 +7570,7 @@ class TestSmartExtractFilenameResolution:
 
     def test_resolve_path_small_dict_returns_json(self):
         """resolve_path with a small dict returns full JSON (no extraction needed)."""
-        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
         resolver = ParameterResolver({
             "step_0": {"path": "/tmp/f.py", "ok": True},
         })
@@ -7599,7 +7599,7 @@ class TestClaudeCliUpgradeToolValidation:
     @pytest.mark.asyncio
     async def test_upgrade_skipped_when_tool_missing(self):
         """Upgrade from cli to api is skipped when tool doesn't exist in api skill."""
-        from Jotty.core.agents.base.skill_plan_executor import SkillPlanExecutor
+        from Jotty.core.modes.agent.base.skill_plan_executor import SkillPlanExecutor
 
         mock_registry = Mock()
         api_skill = Mock()
@@ -7631,7 +7631,7 @@ class TestClaudeCliUpgradeToolValidation:
     @pytest.mark.asyncio
     async def test_upgrade_proceeds_when_tool_exists(self):
         """Upgrade from cli to api proceeds when tool exists in api skill."""
-        from Jotty.core.agents.base.skill_plan_executor import SkillPlanExecutor
+        from Jotty.core.modes.agent.base.skill_plan_executor import SkillPlanExecutor
 
         mock_registry = Mock()
         api_skill = Mock()
@@ -7655,7 +7655,7 @@ class TestClaudeCliUpgradeToolValidation:
     @pytest.mark.asyncio
     async def test_upgrade_proceeds_when_no_tool_name(self):
         """Upgrade proceeds when step has no specific tool_name."""
-        from Jotty.core.agents.base.skill_plan_executor import SkillPlanExecutor
+        from Jotty.core.modes.agent.base.skill_plan_executor import SkillPlanExecutor
 
         mock_registry = Mock()
         api_skill = Mock()

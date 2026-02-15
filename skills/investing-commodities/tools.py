@@ -10,8 +10,8 @@ from datetime import datetime
 import logging
 import json
 
-from Jotty.core.utils.skill_status import SkillStatus
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("investing-commodities")

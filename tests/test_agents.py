@@ -20,9 +20,9 @@ import asyncio
 import pytest
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
 
-from Jotty.core.agents.base.base_agent import BaseAgent, AgentRuntimeConfig, AgentResult
-from Jotty.core.agents.base.domain_agent import DomainAgent, DomainAgentConfig
-from Jotty.core.agents.base.composite_agent import (
+from Jotty.core.modes.agent.base.base_agent import BaseAgent, AgentRuntimeConfig, AgentResult
+from Jotty.core.modes.agent.base.domain_agent import DomainAgent, DomainAgentConfig
+from Jotty.core.modes.agent.base.composite_agent import (
     CompositeAgent,
     CompositeAgentConfig,
     UnifiedResult,

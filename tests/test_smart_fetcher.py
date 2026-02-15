@@ -21,7 +21,7 @@ import pytest
 from unittest.mock import Mock, MagicMock, patch, PropertyMock
 
 try:
-    from Jotty.core.utils.smart_fetcher import (
+    from Jotty.core.infrastructure.utils.smart_fetcher import (
         FetchResult,
         ProxyRotator,
         smart_fetch,

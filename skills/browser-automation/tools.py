@@ -29,8 +29,8 @@ from pathlib import Path
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 
-from Jotty.core.utils.skill_status import SkillStatus
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +102,7 @@ class BrowserSession:
     def _emit_event(event_type: str, data: dict) -> None:
         """Emit an event via AgentEventBroadcaster (lazy import)."""
         try:
-            from Jotty.core.utils.async_utils import AgentEventBroadcaster, AgentEvent
+            from Jotty.core.infrastructure.utils.async_utils import AgentEventBroadcaster, AgentEvent
             broadcaster = AgentEventBroadcaster.get_instance()
             data["skill"] = "browser-automation"
             broadcaster.emit_async(AgentEvent(type=event_type, data=data))
@@ -173,7 +173,7 @@ class SeleniumBrowserSession:
     def _emit_event(event_type: str, data: dict) -> None:
         """Emit an event via AgentEventBroadcaster (lazy import)."""
         try:
-            from Jotty.core.utils.async_utils import AgentEventBroadcaster, AgentEvent
+            from Jotty.core.infrastructure.utils.async_utils import AgentEventBroadcaster, AgentEvent
             broadcaster = AgentEventBroadcaster.get_instance()
             data["skill"] = "browser-automation"
             broadcaster.emit_async(AgentEvent(type=event_type, data=data))

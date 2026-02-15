@@ -15,7 +15,7 @@ from typing import Dict, Any, Callable
 # Add parent for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from Jotty.core.registry.skills_registry import (
+from Jotty.core.capabilities.registry.skills_registry import (
     SkillsRegistry,
     SkillDefinition,
     SkillType,
@@ -34,7 +34,7 @@ from Jotty.core.registry.skills_registry import (
 
 def _reset_skills_registry_singleton():
     """Reset the module-level singleton so each test starts fresh."""
-    import Jotty.core.registry.skills_registry as mod
+    import Jotty.core.capabilities.registry.skills_registry as mod
     mod._registry_instance = None
 
 
@@ -768,7 +768,7 @@ class TestSkillsRegistryLoadCollection:
 
     def test_load_collection_stores_collection(self):
         """load_collection registers tools from a ToolCollection."""
-        from Jotty.core.registry.tool_collection import ToolCollection
+        from Jotty.core.capabilities.registry.tool_collection import ToolCollection
 
         with tempfile.TemporaryDirectory() as tmpdir:
             reg = SkillsRegistry(skills_dir=tmpdir)

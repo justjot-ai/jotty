@@ -15,14 +15,14 @@ import logging
 from typing import AsyncGenerator, Optional, Callable, Any, Dict, List
 from pathlib import Path
 
-from .core.execution import (
+from .core.modes.execution import (
     TierExecutor,
     ExecutionConfig,
     ExecutionTier,
     ExecutionResult,
     TierDetector,
 )
-from .core.execution.types import StreamEvent, StreamEventType
+from .core.modes.execution.types import StreamEvent, StreamEventType
 
 logger = logging.getLogger(__name__)
 
@@ -384,7 +384,7 @@ class Jotty:
             result = await jotty.router.chat(message, context)
         """
         if not hasattr(self, '_router'):
-            from Jotty.core.api.mode_router import ModeRouter
+            from Jotty.core.interface.api.mode_router import ModeRouter
             self._router = ModeRouter()
         return self._router
 
@@ -400,7 +400,7 @@ class Jotty:
             result = await jotty.chat_executor.execute(prompt, tools)
         """
         if not hasattr(self, '_chat_executor'):
-            from Jotty.core.orchestration.unified_executor import ChatExecutor
+            from Jotty.core.intelligence.orchestration.unified_executor import ChatExecutor
             self._chat_executor = ChatExecutor()
         return self._chat_executor
 
@@ -417,7 +417,7 @@ class Jotty:
             tools = jotty.registry.get_claude_tools(['web-search'])
         """
         if not hasattr(self, '_registry'):
-            from Jotty.core.registry import get_unified_registry
+            from Jotty.core.capabilities.registry import get_unified_registry
             self._registry = get_unified_registry()
         return self._registry
 
@@ -432,7 +432,7 @@ class Jotty:
             swarms = Jotty.list_swarms()
             print(swarms)  # ['coding', 'research', 'testing', ...]
         """
-        from Jotty.core.swarms.registry import SwarmRegistry
+        from Jotty.core.intelligence.swarms.registry import SwarmRegistry
         return SwarmRegistry.list_all()
 
     @staticmethod
@@ -480,7 +480,7 @@ class Jotty:
             stats = jotty.get_stats()
             print(stats['global']['total_executions'])
         """
-        from Jotty.core.observability import get_metrics
+        from Jotty.core.infrastructure.monitoring.observability import get_metrics
         summary = get_metrics().get_summary()
         return {
             'config': {
@@ -502,7 +502,7 @@ class Jotty:
             costs = jotty.get_cost_breakdown()
             print(f"Total: ${costs['total_cost_usd']:.4f}")
         """
-        from Jotty.core.observability import get_metrics
+        from Jotty.core.infrastructure.monitoring.observability import get_metrics
         return get_metrics().get_cost_breakdown()
 
     def get_recent_errors(self, limit: int = 10) -> list:
@@ -520,7 +520,7 @@ class Jotty:
             for e in errors:
                 print(f"{e['agent']}: {e['error']}")
         """
-        from Jotty.core.observability import get_metrics
+        from Jotty.core.infrastructure.monitoring.observability import get_metrics
         return get_metrics().recent_errors(limit)
 
     def save_metrics(self, path: str = None) -> str:
@@ -538,7 +538,7 @@ class Jotty:
             print(f"Saved to {saved}")
         """
         import json
-        from Jotty.core.observability import get_metrics
+        from Jotty.core.infrastructure.monitoring.observability import get_metrics
 
         path = path or str(Path.home() / "jotty" / "v3_metrics" / "session.json")
         Path(path).parent.mkdir(parents=True, exist_ok=True)

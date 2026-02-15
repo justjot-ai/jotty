@@ -20,7 +20,7 @@ import json
 import os
 from urllib.parse import urljoin
 
-from Jotty.core.foundation.config_defaults import (
+from Jotty.core.infrastructure.foundation.config_defaults import (
     DEFAULT_MODEL_ALIAS, LLM_TEMPERATURE, LLM_TIMEOUT_SECONDS,
 )
 
@@ -35,7 +35,7 @@ class AISDKProviderLM(BaseLM):
     
     Usage:
         import dspy
-        from Jotty.core.integration.ai_sdk_provider_adapter import AISDKProviderLM
+        from Jotty.core.infrastructure.integration.ai_sdk_provider_adapter import AISDKProviderLM
         
         # Use CLI provider
         dspy.configure(lm=AISDKProviderLM(provider='cursor-cli', model='sonnet'))
@@ -246,7 +246,7 @@ def configure_dspy_with_ai_sdk_provider(provider: str, model: str = 'sonnet', ba
     Configure DSPy with an AI SDK provider
     
     Usage:
-        from Jotty.core.integration.ai_sdk_provider_adapter import configure_dspy_with_ai_sdk_provider
+        from Jotty.core.infrastructure.integration.ai_sdk_provider_adapter import configure_dspy_with_ai_sdk_provider
         import dspy
         
         configure_dspy_with_ai_sdk_provider('cursor-cli', 'sonnet')

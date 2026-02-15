@@ -71,7 +71,7 @@ import tempfile
 # =============================================================================
 
 try:
-    from Jotty.core.orchestration.swarm_state_manager import (
+    from Jotty.core.intelligence.orchestration.swarm_state_manager import (
         AgentStateTracker,
         SwarmStateManager,
     )

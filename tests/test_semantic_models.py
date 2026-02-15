@@ -15,7 +15,7 @@ from unittest.mock import patch, MagicMock
 from typing import Dict, Any
 
 # Semantic models imports
-from Jotty.core.semantic.models import (
+from Jotty.core.capabilities.semantic.models import (
     ColumnType,
     RelationType,
     MeasureType,
@@ -28,7 +28,7 @@ from Jotty.core.semantic.models import (
 )
 
 # LookML models imports
-from Jotty.core.semantic.lookml.models import (
+from Jotty.core.capabilities.semantic.lookml.models import (
     DimensionType,
     MeasureType as LookMLMeasureType,
     JoinType,
@@ -42,7 +42,7 @@ from Jotty.core.semantic.lookml.models import (
 )
 
 # Date preprocessor imports
-from Jotty.core.semantic.query.date_preprocessor import (
+from Jotty.core.capabilities.semantic.query.date_preprocessor import (
     DateFormat,
     BaseDatePreprocessor,
     DatePreprocessor,

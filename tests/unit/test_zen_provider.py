@@ -24,7 +24,7 @@ def _set_zen_key(monkeypatch):
 
 @pytest.fixture
 def provider():
-    from Jotty.core.foundation.unified_lm_provider import UnifiedLMProvider
+    from Jotty.core.infrastructure.foundation.unified_lm_provider import UnifiedLMProvider
     return UnifiedLMProvider
 
 
@@ -192,7 +192,7 @@ class TestZenApiKey:
     @pytest.mark.unit
     def test_missing_api_key_raises(self, provider, monkeypatch):
         """No API key at all should raise InvalidConfigError."""
-        from Jotty.core.foundation.exceptions import InvalidConfigError
+        from Jotty.core.infrastructure.foundation.exceptions import InvalidConfigError
         monkeypatch.delenv("OPENCODE_ZEN_API_KEY", raising=False)
         with pytest.raises(InvalidConfigError, match="API key required"):
             provider._create_zen_lm(model="glm-4.7-free")

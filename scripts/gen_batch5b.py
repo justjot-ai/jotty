@@ -19,8 +19,8 @@ def _get_regex_builder_code() -> str:
         'import re\n'
         'from typing import Dict, Any\n'
         '\n'
-        'from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper\n'
-        'from Jotty.core.utils.skill_status import SkillStatus\n'
+        'from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper\n'
+        'from Jotty.core.infrastructure.utils.skill_status import SkillStatus\n'
         '\n'
         'status = SkillStatus("regex-builder")\n'
         '\n'
@@ -114,8 +114,8 @@ Compare two JSON objects.
 import json
 from typing import Dict, Any, List, Tuple
 
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("json-diff")
 
@@ -193,8 +193,8 @@ Parse, compare, or bump semantic versions.
 import re
 from typing import Dict, Any, Tuple, Optional
 
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("semver-manager")
 
@@ -301,8 +301,8 @@ import re
 import unicodedata
 from typing import Dict, Any
 
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("slug-generator")
 
@@ -369,8 +369,8 @@ import unicodedata
 import re
 from typing import Dict, Any, List
 
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("emoji-lookup")
 
@@ -492,8 +492,8 @@ Convert numbers and perform bitwise operations.
     tools_code='''"""Binary Converter Skill — convert bases and bitwise operations."""
 from typing import Dict, Any
 
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("binary-converter")
 
@@ -578,8 +578,8 @@ Convert numbers between arbitrary bases 2-36.
 import string
 from typing import Dict, Any
 
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("number-base-converter")
 
@@ -656,8 +656,8 @@ Convert between Roman numerals and integers.
 import re
 from typing import Dict, Any
 
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("roman-numeral-converter")
 
@@ -749,8 +749,8 @@ Convert text to/from Morse code.
     tools_code='''"""Morse Code Translator Skill — encode/decode Morse code."""
 from typing import Dict, Any
 
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("morse-code-translator")
 
@@ -835,8 +835,8 @@ Convert text to/from NATO phonetic alphabet.
     tools_code='''"""NATO Phonetic Alphabet Skill — convert text to NATO spelling."""
 from typing import Dict, Any
 
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("nato-phonetic-alphabet")
 

@@ -23,7 +23,7 @@ from pathlib import Path
 from unittest.mock import Mock, MagicMock, patch, AsyncMock
 from collections import OrderedDict
 
-from Jotty.core.utils.llm_cache import (
+from Jotty.core.infrastructure.utils.llm_cache import (
     CachedResponse,
     CacheStats,
     LLMCallCache,

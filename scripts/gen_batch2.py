@@ -33,8 +33,8 @@ import socket
 from datetime import datetime, timezone
 from typing import Dict, Any
 
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("ssl-certificate-checker")
 
@@ -131,8 +131,8 @@ import time
 import requests
 from typing import Dict, Any
 
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("uptime-monitor")
 
@@ -232,8 +232,8 @@ import hmac
 import requests
 from typing import Dict, Any
 
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("webhook-dispatcher")
 
@@ -323,8 +323,8 @@ Convert between currencies using live rates.
 import requests
 from typing import Dict, Any
 
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("currency-converter")
 
@@ -420,8 +420,8 @@ Get current cryptocurrency price.
 import requests
 from typing import Dict, Any
 
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("crypto-price-tracker")
 
@@ -533,8 +533,8 @@ Generate a QR code from text or URL.
     tools_code='''"""QR Code Generator Skill — generate QR codes as SVG or ASCII (pure Python)."""
 from typing import Dict, Any, List
 
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("qr-code-generator")
 
@@ -832,8 +832,8 @@ Generate ASCII horizontal bar chart.
     tools_code='''"""Chart Generator Skill — ASCII bar and line charts (pure Python)."""
 from typing import Dict, Any, List
 
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("chart-generator")
 
@@ -957,8 +957,8 @@ Infer JSON Schema from sample data.
 import json
 from typing import Dict, Any, List, Optional
 
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("data-schema-inferrer")
 
@@ -1129,8 +1129,8 @@ Analyze A/B test results for statistical significance.
 import math
 from typing import Dict, Any
 
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("ab-test-analyzer")
 
@@ -1275,8 +1275,8 @@ Create a pivot table from data.
 import statistics
 from typing import Dict, Any, List, Callable
 
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("pivot-table-builder")
 
@@ -1395,8 +1395,8 @@ from pathlib import Path
 from collections import Counter
 from typing import Dict, Any, List
 
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("log-analyzer")
 
@@ -1536,8 +1536,8 @@ Generate Nginx reverse proxy configuration.
     tools_code='''"""Nginx Config Generator Skill — generate reverse proxy configs."""
 from typing import Dict, Any
 
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("nginx-config-generator")
 
@@ -1710,8 +1710,8 @@ Generate GitHub Actions workflow YAML.
 import json
 from typing import Dict, Any, List
 
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("ci-cd-pipeline-builder")
 
@@ -1892,8 +1892,8 @@ Generate a Dockerfile for a project.
     tools_code='''"""Dockerfile Generator Skill — generate Dockerfiles from specs."""
 from typing import Dict, Any
 
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("dockerfile-generator")
 

@@ -17,8 +17,8 @@ from pathlib import Path
 from typing import Dict, Any
 from datetime import datetime
 
-from Jotty.core.utils.skill_status import SkillStatus
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("search-summarize-pdf-telegram")
@@ -79,9 +79,9 @@ async def search_summarize_pdf_telegram_tool(params: Dict[str, Any]) -> Dict[str
 
     try:
         try:
-            from Jotty.core.registry.skills_registry import get_skills_registry
+            from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
         except ImportError:
-            from Jotty.core.registry.skills_registry import get_skills_registry
+            from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
         
         topic = params.get('topic')
         if not topic:

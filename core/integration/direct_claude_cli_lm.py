@@ -19,7 +19,7 @@ import random
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 import dspy
-from Jotty.core.foundation.exceptions import LLMError
+from Jotty.core.infrastructure.foundation.exceptions import LLMError
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +78,7 @@ class DirectClaudeCLI(dspy.BaseLM):
             base_timeout: Base timeout in seconds (auto-set based on model if None)
             **kwargs: Additional arguments (ignored for compatibility)
         """
-        from Jotty.core.foundation.config_defaults import DEFAULT_MODEL_ALIAS, MAX_RETRIES
+        from Jotty.core.infrastructure.foundation.config_defaults import DEFAULT_MODEL_ALIAS, MAX_RETRIES
         model = model or DEFAULT_MODEL_ALIAS
         max_retries = max_retries or MAX_RETRIES
 

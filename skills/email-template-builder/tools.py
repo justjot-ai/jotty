@@ -1,7 +1,7 @@
 """Email Template Builder Skill - create HTML emails with inline CSS."""
 from typing import Dict, Any
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("email-template-builder")
 

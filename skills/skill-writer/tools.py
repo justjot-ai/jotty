@@ -10,8 +10,8 @@ import logging
 from pathlib import Path
 from typing import Dict, Any, List
 
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 logger = logging.getLogger(__name__)
 status = SkillStatus("skill-writer")
@@ -19,9 +19,9 @@ status = SkillStatus("skill-writer")
 
 def _get_generator():
     """Get or create the SkillGenerator singleton."""
-    from Jotty.core.registry.skill_generator import get_skill_generator
+    from Jotty.core.capabilities.registry.skill_generator import get_skill_generator
     try:
-        from Jotty.core.skills import get_registry
+        from Jotty.core.capabilities.skills import get_registry
         registry = get_registry()
         # SkillsRegistry is the underlying registry object
         skills_registry = getattr(registry, '_skills_registry', None)
@@ -185,7 +185,7 @@ def list_skills_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     status.emit("listing", "Loading skill registry...")
 
     try:
-        from Jotty.core.skills import get_registry
+        from Jotty.core.capabilities.skills import get_registry
         registry = get_registry()
         all_skills = registry.list_skills()
     except Exception as e:

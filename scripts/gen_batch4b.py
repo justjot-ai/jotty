@@ -20,8 +20,8 @@ create_skill(
     tools_code='''"""Text statistics — word count, reading time, Flesch-Kincaid."""
 import re, math
 from typing import Dict, Any
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 status = SkillStatus("text-statistics")
 
 
@@ -83,8 +83,8 @@ create_skill(
     tool_docs="### ascii_art_tool\nConvert text to ASCII block art.",
     tools_code='''"""ASCII art generator — block-letter font, pure Python."""
 from typing import Dict, Any
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 status = SkillStatus("ascii-art-generator")
 
 _F = {
@@ -163,8 +163,8 @@ create_skill(
     tool_docs="### convert_unit_tool\nConvert a value between supported units.",
     tools_code='''"""Unit converter — length, weight, temperature, volume, speed."""
 from typing import Dict, Any
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 status = SkillStatus("unit-converter")
 
 _LENGTH = {"m": 1, "ft": 0.3048, "in": 0.0254, "km": 1000, "mi": 1609.344, "cm": 0.01, "mm": 0.001, "yd": 0.9144}
@@ -230,8 +230,8 @@ create_skill(
     tool_docs="### bmi_tool\nCalculate BMI, category, and healthy weight range.",
     tools_code='''"""BMI calculator — value, category, healthy range."""
 from typing import Dict, Any
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 status = SkillStatus("bmi-calculator")
 
 
@@ -283,8 +283,8 @@ create_skill(
     tool_docs="### mortgage_tool\nCalculate mortgage payment and amortization.",
     tools_code='''"""Mortgage calculator — payment, total interest, amortization."""
 from typing import Dict, Any
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 status = SkillStatus("mortgage-calculator")
 
 
@@ -353,8 +353,8 @@ create_skill(
     tool_docs="### tip_tool\nCalculate tip, total, and per-person split.",
     tools_code='''"""Tip calculator — amount, total, per-person split."""
 from typing import Dict, Any
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 status = SkillStatus("tip-calculator")
 
 
@@ -407,8 +407,8 @@ create_skill(
     tools_code='''"""Timezone converter — common TZ names to UTC offsets."""
 from datetime import datetime, timedelta
 from typing import Dict, Any
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 status = SkillStatus("timezone-converter")
 
 _TZ = {
@@ -489,8 +489,8 @@ create_skill(
     tools_code='''"""Countdown timer — days/hours/minutes to a target date."""
 from datetime import datetime, timedelta
 from typing import Dict, Any
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 status = SkillStatus("countdown-timer")
 
 _HOLIDAYS = {
@@ -565,8 +565,8 @@ create_skill(
     tools_code='''"""Word frequency analyzer — count, rank, cloud data."""
 import re
 from typing import Dict, Any
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 status = SkillStatus("word-frequency-analyzer")
 
 _STOP = frozenset(
@@ -628,8 +628,8 @@ create_skill(
     tools_code='''"""Palindrome checker — check, find substrings, generate."""
 import re
 from typing import Dict, Any, List
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 status = SkillStatus("palindrome-checker")
 
 _KNOWN = ["racecar", "level", "deified", "civic", "rotor", "kayak", "madam",

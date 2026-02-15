@@ -16,7 +16,7 @@ from collections import deque
 from unittest.mock import MagicMock, AsyncMock, patch, PropertyMock
 
 try:
-    from Jotty.core.orchestration.validation_gate import (
+    from Jotty.core.intelligence.orchestration.validation_gate import (
         ValidationMode,
         GateDecision,
         NEVER_SKIP_PATTERNS,
@@ -24,7 +24,7 @@ try:
         get_validation_gate,
         _GATE_SYSTEM,
     )
-    from Jotty.core.orchestration.byzantine_verification import (
+    from Jotty.core.intelligence.orchestration.byzantine_verification import (
         ByzantineVerifier,
         ConsistencyChecker,
     )
@@ -717,7 +717,7 @@ class TestGetValidationGate:
     """Test module-level singleton."""
 
     def test_singleton_returns_same_instance(self):
-        import Jotty.core.orchestration.validation_gate as vg_module
+        import Jotty.core.intelligence.orchestration.validation_gate as vg_module
         # Reset singleton
         vg_module._default_gate = None
         g1 = get_validation_gate(enable_llm=False)
@@ -727,7 +727,7 @@ class TestGetValidationGate:
         vg_module._default_gate = None
 
     def test_singleton_reset(self):
-        import Jotty.core.orchestration.validation_gate as vg_module
+        import Jotty.core.intelligence.orchestration.validation_gate as vg_module
         vg_module._default_gate = None
         g1 = get_validation_gate(enable_llm=False)
         vg_module._default_gate = None

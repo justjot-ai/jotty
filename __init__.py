@@ -26,9 +26,9 @@ Full Control:
     from Jotty import Orchestrator, AgentConfig
 
     # Or use the high-level entry points:
-    from Jotty.core.agents import AutoAgent      # Workflow execution
-    from Jotty.core.agents import ChatAssistant   # Chat mode
-    from Jotty.core.api import ModeRouter         # Programmatic API
+    from Jotty.core.modes.agent import AutoAgent      # Workflow execution
+    from Jotty.core.modes.agent import ChatAssistant   # Chat mode
+    from Jotty.core.interface.api import ModeRouter         # Programmatic API
 
 See docs/JOTTY_ARCHITECTURE.md for complete documentation.
 
@@ -72,78 +72,78 @@ __author__ = "Jotty AI"
 _LAZY_IMPORTS: dict[str, str] = {
     # --- TIERED EXECUTION ---
     "Jotty": ".jotty",
-    "ExecutionTier": ".core.execution.types",
-    "ExecutionConfig": ".core.execution.types",
-    "ExecutionResult": ".core.execution.types",
-    "TierExecutor": ".core.execution.executor",
-    "TierDetector": ".core.execution.tier_detector",
+    "ExecutionTier": ".core.modes.execution.types",
+    "ExecutionConfig": ".core.modes.execution.types",
+    "ExecutionResult": ".core.modes.execution.types",
+    "TierExecutor": ".core.modes.execution.executor",
+    "TierDetector": ".core.modes.execution.tier_detector",
 
     # --- COMPOSITE AGENT (Agent/Swarm Unification) ---
-    "CompositeAgent": ".core.agents.base.composite_agent",
-    "CompositeAgentConfig": ".core.agents.base.composite_agent",
-    "UnifiedResult": ".core.agents.base.composite_agent",
+    "CompositeAgent": ".core.modes.agent.base.composite_agent",
+    "CompositeAgentConfig": ".core.modes.agent.base.composite_agent",
+    "UnifiedResult": ".core.modes.agent.base.composite_agent",
 
     # --- ORCHESTRATION & FOUNDATION ---
-    "Orchestrator": ".core.orchestration",
-    "TodoItem": ".core.orchestration.swarm_roadmap",
-    "AgentConfig": ".core.foundation.agent_config",
-    "SwarmConfig": ".core.foundation.data_structures",
-    "MemoryLevel": ".core.foundation.data_structures",
-    "ValidationResult": ".core.foundation.data_structures",
-    "MemoryEntry": ".core.foundation.data_structures",
-    "GoalValue": ".core.foundation.data_structures",
-    "EpisodeResult": ".core.foundation.data_structures",
-    "TaggedOutput": ".core.foundation.data_structures",
-    "OutputTag": ".core.foundation.data_structures",
-    "StoredEpisode": ".core.foundation.data_structures",
-    "LearningMetrics": ".core.foundation.data_structures",
-    "GoalHierarchy": ".core.foundation.data_structures",
-    "GoalNode": ".core.foundation.data_structures",
-    "CausalLink": ".core.foundation.data_structures",
-    "SwarmResult": ".core.data.io_manager",
+    "Orchestrator": ".core.intelligence.orchestration",
+    "TodoItem": ".core.intelligence.orchestration.swarm_roadmap",
+    "AgentConfig": ".core.infrastructure.foundation.agent_config",
+    "SwarmConfig": ".core.infrastructure.foundation.data_structures",
+    "MemoryLevel": ".core.infrastructure.foundation.data_structures",
+    "ValidationResult": ".core.infrastructure.foundation.data_structures",
+    "MemoryEntry": ".core.infrastructure.foundation.data_structures",
+    "GoalValue": ".core.infrastructure.foundation.data_structures",
+    "EpisodeResult": ".core.infrastructure.foundation.data_structures",
+    "TaggedOutput": ".core.infrastructure.foundation.data_structures",
+    "OutputTag": ".core.infrastructure.foundation.data_structures",
+    "StoredEpisode": ".core.infrastructure.foundation.data_structures",
+    "LearningMetrics": ".core.infrastructure.foundation.data_structures",
+    "GoalHierarchy": ".core.infrastructure.foundation.data_structures",
+    "GoalNode": ".core.infrastructure.foundation.data_structures",
+    "CausalLink": ".core.infrastructure.foundation.data_structures",
+    "SwarmResult": ".core.infrastructure.data.io_manager",
 
     # --- TOOL MANAGEMENT ---
-    "ToolShed": ".core.metadata.tool_shed",
-    "ToolSchema": ".core.metadata.tool_shed",
-    "ToolResult": ".core.metadata.tool_shed",
-    "CapabilityIndex": ".core.metadata.tool_shed",
+    "ToolShed": ".core.infrastructure.metadata.tool_shed",
+    "ToolSchema": ".core.infrastructure.metadata.tool_shed",
+    "ToolResult": ".core.infrastructure.metadata.tool_shed",
+    "CapabilityIndex": ".core.infrastructure.metadata.tool_shed",
 
     # --- SHAPED REWARDS ---
-    "ShapedRewardManager": ".core.learning.shaped_rewards",
-    "RewardCondition": ".core.learning.shaped_rewards",
+    "ShapedRewardManager": ".core.intelligence.learning.shaped_rewards",
+    "RewardCondition": ".core.intelligence.learning.shaped_rewards",
 
     # --- MEMORY ---
-    "SwarmMemory": ".core.memory.cortex",
-    "MemoryCluster": ".core.memory.consolidation",
+    "SwarmMemory": ".core.intelligence.memory.cortex",
+    "MemoryCluster": ".core.intelligence.memory.consolidation",
 
     # --- LEARNING ---
-    "TDLambdaLearner": ".core.learning.learning",
-    "AdaptiveLearningRate": ".core.learning.learning",
-    "ReasoningCreditAssigner": ".core.learning.learning",
+    "TDLambdaLearner": ".core.intelligence.learning.learning",
+    "AdaptiveLearningRate": ".core.intelligence.learning.learning",
+    "ReasoningCreditAssigner": ".core.intelligence.learning.learning",
 
     # --- CONTEXT ---
-    "GlobalContextGuard": ".core.context.global_context_guard",
-    "patch_dspy_with_guard": ".core.context.global_context_guard",
-    "unpatch_dspy": ".core.context.global_context_guard",
+    "GlobalContextGuard": ".core.infrastructure.context.global_context_guard",
+    "patch_dspy_with_guard": ".core.infrastructure.context.global_context_guard",
+    "unpatch_dspy": ".core.infrastructure.context.global_context_guard",
 
     # --- UNIVERSAL WRAPPER ---
-    "JottyUniversal": ".core.integration.universal_wrapper",
-    "SmartConfig": ".core.integration.universal_wrapper",
-    "jotty_universal": ".core.integration.universal_wrapper",
+    "JottyUniversal": ".core.infrastructure.integration.universal_wrapper",
+    "SmartConfig": ".core.infrastructure.integration.universal_wrapper",
+    "jotty_universal": ".core.infrastructure.integration.universal_wrapper",
 
     # --- STATE ---
-    "AgenticState": ".core.orchestration.swarm_roadmap",
-    "TrajectoryStep": ".core.orchestration.swarm_roadmap",
-    "DecomposedQFunction": ".core.orchestration.swarm_roadmap",
-    "SwarmTaskBoard": ".core.orchestration.swarm_roadmap",
-    "SubtaskState": ".core.orchestration.swarm_roadmap",
-    "TaskStatus": ".core.orchestration.swarm_roadmap",
+    "AgenticState": ".core.intelligence.orchestration.swarm_roadmap",
+    "TrajectoryStep": ".core.intelligence.orchestration.swarm_roadmap",
+    "DecomposedQFunction": ".core.intelligence.orchestration.swarm_roadmap",
+    "SwarmTaskBoard": ".core.intelligence.orchestration.swarm_roadmap",
+    "SubtaskState": ".core.intelligence.orchestration.swarm_roadmap",
+    "TaskStatus": ".core.intelligence.orchestration.swarm_roadmap",
 
     # --- PREDICTIVE MARL ---
-    "LLMTrajectoryPredictor": ".core.learning.predictive_marl",
-    "DivergenceMemory": ".core.learning.predictive_marl",
-    "CooperativeCreditAssigner": ".core.learning.predictive_marl",
-    "AgentModel": ".core.learning.predictive_marl",
+    "LLMTrajectoryPredictor": ".core.intelligence.learning.predictive_marl",
+    "DivergenceMemory": ".core.intelligence.learning.predictive_marl",
+    "CooperativeCreditAssigner": ".core.intelligence.learning.predictive_marl",
+    "AgentModel": ".core.intelligence.learning.predictive_marl",
 
     # --- CLI ---
     "JottyCLI": ".cli.app",
@@ -151,28 +151,28 @@ _LAZY_IMPORTS: dict[str, str] = {
     # --- SDK ---
     "JottyClient": ".sdk.client",
     "JottySync": ".sdk.client",
-    "ExecutionContext": ".core.foundation.types.sdk_types",
-    "SDKResponse": ".core.foundation.types.sdk_types",
-    "SDKEvent": ".core.foundation.types.sdk_types",
-    "ModeRouter": ".core.api.mode_router",
-    "get_mode_router": ".core.api.mode_router",
+    "ExecutionContext": ".core.infrastructure.foundation.types.sdk_types",
+    "SDKResponse": ".core.infrastructure.foundation.types.sdk_types",
+    "SDKEvent": ".core.infrastructure.foundation.types.sdk_types",
+    "ModeRouter": ".core.interface.api.mode_router",
+    "get_mode_router": ".core.interface.api.mode_router",
 
     # --- CAPABILITY DISCOVERY ---
     "capabilities": ".core.capabilities",
 
     # --- SUBSYSTEM FACADES ---
-    "MemorySystem": ".core.memory.memory_system",
-    "BudgetTracker": ".core.utils.budget_tracker",
-    "CircuitBreaker": ".core.utils.timeouts",
-    "LLMCallCache": ".core.utils.llm_cache",
-    "SmartTokenizer": ".core.utils.tokenizer",
-    "ChatExecutor": ".core.orchestration.unified_executor",
+    "MemorySystem": ".core.intelligence.memory.memory_system",
+    "BudgetTracker": ".core.infrastructure.utils.budget_tracker",
+    "CircuitBreaker": ".core.infrastructure.utils.timeouts",
+    "LLMCallCache": ".core.infrastructure.utils.llm_cache",
+    "SmartTokenizer": ".core.infrastructure.utils.tokenizer",
+    "ChatExecutor": ".core.intelligence.orchestration.unified_executor",
 
     # --- ORCHESTRATION (hidden components surfaced) ---
-    "SwarmIntelligence": ".core.orchestration.swarm_intelligence",
-    "ParadigmExecutor": ".core.orchestration.paradigm_executor",
-    "EnsembleManager": ".core.orchestration.ensemble_manager",
-    "ModelTierRouter": ".core.orchestration.model_tier_router",
+    "SwarmIntelligence": ".core.intelligence.orchestration.swarm_intelligence",
+    "ParadigmExecutor": ".core.intelligence.orchestration.paradigm_executor",
+    "EnsembleManager": ".core.intelligence.orchestration.ensemble_manager",
+    "ModelTierRouter": ".core.intelligence.orchestration.model_tier_router",
 }
 
 

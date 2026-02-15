@@ -12,7 +12,7 @@ import time
 import threading
 import pytest
 
-from Jotty.core.observability.tracing import (
+from Jotty.core.infrastructure.monitoring.observability.tracing import (
     Span, Trace, TracingContext, SpanStatus,
     get_tracer, reset_tracer,
 )

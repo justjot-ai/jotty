@@ -9,9 +9,9 @@ from PlanMyInvesting API.
 import logging
 from typing import Dict, Any
 
-from Jotty.core.utils.env_loader import load_jotty_env
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.env_loader import load_jotty_env
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 load_jotty_env()
 logger = logging.getLogger(__name__)

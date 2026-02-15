@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 async def main():
-    from Jotty.core.orchestration import (
+    from Jotty.core.intelligence.orchestration import (
         SwarmAdapter,
         get_multi_swarm_coordinator,
         MergeStrategy

@@ -9,8 +9,8 @@ Shows how to use distributed tracing for multi-swarm execution.
 import asyncio
 
 async def main():
-    from Jotty.core.observability import get_distributed_tracer
-    from Jotty.core.orchestration import SwarmAdapter, get_multi_swarm_coordinator, MergeStrategy
+    from Jotty.core.infrastructure.monitoring.observability import get_distributed_tracer
+    from Jotty.core.intelligence.orchestration import SwarmAdapter, get_multi_swarm_coordinator, MergeStrategy
 
     print("\n" + "="*70)
     print("EXAMPLE: Distributed Tracing")

@@ -21,7 +21,7 @@ from unittest.mock import MagicMock, patch
 # ── Import openapi module with fallback ──────────────────────────────────────
 
 try:
-    from Jotty.core.api.openapi import (
+    from Jotty.core.interface.api.openapi import (
         _python_type_to_openapi,
         _dataclass_to_schema,
         generate_openapi_spec,
@@ -34,7 +34,7 @@ except ImportError:
 # ── Import SwarmCodeGenerator with fallback ──────────────────────────────────
 
 try:
-    from Jotty.core.orchestration.swarm_code_generator import (
+    from Jotty.core.intelligence.orchestration.swarm_code_generator import (
         SwarmCodeGenerator,
         GeneratedCode,
     )

@@ -102,8 +102,8 @@ def get_forecast(city: str, days: int = 3) -> Dict[str, Any]:
 
     print("\n=== Using Your Custom Skill ===\n")
     print("""
-from Jotty.core.registry import get_unified_registry
-from Jotty.core.agents import AutoAgent
+from Jotty.core.capabilities.registry import get_unified_registry
+from Jotty.core.modes.agent import AutoAgent
 
 # Get registry
 registry = get_unified_registry()

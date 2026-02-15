@@ -19,8 +19,8 @@ create_skill(
     tool_docs="### generate_html_table\nGenerate an HTML table from a list of dicts.\n**Params:** data (list[dict]), sort_by (str), zebra (bool), css_class (str)",
     tools_code='''"""Generate HTML tables from structured data."""
 from typing import Dict, Any, List
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("html-table-generator")
 
@@ -76,8 +76,8 @@ create_skill(
     tools_code='''"""Convert between human-readable schedules and cron expressions."""
 import re
 from typing import Dict, Any
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("crontab-scheduler")
 
@@ -198,8 +198,8 @@ create_skill(
     tools_code='''"""Validate YAML syntax and convert YAML<->JSON."""
 import json
 from typing import Dict, Any
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("yaml-validator")
 
@@ -261,8 +261,8 @@ create_skill(
     tools_code='''"""Parse and generate TOML content."""
 import json
 from typing import Dict, Any
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("toml-parser")
 
@@ -345,8 +345,8 @@ import csv
 import io
 import json
 from typing import Dict, Any, List
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("csv-to-json")
 
@@ -434,8 +434,8 @@ create_skill(
     tool_docs="### generate_markdown_table\nGenerate a markdown table from list of dicts.\n**Params:** data, align (dict), headers (list)",
     tools_code='''"""Generate markdown tables from structured data."""
 from typing import Dict, Any, List, Optional
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("markdown-table-generator")
 
@@ -500,8 +500,8 @@ create_skill(
     tool_docs="### lookup_http_status\nLook up an HTTP status code.\n**Params:** code (int), category (str)",
     tools_code='''"""Look up HTTP status code meanings and categories."""
 from typing import Dict, Any
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("http-status-lookup")
 
@@ -583,8 +583,8 @@ create_skill(
 import random
 import string
 from typing import Dict, Any, List
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("random-data-generator")
 
@@ -657,8 +657,8 @@ create_skill(
 import hashlib
 from pathlib import Path
 from typing import Dict, Any
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("checksum-verifier")
 
@@ -731,8 +731,8 @@ create_skill(
     tools_code='''"""Check if ports are open on a host using socket connections."""
 import socket
 from typing import Dict, Any, List
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("port-scanner")
 

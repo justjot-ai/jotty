@@ -75,29 +75,29 @@ class TestMemoryFacadeIntegration:
     """Test memory facade returns real, usable objects."""
 
     def test_get_memory_system_returns_memory_system(self):
-        from Jotty.core.memory import get_memory_system
+        from Jotty.core.intelligence.memory import get_memory_system
         mem = get_memory_system()
         assert type(mem).__name__ == "MemorySystem"
 
     def test_memory_system_can_store_and_retrieve(self):
-        from Jotty.core.memory import get_memory_system
+        from Jotty.core.intelligence.memory import get_memory_system
         mem = get_memory_system()
         entry = mem.store("facade integration test data", "episodic", "testing")
         assert entry is not None
         assert hasattr(entry, "key")
 
     def test_get_brain_manager_returns_real_instance(self):
-        from Jotty.core.memory import get_brain_manager
+        from Jotty.core.intelligence.memory import get_brain_manager
         brain = get_brain_manager()
         assert type(brain).__name__ == "BrainInspiredMemoryManager"
 
     def test_get_consolidator_returns_real_instance(self):
-        from Jotty.core.memory import get_consolidator
+        from Jotty.core.intelligence.memory import get_consolidator
         consolidator = get_consolidator()
         assert type(consolidator).__name__ == "SharpWaveRippleConsolidator"
 
     def test_get_rag_retriever_returns_real_instance(self):
-        from Jotty.core.memory import get_rag_retriever
+        from Jotty.core.intelligence.memory import get_rag_retriever
         rag = get_rag_retriever()
         assert type(rag).__name__ == "LLMRAGRetriever"
 
@@ -111,24 +111,24 @@ class TestLearningFacadeIntegration:
     """Test learning facade returns real, configured objects."""
 
     def test_get_td_lambda_has_correct_defaults(self):
-        from Jotty.core.learning import get_td_lambda
+        from Jotty.core.intelligence.learning import get_td_lambda
         td = get_td_lambda()
         assert type(td).__name__ == "TDLambdaLearner"
         assert td.gamma == 0.99
         assert td.lambda_trace == 0.95
 
     def test_get_credit_assigner_returns_real_instance(self):
-        from Jotty.core.learning import get_credit_assigner
+        from Jotty.core.intelligence.learning import get_credit_assigner
         credit = get_credit_assigner()
         assert type(credit).__name__ == "ReasoningCreditAssigner"
 
     def test_get_reward_manager_returns_real_instance(self):
-        from Jotty.core.learning import get_reward_manager
+        from Jotty.core.intelligence.learning import get_reward_manager
         rewards = get_reward_manager()
         assert type(rewards).__name__ == "ShapedRewardManager"
 
     def test_get_cooperative_agents_returns_dict(self):
-        from Jotty.core.learning import get_cooperative_agents
+        from Jotty.core.intelligence.learning import get_cooperative_agents
         coop = get_cooperative_agents()
         assert "predictive_agent" in coop
         assert "nash_solver" in coop
@@ -143,17 +143,17 @@ class TestContextFacadeIntegration:
     """Test context facade returns real objects."""
 
     def test_get_context_manager_returns_real_instance(self):
-        from Jotty.core.context import get_context_manager
+        from Jotty.core.infrastructure.context import get_context_manager
         ctx = get_context_manager()
         assert type(ctx).__name__ == "SmartContextManager"
 
     def test_get_context_guard_returns_real_instance(self):
-        from Jotty.core.context import get_context_guard
+        from Jotty.core.infrastructure.context import get_context_guard
         guard = get_context_guard()
         assert type(guard).__name__ == "GlobalContextGuard"
 
     def test_get_content_gate_returns_real_instance(self):
-        from Jotty.core.context import get_content_gate
+        from Jotty.core.infrastructure.context import get_content_gate
         gate = get_content_gate()
         assert type(gate).__name__ == "ContentGate"
 
@@ -167,17 +167,17 @@ class TestSkillsFacadeIntegration:
     """Test skills facade returns real registry data."""
 
     def test_get_registry_returns_unified_registry(self):
-        from Jotty.core.skills import get_registry
+        from Jotty.core.capabilities.skills import get_registry
         reg = get_registry()
         assert type(reg).__name__ == "UnifiedRegistry"
 
     def test_list_skills_returns_nonempty_list(self):
-        from Jotty.core.skills import list_skills
+        from Jotty.core.capabilities.skills import list_skills
         skills = list_skills()
         assert len(skills) > 100
 
     def test_list_providers_returns_structured_data(self):
-        from Jotty.core.skills import list_providers
+        from Jotty.core.capabilities.skills import list_providers
         providers = list_providers()
         assert len(providers) > 0
         names = [p["name"] for p in providers]
@@ -193,30 +193,30 @@ class TestOrchestrationFacadeIntegration:
     """Test orchestration facade surfaces hidden components."""
 
     def test_get_swarm_intelligence_returns_instance(self):
-        from Jotty.core.orchestration import get_swarm_intelligence
+        from Jotty.core.intelligence.orchestration import get_swarm_intelligence
         si = get_swarm_intelligence()
         assert si is not None
         assert type(si).__name__ == "SwarmIntelligence"
 
     def test_get_paradigm_executor_returns_class_without_manager(self):
-        from Jotty.core.orchestration import get_paradigm_executor
+        from Jotty.core.intelligence.orchestration import get_paradigm_executor
         pe = get_paradigm_executor()
         # Without manager arg, returns the class for manual instantiation
         assert pe is not None
 
     def test_get_training_daemon_returns_class_without_manager(self):
-        from Jotty.core.orchestration import get_training_daemon
+        from Jotty.core.intelligence.orchestration import get_training_daemon
         td = get_training_daemon()
         # Without manager arg, returns the class for manual instantiation
         assert td is not None
 
     def test_get_ensemble_manager_returns_real_instance(self):
-        from Jotty.core.orchestration import get_ensemble_manager
+        from Jotty.core.intelligence.orchestration import get_ensemble_manager
         em = get_ensemble_manager()
         assert type(em).__name__ == "EnsembleManager"
 
     def test_get_swarm_router_returns_real_instance(self):
-        from Jotty.core.orchestration import get_swarm_router
+        from Jotty.core.intelligence.orchestration import get_swarm_router
         sr = get_swarm_router()
         assert type(sr).__name__ == "SwarmRouter"
 
@@ -230,7 +230,7 @@ class TestUtilsFacadeIntegration:
     """Test utils facade returns real, operational objects."""
 
     def test_budget_tracker_can_record_and_report(self):
-        from Jotty.core.utils import get_budget_tracker
+        from Jotty.core.infrastructure.utils import get_budget_tracker
         bt = get_budget_tracker()
         bt.record_call("test_agent", tokens_input=100, tokens_output=50, model="gpt-4o")
         usage = bt.get_usage()
@@ -238,18 +238,18 @@ class TestUtilsFacadeIntegration:
         assert usage["total_tokens"] >= 150
 
     def test_circuit_breaker_starts_closed(self):
-        from Jotty.core.utils import get_circuit_breaker
+        from Jotty.core.infrastructure.utils import get_circuit_breaker
         cb = get_circuit_breaker("integration-test")
         assert "CLOSED" in str(cb.state)
 
     def test_circuit_breaker_records_success(self):
-        from Jotty.core.utils import get_circuit_breaker
+        from Jotty.core.infrastructure.utils import get_circuit_breaker
         cb = get_circuit_breaker("integration-test-2")
         cb.record_success()
         assert "CLOSED" in str(cb.state)
 
     def test_llm_cache_set_and_get(self):
-        from Jotty.core.utils import get_llm_cache
+        from Jotty.core.infrastructure.utils import get_llm_cache
         cache = get_llm_cache()
         cache.set("integration-test-key", {"answer": "cached"})
         hit = cache.get("integration-test-key")
@@ -258,14 +258,14 @@ class TestUtilsFacadeIntegration:
         assert hit.response["answer"] == "cached"
 
     def test_llm_cache_stats(self):
-        from Jotty.core.utils import get_llm_cache
+        from Jotty.core.infrastructure.utils import get_llm_cache
         cache = get_llm_cache()
         stats = cache.stats()
         assert hasattr(stats, "hits")
         assert hasattr(stats, "misses")
 
     def test_tokenizer_counts_tokens(self):
-        from Jotty.core.utils import get_tokenizer
+        from Jotty.core.infrastructure.utils import get_tokenizer
         tok = get_tokenizer()
         count = tok.count_tokens("Hello world")
         assert isinstance(count, int)
@@ -376,7 +376,7 @@ class TestCrossFacadeScenario:
 
     def test_budget_track_then_check_remaining(self):
         """Track costs then verify budget reporting."""
-        from Jotty.core.utils import get_budget_tracker
+        from Jotty.core.infrastructure.utils import get_budget_tracker
         bt = get_budget_tracker("scenario-test")
         bt.record_call("researcher", tokens_input=1000, tokens_output=500, model="gpt-4o")
         bt.record_call("coder", tokens_input=500, tokens_output=200, model="gpt-4o-mini")
@@ -388,7 +388,7 @@ class TestCrossFacadeScenario:
 
     def test_cache_miss_then_hit(self):
         """Cache a response, verify miss then hit."""
-        from Jotty.core.utils import get_llm_cache
+        from Jotty.core.infrastructure.utils import get_llm_cache
         cache = get_llm_cache()
 
         # Miss
@@ -405,7 +405,7 @@ class TestCrossFacadeScenario:
 
     def test_memory_store_then_search(self):
         """Store a memory, then search for it."""
-        from Jotty.core.memory import get_memory_system
+        from Jotty.core.intelligence.memory import get_memory_system
         mem = get_memory_system()
 
         # Store
@@ -418,7 +418,7 @@ class TestCrossFacadeScenario:
 
     def test_tokenizer_consistent_counts(self):
         """Verify tokenizer gives consistent counts for same input."""
-        from Jotty.core.utils import get_tokenizer
+        from Jotty.core.infrastructure.utils import get_tokenizer
         tok = get_tokenizer()
 
         text = "The quick brown fox jumps over the lazy dog"

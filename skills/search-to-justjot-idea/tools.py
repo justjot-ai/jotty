@@ -11,8 +11,8 @@ import inspect
 import logging
 from typing import Dict, Any, List, Optional
 
-from Jotty.core.utils.skill_status import SkillStatus
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("search-to-justjot-idea")
@@ -75,9 +75,9 @@ async def search_and_create_idea_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         # Step 1: Source - Web Search
         logger.info("📡 Step 1: Searching web for information...")
         try:
-            from Jotty.core.registry.skills_registry import get_skills_registry
+            from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
         except ImportError:
-            from Jotty.core.registry.skills_registry import get_skills_registry
+            from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
         registry = get_skills_registry()
         registry.init()
         

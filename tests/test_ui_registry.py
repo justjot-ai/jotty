@@ -30,7 +30,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Try importing the module under test
 try:
-    from Jotty.core.registry.ui_registry import (
+    from Jotty.core.capabilities.registry.ui_registry import (
         UIComponent,
         UIRegistry,
         get_ui_registry,

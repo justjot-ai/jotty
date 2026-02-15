@@ -26,7 +26,7 @@ from unittest.mock import Mock, MagicMock, patch
 
 # Try importing the module under test
 try:
-    from Jotty.core.registry.tool_validation import (
+    from Jotty.core.capabilities.registry.tool_validation import (
         ToolValidator,
         RegistryValidationResult,
         MethodChecker,

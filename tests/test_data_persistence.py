@@ -30,53 +30,53 @@ from enum import Enum
 # Safe imports with skip guards
 # ---------------------------------------------------------------------------
 try:
-    from Jotty.core.persistence.persistence import Vault
+    from Jotty.core.infrastructure.persistence.persistence import Vault
     HAS_VAULT = True
 except ImportError:
     HAS_VAULT = False
 
 try:
-    from Jotty.core.persistence.session_manager import SessionManager
+    from Jotty.core.infrastructure.persistence.session_manager import SessionManager
     HAS_SESSION_MANAGER = True
 except ImportError:
     HAS_SESSION_MANAGER = False
 
 try:
-    from Jotty.core.persistence.scratchpad_persistence import ScratchpadPersistence
+    from Jotty.core.infrastructure.persistence.scratchpad_persistence import ScratchpadPersistence
     HAS_SCRATCHPAD = True
 except ImportError:
     HAS_SCRATCHPAD = False
 
 try:
-    from Jotty.core.foundation.types.agent_types import (
+    from Jotty.core.infrastructure.foundation.types.agent_types import (
         SharedScratchpad,
         AgentMessage,
     )
-    from Jotty.core.foundation.types.enums import CommunicationType
+    from Jotty.core.infrastructure.foundation.types.enums import CommunicationType
     HAS_AGENT_TYPES = True
 except ImportError:
     HAS_AGENT_TYPES = False
 
 try:
-    from Jotty.core.data.data_registry import DataArtifact, DataRegistry
+    from Jotty.core.infrastructure.data.data_registry import DataArtifact, DataRegistry
     HAS_DATA_REGISTRY = True
 except ImportError:
     HAS_DATA_REGISTRY = False
 
 try:
-    from Jotty.core.data.parameter_resolver import AgenticParameterResolver
+    from Jotty.core.infrastructure.data.parameter_resolver import AgenticParameterResolver
     HAS_PARAM_RESOLVER = True
 except ImportError:
     HAS_PARAM_RESOLVER = False
 
 try:
-    from Jotty.core.data.feedback_router import AgenticFeedbackRouter
+    from Jotty.core.infrastructure.data.feedback_router import AgenticFeedbackRouter
     HAS_FEEDBACK_ROUTER = True
 except ImportError:
     HAS_FEEDBACK_ROUTER = False
 
 try:
-    from Jotty.core.data.information_storage import (
+    from Jotty.core.infrastructure.data.information_storage import (
         InformationTheoreticStorage,
         InformationWeightedMemory,
         SurpriseEstimator,
@@ -86,7 +86,7 @@ except ImportError:
     HAS_INFO_STORAGE = False
 
 try:
-    from Jotty.core.agents.feedback_channel import FeedbackType, FeedbackMessage
+    from Jotty.core.modes.agent.feedback_channel import FeedbackType, FeedbackMessage
     HAS_FEEDBACK_CHANNEL = True
 except ImportError:
     HAS_FEEDBACK_CHANNEL = False

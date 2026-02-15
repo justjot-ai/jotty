@@ -8,8 +8,8 @@ Demonstrates:
 - Building context that fits within token limits
 """
 import asyncio
-from Jotty.core.context import get_context_manager
-from Jotty.core.context.context_manager import ContextPriority
+from Jotty.core.infrastructure.context import get_context_manager
+from Jotty.core.infrastructure.context.context_manager import ContextPriority
 
 
 async def main():

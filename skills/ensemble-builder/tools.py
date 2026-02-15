@@ -12,8 +12,8 @@ import pandas as pd
 from sklearn.model_selection import cross_val_predict, KFold, StratifiedKFold
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score, mean_squared_error, r2_score
 
-from Jotty.core.utils.skill_status import SkillStatus
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("ensemble-builder")

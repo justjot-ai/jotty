@@ -11,7 +11,7 @@ This module ensures:
 4. All components are properly initialized
 
 Usage:
-    from Jotty.core.integration import initialize_jotty
+    from Jotty.core.infrastructure.integration import initialize_jotty
     
     # Initialize with all protections
     jotty_system = initialize_jotty(config)

@@ -17,8 +17,8 @@ from generate_skills import create_skill
 SQL_QUERY_BUILDER = '''\
 """Build SQL queries programmatically (SELECT, INSERT, UPDATE, DELETE)."""
 from typing import Dict, Any, List, Optional
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 status = SkillStatus("sql-query-builder")
 
 
@@ -113,8 +113,8 @@ __all__ = ["build_sql_query"]
 README_GENERATOR = '''\
 """Generate README.md files from project info."""
 from typing import Dict, Any
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 status = SkillStatus("readme-generator")
 
 
@@ -189,8 +189,8 @@ __all__ = ["generate_readme"]
 GITIGNORE_GENERATOR = '''\
 """Generate .gitignore files for languages/frameworks."""
 from typing import Dict, Any, List
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 status = SkillStatus("gitignore-generator")
 
 TEMPLATES: Dict[str, List[str]] = {
@@ -272,8 +272,8 @@ LICENSE_GENERATOR = '''\
 """Generate open-source license text (MIT, Apache-2.0, GPL-3.0, BSD-2, ISC)."""
 from typing import Dict, Any
 from datetime import datetime
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 status = SkillStatus("license-generator")
 
 _MIT = """MIT License
@@ -421,8 +421,8 @@ API_DOCS_GENERATOR = '''\
 """Generate OpenAPI/Swagger docs from endpoint definitions."""
 import json
 from typing import Dict, Any, List
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 status = SkillStatus("api-docs-generator")
 
 
@@ -525,8 +525,8 @@ import random
 import string
 import json
 from typing import Dict, Any, List
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 status = SkillStatus("db-seed-generator")
 
 _FIRST = ["Alice","Bob","Carol","Dave","Eve","Frank","Grace","Hank","Ivy","Jack",
@@ -625,8 +625,8 @@ CODE_COMPLEXITY_ANALYZER = '''\
 """Calculate cyclomatic complexity, LOC, function count from Python source."""
 import ast
 from typing import Dict, Any, List
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 status = SkillStatus("code-complexity-analyzer")
 
 
@@ -718,8 +718,8 @@ DEPENDENCY_CHECKER = '''\
 import re
 import json
 from typing import Dict, Any, List, Optional, Tuple
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 status = SkillStatus("dependency-checker")
 
 # Known packages with security advisories or deprecations
@@ -818,8 +818,8 @@ SITEMAP_GENERATOR = '''\
 from typing import Dict, Any, List
 from datetime import datetime
 from xml.sax.saxutils import escape
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 status = SkillStatus("sitemap-generator")
 
 
@@ -884,8 +884,8 @@ __all__ = ["generate_sitemap"]
 ROBOTS_TXT_GENERATOR = '''\
 """Generate robots.txt files with user-agent rules."""
 from typing import Dict, Any, List
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 status = SkillStatus("robots-txt-generator")
 
 

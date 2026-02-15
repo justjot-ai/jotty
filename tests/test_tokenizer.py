@@ -17,7 +17,7 @@ import json
 import pytest
 from unittest.mock import Mock, MagicMock, patch, PropertyMock
 
-from Jotty.core.utils.tokenizer import (
+from Jotty.core.infrastructure.utils.tokenizer import (
     SmartTokenizer,
     get_tokenizer,
     count_tokens,

@@ -45,9 +45,9 @@ if not os.environ.get("ANTHROPIC_API_KEY"):
                 if _k.strip() == "ANTHROPIC_API_KEY" and _v.strip():
                     os.environ["ANTHROPIC_API_KEY"] = _v.strip()
 
-from Jotty.core.evaluation import GAIABenchmark, EvalStore
-from Jotty.core.evaluation.gaia_adapter import _looks_like_refusal
-from Jotty.core.evaluation.gaia_adapter import JottyGAIAAdapter
+from Jotty.core.infrastructure.monitoring.evaluation import GAIABenchmark, EvalStore
+from Jotty.core.infrastructure.monitoring.evaluation.gaia_adapter import _looks_like_refusal
+from Jotty.core.infrastructure.monitoring.evaluation.gaia_adapter import JottyGAIAAdapter
 
 
 def parse_args(argv=None):
@@ -415,7 +415,7 @@ def run_benchmark(args):
     # Optional DSPy compilation from successful results
     if getattr(args, 'optimize_dspy', False):
         try:
-            from Jotty.core.evaluation.gaia_dspy_optimizer import compile_gaia_module
+            from Jotty.core.infrastructure.monitoring.evaluation.gaia_dspy_optimizer import compile_gaia_module
             successful = [
                 {'question': r['expected'], 'expected': r['expected'], 'success': r['success']}
                 for r in results if r.get('success')

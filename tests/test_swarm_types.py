@@ -10,7 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-from Jotty.core.swarms.swarm_types import (
+from Jotty.core.intelligence.swarms.swarm_types import (
     AgentRole, EvaluationResult, ImprovementType,
     SwarmAgentConfig, SwarmBaseConfig, SwarmResult, ExecutionTrace,
     GoldStandard, Evaluation, ImprovementSuggestion,
@@ -362,27 +362,27 @@ class TestSwarmRegistry:
 
     def setup_method(self):
         """Clear registry before each test."""
-        from Jotty.core.swarms.registry import SwarmRegistry
+        from Jotty.core.intelligence.swarms.registry import SwarmRegistry
         self._original = dict(SwarmRegistry._swarms)
 
     def teardown_method(self):
         """Restore registry after each test."""
-        from Jotty.core.swarms.registry import SwarmRegistry
+        from Jotty.core.intelligence.swarms.registry import SwarmRegistry
         SwarmRegistry._swarms = self._original
 
     def test_register_and_get(self):
-        from Jotty.core.swarms.registry import SwarmRegistry
+        from Jotty.core.intelligence.swarms.registry import SwarmRegistry
         from unittest.mock import MagicMock
         mock_class = MagicMock
         SwarmRegistry.register("test_swarm", mock_class)
         assert SwarmRegistry.get("test_swarm") is mock_class
 
     def test_get_unknown_returns_none(self):
-        from Jotty.core.swarms.registry import SwarmRegistry
+        from Jotty.core.intelligence.swarms.registry import SwarmRegistry
         assert SwarmRegistry.get("nonexistent_swarm_xyz") is None
 
     def test_list_all(self):
-        from Jotty.core.swarms.registry import SwarmRegistry
+        from Jotty.core.intelligence.swarms.registry import SwarmRegistry
         from unittest.mock import MagicMock
         SwarmRegistry.register("swarm_a", MagicMock)
         SwarmRegistry.register("swarm_b", MagicMock)
@@ -391,7 +391,7 @@ class TestSwarmRegistry:
         assert "swarm_b" in all_swarms
 
     def test_create_with_config(self):
-        from Jotty.core.swarms.registry import SwarmRegistry
+        from Jotty.core.intelligence.swarms.registry import SwarmRegistry
         from unittest.mock import MagicMock
         mock_class = MagicMock()
         SwarmRegistry.register("configurable", mock_class)
@@ -400,7 +400,7 @@ class TestSwarmRegistry:
         mock_class.assert_called_once_with(config)
 
     def test_create_without_config(self):
-        from Jotty.core.swarms.registry import SwarmRegistry
+        from Jotty.core.intelligence.swarms.registry import SwarmRegistry
         from unittest.mock import MagicMock
         mock_class = MagicMock()
         SwarmRegistry.register("no_config", mock_class)
@@ -408,7 +408,7 @@ class TestSwarmRegistry:
         mock_class.assert_called_once_with()
 
     def test_create_unknown_returns_none(self):
-        from Jotty.core.swarms.registry import SwarmRegistry
+        from Jotty.core.intelligence.swarms.registry import SwarmRegistry
         assert SwarmRegistry.create("unknown_swarm_xyz") is None
 
 
@@ -417,15 +417,15 @@ class TestRegisterSwarmDecorator:
     """Tests for the register_swarm decorator."""
 
     def setup_method(self):
-        from Jotty.core.swarms.registry import SwarmRegistry
+        from Jotty.core.intelligence.swarms.registry import SwarmRegistry
         self._original = dict(SwarmRegistry._swarms)
 
     def teardown_method(self):
-        from Jotty.core.swarms.registry import SwarmRegistry
+        from Jotty.core.intelligence.swarms.registry import SwarmRegistry
         SwarmRegistry._swarms = self._original
 
     def test_decorator_registers_class(self):
-        from Jotty.core.swarms.registry import SwarmRegistry, register_swarm
+        from Jotty.core.intelligence.swarms.registry import SwarmRegistry, register_swarm
 
         @register_swarm("decorated_swarm")
         class MySwarm:
@@ -434,7 +434,7 @@ class TestRegisterSwarmDecorator:
         assert SwarmRegistry.get("decorated_swarm") is MySwarm
 
     def test_decorator_preserves_class(self):
-        from Jotty.core.swarms.registry import register_swarm
+        from Jotty.core.intelligence.swarms.registry import register_swarm
 
         @register_swarm("preserve_test")
         class OriginalSwarm:
@@ -453,7 +453,7 @@ class TestGoldStandardDB:
     """Tests for GoldStandardDB persistence."""
 
     def test_add_and_get(self, tmp_path):
-        from Jotty.core.swarms.evaluation import GoldStandardDB
+        from Jotty.core.intelligence.swarms.evaluation import GoldStandardDB
         db = GoldStandardDB(str(tmp_path / "gs_db"))
         gs = GoldStandard(
             id="test-001",
@@ -470,7 +470,7 @@ class TestGoldStandardDB:
         assert retrieved.domain == "coding"
 
     def test_auto_generate_id(self, tmp_path):
-        from Jotty.core.swarms.evaluation import GoldStandardDB
+        from Jotty.core.intelligence.swarms.evaluation import GoldStandardDB
         db = GoldStandardDB(str(tmp_path / "gs_db"))
         gs = GoldStandard(
             id="",
@@ -485,7 +485,7 @@ class TestGoldStandardDB:
         assert db.get(generated_id) is not None
 
     def test_find_by_domain(self, tmp_path):
-        from Jotty.core.swarms.evaluation import GoldStandardDB
+        from Jotty.core.intelligence.swarms.evaluation import GoldStandardDB
         db = GoldStandardDB(str(tmp_path / "gs_db"))
         for i in range(3):
             db.add(GoldStandard(
@@ -497,7 +497,7 @@ class TestGoldStandardDB:
         assert len(sql_results) == 2
 
     def test_find_similar(self, tmp_path):
-        from Jotty.core.swarms.evaluation import GoldStandardDB
+        from Jotty.core.intelligence.swarms.evaluation import GoldStandardDB
         db = GoldStandardDB(str(tmp_path / "gs_db"))
         db.add(GoldStandard(
             id="gs-sim", domain="coding", task_type="generate",
@@ -508,12 +508,12 @@ class TestGoldStandardDB:
         assert result.id == "gs-sim"
 
     def test_find_similar_no_match(self, tmp_path):
-        from Jotty.core.swarms.evaluation import GoldStandardDB
+        from Jotty.core.intelligence.swarms.evaluation import GoldStandardDB
         db = GoldStandardDB(str(tmp_path / "gs_db"))
         assert db.find_similar("nonexistent_type", {}) is None
 
     def test_list_all(self, tmp_path):
-        from Jotty.core.swarms.evaluation import GoldStandardDB
+        from Jotty.core.intelligence.swarms.evaluation import GoldStandardDB
         db = GoldStandardDB(str(tmp_path / "gs_db"))
         db.add(GoldStandard(id="a", domain="x", task_type="t",
                             input_data={}, expected_output={}, evaluation_criteria={}))
@@ -522,7 +522,7 @@ class TestGoldStandardDB:
         assert len(db.list_all()) == 2
 
     def test_persistence_across_instances(self, tmp_path):
-        from Jotty.core.swarms.evaluation import GoldStandardDB
+        from Jotty.core.intelligence.swarms.evaluation import GoldStandardDB
         db_path = str(tmp_path / "gs_db")
         db1 = GoldStandardDB(db_path)
         db1.add(GoldStandard(id="persist", domain="test", task_type="t",
@@ -540,7 +540,7 @@ class TestImprovementHistory:
     """Tests for ImprovementHistory."""
 
     def test_record_and_retrieve(self, tmp_path):
-        from Jotty.core.swarms.evaluation import ImprovementHistory
+        from Jotty.core.intelligence.swarms.evaluation import ImprovementHistory
         hist = ImprovementHistory(str(tmp_path / "impr"))
         sug = ImprovementSuggestion(
             agent_role=AgentRole.ACTOR,
@@ -557,7 +557,7 @@ class TestImprovementHistory:
         assert len(pending) == 1
 
     def test_mark_applied(self, tmp_path):
-        from Jotty.core.swarms.evaluation import ImprovementHistory
+        from Jotty.core.intelligence.swarms.evaluation import ImprovementHistory
         hist = ImprovementHistory(str(tmp_path / "impr"))
         sug = ImprovementSuggestion(
             agent_role=AgentRole.REVIEWER,
@@ -574,7 +574,7 @@ class TestImprovementHistory:
         assert len(pending) == 0
 
     def test_record_outcome(self, tmp_path):
-        from Jotty.core.swarms.evaluation import ImprovementHistory
+        from Jotty.core.intelligence.swarms.evaluation import ImprovementHistory
         hist = ImprovementHistory(str(tmp_path / "impr"))
         sug = ImprovementSuggestion(
             agent_role=AgentRole.ACTOR,
@@ -592,7 +592,7 @@ class TestImprovementHistory:
 
     def test_filter_by_role(self, tmp_path):
         """get_successful_improvements filters by role (note: asdict stores enum objects)."""
-        from Jotty.core.swarms.evaluation import ImprovementHistory
+        from Jotty.core.intelligence.swarms.evaluation import ImprovementHistory
         hist = ImprovementHistory(str(tmp_path / "impr"))
         for role in [AgentRole.ACTOR, AgentRole.EXPERT, AgentRole.ACTOR]:
             sug = ImprovementSuggestion(
@@ -620,7 +620,7 @@ class TestEvaluationHistory:
     """Tests for EvaluationHistory."""
 
     def test_record_and_get_recent(self, tmp_path):
-        from Jotty.core.swarms.evaluation import EvaluationHistory
+        from Jotty.core.intelligence.swarms.evaluation import EvaluationHistory
         from unittest.mock import MagicMock
         hist = EvaluationHistory(str(tmp_path / "evals"))
         ev = MagicMock()
@@ -634,7 +634,7 @@ class TestEvaluationHistory:
         assert recent[0]["overall_score"] == 0.85
 
     def test_get_average_score(self, tmp_path):
-        from Jotty.core.swarms.evaluation import EvaluationHistory
+        from Jotty.core.intelligence.swarms.evaluation import EvaluationHistory
         from unittest.mock import MagicMock
         hist = EvaluationHistory(str(tmp_path / "evals"))
         for score in [0.8, 0.6, 1.0]:
@@ -648,12 +648,12 @@ class TestEvaluationHistory:
         assert abs(avg - 0.8) < 0.01
 
     def test_get_average_score_empty(self, tmp_path):
-        from Jotty.core.swarms.evaluation import EvaluationHistory
+        from Jotty.core.intelligence.swarms.evaluation import EvaluationHistory
         hist = EvaluationHistory(str(tmp_path / "evals"))
         assert hist.get_average_score() == 0.0
 
     def test_get_failures(self, tmp_path):
-        from Jotty.core.swarms.evaluation import EvaluationHistory
+        from Jotty.core.intelligence.swarms.evaluation import EvaluationHistory
         from unittest.mock import MagicMock
         hist = EvaluationHistory(str(tmp_path / "evals"))
         for score in [0.3, 0.8, 0.2, 0.9]:
@@ -678,7 +678,7 @@ class TestSwarmSignatures:
     def test_all_exports_exist(self):
         """All entries in __all__ are importable."""
         try:
-            from Jotty.core.swarms import swarm_signatures
+            from Jotty.core.intelligence.swarms import swarm_signatures
             for name in swarm_signatures.__all__:
                 assert hasattr(swarm_signatures, name), f"{name} not found"
         except ImportError:
@@ -687,7 +687,7 @@ class TestSwarmSignatures:
     def test_expert_evaluation_signature_fields(self):
         """ExpertEvaluationSignature has expected fields."""
         try:
-            from Jotty.core.swarms.swarm_signatures import ExpertEvaluationSignature
+            from Jotty.core.intelligence.swarms.swarm_signatures import ExpertEvaluationSignature
             sig = ExpertEvaluationSignature
             # DSPy signatures have fields accessible
             assert sig is not None
@@ -697,7 +697,7 @@ class TestSwarmSignatures:
     def test_coding_swarm_signature_exists(self):
         """CodingSwarmSignature is importable."""
         try:
-            from Jotty.core.swarms.swarm_signatures import CodingSwarmSignature
+            from Jotty.core.intelligence.swarms.swarm_signatures import CodingSwarmSignature
             assert CodingSwarmSignature is not None
         except ImportError:
             pytest.skip("dspy not available")

@@ -11,7 +11,7 @@ import asyncio
 import pytest
 from unittest.mock import Mock, AsyncMock, MagicMock, patch, PropertyMock
 
-from Jotty.core.foundation.data_structures import EpisodeResult
+from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -86,7 +86,7 @@ class TestParadigmExecutorRelay:
     """Tests for relay paradigm."""
 
     async def test_relay_passes_output_sequentially(self):
-        from Jotty.core.orchestration.paradigm_executor import ParadigmExecutor
+        from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor
 
         sm, runners = _make_mock_manager(["agent_a", "agent_b"])
         pe = ParadigmExecutor(sm)
@@ -108,7 +108,7 @@ class TestParadigmExecutorRelay:
         assert result.success
 
     async def test_relay_failed_agent_continues(self):
-        from Jotty.core.orchestration.paradigm_executor import ParadigmExecutor
+        from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor
 
         sm, runners = _make_mock_manager(["fail_agent", "good_agent"])
         pe = ParadigmExecutor(sm)
@@ -124,7 +124,7 @@ class TestParadigmExecutorRelay:
         assert result is not None
 
     async def test_relay_empty_agent_list(self):
-        from Jotty.core.orchestration.paradigm_executor import ParadigmExecutor
+        from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor
 
         sm, _ = _make_mock_manager([])
         pe = ParadigmExecutor(sm)
@@ -134,7 +134,7 @@ class TestParadigmExecutorRelay:
         assert result.output is None
 
     async def test_relay_enriches_goal_with_previous_output(self):
-        from Jotty.core.orchestration.paradigm_executor import ParadigmExecutor
+        from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor
 
         # Use capabilities=[] so relay uses the enriched_goal, not capabilities[0]
         sm, runners = _make_mock_manager(["agent_a", "agent_b"])
@@ -157,7 +157,7 @@ class TestParadigmExecutorRelay:
         assert "Output from agent_a" in b_goal
 
     async def test_relay_single_agent(self):
-        from Jotty.core.orchestration.paradigm_executor import ParadigmExecutor
+        from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor
 
         sm, runners = _make_mock_manager(["solo"])
         pe = ParadigmExecutor(sm)
@@ -171,14 +171,14 @@ class TestParadigmExecutorRelay:
         assert result.output == "Solo result"
 
     async def test_relay_output_extraction_clean_text(self):
-        from Jotty.core.orchestration.paradigm_executor import _extract_output_text
+        from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
 
         assert _extract_output_text("plain text") == "plain text"
         assert _extract_output_text(None) == ""
         assert _extract_output_text({"content": "from dict"}) == "from dict"
 
     async def test_relay_output_extraction_nested_result(self):
-        from Jotty.core.orchestration.paradigm_executor import _extract_output_text
+        from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
 
         # Simulate AgenticExecutionResult
         nested = Mock()
@@ -186,7 +186,7 @@ class TestParadigmExecutorRelay:
         assert _extract_output_text(nested) == "clean final"
 
     async def test_relay_output_extraction_episode_result(self):
-        from Jotty.core.orchestration.paradigm_executor import _extract_output_text
+        from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
 
         ep = _make_episode("episode output")
         result = _extract_output_text(ep)
@@ -203,7 +203,7 @@ class TestParadigmExecutorDebate:
     """Tests for debate paradigm."""
 
     async def test_debate_collects_drafts_from_all_agents(self):
-        from Jotty.core.orchestration.paradigm_executor import ParadigmExecutor
+        from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor
 
         sm, runners = _make_mock_manager(["alice", "bob"])
         pe = ParadigmExecutor(sm)
@@ -216,7 +216,7 @@ class TestParadigmExecutorDebate:
         assert result is not None
 
     async def test_debate_critique_round_enriches_goal(self):
-        from Jotty.core.orchestration.paradigm_executor import ParadigmExecutor
+        from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor
 
         sm, runners = _make_mock_manager(["alice", "bob"])
         pe = ParadigmExecutor(sm)
@@ -235,7 +235,7 @@ class TestParadigmExecutorDebate:
         assert len(round2_goals) > 0
 
     async def test_debate_single_agent_degrades(self):
-        from Jotty.core.orchestration.paradigm_executor import ParadigmExecutor
+        from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor
 
         sm, runners = _make_mock_manager(["solo"])
         pe = ParadigmExecutor(sm)
@@ -249,7 +249,7 @@ class TestParadigmExecutorDebate:
         assert result.output == "Solo draft"
 
     async def test_debate_failed_draft_skipped(self):
-        from Jotty.core.orchestration.paradigm_executor import ParadigmExecutor
+        from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor
 
         sm, runners = _make_mock_manager(["fail", "good"])
         pe = ParadigmExecutor(sm)
@@ -265,7 +265,7 @@ class TestParadigmExecutorDebate:
         assert result is not None
 
     async def test_debate_exception_in_draft_handled(self):
-        from Jotty.core.orchestration.paradigm_executor import ParadigmExecutor
+        from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor
 
         sm, runners = _make_mock_manager(["crasher", "stable"])
         pe = ParadigmExecutor(sm)
@@ -281,7 +281,7 @@ class TestParadigmExecutorDebate:
         assert result is not None
 
     async def test_debate_multiple_rounds(self):
-        from Jotty.core.orchestration.paradigm_executor import ParadigmExecutor
+        from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor
 
         sm, runners = _make_mock_manager(["a", "b"])
         pe = ParadigmExecutor(sm)
@@ -309,7 +309,7 @@ class TestParadigmExecutorRefinement:
     """Tests for refinement paradigm."""
 
     async def test_refinement_iterates(self):
-        from Jotty.core.orchestration.paradigm_executor import ParadigmExecutor
+        from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor
 
         sm, runners = _make_mock_manager(["drafter", "refiner"])
         pe = ParadigmExecutor(sm)
@@ -327,7 +327,7 @@ class TestParadigmExecutorRefinement:
         assert call_count == 3
 
     async def test_refinement_convergence_stops_early(self):
-        from Jotty.core.orchestration.paradigm_executor import ParadigmExecutor
+        from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor
 
         sm, runners = _make_mock_manager(["drafter", "refiner"])
         pe = ParadigmExecutor(sm)
@@ -342,7 +342,7 @@ class TestParadigmExecutorRefinement:
         assert result is not None
 
     async def test_refinement_max_iterations_respected(self):
-        from Jotty.core.orchestration.paradigm_executor import ParadigmExecutor
+        from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor
 
         sm, runners = _make_mock_manager(["drafter", "refiner"])
         pe = ParadigmExecutor(sm)
@@ -360,7 +360,7 @@ class TestParadigmExecutorRefinement:
         assert call_count == 2
 
     async def test_refinement_draft_includes_previous(self):
-        from Jotty.core.orchestration.paradigm_executor import ParadigmExecutor
+        from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor
 
         sm, runners = _make_mock_manager(["drafter", "refiner"])
         pe = ParadigmExecutor(sm)
@@ -379,7 +379,7 @@ class TestParadigmExecutorRefinement:
         assert "current draft" in refiner_goals[0][1].lower()
 
     async def test_refinement_failed_refiner_continues(self):
-        from Jotty.core.orchestration.paradigm_executor import ParadigmExecutor
+        from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor
 
         sm, runners = _make_mock_manager(["drafter", "bad_refiner", "good_refiner"])
         pe = ParadigmExecutor(sm)
@@ -394,7 +394,7 @@ class TestParadigmExecutorRefinement:
         assert result is not None
 
     async def test_refinement_adaptive_early_stop(self):
-        from Jotty.core.orchestration.paradigm_executor import ParadigmExecutor
+        from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor
 
         sm, runners = _make_mock_manager(["drafter", "refiner"])
         sm.learning.adaptive_learning.should_stop_early = Mock(return_value=True)
@@ -424,7 +424,7 @@ class TestAggregateAndCredit:
     """Tests for result aggregation and cooperative credit."""
 
     async def test_aggregate_empty_results(self):
-        from Jotty.core.orchestration.paradigm_executor import ParadigmExecutor
+        from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor
 
         sm, _ = _make_mock_manager()
         pe = ParadigmExecutor(sm)
@@ -433,7 +433,7 @@ class TestAggregateAndCredit:
         assert result.output is None
 
     async def test_aggregate_single_result_passthrough(self):
-        from Jotty.core.orchestration.paradigm_executor import ParadigmExecutor
+        from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor
 
         sm, _ = _make_mock_manager()
         pe = ParadigmExecutor(sm)
@@ -442,7 +442,7 @@ class TestAggregateAndCredit:
         assert result.output == "solo output"
 
     async def test_aggregate_multiple_results(self):
-        from Jotty.core.orchestration.paradigm_executor import ParadigmExecutor
+        from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor
 
         sm, _ = _make_mock_manager()
         pe = ParadigmExecutor(sm)
@@ -454,7 +454,7 @@ class TestAggregateAndCredit:
         assert combined.success
 
     async def test_cooperative_credit_assignment(self):
-        from Jotty.core.orchestration.paradigm_executor import ParadigmExecutor
+        from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor
 
         sm, _ = _make_mock_manager()
         pe = ParadigmExecutor(sm)
@@ -467,7 +467,7 @@ class TestAggregateAndCredit:
         assert sm.learning_manager.record_outcome.call_count == 2
 
     async def test_cooperative_credit_skips_single_agent(self):
-        from Jotty.core.orchestration.paradigm_executor import ParadigmExecutor
+        from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor
 
         sm, _ = _make_mock_manager()
         pe = ParadigmExecutor(sm)
@@ -485,7 +485,7 @@ class TestExecutorTierRouting:
     """Tests for TierExecutor routing."""
 
     async def test_tier1_routes_correctly(self, v3_executor):
-        from Jotty.core.execution.types import ExecutionConfig, ExecutionTier
+        from Jotty.core.modes.execution.types import ExecutionConfig, ExecutionTier
 
         result = await v3_executor.execute(
             "What is 2+2?",
@@ -495,7 +495,7 @@ class TestExecutorTierRouting:
         assert result.tier == ExecutionTier.DIRECT
 
     async def test_tier2_routes_correctly(self, v3_executor):
-        from Jotty.core.execution.types import ExecutionConfig, ExecutionTier
+        from Jotty.core.modes.execution.types import ExecutionConfig, ExecutionTier
 
         result = await v3_executor.execute(
             "Plan a research project",
@@ -504,7 +504,7 @@ class TestExecutorTierRouting:
         assert result.tier == ExecutionTier.AGENTIC
 
     async def test_tier3_routes_correctly(self, v3_executor):
-        from Jotty.core.execution.types import ExecutionConfig, ExecutionTier
+        from Jotty.core.modes.execution.types import ExecutionConfig, ExecutionTier
 
         result = await v3_executor.execute(
             "Learn from past data",
@@ -517,7 +517,7 @@ class TestExecutorTierRouting:
         assert result.tier == ExecutionTier.LEARNING
 
     async def test_tier1_output_is_clean_text(self, v3_executor):
-        from Jotty.core.execution.types import ExecutionConfig, ExecutionTier
+        from Jotty.core.modes.execution.types import ExecutionConfig, ExecutionTier
 
         result = await v3_executor.execute(
             "Hello",
@@ -527,7 +527,7 @@ class TestExecutorTierRouting:
         assert "AgenticExecutionResult" not in result.output
 
     async def test_tier1_records_cost(self, v3_executor):
-        from Jotty.core.execution.types import ExecutionConfig, ExecutionTier
+        from Jotty.core.modes.execution.types import ExecutionConfig, ExecutionTier
 
         result = await v3_executor.execute(
             "What is Python?",
@@ -536,7 +536,7 @@ class TestExecutorTierRouting:
         assert result.cost_usd >= 0
 
     async def test_execution_failure_returns_error_result(self, v3_executor):
-        from Jotty.core.execution.types import ExecutionConfig, ExecutionTier
+        from Jotty.core.modes.execution.types import ExecutionConfig, ExecutionTier
 
         v3_executor._provider.generate = AsyncMock(
             side_effect=RuntimeError("LLM down")
@@ -558,35 +558,35 @@ class TestOutputExtraction:
     """Tests for _extract_output_text edge cases."""
 
     def test_none_returns_empty(self):
-        from Jotty.core.orchestration.paradigm_executor import _extract_output_text
+        from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
         assert _extract_output_text(None) == ""
 
     def test_string_passthrough(self):
-        from Jotty.core.orchestration.paradigm_executor import _extract_output_text
+        from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
         assert _extract_output_text("hello world") == "hello world"
 
     def test_dict_content_field(self):
-        from Jotty.core.orchestration.paradigm_executor import _extract_output_text
+        from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
         assert _extract_output_text({"content": "extracted"}) == "extracted"
 
     def test_dict_response_field(self):
-        from Jotty.core.orchestration.paradigm_executor import _extract_output_text
+        from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
         assert _extract_output_text({"response": "from response"}) == "from response"
 
     def test_dict_priority_order(self):
-        from Jotty.core.orchestration.paradigm_executor import _extract_output_text
+        from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
         # content should be tried before response
         result = _extract_output_text({"content": "first", "response": "second"})
         assert result == "first"
 
     def test_nested_final_output(self):
-        from Jotty.core.orchestration.paradigm_executor import _extract_output_text
+        from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
         obj = Mock()
         obj.final_output = "clean text"
         assert _extract_output_text(obj) == "clean text"
 
     def test_nested_outputs_dict(self):
-        from Jotty.core.orchestration.paradigm_executor import _extract_output_text
+        from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
         obj = Mock()
         obj.final_output = None
         obj.outputs = {"step_1": {"content": "step 1 result"}}
@@ -597,7 +597,7 @@ class TestOutputExtraction:
         assert result == "step 1 result"
 
     def test_summary_fallback(self):
-        from Jotty.core.orchestration.paradigm_executor import _extract_output_text
+        from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
         obj = Mock(spec=[])
         obj.summary = "summary text"
         assert _extract_output_text(obj) == "summary text"

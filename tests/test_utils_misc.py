@@ -18,7 +18,7 @@ from pathlib import Path
 from unittest.mock import Mock, MagicMock, patch, AsyncMock
 
 try:
-    from Jotty.core.utils.trajectory_parser import (
+    from Jotty.core.infrastructure.utils.trajectory_parser import (
         TaggedAttempt,
         TrajectoryParser,
         create_parser,
@@ -28,7 +28,7 @@ except ImportError:
     TRAJECTORY_PARSER_AVAILABLE = False
 
 try:
-    from Jotty.core.utils.profiler import (
+    from Jotty.core.infrastructure.utils.profiler import (
         ExecutionTimer,
         get_timer,
         timed_block,
@@ -43,7 +43,7 @@ except ImportError:
     PROFILER_AVAILABLE = False
 
 try:
-    from Jotty.core.utils.file_logger import (
+    from Jotty.core.infrastructure.utils.file_logger import (
         setup_file_logging,
         close_file_logging,
     )
@@ -1142,7 +1142,7 @@ class TestCloseFileLogging:
 # ===========================================================================
 
 try:
-    from Jotty.core.utils.context_utils import (
+    from Jotty.core.infrastructure.utils.context_utils import (
         ErrorType, CompressionResult, ContextCompressor, ErrorDetector,
         ExecutionTrajectory, ENRICHMENT_MARKERS,
         strip_enrichment_context, create_compressor, detect_error_type,
@@ -1359,7 +1359,7 @@ class TestStripEnrichmentContext:
 # ===========================================================================
 
 try:
-    from Jotty.core.utils.env_loader import (
+    from Jotty.core.infrastructure.utils.env_loader import (
         get_jotty_root, load_jotty_env, get_env, get_env_bool, get_env_int,
     )
     ENV_LOADER_AVAILABLE = True
@@ -1427,7 +1427,7 @@ class TestEnvLoader:
         assert get_env_int("NONEXISTENT_KEY_XYZ") == 0
 
     def test_load_jotty_env_nonexistent_file(self):
-        import Jotty.core.utils.env_loader as el
+        import Jotty.core.infrastructure.utils.env_loader as el
         old = el._env_loaded
         el._env_loaded = False
         try:
@@ -1442,7 +1442,7 @@ class TestEnvLoader:
 # ===========================================================================
 
 try:
-    from Jotty.core.utils.skill_status import SkillStatus, get_status
+    from Jotty.core.infrastructure.utils.skill_status import SkillStatus, get_status
     SKILL_STATUS_AVAILABLE = True
 except ImportError:
     SKILL_STATUS_AVAILABLE = False
@@ -1566,7 +1566,7 @@ class TestSkillStatus:
 # ===========================================================================
 
 try:
-    from Jotty.core.utils.tool_helpers import (
+    from Jotty.core.infrastructure.utils.tool_helpers import (
         tool_response, tool_error, require_params, validate_params,
         tool_wrapper, async_tool_wrapper, _normalize_param_aliases,
     )
@@ -1778,13 +1778,13 @@ class TestNormalizeParamAliases:
 # ===========================================================================
 
 try:
-    from Jotty.core.utils.algorithmic_foundations import SortingAlgorithms
+    from Jotty.core.infrastructure.utils.algorithmic_foundations import SortingAlgorithms
     SORTING_AVAILABLE = True
 except ImportError:
     SORTING_AVAILABLE = False
 
 try:
-    from Jotty.core.utils.algorithmic_foundations import MutualInformationRetriever
+    from Jotty.core.infrastructure.utils.algorithmic_foundations import MutualInformationRetriever
     MI_RETRIEVER_AVAILABLE = True
 except ImportError:
     MI_RETRIEVER_AVAILABLE = False
@@ -1885,7 +1885,7 @@ class TestMutualInformationRetriever:
 # ===========================================================================
 
 try:
-    from Jotty.core.utils.api_client import BaseAPIClient
+    from Jotty.core.infrastructure.utils.api_client import BaseAPIClient
     API_CLIENT_AVAILABLE = True
 except ImportError:
     API_CLIENT_AVAILABLE = False

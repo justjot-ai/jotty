@@ -30,8 +30,8 @@ Build an HTML email template with inline CSS.
 - `subject` (str): Email subject""",
     tools_code=r'''"""Email Template Builder Skill - create HTML emails with inline CSS."""
 from typing import Dict, Any
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("email-template-builder")
 
@@ -138,8 +138,8 @@ Analyze text for SEO metrics.
 import re
 import math
 from typing import Dict, Any, List
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("seo-content-optimizer")
 
@@ -270,8 +270,8 @@ Format a raw transcript with speaker labels and timestamps.
     tools_code=r'''"""Transcript Formatter Skill - clean raw transcripts."""
 import re
 from typing import Dict, Any, List, Optional, Tuple
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("transcript-formatter")
 
@@ -389,8 +389,8 @@ Generate a structured press release.
     tools_code=r'''"""Press Release Generator Skill - AP style press releases."""
 from datetime import datetime
 from typing import Dict, Any, List
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("press-release-generator")
 
@@ -482,8 +482,8 @@ Generate marketing copy using a copywriting framework.
 - `framework` (str): Framework used""",
     tools_code=r'''"""Copywriting Assistant Skill - marketing copy frameworks."""
 from typing import Dict, Any
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("copywriting-assistant")
 
@@ -634,8 +634,8 @@ Generate a blog post outline with SEO metadata.
 - `seo_meta` (dict): SEO metadata suggestions""",
     tools_code=r'''"""Blog Post Writer Skill - generate blog outlines with SEO."""
 from typing import Dict, Any, List
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("blog-post-writer")
 
@@ -748,8 +748,8 @@ Fetch and parse an RSS/Atom feed.
     tools_code=r'''"""RSS Feed Reader Skill - fetch and parse RSS/Atom feeds."""
 import xml.etree.ElementTree as ET
 from typing import Dict, Any, List, Optional
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("rss-feed-reader")
 
@@ -875,8 +875,8 @@ import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Any, List
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("notification-aggregator")
 logger = logging.getLogger("jotty.skills.notification-aggregator")
@@ -1014,8 +1014,8 @@ Resize an image to specified dimensions.
     tools_code=r'''"""Image Resizer Skill - resize images using Pillow."""
 from pathlib import Path
 from typing import Dict, Any
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("image-resizer")
 
@@ -1130,8 +1130,8 @@ NOTE: Requires external dependencies:
 """
 from pathlib import Path
 from typing import Dict, Any
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("ocr-extractor")
 
@@ -1242,8 +1242,8 @@ import tarfile
 import os
 from pathlib import Path
 from typing import Dict, Any, List
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("archive-manager")
 
@@ -1400,8 +1400,8 @@ Build an EPUB e-book from chapters.
 'from pathlib import Path\n'
 'from datetime import datetime, timezone\n'
 'from typing import Dict, Any, List\n'
-'from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper\n'
-'from Jotty.core.utils.skill_status import SkillStatus\n'
+'from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper\n'
+'from Jotty.core.infrastructure.utils.skill_status import SkillStatus\n'
 '\n'
 'status = SkillStatus("epub-builder")\n'
 '\n'
@@ -1563,8 +1563,8 @@ Generate a structured invoice.
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("invoice-generator")
 
@@ -1682,8 +1682,8 @@ import uuid
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import Dict, Any, List
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("expense-tracker")
 
@@ -1806,8 +1806,8 @@ Generate a loan amortization schedule.
 - `payoff_months` (int): Actual months to payoff""",
     tools_code=r'''"""Loan Amortization Calculator Skill."""
 from typing import Dict, Any, List
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("loan-amortization-calculator")
 
@@ -1918,8 +1918,8 @@ Calculate US federal income tax.
 - `breakdown` (list): Tax by bracket""",
     tools_code=r'''"""Tax Calculator Skill - US federal income tax brackets."""
 from typing import Dict, Any, List
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("tax-calculator")
 
@@ -2056,8 +2056,8 @@ import uuid
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("pomodoro-timer")
 DEFAULT_FILE = "pomodoro_sessions.json"
@@ -2198,8 +2198,8 @@ import json
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("habit-tracker")
 DEFAULT_FILE = "habits.json"
@@ -2347,8 +2347,8 @@ Build a weighted decision matrix.
 - `winner` (str): Best option""",
     tools_code=r'''"""Decision Matrix Builder Skill - weighted multi-criteria comparison."""
 from typing import Dict, Any, List
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("decision-matrix-builder")
 
@@ -2459,8 +2459,8 @@ Generate a text-based Gantt chart / project timeline.
 - `critical_path` (list): Tasks on critical path""",
     tools_code=r'''"""Project Timeline Generator Skill - text-based Gantt charts."""
 from typing import Dict, Any, List
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("project-timeline-generator")
 

@@ -10,8 +10,8 @@ Follows Anthropic best practices:
 - Proper validation
 """
 from typing import Dict, Any
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 status = SkillStatus("stock-analysis-telegram")
 
@@ -60,7 +60,7 @@ async def stock_analysis_telegram_tool(params: Dict[str, Any]) -> Dict[str, Any]
             f'Example: {{"period": "1mo"}}'
         )
 
-    from Jotty.core.registry import get_unified_registry
+    from Jotty.core.capabilities.registry import get_unified_registry
     registry = get_unified_registry()
 
     try:

@@ -23,7 +23,7 @@ import threading
 import pytest
 from unittest.mock import Mock, MagicMock, patch, AsyncMock, call
 
-from Jotty.core.utils.async_utils import (
+from Jotty.core.infrastructure.utils.async_utils import (
     safe_status,
     StatusCallback,
     StreamingCallback,

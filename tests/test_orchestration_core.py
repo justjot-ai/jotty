@@ -11,14 +11,14 @@ import time as _time
 from unittest.mock import Mock, AsyncMock, patch, MagicMock, PropertyMock
 from dataclasses import fields
 
-from Jotty.core.orchestration.agent_runner import (
+from Jotty.core.intelligence.orchestration.agent_runner import (
     ExecutionContext, AgentRunnerConfig, TaskProgress, AgentRunner, HOOK_TYPES,
 )
-from Jotty.core.foundation.data_structures import SwarmConfig
+from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
 
 # Conditional imports for LLM provider types
 try:
-    from Jotty.core.orchestration.llm_providers.types import (
+    from Jotty.core.intelligence.orchestration.llm_providers.types import (
         ToolResult as LLMToolResult,
         LLMExecutionResult,
         StreamEvent as LLMStreamEvent,
@@ -31,13 +31,13 @@ except ImportError:
     HAS_LLM_TYPES = False
 
 try:
-    from Jotty.core.orchestration.llm_providers.base import LLMProvider
+    from Jotty.core.intelligence.orchestration.llm_providers.base import LLMProvider
     HAS_LLM_BASE = True
 except ImportError:
     HAS_LLM_BASE = False
 
 try:
-    from Jotty.core.orchestration.llm_providers.factory import (
+    from Jotty.core.intelligence.orchestration.llm_providers.factory import (
         create_provider, auto_detect_provider,
     )
     HAS_LLM_FACTORY = True
@@ -46,13 +46,13 @@ except ImportError:
 
 # Conditional imports for modules with complex dependency chains
 try:
-    from Jotty.core.orchestration.provider_manager import ProviderManager
+    from Jotty.core.intelligence.orchestration.provider_manager import ProviderManager
     HAS_PROVIDER_MANAGER = True
 except ImportError:
     HAS_PROVIDER_MANAGER = False
 
 try:
-    from Jotty.core.orchestration.ensemble_manager import EnsembleManager
+    from Jotty.core.intelligence.orchestration.ensemble_manager import EnsembleManager
     HAS_ENSEMBLE_MANAGER = True
 except ImportError:
     HAS_ENSEMBLE_MANAGER = False
@@ -1053,13 +1053,13 @@ class TestLLMProviderFactory:
 
     def test_create_provider_unknown_raises(self):
         """create_provider with unknown provider raises InvalidConfigError."""
-        from Jotty.core.foundation.exceptions import InvalidConfigError
+        from Jotty.core.infrastructure.foundation.exceptions import InvalidConfigError
         with pytest.raises(InvalidConfigError, match="Unknown provider"):
             create_provider("nonexistent_provider")
 
     def test_create_provider_case_insensitive(self):
         """create_provider handles case-insensitive provider names."""
-        from Jotty.core.foundation.exceptions import InvalidConfigError
+        from Jotty.core.infrastructure.foundation.exceptions import InvalidConfigError
         # "NONEXISTENT" should still raise but after lowering
         with pytest.raises(InvalidConfigError, match="Unknown provider"):
             create_provider("NONEXISTENT")
@@ -1084,7 +1084,7 @@ class TestLLMProviderFactory:
     }, clear=True)
     def test_auto_detect_no_keys_raises(self):
         """auto_detect_provider raises when no API keys are set."""
-        from Jotty.core.foundation.exceptions import InvalidConfigError
+        from Jotty.core.infrastructure.foundation.exceptions import InvalidConfigError
         with patch(
             "Jotty.core.foundation.jotty_claude_provider.is_claude_available",
             return_value=False,
@@ -1110,13 +1110,13 @@ class TestOrchestrationLazyLoading:
 
     def test_lazy_map_exists(self):
         """_LAZY_MAP dict is defined in orchestration __init__."""
-        import Jotty.core.orchestration as orch
+        import Jotty.core.intelligence.orchestration as orch
         assert hasattr(orch, '_LAZY_MAP')
         assert isinstance(orch._LAZY_MAP, dict)
 
     def test_lazy_map_has_known_entries(self):
         """_LAZY_MAP contains expected class names."""
-        import Jotty.core.orchestration as orch
+        import Jotty.core.intelligence.orchestration as orch
         expected_names = [
             'SwarmTaskBoard', 'AgentRunner', 'AgentRunnerConfig',
             'Orchestrator', 'ChatExecutor', 'SandboxManager',
@@ -1126,57 +1126,57 @@ class TestOrchestrationLazyLoading:
 
     def test_getattr_resolves_agent_runner(self):
         """__getattr__ resolves 'AgentRunner' from _LAZY_MAP."""
-        import Jotty.core.orchestration as orch
+        import Jotty.core.intelligence.orchestration as orch
         cls = getattr(orch, 'AgentRunner')
         assert cls is AgentRunner
 
     def test_getattr_resolves_agent_runner_config(self):
         """__getattr__ resolves 'AgentRunnerConfig' from _LAZY_MAP."""
-        import Jotty.core.orchestration as orch
+        import Jotty.core.intelligence.orchestration as orch
         cls = getattr(orch, 'AgentRunnerConfig')
         assert cls is AgentRunnerConfig
 
     def test_getattr_resolves_execution_context_via_agent_runner(self):
         """ExecutionContext is accessible via agent_runner module."""
-        from Jotty.core.orchestration.agent_runner import ExecutionContext as EC
+        from Jotty.core.intelligence.orchestration.agent_runner import ExecutionContext as EC
         assert EC is ExecutionContext
 
     def test_unknown_name_raises_attribute_error(self):
         """__getattr__ raises AttributeError for unknown names."""
-        import Jotty.core.orchestration as orch
+        import Jotty.core.intelligence.orchestration as orch
         with pytest.raises(AttributeError, match="has no attribute"):
             getattr(orch, 'CompletelyNonexistentClass')
 
     def test_all_list_includes_lazy_map_keys(self):
         """__all__ includes all _LAZY_MAP keys."""
-        import Jotty.core.orchestration as orch
+        import Jotty.core.intelligence.orchestration as orch
         for name in orch._LAZY_MAP:
             assert name in orch.__all__, f"{name} missing from __all__"
 
     def test_all_list_includes_pipeline_utils(self):
         """__all__ includes pipeline utility functions."""
-        import Jotty.core.orchestration as orch
+        import Jotty.core.intelligence.orchestration as orch
         assert 'sequential_pipeline' in orch.__all__
         assert 'fanout_pipeline' in orch.__all__
 
     def test_lazy_map_swarm_task_board_entry(self):
         """_LAZY_MAP maps SwarmTaskBoard to swarm_roadmap module."""
-        import Jotty.core.orchestration as orch
+        import Jotty.core.intelligence.orchestration as orch
         assert orch._LAZY_MAP['SwarmTaskBoard'] == ('.swarm_roadmap', 'SwarmTaskBoard')
 
     def test_lazy_map_chat_executor_entry(self):
         """_LAZY_MAP maps ChatExecutor to unified_executor module."""
-        import Jotty.core.orchestration as orch
+        import Jotty.core.intelligence.orchestration as orch
         assert orch._LAZY_MAP['ChatExecutor'] == ('.unified_executor', 'ChatExecutor')
 
     def test_lazy_map_orchestrator_entry(self):
         """_LAZY_MAP maps Orchestrator to swarm_manager module."""
-        import Jotty.core.orchestration as orch
+        import Jotty.core.intelligence.orchestration as orch
         assert orch._LAZY_MAP['Orchestrator'] == ('.swarm_manager', 'Orchestrator')
 
     def test_lazy_caching_on_second_access(self):
         """Lazy-loaded attributes are cached in module globals after first access."""
-        import Jotty.core.orchestration as orch
+        import Jotty.core.intelligence.orchestration as orch
         # First access triggers import
         cls1 = getattr(orch, 'AgentRunnerConfig')
         # Second access should be from globals cache
@@ -1361,7 +1361,7 @@ class TestEnsembleManager:
 # =============================================================================
 
 try:
-    from Jotty.core.orchestration.swarm_data_structures import (
+    from Jotty.core.intelligence.orchestration.swarm_data_structures import (
         AgentSpecialization, AgentProfile, ConsensusVote, SwarmDecision,
         AgentSession, HandoffContext, Coalition, AuctionBid,
         GossipMessage, SupervisorNode,
@@ -1371,24 +1371,24 @@ except ImportError:
     HAS_SWARM_DATA_STRUCTURES = False
 
 try:
-    from Jotty.core.orchestration.swarm_roadmap import (
+    from Jotty.core.intelligence.orchestration.swarm_roadmap import (
         SwarmTaskBoard, SubtaskState, TodoItem, TrajectoryStep,
         AgenticState, DecomposedQFunction, ThoughtLevelCredit,
         StateCheckpointer,
     )
-    from Jotty.core.foundation.types import TaskStatus
+    from Jotty.core.infrastructure.foundation.types import TaskStatus
     HAS_SWARM_ROADMAP = True
 except ImportError:
     HAS_SWARM_ROADMAP = False
 
 try:
-    from Jotty.core.orchestration.swarm_intelligence import SwarmIntelligence
+    from Jotty.core.intelligence.orchestration.swarm_intelligence import SwarmIntelligence
     HAS_SWARM_INTELLIGENCE = True
 except ImportError:
     HAS_SWARM_INTELLIGENCE = False
 
 try:
-    from Jotty.core.orchestration.swarm_state_manager import (
+    from Jotty.core.intelligence.orchestration.swarm_state_manager import (
         AgentStateTracker, SwarmStateManager,
     )
     HAS_SWARM_STATE_MANAGER = True

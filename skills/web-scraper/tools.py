@@ -11,9 +11,9 @@ from typing import Dict, Any, Optional, List
 import html2text
 from urllib.parse import urljoin, urlparse
 
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 # Browser-like headers
 
@@ -46,7 +46,7 @@ def _scrape_single_page(
             used_proxy = True
         else:
             # Smart fetch: handles 403 → proxy retry automatically
-            from Jotty.core.utils.smart_fetcher import smart_fetch
+            from Jotty.core.infrastructure.utils.smart_fetcher import smart_fetch
             result = smart_fetch(url, timeout=timeout, headers=headers)
 
             if result.skipped:

@@ -25,31 +25,31 @@ import pytest
 # ---------------------------------------------------------------------------
 
 try:
-    from Jotty.core.persistence.shared_context import SharedContext
+    from Jotty.core.infrastructure.persistence.shared_context import SharedContext
     SHARED_CONTEXT_AVAILABLE = True
 except ImportError:
     SHARED_CONTEXT_AVAILABLE = False
 
 try:
-    from Jotty.core.job_queue.task import Task, TaskPriority
+    from Jotty.core.infrastructure.job_queue.task import Task, TaskPriority
     TASK_AVAILABLE = True
 except ImportError:
     TASK_AVAILABLE = False
 
 try:
-    from Jotty.core.job_queue.task_queue import TaskQueue
+    from Jotty.core.infrastructure.job_queue.task_queue import TaskQueue
     TASK_QUEUE_AVAILABLE = True
 except ImportError:
     TASK_QUEUE_AVAILABLE = False
 
 try:
-    from Jotty.core.job_queue.memory_queue import MemoryTaskQueue
+    from Jotty.core.infrastructure.job_queue.memory_queue import MemoryTaskQueue
     MEMORY_QUEUE_AVAILABLE = True
 except ImportError:
     MEMORY_QUEUE_AVAILABLE = False
 
 try:
-    from Jotty.core.job_queue.sqlite_queue import SQLiteTaskQueue
+    from Jotty.core.infrastructure.job_queue.sqlite_queue import SQLiteTaskQueue
     SQLITE_QUEUE_AVAILABLE = True
 except ImportError:
     SQLITE_QUEUE_AVAILABLE = False

@@ -17,7 +17,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 from typing import Dict, Any
 
-from Jotty.core.swarms.swarm_types import (
+from Jotty.core.intelligence.swarms.swarm_types import (
     AgentRole,
     EvaluationResult,
     ImprovementType,
@@ -33,13 +33,13 @@ from Jotty.core.swarms.swarm_types import (
     _safe_num,
 )
 
-from Jotty.core.swarms.evaluation import (
+from Jotty.core.intelligence.swarms.evaluation import (
     GoldStandardDB,
     ImprovementHistory,
     EvaluationHistory,
 )
 
-from Jotty.core.swarms.registry import (
+from Jotty.core.intelligence.swarms.registry import (
     SwarmRegistry,
     register_swarm,
 )

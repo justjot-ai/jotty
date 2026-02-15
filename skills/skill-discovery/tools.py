@@ -7,8 +7,8 @@ Uses the SkillsManifest for categorization and metadata.
 import logging
 from typing import Dict, Any, List, Optional
 
-from Jotty.core.utils.skill_status import SkillStatus
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("skill-discovery")
@@ -33,7 +33,7 @@ def list_categories_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     status.set_callback(params.pop('_status_callback', None))
 
     try:
-        from Jotty.core.registry.skills_manifest import get_skills_manifest
+        from Jotty.core.capabilities.registry.skills_manifest import get_skills_manifest
 
         manifest = get_skills_manifest()
         categories = []
@@ -77,7 +77,7 @@ def list_skills_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     status.set_callback(params.pop('_status_callback', None))
 
     try:
-        from Jotty.core.registry.skills_manifest import get_skills_manifest
+        from Jotty.core.capabilities.registry.skills_manifest import get_skills_manifest
 
         manifest = get_skills_manifest()
 
@@ -136,11 +136,11 @@ def get_skill_info_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     status.set_callback(params.pop('_status_callback', None))
 
     try:
-        from Jotty.core.registry.skills_manifest import get_skills_manifest
+        from Jotty.core.capabilities.registry.skills_manifest import get_skills_manifest
         try:
-            from Jotty.core.registry.skills_registry import get_skills_registry
+            from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
         except ImportError:
-            from Jotty.core.registry.skills_registry import get_skills_registry
+            from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
 
         skill_name = params.get('skill_name')
         if not skill_name:
@@ -203,7 +203,7 @@ def get_discovery_summary_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     status.set_callback(params.pop('_status_callback', None))
 
     try:
-        from Jotty.core.registry.skills_manifest import get_skills_manifest
+        from Jotty.core.capabilities.registry.skills_manifest import get_skills_manifest
 
         manifest = get_skills_manifest()
         format_type = params.get('format', 'json')
@@ -238,7 +238,7 @@ def refresh_manifest_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     status.set_callback(params.pop('_status_callback', None))
 
     try:
-        from Jotty.core.registry.skills_manifest import get_skills_manifest
+        from Jotty.core.capabilities.registry.skills_manifest import get_skills_manifest
 
         manifest = get_skills_manifest(refresh=True)
 
@@ -273,7 +273,7 @@ def categorize_skill_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     status.set_callback(params.pop('_status_callback', None))
 
     try:
-        from Jotty.core.registry.skills_manifest import get_skills_manifest
+        from Jotty.core.capabilities.registry.skills_manifest import get_skills_manifest
 
         skill_name = params.get('skill_name')
         category = params.get('category')
@@ -320,7 +320,7 @@ def find_skills_for_task_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     status.set_callback(params.pop('_status_callback', None))
 
     try:
-        from Jotty.core.registry.skills_manifest import get_skills_manifest
+        from Jotty.core.capabilities.registry.skills_manifest import get_skills_manifest
 
         task = params.get('task', '').lower()
         max_results = params.get('max_results', 10)

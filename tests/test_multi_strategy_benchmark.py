@@ -15,7 +15,7 @@ from unittest.mock import Mock, AsyncMock, patch
 async def test_benchmark_imports():
     """Test that benchmark utilities are properly exported."""
     # Should be importable from orchestration
-    from Jotty.core.orchestration import (
+    from Jotty.core.intelligence.orchestration import (
         MultiStrategyBenchmark,
         BenchmarkResults,
         StrategyResult,
@@ -33,7 +33,7 @@ async def test_benchmark_imports():
 @patch('anthropic.AsyncAnthropic')
 async def test_benchmark_basic_usage(mock_anthropic_class, mock_getenv):
     """Test basic benchmark usage with mocked API."""
-    from Jotty.core.orchestration import (
+    from Jotty.core.intelligence.orchestration import (
         SwarmAdapter,
         MultiStrategyBenchmark,
         MergeStrategy
@@ -91,7 +91,7 @@ async def test_benchmark_basic_usage(mock_anthropic_class, mock_getenv):
 @patch('anthropic.AsyncAnthropic')
 async def test_benchmark_all_strategies(mock_anthropic_class, mock_getenv):
     """Test benchmark with all 5 merge strategies."""
-    from Jotty.core.orchestration import SwarmAdapter, benchmark_strategies
+    from Jotty.core.intelligence.orchestration import SwarmAdapter, benchmark_strategies
 
     # Mock API
     mock_getenv.return_value = "sk-test-key"
@@ -119,7 +119,7 @@ async def test_benchmark_all_strategies(mock_anthropic_class, mock_getenv):
 @pytest.mark.asyncio
 async def test_benchmark_results_print_summary():
     """Test that BenchmarkResults.print_summary() works."""
-    from Jotty.core.orchestration import (
+    from Jotty.core.intelligence.orchestration import (
         BenchmarkResults,
         StrategyResult,
         MergeStrategy,
@@ -175,14 +175,14 @@ async def test_benchmark_results_print_summary():
 @pytest.mark.asyncio
 async def test_benchmark_auto_integration_flags():
     """Test that auto-integration flags work correctly."""
-    from Jotty.core.orchestration import MultiStrategyBenchmark, MergeStrategy
+    from Jotty.core.intelligence.orchestration import MultiStrategyBenchmark, MergeStrategy
 
     # Create mock swarms
     class MockSwarm:
         name = "Mock"
 
         async def execute(self, task):
-            from Jotty.core.orchestration import SwarmResult
+            from Jotty.core.intelligence.orchestration import SwarmResult
             return SwarmResult(
                 swarm_name=self.name,
                 output="Mock output",

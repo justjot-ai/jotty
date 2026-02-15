@@ -10,8 +10,8 @@ import os
 import logging
 from typing import Dict, Any, Optional
 
-from Jotty.core.utils.api_client import BaseAPIClient
-from Jotty.core.utils.env_loader import load_jotty_env
+from Jotty.core.infrastructure.utils.api_client import BaseAPIClient
+from Jotty.core.infrastructure.utils.env_loader import load_jotty_env
 
 load_jotty_env()
 logger = logging.getLogger(__name__)

@@ -40,7 +40,7 @@ class TestCoreImports:
 
     def test_agent_config_from_foundation(self):
         """Test AgentConfig from foundation module."""
-        from Jotty.core.foundation.agent_config import AgentConfig
+        from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
         assert AgentConfig is not None
 
     def test_can_import_swarm_manager(self):

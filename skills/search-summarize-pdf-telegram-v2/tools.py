@@ -4,13 +4,13 @@ Search → Summarize → PDF → Telegram (Generic Pipeline Version)
 Demonstrates generic Source → Processor → Sink pipeline pattern.
 Uses declarative pipeline configuration.
 """
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 try:
-    from Jotty.core.registry.pipeline_skill import create_pipeline_skill, StepType
+    from Jotty.core.capabilities.registry.pipeline_skill import create_pipeline_skill, StepType
 except ImportError:
-    from Jotty.core.registry.pipeline_skill import create_pipeline_skill, StepType
+    from Jotty.core.capabilities.registry.pipeline_skill import create_pipeline_skill, StepType
 
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 # Status emitter for progress updates
 status = SkillStatus("search-summarize-pdf-telegram-v2")
@@ -151,9 +151,9 @@ async def search_summarize_pdf_telegram_v2_tool(params: dict) -> dict:
     status.set_callback(params.pop('_status_callback', None))
 
     try:
-        from Jotty.core.registry.skills_registry import get_skills_registry
+        from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
     except ImportError:
-        from Jotty.core.registry.skills_registry import get_skills_registry
+        from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
     
     registry = get_skills_registry()
     registry.init()

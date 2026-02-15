@@ -26,24 +26,24 @@ import math
 import pytest
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
 
-from Jotty.core.context.context_manager import ContextPriority, ContextChunk, SmartContextManager
+from Jotty.core.infrastructure.context.context_manager import ContextPriority, ContextChunk, SmartContextManager
 
 try:
-    from Jotty.core.context.chunker import ContextChunker
+    from Jotty.core.infrastructure.context.chunker import ContextChunker
     HAS_CHUNKER = True
 except ImportError:
     HAS_CHUNKER = False
 
 # --- Compressor ---
 try:
-    from Jotty.core.context.compressor import AgenticCompressor
+    from Jotty.core.infrastructure.context.compressor import AgenticCompressor
     HAS_COMPRESSOR = True
 except ImportError:
     HAS_COMPRESSOR = False
 
 # --- ContentGate / RelevanceEstimator ---
 try:
-    from Jotty.core.context.content_gate import (
+    from Jotty.core.infrastructure.context.content_gate import (
         ContentGate, ContentChunk as GateContentChunk,
         ProcessedContent, RelevanceEstimator,
     )
@@ -53,7 +53,7 @@ except ImportError:
 
 # --- ContextGradient / ContextApplier ---
 try:
-    from Jotty.core.context.context_gradient import (
+    from Jotty.core.infrastructure.context.context_gradient import (
         ContextGradient, ContextApplier, ContextUpdate,
     )
     HAS_CONTEXT_GRADIENT = True
@@ -62,14 +62,14 @@ except ImportError:
 
 # --- ContextGuard (LLMContextManager) ---
 try:
-    from Jotty.core.context.context_guard import LLMContextManager
+    from Jotty.core.infrastructure.context.context_guard import LLMContextManager
     HAS_CONTEXT_GUARD = True
 except ImportError:
     HAS_CONTEXT_GUARD = False
 
 # --- GlobalContextGuard, OverflowDetector, ContentCompressor ---
 try:
-    from Jotty.core.context.global_context_guard import (
+    from Jotty.core.infrastructure.context.global_context_guard import (
         GlobalContextGuard, OverflowDetector, ContextOverflowInfo,
         ContentCompressor, patch_dspy_with_guard, unpatch_dspy,
     )

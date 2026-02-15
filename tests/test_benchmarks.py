@@ -25,13 +25,13 @@ import asyncio
 import pytest
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
 
-from Jotty.core.execution.types import (
+from Jotty.core.modes.execution.types import (
     ExecutionConfig,
     ExecutionTier,
     ExecutionResult,
     StreamEventType,
 )
-from Jotty.core.execution.tier_detector import TierDetector
+from Jotty.core.modes.execution.tier_detector import TierDetector
 
 
 # =============================================================================
@@ -230,7 +230,7 @@ class TestEndToEndTierExecution:
                 config=ExecutionConfig(tier=ExecutionTier.DIRECT),
             )
 
-        from Jotty.core.observability.metrics import get_metrics
+        from Jotty.core.infrastructure.monitoring.observability.metrics import get_metrics
         am = get_metrics().get_agent_metrics('tier_1')
         assert am is not None
         assert am.total_executions == 3
@@ -940,7 +940,7 @@ class TestErrorRecovery:
             config=ExecutionConfig(tier=ExecutionTier.DIRECT),
         )
 
-        from Jotty.core.observability.metrics import get_metrics
+        from Jotty.core.infrastructure.monitoring.observability.metrics import get_metrics
         am = get_metrics().get_agent_metrics('tier_1')
         assert am is not None
         assert am.total_executions >= 1
@@ -1004,7 +1004,7 @@ class TestConcurrentExecution:
         ]
         await asyncio.gather(*tasks)
 
-        from Jotty.core.observability.metrics import get_metrics
+        from Jotty.core.infrastructure.monitoring.observability.metrics import get_metrics
         am = get_metrics().get_agent_metrics('tier_1')
         assert am is not None
         assert am.total_executions >= 5
@@ -1050,7 +1050,7 @@ class TestConcurrentExecution:
         assert len(results) == 10
         assert all(r.success for r in results)
 
-        from Jotty.core.observability.metrics import get_metrics
+        from Jotty.core.infrastructure.monitoring.observability.metrics import get_metrics
         am = get_metrics().get_agent_metrics('tier_1')
         assert am.total_executions >= 10
 

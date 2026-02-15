@@ -1033,7 +1033,7 @@ class TestLLMDocSources:
 
     def test_list_sources_returns_non_empty(self):
         """list_sources() returns at least one source."""
-        from Jotty.core.evaluation.llm_doc_sources import list_sources
+        from Jotty.core.infrastructure.monitoring.evaluation.llm_doc_sources import list_sources
         sources = list_sources()
         assert len(sources) >= 1
         assert hasattr(sources[0], "id")
@@ -1042,14 +1042,14 @@ class TestLLMDocSources:
 
     def test_get_sources_by_provider_microsoft(self):
         """get_sources_by_provider('microsoft') returns Microsoft sources."""
-        from Jotty.core.evaluation.llm_doc_sources import get_sources_by_provider
+        from Jotty.core.infrastructure.monitoring.evaluation.llm_doc_sources import get_sources_by_provider
         ms = get_sources_by_provider("microsoft")
         assert len(ms) >= 1
         assert all(s.provider == "microsoft" for s in ms)
 
     def test_get_source_by_id(self):
         """get_source(id) returns the source or None."""
-        from Jotty.core.evaluation.llm_doc_sources import get_source, list_sources
+        from Jotty.core.infrastructure.monitoring.evaluation.llm_doc_sources import get_source, list_sources
         first_id = list_sources()[0].id
         s = get_source(first_id)
         assert s is not None
@@ -1058,7 +1058,7 @@ class TestLLMDocSources:
 
     def test_to_context_snippet(self):
         """to_context_snippet returns a string with URLs."""
-        from Jotty.core.evaluation.llm_doc_sources import list_sources, to_context_snippet
+        from Jotty.core.infrastructure.monitoring.evaluation.llm_doc_sources import list_sources, to_context_snippet
         sources = list_sources()[:2]
         snippet = to_context_snippet(sources, max_items=2)
         assert "Relevant open-source" in snippet or "http" in snippet or "https" in snippet

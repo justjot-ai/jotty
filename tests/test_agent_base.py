@@ -39,7 +39,7 @@ import pytest
 # Guarded imports with skip markers
 # ---------------------------------------------------------------------------
 try:
-    from Jotty.core.agents.base.base_agent import (
+    from Jotty.core.modes.agent.base.base_agent import (
         AgentResult,
         AgentRuntimeConfig,
         BaseAgent,
@@ -49,7 +49,7 @@ except ImportError:
     BASE_AGENT_AVAILABLE = False
 
 try:
-    from Jotty.core.agents.base.domain_agent import (
+    from Jotty.core.modes.agent.base.domain_agent import (
         DomainAgent,
         DomainAgentConfig,
         create_domain_agent,
@@ -59,38 +59,38 @@ except ImportError:
     DOMAIN_AGENT_AVAILABLE = False
 
 try:
-    from Jotty.core.agents.base.swarm_agent import BaseSwarmAgent
+    from Jotty.core.modes.agent.base.swarm_agent import BaseSwarmAgent
     SWARM_AGENT_AVAILABLE = True
 except ImportError:
     SWARM_AGENT_AVAILABLE = False
 
 try:
-    from Jotty.core.agents.base.validation_agent import (
+    from Jotty.core.modes.agent.base.validation_agent import (
         AgentMessage,
         SharedScratchpad,
         ValidationAgent,
         ValidationConfig,
     )
-    from Jotty.core.foundation.types.validation_types import ValidationResult
-    from Jotty.core.foundation.types.enums import ValidationRound
+    from Jotty.core.infrastructure.foundation.types.validation_types import ValidationResult
+    from Jotty.core.infrastructure.foundation.types.enums import ValidationRound
     VALIDATION_AGENT_AVAILABLE = True
 except ImportError:
     VALIDATION_AGENT_AVAILABLE = False
 
 try:
-    from Jotty.core.agents.base.skill_plan_executor import ToolCallCache
+    from Jotty.core.modes.agent.base.skill_plan_executor import ToolCallCache
     TOOL_CACHE_AVAILABLE = True
 except ImportError:
     TOOL_CACHE_AVAILABLE = False
 
 try:
-    from Jotty.core.agents.base.autonomous_agent import ExecutionContextManager
+    from Jotty.core.modes.agent.base.autonomous_agent import ExecutionContextManager
     EXEC_CTX_AVAILABLE = True
 except ImportError:
     EXEC_CTX_AVAILABLE = False
 
 try:
-    from Jotty.core.foundation.config_defaults import DEFAULTS
+    from Jotty.core.infrastructure.foundation.config_defaults import DEFAULTS
     DEFAULTS_AVAILABLE = True
 except ImportError:
     DEFAULTS_AVAILABLE = False

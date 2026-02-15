@@ -308,34 +308,34 @@ def reset_singletons():
     """Reset ALL singleton instances between tests so state doesn't leak."""
     yield
     # Observability
-    from Jotty.core.observability.metrics import reset_metrics
-    from Jotty.core.observability.tracing import reset_tracer
+    from Jotty.core.infrastructure.monitoring.observability.metrics import reset_metrics
+    from Jotty.core.infrastructure.monitoring.observability.tracing import reset_tracer
     reset_metrics()
     reset_tracer()
     # Cost tracker
-    from Jotty.core.foundation.direct_anthropic_lm import reset_cost_tracker
+    from Jotty.core.infrastructure.foundation.direct_anthropic_lm import reset_cost_tracker
     reset_cost_tracker()
     # Integration
-    from Jotty.core.integration.integration import JottyIntegration
+    from Jotty.core.infrastructure.integration.integration import JottyIntegration
     JottyIntegration.reset_instance()
     # Event broadcaster
-    from Jotty.core.utils.async_utils import AgentEventBroadcaster
+    from Jotty.core.infrastructure.utils.async_utils import AgentEventBroadcaster
     AgentEventBroadcaster.reset_instance()
     # Prompt selector
-    from Jotty.core.utils.prompt_selector import reset_prompt_selector
+    from Jotty.core.infrastructure.utils.prompt_selector import reset_prompt_selector
     reset_prompt_selector()
     # Skill orchestrator
-    from Jotty.core.orchestration.skill_orchestrator import reset_skill_orchestrator
+    from Jotty.core.intelligence.orchestration.skill_orchestrator import reset_skill_orchestrator
     reset_skill_orchestrator()
     # Dict-based caches
-    from Jotty.core.utils.budget_tracker import BudgetTracker
-    from Jotty.core.utils.llm_cache import LLMCallCache
-    from Jotty.core.utils.tokenizer import SmartTokenizer
+    from Jotty.core.infrastructure.utils.budget_tracker import BudgetTracker
+    from Jotty.core.infrastructure.utils.llm_cache import LLMCallCache
+    from Jotty.core.infrastructure.utils.tokenizer import SmartTokenizer
     BudgetTracker.reset_instances()
     LLMCallCache.reset_instances()
     SmartTokenizer.reset_instances()
     # Claude provider
-    from Jotty.core.foundation.jotty_claude_provider import JottyClaudeProvider
+    from Jotty.core.infrastructure.foundation.jotty_claude_provider import JottyClaudeProvider
     JottyClaudeProvider.reset_instance()
 
 
@@ -468,8 +468,8 @@ def mock_complexity_gate():
 @pytest.fixture
 def v3_executor(mock_provider, mock_registry, mock_planner, mock_validator, mock_v3_memory, mock_complexity_gate):
     """Pre-wired TierExecutor with all mocks injected."""
-    from Jotty.core.execution.executor import TierExecutor
-    from Jotty.core.execution.types import ExecutionConfig
+    from Jotty.core.modes.execution.executor import TierExecutor
+    from Jotty.core.modes.execution.types import ExecutionConfig
 
     executor = TierExecutor(config=ExecutionConfig())
     executor._provider = mock_provider
@@ -486,13 +486,13 @@ def v3_observability_helpers():
     """Reusable assertion helpers for observability checks."""
 
     def assert_metrics_recorded(agent_name):
-        from Jotty.core.observability.metrics import get_metrics
+        from Jotty.core.infrastructure.monitoring.observability.metrics import get_metrics
         am = get_metrics().get_agent_metrics(agent_name)
         assert am is not None, f"No metrics for agent '{agent_name}'"
         assert am.total_executions >= 1, f"Expected >=1 executions, got {am.total_executions}"
 
     def assert_trace_exists():
-        from Jotty.core.observability.tracing import get_tracer
+        from Jotty.core.infrastructure.monitoring.observability.tracing import get_tracer
         traces = get_tracer().get_trace_history()
         assert len(traces) > 0, "No traces recorded"
         assert len(traces[-1].root_spans) > 0, "Trace has no root spans"
@@ -517,7 +517,7 @@ def v3_observability_helpers():
 @pytest.fixture
 def make_concrete_agent():
     """Factory to create a concrete BaseAgent subclass with controllable _execute_impl."""
-    from Jotty.core.agents.base.base_agent import BaseAgent, AgentRuntimeConfig
+    from Jotty.core.modes.agent.base.base_agent import BaseAgent, AgentRuntimeConfig
 
     def _factory(name="TestAgent", output="agent output", raises=None, **config_kw):
         class ConcreteAgent(BaseAgent):
@@ -538,7 +538,7 @@ def make_concrete_agent():
 @pytest.fixture
 def make_domain_agent():
     """Factory to create a DomainAgent with a mocked DSPy module."""
-    from Jotty.core.agents.base.domain_agent import DomainAgent, DomainAgentConfig
+    from Jotty.core.modes.agent.base.domain_agent import DomainAgent, DomainAgentConfig
 
     def _factory(name="TestDomainAgent", module_output=None, signature=None, **config_kw):
         config = DomainAgentConfig(name=name, **config_kw)
@@ -556,7 +556,7 @@ def make_domain_agent():
 @pytest.fixture
 def make_swarm_result():
     """Factory to create SwarmResult instances."""
-    from Jotty.core.swarms.swarm_types import SwarmResult
+    from Jotty.core.intelligence.swarms.swarm_types import SwarmResult
 
     def _factory(success=True, output=None, name="TestSwarm", domain="test", **kw):
         return SwarmResult(
@@ -574,7 +574,7 @@ def make_swarm_result():
 @pytest.fixture
 def make_agent_result():
     """Factory to create AgentResult instances."""
-    from Jotty.core.agents.base.base_agent import AgentResult
+    from Jotty.core.modes.agent.base.base_agent import AgentResult
 
     def _factory(success=True, output="result", name="TestAgent", **kw):
         return AgentResult(

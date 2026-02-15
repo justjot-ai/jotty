@@ -21,7 +21,7 @@ import pytest
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
 from datetime import datetime
 
-from Jotty.core.execution.types import (
+from Jotty.core.modes.execution.types import (
     ExecutionConfig,
     ExecutionTier,
     ExecutionResult,
@@ -30,7 +30,7 @@ from Jotty.core.execution.types import (
     TierValidationResult,
     MemoryContext,
 )
-from Jotty.core.execution.executor import (
+from Jotty.core.modes.execution.executor import (
     TierExecutor,
     LLMProvider,
     ComplexityGate,

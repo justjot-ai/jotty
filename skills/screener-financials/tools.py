@@ -14,14 +14,14 @@ from urllib.parse import quote, urljoin
 import json
 import logging
 
-from Jotty.core.utils.skill_status import SkillStatus
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 logger = logging.getLogger(__name__)
 
 
 # DRY: Use shared ProxyRotator from core (same logic, single source of truth)
-from Jotty.core.utils.smart_fetcher import get_proxy_rotator, USER_AGENTS
+from Jotty.core.infrastructure.utils.smart_fetcher import get_proxy_rotator, USER_AGENTS
 
 # Status emitter for progress updates
 status = SkillStatus("screener-financials")

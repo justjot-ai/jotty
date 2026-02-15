@@ -23,7 +23,7 @@ from dataclasses import fields, asdict
 # Conditional imports with pytest.skip support
 # ---------------------------------------------------------------------------
 try:
-    from Jotty.core.orchestration.sandbox_manager import (
+    from Jotty.core.intelligence.orchestration.sandbox_manager import (
         TrustLevel, SandboxType, SandboxConfig, SandboxResult, SandboxManager,
     )
     HAS_SANDBOX = True
@@ -31,19 +31,19 @@ except ImportError:
     HAS_SANDBOX = False
 
 try:
-    from Jotty.core.orchestration.learning_pipeline import EffectivenessTracker
+    from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
     HAS_EFFECTIVENESS = True
 except ImportError:
     HAS_EFFECTIVENESS = False
 
 try:
-    from Jotty.core.orchestration.paradigm_executor import ParadigmExecutor
+    from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor
     HAS_PARADIGM = True
 except ImportError:
     HAS_PARADIGM = False
 
 try:
-    from Jotty.core.orchestration.optimization_pipeline import (
+    from Jotty.core.intelligence.orchestration.optimization_pipeline import (
         OptimizationConfig, IterationResult, OptimizationPipeline,
     )
     HAS_OPTIMIZATION = True
@@ -51,8 +51,8 @@ except ImportError:
     HAS_OPTIMIZATION = False
 
 try:
-    from Jotty.core.foundation.data_structures import EpisodeResult, SwarmConfig
-    from Jotty.core.foundation.agent_config import AgentConfig
+    from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult, SwarmConfig
+    from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
     HAS_FOUNDATION = True
 except ImportError:
     HAS_FOUNDATION = False

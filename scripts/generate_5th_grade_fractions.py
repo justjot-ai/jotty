@@ -30,7 +30,7 @@ sys.path.insert(0, str(repo))
 
 # Load .env so API keys are available
 try:
-    from Jotty.core.utils.env_loader import load_jotty_env, get_jotty_root
+    from Jotty.core.infrastructure.utils.env_loader import load_jotty_env, get_jotty_root
     load_jotty_env()
     anth = get_jotty_root() / ".env.anthropic"
     if anth.exists():
@@ -75,11 +75,11 @@ async def main():
     print("API key loaded from .env")
 
     # Pre-configure DSPy with DirectAnthropicLM (fast API, not CLI)
-    from Jotty.core.foundation.direct_anthropic_lm import configure_direct_anthropic
+    from Jotty.core.infrastructure.foundation.direct_anthropic_lm import configure_direct_anthropic
     configure_direct_anthropic(model="haiku")
     print("Pre-configured DSPy with DirectAnthropicLM (API)")
 
-    from Jotty.core.swarms.olympiad_learning_swarm import (
+    from Jotty.core.intelligence.swarms.olympiad_learning_swarm import (
         OlympiadLearningSwarm, OlympiadLearningConfig, Subject, LessonDepth, DifficultyTier,
     )
 
@@ -158,7 +158,7 @@ async def main():
 
     # Final cost summary
     try:
-        from Jotty.core.foundation.direct_anthropic_lm import get_cost_tracker
+        from Jotty.core.infrastructure.foundation.direct_anthropic_lm import get_cost_tracker
         tracker = get_cost_tracker()
         metrics = tracker.get_metrics()
         print(f"\n{'─' * 40}")

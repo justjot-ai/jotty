@@ -22,7 +22,7 @@ if env_path.exists():
 
 
 async def main():
-    from Jotty.core.workflows import (
+    from Jotty.core.modes.workflow import (
         LearningWorkflow,
         LearningLevel,
         LearningDepth,
@@ -30,8 +30,8 @@ async def main():
         OutputFormatManager,
         OutputChannelManager,
     )
-    from Jotty.core.orchestration.swarm_adapter import SwarmAdapter
-    from Jotty.core.orchestration.multi_stage_pipeline import MergeStrategy
+    from Jotty.core.intelligence.orchestration.swarm_adapter import SwarmAdapter
+    from Jotty.core.intelligence.orchestration.multi_stage_pipeline import MergeStrategy
 
     print("\n" + "="*80)
     print("COMPREHENSIVE MULTI-AGENT SYSTEMS COURSE")

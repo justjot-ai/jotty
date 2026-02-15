@@ -23,7 +23,7 @@ import pytest
 from unittest.mock import MagicMock, AsyncMock, patch, PropertyMock
 from datetime import datetime, timedelta
 
-from Jotty.core.utils.timeouts import (
+from Jotty.core.infrastructure.utils.timeouts import (
     CircuitState,
     CircuitBreakerConfig,
     CircuitBreaker,
@@ -38,7 +38,7 @@ from Jotty.core.utils.timeouts import (
     GLOBAL_DLQ,
     ADAPTIVE_TIMEOUT,
 )
-from Jotty.core.foundation.exceptions import TimeoutError
+from Jotty.core.infrastructure.foundation.exceptions import TimeoutError
 
 
 # =============================================================================
@@ -1346,8 +1346,8 @@ class TestTimeoutErrorImport:
     @pytest.mark.unit
     def test_timeout_error_is_jotty_exception(self):
         """TimeoutError is from Jotty exceptions, not builtins."""
-        from Jotty.core.foundation.exceptions import TimeoutError as JottyTimeout
-        from Jotty.core.foundation.exceptions import ExecutionError
+        from Jotty.core.infrastructure.foundation.exceptions import TimeoutError as JottyTimeout
+        from Jotty.core.infrastructure.foundation.exceptions import ExecutionError
         assert issubclass(JottyTimeout, ExecutionError)
 
     @pytest.mark.unit

@@ -16,7 +16,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from Jotty.core.orchestration.learning_pipeline import (
+from Jotty.core.intelligence.orchestration.learning_pipeline import (
     EffectivenessTracker,
     SwarmLearningPipeline,
 )

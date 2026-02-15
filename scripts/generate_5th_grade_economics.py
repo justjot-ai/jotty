@@ -42,7 +42,7 @@ async def generate_economics_material():
 
     # Force DSPy to use DirectAnthropicLM (not Claude CLI) for all calls
     import dspy
-    from Jotty.core.foundation.direct_anthropic_lm import DirectAnthropicLM
+    from Jotty.core.infrastructure.foundation.direct_anthropic_lm import DirectAnthropicLM
 
     lm = DirectAnthropicLM(model="claude-3-5-haiku-20241022")
     dspy.settings.configure(lm=lm)

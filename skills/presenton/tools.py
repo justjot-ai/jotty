@@ -11,8 +11,8 @@ import time
 from typing import Dict, Any, Optional
 import os
 
-from Jotty.core.utils.skill_status import SkillStatus
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper, async_tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper, async_tool_wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -562,9 +562,9 @@ async def generate_presentation_from_research_tool(params: Dict[str, Any]) -> Di
 
     try:
         try:
-            from Jotty.core.registry.skills_registry import get_skills_registry
+            from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
         except ImportError:
-            from Jotty.core.registry.skills_registry import get_skills_registry
+            from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
 
         registry = get_skills_registry()
         registry.init()

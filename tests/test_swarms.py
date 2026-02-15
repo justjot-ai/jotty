@@ -21,7 +21,7 @@ import pytest
 from datetime import datetime
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
 
-from Jotty.core.swarms.swarm_types import (
+from Jotty.core.intelligence.swarms.swarm_types import (
     AgentRole,
     EvaluationResult,
     ImprovementType,
@@ -31,16 +31,16 @@ from Jotty.core.swarms.swarm_types import (
     _safe_join,
     _safe_num,
 )
-from Jotty.core.swarms.swarm_types import SwarmBaseConfig
-from Jotty.core.swarms.registry import SwarmRegistry, register_swarm
-from Jotty.core.swarms.base.agent_team import (
+from Jotty.core.intelligence.swarms.swarm_types import SwarmBaseConfig
+from Jotty.core.intelligence.swarms.registry import SwarmRegistry, register_swarm
+from Jotty.core.intelligence.swarms.base.agent_team import (
     AgentTeam,
     AgentSpec,
     TeamResult,
     CoordinationPattern,
     MergeStrategy,
 )
-from Jotty.core.swarms.base.domain_swarm import DomainSwarm, PhaseExecutor
+from Jotty.core.intelligence.swarms.base.domain_swarm import DomainSwarm, PhaseExecutor
 
 
 # =============================================================================
@@ -791,7 +791,7 @@ class TestDomainSwarm:
 
     def test_to_composite(self):
         """to_composite() creates CompositeAgent wrapping the swarm."""
-        from Jotty.core.agents.base.composite_agent import CompositeAgent
+        from Jotty.core.modes.agent.base.composite_agent import CompositeAgent
         swarm = self._make_test_swarm()
         composite = swarm.to_composite()
         assert isinstance(composite, CompositeAgent)

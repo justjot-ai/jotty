@@ -23,7 +23,7 @@ from unittest.mock import Mock, AsyncMock, MagicMock, patch
 from typing import Dict, Any, List
 
 # Import swarm types
-from Jotty.core.swarms.swarm_types import (
+from Jotty.core.intelligence.swarms.swarm_types import (
     AgentRole,
     EvaluationResult,
     ImprovementType,
@@ -37,13 +37,13 @@ from Jotty.core.swarms.swarm_types import (
 )
 
 # Import base swarm
-from Jotty.core.swarms.base_swarm import BaseSwarm
+from Jotty.core.intelligence.swarms.base_swarm import BaseSwarm
 
 # Import learning mixin
-from Jotty.core.swarms._learning_mixin import SwarmLearningMixin
+from Jotty.core.intelligence.swarms._learning_mixin import SwarmLearningMixin
 
 # Import improvement agents
-from Jotty.core.swarms.improvement_agents import (
+from Jotty.core.intelligence.swarms.improvement_agents import (
     ExpertAgent,
     ReviewerAgent,
     PlannerAgent,
@@ -55,7 +55,7 @@ from Jotty.core.swarms.improvement_agents import (
 )
 
 # Import evaluation components
-from Jotty.core.swarms.evaluation import (
+from Jotty.core.intelligence.swarms.evaluation import (
     GoldStandardDB,
     ImprovementHistory,
     EvaluationHistory,

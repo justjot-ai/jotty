@@ -23,14 +23,14 @@ from unittest.mock import Mock, MagicMock, AsyncMock, patch, PropertyMock
 # Import with try/except for optional-dep safety
 # ---------------------------------------------------------------------------
 try:
-    from Jotty.core.orchestration.agent_runner import (
+    from Jotty.core.intelligence.orchestration.agent_runner import (
         HOOK_TYPES,
         AgentRunnerConfig,
         ExecutionContext,
         TaskProgress,
         AgentRunner,
     )
-    from Jotty.core.foundation.data_structures import SwarmConfig, EpisodeResult
+    from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig, EpisodeResult
     RUNNER_AVAILABLE = True
 except ImportError as exc:
     RUNNER_AVAILABLE = False

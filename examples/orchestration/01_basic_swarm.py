@@ -8,7 +8,7 @@ Demonstrates:
 - Understanding swarm results
 """
 import asyncio
-from Jotty.core.orchestration import Orchestrator
+from Jotty.core.intelligence.orchestration import Orchestrator
 
 
 async def main():

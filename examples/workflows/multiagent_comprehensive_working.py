@@ -17,8 +17,8 @@ if env_path.exists():
 
 
 async def main():
-    from Jotty.core.swarms.olympiad_learning_swarm import learn_topic
-    from Jotty.core.workflows import OutputChannelManager
+    from Jotty.core.intelligence.swarms.olympiad_learning_swarm import learn_topic
+    from Jotty.core.modes.workflow import OutputChannelManager
 
     print("\n" + "="*80)
     print("COMPREHENSIVE MULTI-AGENT SYSTEMS COURSE")

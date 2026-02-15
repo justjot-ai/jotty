@@ -13,10 +13,10 @@ import threading
 import requests
 from typing import Dict, Any, List, Optional
 
-from Jotty.core.utils.env_loader import load_jotty_env, get_env
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.env_loader import load_jotty_env, get_env
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
-from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
 
 load_jotty_env()
 
@@ -229,7 +229,7 @@ def _scrape_url(url: str, max_length: int = 10000) -> Dict[str, Any]:
 
     Uses SmartFetcher: direct → proxy retry on 403/429 → graceful skip.
     """
-    from Jotty.core.utils.smart_fetcher import smart_fetch
+    from Jotty.core.infrastructure.utils.smart_fetcher import smart_fetch
 
     result = smart_fetch(url, timeout=15)
 
@@ -369,7 +369,7 @@ def fetch_webpage_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     max_length = params.get('max_length', 10000)
 
     # Smart fetch: direct → proxy on 403/429 → graceful skip
-    from Jotty.core.utils.smart_fetcher import smart_fetch
+    from Jotty.core.infrastructure.utils.smart_fetcher import smart_fetch
     result = smart_fetch(url, timeout=15, max_proxy_attempts=2)
 
     if result.skipped:

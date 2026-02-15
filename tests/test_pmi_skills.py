@@ -15,7 +15,7 @@ from typing import Dict, Any
 import pytest
 from unittest.mock import patch, MagicMock
 
-from Jotty.core.utils.api_client import BaseAPIClient
+from Jotty.core.infrastructure.utils.api_client import BaseAPIClient
 
 
 # =============================================================================
@@ -595,7 +595,7 @@ class TestFinancialAnalysis:
 # TestToolSchemaOutputs — verify output field parsing from docstrings
 # =============================================================================
 
-from Jotty.core.agents._execution_types import ToolSchema, ToolParam
+from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
 
 
 @pytest.mark.unit
@@ -749,7 +749,7 @@ class TestIOContractEnrichment:
     def _make_step(self, skill_name="web-search", tool_name="search_web_tool",
                    params=None, output_key="step_0", depends_on=None,
                    inputs_needed=None, outputs_produced=None):
-        from Jotty.core.agents._execution_types import ExecutionStep
+        from Jotty.core.modes.agent._execution_types import ExecutionStep
         return ExecutionStep(
             skill_name=skill_name,
             tool_name=tool_name,
@@ -762,7 +762,7 @@ class TestIOContractEnrichment:
         )
 
     def _make_mixin(self):
-        from Jotty.core.agents._plan_utils_mixin import PlanUtilsMixin
+        from Jotty.core.modes.agent._plan_utils_mixin import PlanUtilsMixin
         return PlanUtilsMixin()
 
     # -- _match_output_field tests --
@@ -843,7 +843,7 @@ class TestIOContractEnrichment:
 
         This test mocks the registry to provide a tool with declared outputs.
         """
-        from Jotty.core.agents._execution_types import ToolSchema, ToolParam
+        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
 
         mixin = self._make_mixin()
 
@@ -893,7 +893,7 @@ class TestIOContractEnrichment:
     @pytest.mark.unit
     def test_upgrade_data_param_to_data_field(self):
         """data param should match data output field via exact match."""
-        from Jotty.core.agents._execution_types import ToolSchema, ToolParam
+        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
 
         mixin = self._make_mixin()
         step0 = self._make_step(output_key="fetch")
@@ -919,7 +919,7 @@ class TestIOContractEnrichment:
     @pytest.mark.unit
     def test_no_upgrade_when_no_match(self):
         """Bare ref with no matching field should stay as-is."""
-        from Jotty.core.agents._execution_types import ToolSchema, ToolParam
+        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
 
         mixin = self._make_mixin()
         step0 = self._make_step(output_key="src")
@@ -947,7 +947,7 @@ class TestIOContractEnrichment:
     @pytest.mark.unit
     def test_infers_inputs_needed_from_template(self):
         """inputs_needed should be auto-populated from ${key.field} refs in params."""
-        from Jotty.core.agents._execution_types import ToolSchema, ToolParam
+        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
 
         mixin = self._make_mixin()
         step0 = self._make_step(output_key="search")
@@ -965,7 +965,7 @@ class TestIOContractEnrichment:
     @pytest.mark.unit
     def test_multiple_refs_in_single_param(self):
         """Multiple template refs in one param value should all be processed."""
-        from Jotty.core.agents._execution_types import ToolSchema, ToolParam
+        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
 
         mixin = self._make_mixin()
         step0 = self._make_step(output_key="a")

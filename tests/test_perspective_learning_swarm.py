@@ -18,7 +18,7 @@ from unittest.mock import Mock, MagicMock, AsyncMock, patch
 from dataclasses import dataclass
 
 # Import types
-from Jotty.core.swarms.perspective_learning_swarm.types import (
+from Jotty.core.intelligence.swarms.perspective_learning_swarm.types import (
     PerspectiveType, Language, AgeGroup, ContentDepth,
     PerspectiveLearningConfig, PerspectiveLearningResult,
     PerspectiveSection, LanguageContent, DebatePoint,
@@ -269,7 +269,7 @@ class TestCurriculumDesignerAgent:
     @pytest.mark.asyncio
     async def test_design_returns_expected_keys(self):
         with patch('Jotty.core.swarms.perspective_learning_swarm.agents.BaseOlympiadAgent._get_lm'):
-            from Jotty.core.swarms.perspective_learning_swarm.agents import CurriculumDesignerAgent
+            from Jotty.core.intelligence.swarms.perspective_learning_swarm.agents import CurriculumDesignerAgent
             agent = CurriculumDesignerAgent.__new__(CurriculumDesignerAgent)
             agent.model = "haiku"
             agent.use_fast_predict = True
@@ -308,7 +308,7 @@ class TestIntuitiveExplainerAgent:
     @pytest.mark.asyncio
     async def test_explain_returns_expected_keys(self):
         with patch('Jotty.core.swarms.perspective_learning_swarm.agents.BaseOlympiadAgent._get_lm'):
-            from Jotty.core.swarms.perspective_learning_swarm.agents import IntuitiveExplainerAgent
+            from Jotty.core.intelligence.swarms.perspective_learning_swarm.agents import IntuitiveExplainerAgent
             agent = IntuitiveExplainerAgent.__new__(IntuitiveExplainerAgent)
             agent.model = "haiku"
             agent.use_fast_predict = True
@@ -346,7 +346,7 @@ class TestMultilingualAgent:
     @pytest.mark.asyncio
     async def test_generate_hindi(self):
         with patch('Jotty.core.swarms.perspective_learning_swarm.agents.BaseOlympiadAgent._get_lm'):
-            from Jotty.core.swarms.perspective_learning_swarm.agents import MultilingualAgent
+            from Jotty.core.intelligence.swarms.perspective_learning_swarm.agents import MultilingualAgent
             agent = MultilingualAgent.__new__(MultilingualAgent)
             agent.model = "haiku"
             agent.use_fast_predict = True
@@ -385,7 +385,7 @@ class TestNarrativeEditorAgent:
     @pytest.mark.asyncio
     async def test_edit_returns_expected_keys(self):
         with patch('Jotty.core.swarms.perspective_learning_swarm.agents.BaseOlympiadAgent._get_lm'):
-            from Jotty.core.swarms.perspective_learning_swarm.agents import NarrativeEditorAgent
+            from Jotty.core.intelligence.swarms.perspective_learning_swarm.agents import NarrativeEditorAgent
             agent = NarrativeEditorAgent.__new__(NarrativeEditorAgent)
             agent.model = "haiku"
             agent.use_fast_predict = True
@@ -421,7 +421,7 @@ class TestNarrativeEditorAgent:
     async def test_edit_truncates_input(self):
         """Verify NarrativeEditor truncates input to 2000 chars."""
         with patch('Jotty.core.swarms.perspective_learning_swarm.agents.BaseOlympiadAgent._get_lm'):
-            from Jotty.core.swarms.perspective_learning_swarm.agents import NarrativeEditorAgent
+            from Jotty.core.intelligence.swarms.perspective_learning_swarm.agents import NarrativeEditorAgent
             agent = NarrativeEditorAgent.__new__(NarrativeEditorAgent)
             agent.model = "haiku"
             agent.use_fast_predict = True
@@ -455,7 +455,7 @@ class TestNarrativeEditorAgent:
     async def test_edit_handles_failure_gracefully(self):
         """Verify NarrativeEditor returns empty results on failure."""
         with patch('Jotty.core.swarms.perspective_learning_swarm.agents.BaseOlympiadAgent._get_lm'):
-            from Jotty.core.swarms.perspective_learning_swarm.agents import NarrativeEditorAgent
+            from Jotty.core.intelligence.swarms.perspective_learning_swarm.agents import NarrativeEditorAgent
             agent = NarrativeEditorAgent.__new__(NarrativeEditorAgent)
             agent.model = "haiku"
             agent.use_fast_predict = True
@@ -530,7 +530,7 @@ class TestPDFHTMLGeneration:
 
     @pytest.mark.unit
     def test_html_renderer_produces_output(self):
-        from Jotty.core.swarms.perspective_learning_swarm.pdf_generator import PerspectiveHTMLRenderer
+        from Jotty.core.intelligence.swarms.perspective_learning_swarm.pdf_generator import PerspectiveHTMLRenderer
         renderer = PerspectiveHTMLRenderer(celebration_word="Wonderful!")
         content = self._sample_content()
         html = renderer.render(content)
@@ -545,7 +545,7 @@ class TestPDFHTMLGeneration:
 
     @pytest.mark.unit
     def test_html_renderer_includes_toc(self):
-        from Jotty.core.swarms.perspective_learning_swarm.pdf_generator import PerspectiveHTMLRenderer
+        from Jotty.core.intelligence.swarms.perspective_learning_swarm.pdf_generator import PerspectiveHTMLRenderer
         renderer = PerspectiveHTMLRenderer()
         content = self._sample_content()
         html = renderer.render(content)
@@ -553,7 +553,7 @@ class TestPDFHTMLGeneration:
 
     @pytest.mark.unit
     def test_html_renderer_includes_stats(self):
-        from Jotty.core.swarms.perspective_learning_swarm.pdf_generator import PerspectiveHTMLRenderer
+        from Jotty.core.intelligence.swarms.perspective_learning_swarm.pdf_generator import PerspectiveHTMLRenderer
         renderer = PerspectiveHTMLRenderer()
         content = self._sample_content()
         html = renderer.render(content)
@@ -564,7 +564,7 @@ class TestPDFHTMLGeneration:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_generate_html_file(self, tmp_path):
-        from Jotty.core.swarms.perspective_learning_swarm.pdf_generator import generate_perspective_html
+        from Jotty.core.intelligence.swarms.perspective_learning_swarm.pdf_generator import generate_perspective_html
         content = self._sample_content()
         output_path = str(tmp_path / "test_output.html")
         result = await generate_perspective_html(content, output_path)
@@ -585,24 +585,24 @@ class TestSwarmRegistration:
 
     @pytest.mark.unit
     def test_registered_in_swarm_registry(self):
-        from Jotty.core.swarms.perspective_learning_swarm import PerspectiveLearningSwarm
-        from Jotty.core.swarms.base_swarm import SwarmRegistry
+        from Jotty.core.intelligence.swarms.perspective_learning_swarm import PerspectiveLearningSwarm
+        from Jotty.core.intelligence.swarms.base_swarm import SwarmRegistry
         swarm_class = SwarmRegistry.get("perspective_learning")
         assert swarm_class is PerspectiveLearningSwarm
 
     @pytest.mark.unit
     def test_lazy_import_from_core_swarms(self):
-        from Jotty.core.swarms import PerspectiveLearningSwarm
+        from Jotty.core.intelligence.swarms import PerspectiveLearningSwarm
         assert PerspectiveLearningSwarm is not None
 
     @pytest.mark.unit
     def test_lazy_import_teach_perspectives(self):
-        from Jotty.core.swarms import teach_perspectives
+        from Jotty.core.intelligence.swarms import teach_perspectives
         assert callable(teach_perspectives)
 
     @pytest.mark.unit
     def test_lazy_import_types(self):
-        from Jotty.core.swarms import PerspectiveType, Language, AgeGroup, ContentDepth
+        from Jotty.core.intelligence.swarms import PerspectiveType, Language, AgeGroup, ContentDepth
         assert len(PerspectiveType) == 6
         assert len(Language) == 4
 
@@ -616,8 +616,8 @@ class TestContentAssembly:
 
     @pytest.mark.unit
     def test_build_complete_content(self):
-        from Jotty.core.swarms.perspective_learning_swarm.swarm import PerspectiveLearningSwarm
-        from Jotty.core.swarms.perspective_learning_swarm.types import PerspectiveLearningConfig
+        from Jotty.core.intelligence.swarms.perspective_learning_swarm.swarm import PerspectiveLearningSwarm
+        from Jotty.core.intelligence.swarms.perspective_learning_swarm.types import PerspectiveLearningConfig
 
         swarm = PerspectiveLearningSwarm.__new__(PerspectiveLearningSwarm)
         swarm.config = PerspectiveLearningConfig()
@@ -655,8 +655,8 @@ class TestContentAssembly:
 
     @pytest.mark.unit
     def test_build_perspective_sections(self):
-        from Jotty.core.swarms.perspective_learning_swarm.swarm import PerspectiveLearningSwarm
-        from Jotty.core.swarms.perspective_learning_swarm.types import PerspectiveLearningConfig
+        from Jotty.core.intelligence.swarms.perspective_learning_swarm.swarm import PerspectiveLearningSwarm
+        from Jotty.core.intelligence.swarms.perspective_learning_swarm.types import PerspectiveLearningConfig
 
         swarm = PerspectiveLearningSwarm.__new__(PerspectiveLearningSwarm)
         swarm.config = PerspectiveLearningConfig()
@@ -679,8 +679,8 @@ class TestContentAssembly:
     @pytest.mark.unit
     def test_build_complete_content_debate_both_sides(self):
         """Verify debate section renders both FOR and AGAINST with proper headers."""
-        from Jotty.core.swarms.perspective_learning_swarm.swarm import PerspectiveLearningSwarm
-        from Jotty.core.swarms.perspective_learning_swarm.types import PerspectiveLearningConfig
+        from Jotty.core.intelligence.swarms.perspective_learning_swarm.swarm import PerspectiveLearningSwarm
+        from Jotty.core.intelligence.swarms.perspective_learning_swarm.types import PerspectiveLearningConfig
 
         swarm = PerspectiveLearningSwarm.__new__(PerspectiveLearningSwarm)
         swarm.config = PerspectiveLearningConfig()
@@ -766,7 +766,7 @@ class TestContentAssembly:
 
     @pytest.mark.unit
     def test_build_language_sections(self):
-        from Jotty.core.swarms.perspective_learning_swarm.swarm import PerspectiveLearningSwarm
+        from Jotty.core.intelligence.swarms.perspective_learning_swarm.swarm import PerspectiveLearningSwarm
 
         swarm = PerspectiveLearningSwarm.__new__(PerspectiveLearningSwarm)
 
@@ -790,7 +790,7 @@ class TestSwarmExecution:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_swarm_instantiation(self):
-        from Jotty.core.swarms.perspective_learning_swarm.swarm import PerspectiveLearningSwarm
+        from Jotty.core.intelligence.swarms.perspective_learning_swarm.swarm import PerspectiveLearningSwarm
         swarm = PerspectiveLearningSwarm()
         assert swarm.config.name == "PerspectiveLearningSwarm"
         assert swarm.config.domain == "perspective_learning"
@@ -798,7 +798,7 @@ class TestSwarmExecution:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_swarm_with_custom_config(self):
-        from Jotty.core.swarms.perspective_learning_swarm.swarm import PerspectiveLearningSwarm
+        from Jotty.core.intelligence.swarms.perspective_learning_swarm.swarm import PerspectiveLearningSwarm
         config = PerspectiveLearningConfig(
             student_name="Aria",
             age_group=AgeGroup.MIDDLE,
@@ -818,12 +818,12 @@ class TestConvenienceFunctions:
 
     @pytest.mark.unit
     def test_teach_perspectives_is_callable(self):
-        from Jotty.core.swarms.perspective_learning_swarm import teach_perspectives
+        from Jotty.core.intelligence.swarms.perspective_learning_swarm import teach_perspectives
         assert callable(teach_perspectives)
 
     @pytest.mark.unit
     def test_teach_perspectives_sync_is_callable(self):
-        from Jotty.core.swarms.perspective_learning_swarm import teach_perspectives_sync
+        from Jotty.core.intelligence.swarms.perspective_learning_swarm import teach_perspectives_sync
         assert callable(teach_perspectives_sync)
 
 
@@ -836,7 +836,7 @@ class TestSignatures:
 
     @pytest.mark.unit
     def test_all_signatures_importable(self):
-        from Jotty.core.swarms.perspective_learning_swarm.signatures import (
+        from Jotty.core.intelligence.swarms.perspective_learning_swarm.signatures import (
             CurriculumDesignerSignature, IntuitiveExplainerSignature,
             FrameworkBuilderSignature, StorytellerSignature,
             DebateArchitectSignature, ProjectDesignerSignature,
@@ -854,7 +854,7 @@ class TestSignatures:
 
     @pytest.mark.unit
     def test_signature_count(self):
-        from Jotty.core.swarms.perspective_learning_swarm import signatures
+        from Jotty.core.intelligence.swarms.perspective_learning_swarm import signatures
         all_sigs = [name for name in signatures.__all__]
         assert len(all_sigs) == 10
 
@@ -868,14 +868,14 @@ class TestAgentsImport:
 
     @pytest.mark.unit
     def test_all_agents_importable(self):
-        from Jotty.core.swarms.perspective_learning_swarm.agents import (
+        from Jotty.core.intelligence.swarms.perspective_learning_swarm.agents import (
             CurriculumDesignerAgent, IntuitiveExplainerAgent,
             FrameworkBuilderAgent, StorytellerAgent,
             DebateArchitectAgent, ProjectDesignerAgent,
             RealWorldConnectorAgent, MultilingualAgent,
             ContentAssemblerAgent, NarrativeEditorAgent,
         )
-        from Jotty.core.swarms.olympiad_learning_swarm.agents import BaseOlympiadAgent
+        from Jotty.core.intelligence.swarms.olympiad_learning_swarm.agents import BaseOlympiadAgent
         for agent_cls in [CurriculumDesignerAgent, IntuitiveExplainerAgent,
                           FrameworkBuilderAgent, StorytellerAgent,
                           DebateArchitectAgent, ProjectDesignerAgent,

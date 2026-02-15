@@ -22,7 +22,7 @@ load_dotenv(Path(__file__).parent.parent / "Jotty" / ".env.anthropic")
 
 
 async def main():
-    from Jotty.core.workflows import (
+    from Jotty.core.modes.workflow import (
         ResearchWorkflow,
         OutputFormatManager,
         OutputChannelManager,

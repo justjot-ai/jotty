@@ -18,7 +18,7 @@ class TestUnifiedRegistryCreation:
     @pytest.mark.unit
     def test_singleton_creation(self):
         """get_unified_registry returns singleton."""
-        from Jotty.core.registry.unified_registry import (
+        from Jotty.core.capabilities.registry.unified_registry import (
             get_unified_registry, reset_unified_registry,
         )
         reset_unified_registry()
@@ -30,7 +30,7 @@ class TestUnifiedRegistryCreation:
     @pytest.mark.unit
     def test_reset_singleton(self):
         """reset_unified_registry clears singleton."""
-        from Jotty.core.registry.unified_registry import (
+        from Jotty.core.capabilities.registry.unified_registry import (
             get_unified_registry, reset_unified_registry,
         )
         reset_unified_registry()
@@ -43,7 +43,7 @@ class TestUnifiedRegistryCreation:
     @pytest.mark.unit
     def test_list_skills_returns_list(self):
         """list_skills returns list of strings."""
-        from Jotty.core.registry.unified_registry import (
+        from Jotty.core.capabilities.registry.unified_registry import (
             get_unified_registry, reset_unified_registry,
         )
         reset_unified_registry()
@@ -64,7 +64,7 @@ class TestSkillDiscovery:
     @pytest.mark.unit
     def test_discover_for_task_returns_dict(self):
         """discover_for_task returns dict with skills and ui keys."""
-        from Jotty.core.registry.unified_registry import (
+        from Jotty.core.capabilities.registry.unified_registry import (
             get_unified_registry, reset_unified_registry,
         )
         reset_unified_registry()
@@ -78,7 +78,7 @@ class TestSkillDiscovery:
     @pytest.mark.unit
     def test_discover_for_chart_task(self):
         """discover_for_task matches chart UI for charting tasks."""
-        from Jotty.core.registry.unified_registry import (
+        from Jotty.core.capabilities.registry.unified_registry import (
             get_unified_registry, reset_unified_registry,
         )
         reset_unified_registry()
@@ -93,7 +93,7 @@ class TestSkillDiscovery:
     @pytest.mark.unit
     def test_discover_empty_task(self):
         """discover_for_task handles empty task string."""
-        from Jotty.core.registry.unified_registry import (
+        from Jotty.core.capabilities.registry.unified_registry import (
             get_unified_registry, reset_unified_registry,
         )
         reset_unified_registry()
@@ -114,7 +114,7 @@ class TestToolManagement:
     @pytest.mark.unit
     def test_get_claude_tools_returns_list(self):
         """get_claude_tools returns list of tool dicts."""
-        from Jotty.core.registry.unified_registry import (
+        from Jotty.core.capabilities.registry.unified_registry import (
             get_unified_registry, reset_unified_registry,
         )
         reset_unified_registry()
@@ -128,7 +128,7 @@ class TestToolManagement:
     @pytest.mark.unit
     def test_validate_tools_existing(self):
         """validate_tools returns True for existing tools."""
-        from Jotty.core.registry.unified_registry import (
+        from Jotty.core.capabilities.registry.unified_registry import (
             get_unified_registry, reset_unified_registry,
         )
         reset_unified_registry()
@@ -145,7 +145,7 @@ class TestToolManagement:
     @pytest.mark.unit
     def test_validate_tools_nonexistent(self):
         """validate_tools returns False for nonexistent tools."""
-        from Jotty.core.registry.unified_registry import (
+        from Jotty.core.capabilities.registry.unified_registry import (
             get_unified_registry, reset_unified_registry,
         )
         reset_unified_registry()
@@ -157,7 +157,7 @@ class TestToolManagement:
     @pytest.mark.unit
     def test_get_scoped_tools_limits_count(self):
         """get_scoped_tools respects max_tools limit."""
-        from Jotty.core.registry.unified_registry import (
+        from Jotty.core.capabilities.registry.unified_registry import (
             get_unified_registry, reset_unified_registry,
         )
         reset_unified_registry()
@@ -182,7 +182,7 @@ class TestRegistrySummary:
     @pytest.mark.unit
     def test_get_all_returns_complete_info(self):
         """get_all returns skills and ui info."""
-        from Jotty.core.registry.unified_registry import (
+        from Jotty.core.capabilities.registry.unified_registry import (
             get_unified_registry, reset_unified_registry,
         )
         reset_unified_registry()
@@ -196,7 +196,7 @@ class TestRegistrySummary:
     @pytest.mark.unit
     def test_get_summary_structure(self):
         """get_summary returns correct structure."""
-        from Jotty.core.registry.unified_registry import (
+        from Jotty.core.capabilities.registry.unified_registry import (
             get_unified_registry, reset_unified_registry,
         )
         reset_unified_registry()
@@ -210,7 +210,7 @@ class TestRegistrySummary:
     @pytest.mark.unit
     def test_get_enabled_defaults(self):
         """get_enabled_defaults returns skills and UI components."""
-        from Jotty.core.registry.unified_registry import (
+        from Jotty.core.capabilities.registry.unified_registry import (
             get_unified_registry, reset_unified_registry,
         )
         reset_unified_registry()
@@ -231,7 +231,7 @@ class TestUIRegistry:
     @pytest.mark.unit
     def test_list_ui_components(self):
         """list_ui_components returns list."""
-        from Jotty.core.registry.unified_registry import (
+        from Jotty.core.capabilities.registry.unified_registry import (
             get_unified_registry, reset_unified_registry,
         )
         reset_unified_registry()
@@ -243,7 +243,7 @@ class TestUIRegistry:
     @pytest.mark.unit
     def test_get_ui_categories(self):
         """get_ui_categories returns list of category strings."""
-        from Jotty.core.registry.unified_registry import (
+        from Jotty.core.capabilities.registry.unified_registry import (
             get_unified_registry, reset_unified_registry,
         )
         reset_unified_registry()
@@ -258,7 +258,7 @@ class TestUIRegistry:
 # =============================================================================
 
 try:
-    from Jotty.core.registry.composite_skill import (
+    from Jotty.core.capabilities.registry.composite_skill import (
         CompositeSkill, ExecutionMode, create_composite_skill,
     )
     COMPOSITE_AVAILABLE = True
@@ -266,7 +266,7 @@ except ImportError:
     COMPOSITE_AVAILABLE = False
 
 try:
-    from Jotty.core.registry.api import RegistryAPI
+    from Jotty.core.capabilities.registry.api import RegistryAPI
     API_AVAILABLE = True
 except ImportError:
     API_AVAILABLE = False
@@ -551,7 +551,7 @@ class TestUnifiedRegistryIsolated:
 
     def _make_registry(self):
         """Create UnifiedRegistry with mock skills and UI registries."""
-        from Jotty.core.registry.unified_registry import UnifiedRegistry
+        from Jotty.core.capabilities.registry.unified_registry import UnifiedRegistry
 
         mock_skills = MagicMock()
         ws_skill = MagicMock()
@@ -818,7 +818,7 @@ class TestLegacyFunctions:
 
     def test_get_tools_registry_returns_skills(self):
         """get_tools_registry returns skills registry with deprecation warning."""
-        from Jotty.core.registry.unified_registry import (
+        from Jotty.core.capabilities.registry.unified_registry import (
             get_tools_registry, reset_unified_registry,
         )
         reset_unified_registry()
@@ -830,7 +830,7 @@ class TestLegacyFunctions:
 
     def test_get_widget_registry_returns_ui(self):
         """get_widget_registry returns UI registry with deprecation warning."""
-        from Jotty.core.registry.unified_registry import (
+        from Jotty.core.capabilities.registry.unified_registry import (
             get_widget_registry, reset_unified_registry,
         )
         reset_unified_registry()

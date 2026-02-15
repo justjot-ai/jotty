@@ -56,52 +56,52 @@ class TestExecutionTypesExtraction:
     """CoordinationPattern and MergeStrategy live in foundation, not swarms."""
 
     def test_import_from_foundation(self):
-        from Jotty.core.foundation.types.execution_types import CoordinationPattern, MergeStrategy
+        from Jotty.core.infrastructure.foundation.types.execution_types import CoordinationPattern, MergeStrategy
         assert hasattr(CoordinationPattern, 'PIPELINE')
         assert hasattr(MergeStrategy, 'COMBINE')
 
     def test_foundation_types_reexport(self):
-        from Jotty.core.foundation.types import CoordinationPattern, MergeStrategy
+        from Jotty.core.infrastructure.foundation.types import CoordinationPattern, MergeStrategy
         assert CoordinationPattern.PARALLEL.value == "parallel"
         assert MergeStrategy.VOTE.value == "vote"
 
     def test_swarms_reexport_still_works(self):
         """Backward compat: importing from swarms still works."""
-        from Jotty.core.swarms.base.agent_team import CoordinationPattern, MergeStrategy
+        from Jotty.core.intelligence.swarms.base.agent_team import CoordinationPattern, MergeStrategy
         assert CoordinationPattern.PIPELINE.value == "pipeline"
         assert MergeStrategy.FIRST.value == "first"
 
     def test_swarms_init_reexport(self):
-        from Jotty.core.swarms import CoordinationPattern, MergeStrategy
+        from Jotty.core.intelligence.swarms import CoordinationPattern, MergeStrategy
         assert len(CoordinationPattern) == 7
         assert len(MergeStrategy) == 5
 
     def test_composite_agent_uses_foundation(self):
         """composite_agent.py should import from foundation, not from swarms."""
         import inspect
-        from Jotty.core.agents.base import composite_agent
+        from Jotty.core.modes.agent.base import composite_agent
         source = inspect.getsource(composite_agent)
-        assert "from Jotty.core.foundation.types.execution_types import" in source
-        assert "from Jotty.core.swarms.base.agent_team import CoordinationPattern" not in source
+        assert "from Jotty.core.infrastructure.foundation.types.execution_types import" in source
+        assert "from Jotty.core.intelligence.swarms.base.agent_team import CoordinationPattern" not in source
 
     def test_all_coordination_patterns(self):
-        from Jotty.core.foundation.types.execution_types import CoordinationPattern
+        from Jotty.core.infrastructure.foundation.types.execution_types import CoordinationPattern
         expected = {'none', 'pipeline', 'parallel', 'consensus',
                     'hierarchical', 'blackboard', 'round_robin'}
         actual = {p.value for p in CoordinationPattern}
         assert actual == expected
 
     def test_all_merge_strategies(self):
-        from Jotty.core.foundation.types.execution_types import MergeStrategy
+        from Jotty.core.infrastructure.foundation.types.execution_types import MergeStrategy
         expected = {'combine', 'first', 'best', 'vote', 'concat'}
         actual = {s.value for s in MergeStrategy}
         assert actual == expected
 
     def test_identity_across_import_paths(self):
         """Same enum class regardless of import path."""
-        from Jotty.core.foundation.types.execution_types import CoordinationPattern as CP1
-        from Jotty.core.swarms.base.agent_team import CoordinationPattern as CP2
-        from Jotty.core.swarms import CoordinationPattern as CP3
+        from Jotty.core.infrastructure.foundation.types.execution_types import CoordinationPattern as CP1
+        from Jotty.core.intelligence.swarms.base.agent_team import CoordinationPattern as CP2
+        from Jotty.core.intelligence.swarms import CoordinationPattern as CP3
         assert CP1 is CP2 is CP3
 
 
@@ -114,7 +114,7 @@ class TestFocusedConfigs:
     """Standalone config dataclasses for each subsystem."""
 
     def test_all_configs_importable(self):
-        from Jotty.core.foundation.configs import (
+        from Jotty.core.infrastructure.foundation.configs import (
             PersistenceConfig, ExecutionConfig, MemoryConfig,
             ContextBudgetConfig, LearningConfig, ValidationConfig,
             MonitoringConfig, IntelligenceConfig,
@@ -127,7 +127,7 @@ class TestFocusedConfigs:
             assert obj is not None, f"Failed to instantiate {cls.__name__}"
 
     def test_memory_config_defaults(self):
-        from Jotty.core.foundation.configs import MemoryConfig
+        from Jotty.core.infrastructure.foundation.configs import MemoryConfig
         cfg = MemoryConfig()
         assert cfg.episodic_capacity == 1000
         assert cfg.semantic_capacity == 500
@@ -135,7 +135,7 @@ class TestFocusedConfigs:
         assert cfg.retrieval_mode == "synthesize"
 
     def test_learning_config_defaults(self):
-        from Jotty.core.foundation.configs import LearningConfig
+        from Jotty.core.infrastructure.foundation.configs import LearningConfig
         cfg = LearningConfig()
         assert cfg.gamma == 0.99
         assert cfg.lambda_trace == 0.95
@@ -143,38 +143,38 @@ class TestFocusedConfigs:
         assert cfg.enable_rl is True
 
     def test_execution_config_defaults(self):
-        from Jotty.core.foundation.configs import ExecutionConfig
+        from Jotty.core.infrastructure.foundation.configs import ExecutionConfig
         cfg = ExecutionConfig()
         assert cfg.max_actor_iters == 50
         assert cfg.max_concurrent_agents == 10
         assert cfg.enable_deterministic is True
 
     def test_context_budget_config_defaults(self):
-        from Jotty.core.foundation.configs import ContextBudgetConfig
+        from Jotty.core.infrastructure.foundation.configs import ContextBudgetConfig
         cfg = ContextBudgetConfig()
         assert cfg.max_context_tokens == 100000
         assert cfg.enable_dynamic_budget is True
 
     def test_validation_config_defaults(self):
-        from Jotty.core.foundation.configs import ValidationConfig
+        from Jotty.core.infrastructure.foundation.configs import ValidationConfig
         cfg = ValidationConfig()
         assert cfg.enable_validation is True
         assert cfg.max_validation_rounds == 3
 
     def test_monitoring_config_defaults(self):
-        from Jotty.core.foundation.configs import MonitoringConfig
+        from Jotty.core.infrastructure.foundation.configs import MonitoringConfig
         cfg = MonitoringConfig()
         assert cfg.enable_debug_logging is False  # Off for production
         assert cfg.enable_metrics is True
 
     def test_intelligence_config_defaults(self):
-        from Jotty.core.foundation.configs import IntelligenceConfig
+        from Jotty.core.infrastructure.foundation.configs import IntelligenceConfig
         cfg = IntelligenceConfig()
         assert cfg.trust_min == 0.1
         assert cfg.local_mode is False
 
     def test_focused_config_customization(self):
-        from Jotty.core.foundation.configs import MemoryConfig
+        from Jotty.core.infrastructure.foundation.configs import MemoryConfig
         cfg = MemoryConfig(episodic_capacity=5000, enable_llm_rag=False)
         assert cfg.episodic_capacity == 5000
         assert cfg.enable_llm_rag is False
@@ -185,64 +185,64 @@ class TestSwarmConfigBridge:
     """SwarmConfig to/from focused config conversion."""
 
     def test_to_memory_config(self):
-        from Jotty.core.foundation.data_structures import SwarmConfig
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
         cfg = SwarmConfig(episodic_capacity=2000)
         mem = cfg.to_memory_config()
         assert mem.episodic_capacity == 2000
         assert mem.enable_llm_rag is True
 
     def test_to_learning_config(self):
-        from Jotty.core.foundation.data_structures import SwarmConfig
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
         cfg = SwarmConfig(gamma=0.95)
         learn = cfg.to_learning_config()
         assert learn.gamma == 0.95
         assert learn.lambda_trace == 0.95
 
     def test_to_execution_config(self):
-        from Jotty.core.foundation.data_structures import SwarmConfig
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
         cfg = SwarmConfig(max_actor_iters=100)
         exe = cfg.to_execution_config()
         assert exe.max_actor_iters == 100
 
     def test_to_context_budget_config(self):
-        from Jotty.core.foundation.data_structures import SwarmConfig
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
         cfg = SwarmConfig(max_context_tokens=200000)
         ctx = cfg.to_context_budget_config()
         assert ctx.max_context_tokens == 200000
 
     def test_to_validation_config(self):
-        from Jotty.core.foundation.data_structures import SwarmConfig
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
         cfg = SwarmConfig(enable_validation=False)
         val = cfg.to_validation_config()
         assert val.enable_validation is False
 
     def test_to_monitoring_config(self):
-        from Jotty.core.foundation.data_structures import SwarmConfig
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
         cfg = SwarmConfig(verbose=2)
         mon = cfg.to_monitoring_config()
         assert mon.verbose == 2
 
     def test_to_intelligence_config(self):
-        from Jotty.core.foundation.data_structures import SwarmConfig
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
         cfg = SwarmConfig(local_mode=True)
         intel = cfg.to_intelligence_config()
         assert intel.local_mode is True
 
     def test_to_persistence_config(self):
-        from Jotty.core.foundation.data_structures import SwarmConfig
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
         cfg = SwarmConfig(storage_format="sqlite")
         pers = cfg.to_persistence_config()
         assert pers.storage_format == "sqlite"
 
     def test_from_configs_memory(self):
-        from Jotty.core.foundation.data_structures import SwarmConfig
-        from Jotty.core.foundation.configs import MemoryConfig
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
+        from Jotty.core.infrastructure.foundation.configs import MemoryConfig
         cfg = SwarmConfig.from_configs(memory=MemoryConfig(episodic_capacity=3000))
         assert cfg.episodic_capacity == 3000
 
     def test_from_configs_multiple(self):
-        from Jotty.core.foundation.data_structures import SwarmConfig
-        from Jotty.core.foundation.configs import MemoryConfig, LearningConfig
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
+        from Jotty.core.infrastructure.foundation.configs import MemoryConfig, LearningConfig
         cfg = SwarmConfig.from_configs(
             memory=MemoryConfig(episodic_capacity=3000),
             learning=LearningConfig(gamma=0.5),
@@ -251,8 +251,8 @@ class TestSwarmConfigBridge:
         assert cfg.gamma == 0.5
 
     def test_from_configs_with_overrides(self):
-        from Jotty.core.foundation.data_structures import SwarmConfig
-        from Jotty.core.foundation.configs import MemoryConfig
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
+        from Jotty.core.infrastructure.foundation.configs import MemoryConfig
         cfg = SwarmConfig.from_configs(
             memory=MemoryConfig(episodic_capacity=3000),
             schema_version="3.0",
@@ -261,8 +261,8 @@ class TestSwarmConfigBridge:
         assert cfg.schema_version == "3.0"
 
     def test_from_configs_override_beats_subconfig(self):
-        from Jotty.core.foundation.data_structures import SwarmConfig
-        from Jotty.core.foundation.configs import MemoryConfig
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
+        from Jotty.core.infrastructure.foundation.configs import MemoryConfig
         cfg = SwarmConfig.from_configs(
             memory=MemoryConfig(episodic_capacity=3000),
             episodic_capacity=5000,  # Override beats sub-config
@@ -271,7 +271,7 @@ class TestSwarmConfigBridge:
 
     def test_roundtrip_memory_config(self):
         """Extract -> modify -> compose back preserves other fields."""
-        from Jotty.core.foundation.data_structures import SwarmConfig
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
         original = SwarmConfig(gamma=0.5, episodic_capacity=2000)
         mem = original.to_memory_config()
         mem.episodic_capacity = 4000
@@ -281,7 +281,7 @@ class TestSwarmConfigBridge:
 
     def test_flat_dict_unchanged(self):
         """to_flat_dict() still works after adding bridge methods."""
-        from Jotty.core.foundation.data_structures import SwarmConfig
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
         cfg = SwarmConfig()
         flat = cfg.to_flat_dict()
         assert 'gamma' in flat
@@ -290,14 +290,14 @@ class TestSwarmConfigBridge:
 
     def test_views_still_work(self):
         """View proxy access unchanged."""
-        from Jotty.core.foundation.data_structures import SwarmConfig
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
         cfg = SwarmConfig(gamma=0.5)
         assert cfg.learning.gamma == 0.5
         assert cfg.memory_settings.episodic_capacity == 1000
 
     def test_lazy_reexport_from_data_structures(self):
         """Focused configs importable from data_structures module."""
-        from Jotty.core.foundation.data_structures import MemoryConfig
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryConfig
         assert MemoryConfig().episodic_capacity == 1000
 
 
@@ -310,12 +310,12 @@ class TestPluginSkillDiscovery:
     """Skill registry plugin discovery infrastructure."""
 
     def test_registry_has_scan_plugin_method(self):
-        from Jotty.core.registry.skills_registry import SkillsRegistry
+        from Jotty.core.capabilities.registry.skills_registry import SkillsRegistry
         assert hasattr(SkillsRegistry, '_scan_plugin_skills')
 
     def test_registry_init_calls_plugin_scan(self):
         """Plugin scan is called during init (no plugins installed = no error)."""
-        from Jotty.core.registry.skills_registry import get_skills_registry
+        from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
         reg = get_skills_registry()
         reg.initialized = False  # Force re-init
         reg.loaded_skills.clear()
@@ -325,7 +325,7 @@ class TestPluginSkillDiscovery:
 
     def test_plugin_scan_handles_no_plugins(self):
         """No installed plugins = no error."""
-        from Jotty.core.registry.skills_registry import SkillsRegistry
+        from Jotty.core.capabilities.registry.skills_registry import SkillsRegistry
         reg = SkillsRegistry.__new__(SkillsRegistry)
         reg.loaded_skills = {}
         # Should not raise
@@ -344,8 +344,8 @@ class TestMemoryFocusedConfigs:
 
     def test_memory_facade_accepts_memory_config(self):
         """get_rag_retriever accepts MemoryConfig."""
-        from Jotty.core.foundation.configs import MemoryConfig
-        from Jotty.core.memory.facade import _resolve_memory_config
+        from Jotty.core.infrastructure.foundation.configs import MemoryConfig
+        from Jotty.core.intelligence.memory.facade import _resolve_memory_config
         cfg = MemoryConfig(episodic_capacity=2000, enable_llm_rag=False)
         resolved = _resolve_memory_config(cfg)
         # Should be a SwarmConfig with memory fields applied
@@ -354,22 +354,22 @@ class TestMemoryFocusedConfigs:
 
     def test_memory_facade_accepts_swarm_config_backward_compat(self):
         """get_rag_retriever still accepts SwarmConfig."""
-        from Jotty.core.foundation.data_structures import SwarmConfig
-        from Jotty.core.memory.facade import _resolve_memory_config
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
+        from Jotty.core.intelligence.memory.facade import _resolve_memory_config
         cfg = SwarmConfig(episodic_capacity=3000)
         resolved = _resolve_memory_config(cfg)
         assert resolved is cfg  # Pass-through, not converted
 
     def test_memory_facade_accepts_none(self):
         """get_rag_retriever accepts None (defaults)."""
-        from Jotty.core.memory.facade import _resolve_memory_config
+        from Jotty.core.intelligence.memory.facade import _resolve_memory_config
         resolved = _resolve_memory_config(None)
         assert resolved.episodic_capacity == 1000  # Default
 
     def test_cortex_accepts_memory_config(self):
         """SwarmMemory.__init__ accepts MemoryConfig via _ensure_swarm_config."""
-        from Jotty.core.memory.cortex import _ensure_swarm_config
-        from Jotty.core.foundation.configs import MemoryConfig
+        from Jotty.core.intelligence.memory.cortex import _ensure_swarm_config
+        from Jotty.core.infrastructure.foundation.configs import MemoryConfig
         cfg = MemoryConfig(episodic_capacity=5000)
         resolved = _ensure_swarm_config(cfg)
         assert resolved.episodic_capacity == 5000
@@ -377,16 +377,16 @@ class TestMemoryFocusedConfigs:
 
     def test_cortex_accepts_swarm_config(self):
         """SwarmMemory.__init__ still accepts SwarmConfig."""
-        from Jotty.core.memory.cortex import _ensure_swarm_config
-        from Jotty.core.foundation.data_structures import SwarmConfig
+        from Jotty.core.intelligence.memory.cortex import _ensure_swarm_config
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
         cfg = SwarmConfig()
         resolved = _ensure_swarm_config(cfg)
         assert resolved is cfg  # Pass-through
 
     def test_llm_rag_accepts_memory_config(self):
         """LLM RAG components accept MemoryConfig."""
-        from Jotty.core.memory.llm_rag import _ensure_swarm_config
-        from Jotty.core.foundation.configs import MemoryConfig
+        from Jotty.core.intelligence.memory.llm_rag import _ensure_swarm_config
+        from Jotty.core.infrastructure.foundation.configs import MemoryConfig
         cfg = MemoryConfig(rag_window_size=10, chunk_size=1000)
         resolved = _ensure_swarm_config(cfg)
         assert resolved.rag_window_size == 10
@@ -403,8 +403,8 @@ class TestLearningFocusedConfigs:
 
     def test_learning_facade_accepts_learning_config(self):
         """Facade resolver converts LearningConfig to SwarmConfig."""
-        from Jotty.core.foundation.configs import LearningConfig
-        from Jotty.core.learning.facade import _resolve_learning_config
+        from Jotty.core.infrastructure.foundation.configs import LearningConfig
+        from Jotty.core.intelligence.learning.facade import _resolve_learning_config
         cfg = LearningConfig(gamma=0.5, lambda_trace=0.8)
         resolved = _resolve_learning_config(cfg)
         assert resolved.gamma == 0.5
@@ -412,22 +412,22 @@ class TestLearningFocusedConfigs:
 
     def test_learning_facade_accepts_swarm_config_backward_compat(self):
         """Facade resolver still passes through SwarmConfig."""
-        from Jotty.core.foundation.data_structures import SwarmConfig
-        from Jotty.core.learning.facade import _resolve_learning_config
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
+        from Jotty.core.intelligence.learning.facade import _resolve_learning_config
         cfg = SwarmConfig(gamma=0.7)
         resolved = _resolve_learning_config(cfg)
         assert resolved is cfg
 
     def test_learning_facade_accepts_none(self):
         """Facade resolver accepts None (defaults)."""
-        from Jotty.core.learning.facade import _resolve_learning_config
+        from Jotty.core.intelligence.learning.facade import _resolve_learning_config
         resolved = _resolve_learning_config(None)
         assert resolved.gamma == 0.99  # Default
 
     def test_td_lambda_accepts_learning_config(self):
         """TDLambdaLearner accepts LearningConfig."""
-        from Jotty.core.learning.td_lambda import _ensure_swarm_config
-        from Jotty.core.foundation.configs import LearningConfig
+        from Jotty.core.intelligence.learning.td_lambda import _ensure_swarm_config
+        from Jotty.core.infrastructure.foundation.configs import LearningConfig
         cfg = LearningConfig(gamma=0.9, alpha=0.05)
         resolved = _ensure_swarm_config(cfg)
         assert resolved.gamma == 0.9
@@ -435,16 +435,16 @@ class TestLearningFocusedConfigs:
 
     def test_td_lambda_accepts_swarm_config(self):
         """TDLambdaLearner still accepts SwarmConfig."""
-        from Jotty.core.learning.td_lambda import _ensure_swarm_config
-        from Jotty.core.foundation.data_structures import SwarmConfig
+        from Jotty.core.intelligence.learning.td_lambda import _ensure_swarm_config
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
         cfg = SwarmConfig()
         resolved = _ensure_swarm_config(cfg)
         assert resolved is cfg
 
     def test_reasoning_credit_accepts_learning_config(self):
         """ReasoningCreditAssigner accepts LearningConfig."""
-        from Jotty.core.learning.reasoning_credit import _ensure_swarm_config
-        from Jotty.core.foundation.configs import LearningConfig
+        from Jotty.core.intelligence.learning.reasoning_credit import _ensure_swarm_config
+        from Jotty.core.infrastructure.foundation.configs import LearningConfig
         cfg = LearningConfig(reasoning_weight=0.5, evidence_weight=0.3)
         resolved = _ensure_swarm_config(cfg)
         assert resolved.reasoning_weight == 0.5
@@ -452,8 +452,8 @@ class TestLearningFocusedConfigs:
 
     def test_adaptive_components_accept_learning_config(self):
         """Adaptive components accept LearningConfig."""
-        from Jotty.core.learning.adaptive_components import _ensure_swarm_config
-        from Jotty.core.foundation.configs import LearningConfig
+        from Jotty.core.intelligence.learning.adaptive_components import _ensure_swarm_config
+        from Jotty.core.infrastructure.foundation.configs import LearningConfig
         cfg = LearningConfig(alpha=0.02, alpha_min=0.005)
         resolved = _ensure_swarm_config(cfg)
         assert resolved.alpha == 0.02
@@ -461,8 +461,8 @@ class TestLearningFocusedConfigs:
 
     def test_offline_learning_accepts_learning_config(self):
         """Offline learning components accept LearningConfig."""
-        from Jotty.core.learning.offline_learning import _ensure_swarm_config
-        from Jotty.core.foundation.configs import LearningConfig
+        from Jotty.core.intelligence.learning.offline_learning import _ensure_swarm_config
+        from Jotty.core.infrastructure.foundation.configs import LearningConfig
         cfg = LearningConfig(episode_buffer_size=500)
         resolved = _ensure_swarm_config(cfg)
         assert resolved.episode_buffer_size == 500
@@ -478,7 +478,7 @@ class TestSkillSDK:
 
     def test_skill_sdk_importable(self):
         """core.skill_sdk is importable."""
-        from Jotty.core.skill_sdk import (
+        from Jotty.core.capabilities.sdk import (
             tool_helpers, env_loader, skill_status,
             api_client, async_utils, smart_fetcher,
         )
@@ -491,7 +491,7 @@ class TestSkillSDK:
 
     def test_skill_sdk_tool_helpers_works(self):
         """tool_helpers from skill_sdk has expected functions."""
-        from Jotty.core.skill_sdk.tool_helpers import (
+        from Jotty.core.capabilities.sdk.tool_helpers import (
             tool_response, tool_error, require_params,
         )
         resp = tool_response(data={"ok": True})
@@ -501,34 +501,34 @@ class TestSkillSDK:
 
     def test_skill_sdk_skill_status_works(self):
         """SkillStatus from skill_sdk works."""
-        from Jotty.core.skill_sdk import SkillStatus
+        from Jotty.core.capabilities.sdk import SkillStatus
         status = SkillStatus("test-skill")
         assert status.skill_name == "test-skill"
 
     def test_skill_sdk_env_loader_works(self):
         """env_loader from skill_sdk works."""
-        from Jotty.core.skill_sdk import get_env
+        from Jotty.core.capabilities.sdk import get_env
         # Should not raise (returns None if not set)
         result = get_env("NONEXISTENT_VAR_12345")
         assert result is None
 
     def test_skill_sdk_api_client_works(self):
         """BaseAPIClient from skill_sdk works."""
-        from Jotty.core.skill_sdk.api_client import BaseAPIClient
+        from Jotty.core.capabilities.sdk.api_client import BaseAPIClient
         assert hasattr(BaseAPIClient, '_make_request')
 
     def test_utils_reexport_backward_compat(self):
         """Importing from core.utils still works (backward compat)."""
-        from Jotty.core.utils.skill_status import SkillStatus
-        from Jotty.core.utils.tool_helpers import tool_response
-        from Jotty.core.utils.env_loader import get_env
+        from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+        from Jotty.core.infrastructure.utils.tool_helpers import tool_response
+        from Jotty.core.infrastructure.utils.env_loader import get_env
         assert SkillStatus is not None
         assert tool_response is not None
         assert get_env is not None
 
     def test_skill_sdk_smart_fetcher(self):
         """smart_fetcher from skill_sdk is accessible."""
-        from Jotty.core.skill_sdk.smart_fetcher import smart_fetch, FetchResult
+        from Jotty.core.capabilities.sdk.smart_fetcher import smart_fetch, FetchResult
         assert callable(smart_fetch)
         assert FetchResult is not None
 
@@ -655,7 +655,7 @@ class TestFacadeThreadSafety:
 
     def test_memory_facade_has_lock(self):
         """memory/facade.py uses threading.Lock for singletons."""
-        import Jotty.core.memory.facade as mf
+        import Jotty.core.intelligence.memory.facade as mf
         assert hasattr(mf, '_lock'), "memory facade missing _lock"
         assert hasattr(mf, '_singletons'), "memory facade missing _singletons"
         import threading
@@ -663,7 +663,7 @@ class TestFacadeThreadSafety:
 
     def test_orchestration_facade_has_lock(self):
         """orchestration/facade.py uses threading.Lock for singletons."""
-        import Jotty.core.orchestration.facade as of
+        import Jotty.core.intelligence.orchestration.facade as of
         assert hasattr(of, '_lock'), "orchestration facade missing _lock"
         assert hasattr(of, '_singletons'), "orchestration facade missing _singletons"
         import threading
@@ -671,7 +671,7 @@ class TestFacadeThreadSafety:
 
     def test_utils_facade_has_lock(self):
         """utils/facade.py uses threading.Lock for singletons."""
-        import Jotty.core.utils.facade as uf
+        import Jotty.core.infrastructure.utils.facade as uf
         assert hasattr(uf, '_lock'), "utils facade missing _lock"
         assert hasattr(uf, '_singletons'), "utils facade missing _singletons"
         import threading
@@ -679,7 +679,7 @@ class TestFacadeThreadSafety:
 
     def test_memory_facade_returns_same_instance(self):
         """get_memory_system() returns same singleton across calls."""
-        import Jotty.core.memory.facade as mf
+        import Jotty.core.intelligence.memory.facade as mf
         mf._singletons.clear()
         ms1 = mf.get_memory_system()
         ms2 = mf.get_memory_system()
@@ -687,7 +687,7 @@ class TestFacadeThreadSafety:
 
     def test_orchestration_facade_returns_same_instance(self):
         """get_ensemble_manager() returns same singleton across calls."""
-        import Jotty.core.orchestration.facade as of
+        import Jotty.core.intelligence.orchestration.facade as of
         of._singletons.clear()
         em1 = of.get_ensemble_manager()
         em2 = of.get_ensemble_manager()
@@ -695,30 +695,30 @@ class TestFacadeThreadSafety:
 
     def test_orchestration_facade_config_bypass(self):
         """get_swarm_intelligence(config=...) bypasses cache."""
-        import Jotty.core.orchestration.facade as of
+        import Jotty.core.intelligence.orchestration.facade as of
         of._singletons.clear()
-        from Jotty.core.foundation.data_structures import SwarmConfig
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
         si1 = of.get_swarm_intelligence()
         si2 = of.get_swarm_intelligence(config=SwarmConfig())
         assert si1 is not si2  # Config-parameterized call returns fresh instance
 
     def test_budget_tracker_thread_safe_singleton(self):
         """BudgetTracker.get_instance() has class-level lock."""
-        from Jotty.core.utils.budget_tracker import BudgetTracker
+        from Jotty.core.infrastructure.utils.budget_tracker import BudgetTracker
         import threading
         assert hasattr(BudgetTracker, '_instances_lock')
         assert isinstance(BudgetTracker._instances_lock, type(threading.Lock()))
 
     def test_llm_cache_thread_safe_singleton(self):
         """LLMCallCache.get_instance() has class-level lock."""
-        from Jotty.core.utils.llm_cache import LLMCallCache
+        from Jotty.core.infrastructure.utils.llm_cache import LLMCallCache
         import threading
         assert hasattr(LLMCallCache, '_instances_lock')
         assert isinstance(LLMCallCache._instances_lock, type(threading.Lock()))
 
     def test_concurrent_memory_facade_access(self):
         """Multiple threads getting memory system don't race."""
-        import Jotty.core.memory.facade as mf
+        import Jotty.core.intelligence.memory.facade as mf
         import threading
         mf._singletons.clear()
         results = []
@@ -743,7 +743,7 @@ class TestFacadeThreadSafety:
 
     def test_concurrent_budget_tracker_access(self):
         """Multiple threads getting budget tracker don't race."""
-        from Jotty.core.utils.budget_tracker import BudgetTracker
+        from Jotty.core.infrastructure.utils.budget_tracker import BudgetTracker
         import threading
         BudgetTracker.reset_instances()
         results = []
@@ -778,42 +778,42 @@ class TestConfigValidation:
     # --- LearningConfig ---
 
     def test_learning_config_defaults_valid(self):
-        from Jotty.core.foundation.configs import LearningConfig
+        from Jotty.core.infrastructure.foundation.configs import LearningConfig
         cfg = LearningConfig()  # Should not raise
         assert cfg.gamma == 0.99
 
     def test_learning_config_gamma_out_of_range(self):
-        from Jotty.core.foundation.configs import LearningConfig
+        from Jotty.core.infrastructure.foundation.configs import LearningConfig
         with pytest.raises(ValueError, match="gamma"):
             LearningConfig(gamma=1.5)
 
     def test_learning_config_gamma_negative(self):
-        from Jotty.core.foundation.configs import LearningConfig
+        from Jotty.core.infrastructure.foundation.configs import LearningConfig
         with pytest.raises(ValueError, match="gamma"):
             LearningConfig(gamma=-0.1)
 
     def test_learning_config_alpha_min_gt_max(self):
-        from Jotty.core.foundation.configs import LearningConfig
+        from Jotty.core.infrastructure.foundation.configs import LearningConfig
         with pytest.raises(ValueError, match="alpha_min"):
             LearningConfig(alpha_min=0.5, alpha_max=0.1)
 
     def test_learning_config_epsilon_end_gt_start(self):
-        from Jotty.core.foundation.configs import LearningConfig
+        from Jotty.core.infrastructure.foundation.configs import LearningConfig
         with pytest.raises(ValueError, match="epsilon_end"):
             LearningConfig(epsilon_end=0.5, epsilon_start=0.1)
 
     def test_learning_config_replay_gt_buffer(self):
-        from Jotty.core.foundation.configs import LearningConfig
+        from Jotty.core.infrastructure.foundation.configs import LearningConfig
         with pytest.raises(ValueError, match="replay_batch_size"):
             LearningConfig(replay_batch_size=2000, episode_buffer_size=100)
 
     def test_learning_config_negative_q_table(self):
-        from Jotty.core.foundation.configs import LearningConfig
+        from Jotty.core.infrastructure.foundation.configs import LearningConfig
         with pytest.raises(ValueError, match="max_q_table_size"):
             LearningConfig(max_q_table_size=0)
 
     def test_learning_config_valid_custom(self):
-        from Jotty.core.foundation.configs import LearningConfig
+        from Jotty.core.infrastructure.foundation.configs import LearningConfig
         cfg = LearningConfig(
             gamma=0.5, alpha=0.05, alpha_min=0.01, alpha_max=0.1,
             epsilon_start=0.5, epsilon_end=0.01,
@@ -824,12 +824,12 @@ class TestConfigValidation:
     # --- MemoryConfig ---
 
     def test_memory_config_defaults_valid(self):
-        from Jotty.core.foundation.configs import MemoryConfig
+        from Jotty.core.infrastructure.foundation.configs import MemoryConfig
         cfg = MemoryConfig()  # Should not raise
         assert cfg.episodic_capacity == 1000
 
     def test_memory_config_zero_capacity(self):
-        from Jotty.core.foundation.configs import MemoryConfig
+        from Jotty.core.infrastructure.foundation.configs import MemoryConfig
         # Zero capacity is allowed (means disabled); negative is not
         cfg = MemoryConfig(episodic_capacity=0)
         assert cfg.episodic_capacity == 0
@@ -837,34 +837,34 @@ class TestConfigValidation:
             MemoryConfig(episodic_capacity=-1)
 
     def test_memory_config_bad_threshold(self):
-        from Jotty.core.foundation.configs import MemoryConfig
+        from Jotty.core.infrastructure.foundation.configs import MemoryConfig
         with pytest.raises(ValueError, match="rag_relevance_threshold"):
             MemoryConfig(rag_relevance_threshold=1.5)
 
     def test_memory_config_chunk_overlap_gte_size(self):
-        from Jotty.core.foundation.configs import MemoryConfig
+        from Jotty.core.infrastructure.foundation.configs import MemoryConfig
         with pytest.raises(ValueError, match="chunk_overlap"):
             MemoryConfig(chunk_overlap=500, chunk_size=500)
 
     def test_memory_config_bad_retrieval_mode(self):
-        from Jotty.core.foundation.configs import MemoryConfig
+        from Jotty.core.infrastructure.foundation.configs import MemoryConfig
         with pytest.raises(ValueError, match="retrieval_mode"):
             MemoryConfig(retrieval_mode="invalid")
 
     # --- ContextBudgetConfig ---
 
     def test_context_budget_defaults_valid(self):
-        from Jotty.core.foundation.configs import ContextBudgetConfig
+        from Jotty.core.infrastructure.foundation.configs import ContextBudgetConfig
         cfg = ContextBudgetConfig()  # Should not raise
         assert cfg.max_context_tokens == 100000
 
     def test_context_budget_min_gt_max_memory(self):
-        from Jotty.core.foundation.configs import ContextBudgetConfig
+        from Jotty.core.infrastructure.foundation.configs import ContextBudgetConfig
         with pytest.raises(ValueError, match="min_memory_budget"):
             ContextBudgetConfig(min_memory_budget=70000, max_memory_budget=50000)
 
     def test_context_budget_sum_exceeds_max(self):
-        from Jotty.core.foundation.configs import ContextBudgetConfig
+        from Jotty.core.infrastructure.foundation.configs import ContextBudgetConfig
         # Sum exceeding max now produces a warning instead of a ValueError,
         # because dynamic budgeting clamps memory_budget at runtime.
         cfg = ContextBudgetConfig(
@@ -877,19 +877,19 @@ class TestConfigValidation:
         assert cfg.max_context_tokens == 10000
 
     def test_context_budget_zero_budget(self):
-        from Jotty.core.foundation.configs import ContextBudgetConfig
+        from Jotty.core.infrastructure.foundation.configs import ContextBudgetConfig
         with pytest.raises(ValueError, match="system_prompt_budget"):
             ContextBudgetConfig(system_prompt_budget=0)
 
     # --- ExecutionConfig ---
 
     def test_execution_config_defaults_valid(self):
-        from Jotty.core.foundation.configs import ExecutionConfig
+        from Jotty.core.infrastructure.foundation.configs import ExecutionConfig
         cfg = ExecutionConfig()
         assert cfg.max_actor_iters == 50
 
     def test_execution_config_zero_iters(self):
-        from Jotty.core.foundation.configs import ExecutionConfig
+        from Jotty.core.infrastructure.foundation.configs import ExecutionConfig
         # Zero is allowed (means unlimited/disabled); negative is not
         cfg = ExecutionConfig(max_actor_iters=0)
         assert cfg.max_actor_iters == 0
@@ -897,90 +897,90 @@ class TestConfigValidation:
             ExecutionConfig(max_actor_iters=-1)
 
     def test_execution_config_negative_timeout(self):
-        from Jotty.core.foundation.configs import ExecutionConfig
+        from Jotty.core.infrastructure.foundation.configs import ExecutionConfig
         with pytest.raises(ValueError, match="async_timeout"):
             ExecutionConfig(async_timeout=-1.0)
 
     # --- PersistenceConfig ---
 
     def test_persistence_config_defaults_valid(self):
-        from Jotty.core.foundation.configs import PersistenceConfig
+        from Jotty.core.infrastructure.foundation.configs import PersistenceConfig
         cfg = PersistenceConfig()
         assert cfg.storage_format == "json"
 
     def test_persistence_config_bad_format(self):
-        from Jotty.core.foundation.configs import PersistenceConfig
+        from Jotty.core.infrastructure.foundation.configs import PersistenceConfig
         with pytest.raises(ValueError, match="storage_format"):
             PersistenceConfig(storage_format="xml")
 
     def test_persistence_config_zero_interval(self):
-        from Jotty.core.foundation.configs import PersistenceConfig
+        from Jotty.core.infrastructure.foundation.configs import PersistenceConfig
         with pytest.raises(ValueError, match="auto_save_interval"):
             PersistenceConfig(auto_save_interval=0)
 
     # --- ValidationConfig ---
 
     def test_validation_config_defaults_valid(self):
-        from Jotty.core.foundation.configs import ValidationConfig
+        from Jotty.core.infrastructure.foundation.configs import ValidationConfig
         cfg = ValidationConfig()
         assert cfg.enable_validation is True
 
     def test_validation_config_bad_confidence(self):
-        from Jotty.core.foundation.configs import ValidationConfig
+        from Jotty.core.infrastructure.foundation.configs import ValidationConfig
         with pytest.raises(ValueError, match="min_confidence"):
             ValidationConfig(min_confidence=2.0)
 
     def test_validation_config_bad_mode(self):
-        from Jotty.core.foundation.configs import ValidationConfig
+        from Jotty.core.infrastructure.foundation.configs import ValidationConfig
         with pytest.raises(ValueError, match="validation_mode"):
             ValidationConfig(validation_mode="turbo")
 
     def test_validation_config_negative_timeout(self):
-        from Jotty.core.foundation.configs import ValidationConfig
+        from Jotty.core.infrastructure.foundation.configs import ValidationConfig
         with pytest.raises(ValueError, match="refinement_timeout"):
             ValidationConfig(refinement_timeout=-5.0)
 
     # --- MonitoringConfig ---
 
     def test_monitoring_config_defaults_valid(self):
-        from Jotty.core.foundation.configs import MonitoringConfig
+        from Jotty.core.infrastructure.foundation.configs import MonitoringConfig
         cfg = MonitoringConfig()
         assert cfg.log_level == "INFO"
 
     def test_monitoring_config_bad_log_level(self):
-        from Jotty.core.foundation.configs import MonitoringConfig
+        from Jotty.core.infrastructure.foundation.configs import MonitoringConfig
         with pytest.raises(ValueError, match="log_level"):
             MonitoringConfig(log_level="VERBOSE")
 
     def test_monitoring_config_bad_threshold(self):
-        from Jotty.core.foundation.configs import MonitoringConfig
+        from Jotty.core.infrastructure.foundation.configs import MonitoringConfig
         with pytest.raises(ValueError, match="budget_warning_threshold"):
             MonitoringConfig(budget_warning_threshold=1.5)
 
     def test_monitoring_config_negative_verbose(self):
-        from Jotty.core.foundation.configs import MonitoringConfig
+        from Jotty.core.infrastructure.foundation.configs import MonitoringConfig
         with pytest.raises(ValueError, match="verbose"):
             MonitoringConfig(verbose=-1)
 
     def test_monitoring_config_bad_baseline_cost(self):
-        from Jotty.core.foundation.configs import MonitoringConfig
+        from Jotty.core.infrastructure.foundation.configs import MonitoringConfig
         with pytest.raises(ValueError, match="baseline_cost_per_success"):
             MonitoringConfig(baseline_cost_per_success=-0.5)
 
     # --- IntelligenceConfig ---
 
     def test_intelligence_config_defaults_valid(self):
-        from Jotty.core.foundation.configs import IntelligenceConfig
+        from Jotty.core.infrastructure.foundation.configs import IntelligenceConfig
         cfg = IntelligenceConfig()
         assert cfg.trust_min == 0.1
 
     def test_intelligence_config_bad_trust(self):
-        from Jotty.core.foundation.configs import IntelligenceConfig
+        from Jotty.core.infrastructure.foundation.configs import IntelligenceConfig
         with pytest.raises(ValueError, match="trust_min"):
             IntelligenceConfig(trust_min=1.5)
 
     def test_intelligence_config_zero_budget(self):
-        from Jotty.core.foundation.configs import IntelligenceConfig
+        from Jotty.core.infrastructure.foundation.configs import IntelligenceConfig
         with pytest.raises(ValueError, match="memory_retrieval_budget"):
             IntelligenceConfig(memory_retrieval_budget=0)
 
@@ -995,19 +995,19 @@ class TestSwarmConfigValidationDelegation:
 
     def test_swarm_config_default_passes_validation(self):
         """Default SwarmConfig() must pass all focused-config validation."""
-        from Jotty.core.foundation.data_structures import SwarmConfig
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
         cfg = SwarmConfig()  # Should not raise
         assert cfg.gamma == 0.99
 
     def test_swarm_config_validates_via_focused_configs(self):
         """Bad values caught by focused-config __post_init__."""
-        from Jotty.core.foundation.data_structures import SwarmConfig
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
         with pytest.raises(ValueError, match="SwarmConfig validation failed"):
             SwarmConfig(gamma=1.5)
 
     def test_swarm_config_catches_multiple_errors(self):
         """Multiple invalid fields produce multiple error lines."""
-        from Jotty.core.foundation.data_structures import SwarmConfig
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
         with pytest.raises(ValueError) as exc_info:
             SwarmConfig(gamma=1.5, episodic_capacity=-1, max_actor_iters=-1)
         msg = str(exc_info.value)
@@ -1017,13 +1017,13 @@ class TestSwarmConfigValidationDelegation:
 
     def test_swarm_config_single_subsystem_error(self):
         """Error from one subsystem only mentions that subsystem."""
-        from Jotty.core.foundation.data_structures import SwarmConfig
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
         with pytest.raises(ValueError, match="to_persistence_config"):
             SwarmConfig(storage_format="xml")
 
     def test_validate_method_exists(self):
         """SwarmConfig has _validate_via_focused_configs method."""
-        from Jotty.core.foundation.data_structures import SwarmConfig
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
         assert hasattr(SwarmConfig, '_validate_via_focused_configs')
 
 
@@ -1037,7 +1037,7 @@ class TestTriggerDiscovery:
 
     def test_triggers_parsed_from_skill_md(self):
         """Skills with ## Triggers section have triggers in metadata."""
-        from Jotty.core.registry.skills_registry import SkillsRegistry
+        from Jotty.core.capabilities.registry.skills_registry import SkillsRegistry
         reg = SkillsRegistry()
         reg.init()
         ws = reg.get_skill('web-search')
@@ -1047,7 +1047,7 @@ class TestTriggerDiscovery:
 
     def test_triggers_boost_discovery_score(self):
         """Skills with matching triggers score higher in discover()."""
-        from Jotty.core.registry.skills_registry import SkillsRegistry
+        from Jotty.core.capabilities.registry.skills_registry import SkillsRegistry
         reg = SkillsRegistry()
         reg.init()
         results = reg.discover('search for AI trends')
@@ -1057,7 +1057,7 @@ class TestTriggerDiscovery:
 
     def test_category_parsed_from_skill_md(self):
         """Skills with ## Category section have category set."""
-        from Jotty.core.registry.skills_registry import SkillsRegistry
+        from Jotty.core.capabilities.registry.skills_registry import SkillsRegistry
         reg = SkillsRegistry()
         reg.init()
         ws = reg.get_skill('web-search')
@@ -1161,7 +1161,7 @@ class TestParameterSchemaParsing:
 
     def test_web_search_has_tool_schemas(self):
         """web-search skill has parsed tool parameter schemas."""
-        from Jotty.core.registry.skills_registry import SkillsRegistry
+        from Jotty.core.capabilities.registry.skills_registry import SkillsRegistry
         reg = SkillsRegistry()
         reg.init()
         ws = reg.get_skill('web-search')
@@ -1174,7 +1174,7 @@ class TestParameterSchemaParsing:
 
     def test_schema_has_required_params(self):
         """Parsed schemas include required parameter list."""
-        from Jotty.core.registry.skills_registry import SkillsRegistry
+        from Jotty.core.capabilities.registry.skills_registry import SkillsRegistry
         reg = SkillsRegistry()
         reg.init()
         ws = reg.get_skill('web-search')
@@ -1184,7 +1184,7 @@ class TestParameterSchemaParsing:
 
     def test_claude_tool_format_output(self):
         """to_claude_tools() produces valid Claude API tool format."""
-        from Jotty.core.registry.skills_registry import SkillsRegistry
+        from Jotty.core.capabilities.registry.skills_registry import SkillsRegistry
         reg = SkillsRegistry()
         reg.init()
         ws = reg.get_skill('web-search')
@@ -1209,12 +1209,12 @@ class TestFacadeReturnAnnotations:
     def test_all_facades_have_return_annotations(self):
         """Every public get_* and list_* function has a return annotation."""
         import inspect
-        from Jotty.core.memory import facade as mem_f
-        from Jotty.core.learning import facade as learn_f
-        from Jotty.core.context import facade as ctx_f
-        from Jotty.core.skills import facade as skills_f
-        from Jotty.core.orchestration import facade as orch_f
-        from Jotty.core.utils import facade as utils_f
+        from Jotty.core.intelligence.memory import facade as mem_f
+        from Jotty.core.intelligence.learning import facade as learn_f
+        from Jotty.core.infrastructure.context import facade as ctx_f
+        from Jotty.core.capabilities.skills import facade as skills_f
+        from Jotty.core.intelligence.orchestration import facade as orch_f
+        from Jotty.core.infrastructure.utils import facade as utils_f
 
         missing = []
         for mod in [mem_f, learn_f, ctx_f, skills_f, orch_f, utils_f]:
@@ -1241,7 +1241,7 @@ _tc_instance = None
 def _get_tc():
     global _tc_instance
     if _tc_instance is None:
-        from Jotty.core.execution.intent_classifier import TaskClassifier
+        from Jotty.core.modes.execution.intent_classifier import TaskClassifier
         _tc_instance = TaskClassifier()
     return _tc_instance
 
@@ -1534,7 +1534,7 @@ class TestTaskClassifierProperties:
                              ids=[f"intent:{g[:40]}" for g, _ in _ALL_STRICT_SCENARIOS[:20]])
     def test_has_intent(self, goal, _):
         """Result always has a valid TaskIntent."""
-        from Jotty.core.execution.intent_classifier import TaskIntent
+        from Jotty.core.modes.execution.intent_classifier import TaskIntent
         tc = _get_tc()
         result = tc.classify_swarm(goal)
         assert isinstance(result.intent, TaskIntent), (
@@ -1551,7 +1551,7 @@ class TestTaskClassifierProperties:
 
     def test_none_result_has_zero_or_low_confidence(self):
         """When swarm_name is None, confidence should be below threshold."""
-        from Jotty.core.execution.intent_classifier import CONFIDENCE_THRESHOLD
+        from Jotty.core.modes.execution.intent_classifier import CONFIDENCE_THRESHOLD
         tc = _get_tc()
         for goal in ["Hello", "Good morning", "Thanks"]:
             result = tc.classify_swarm(goal)
@@ -1562,7 +1562,7 @@ class TestTaskClassifierProperties:
 
     def test_singleton_returns_same_instance(self):
         """get_task_classifier() returns the same singleton."""
-        from Jotty.core.execution.intent_classifier import get_task_classifier
+        from Jotty.core.modes.execution.intent_classifier import get_task_classifier
         tc1 = get_task_classifier()
         tc2 = get_task_classifier()
         assert tc1 is tc2
@@ -1576,15 +1576,15 @@ class TestResearchSwarmRegistration:
         """Importing research_swarm registers 'research' in SwarmRegistry."""
         import importlib
         importlib.import_module('Jotty.core.swarms.research_swarm')
-        from Jotty.core.swarms.registry import SwarmRegistry
+        from Jotty.core.intelligence.swarms.registry import SwarmRegistry
         assert 'research' in SwarmRegistry.list_all(), (
             f"'research' not registered. Available: {SwarmRegistry.list_all()}"
         )
 
     def test_ensure_swarms_registered_all_11(self):
         """After _ensure_swarms_registered(), all 11 swarms are present."""
-        from Jotty.core.execution.executor import TierExecutor
-        from Jotty.core.swarms.registry import SwarmRegistry
+        from Jotty.core.modes.execution.executor import TierExecutor
+        from Jotty.core.intelligence.swarms.registry import SwarmRegistry
 
         # Reset registration state
         TierExecutor._swarms_registered = False
@@ -1608,8 +1608,8 @@ class TestSelectSwarmIntegration:
     def test_select_swarm_uses_classifier(self):
         """_select_swarm() delegates to TaskClassifier and returns a swarm."""
         from unittest.mock import patch, MagicMock
-        from Jotty.core.execution.intent_classifier import TaskClassification, TaskIntent
-        from Jotty.core.execution.executor import TierExecutor
+        from Jotty.core.modes.execution.intent_classifier import TaskClassification, TaskIntent
+        from Jotty.core.modes.execution.executor import TierExecutor
 
         mock_classification = TaskClassification(
             swarm_name="coding",

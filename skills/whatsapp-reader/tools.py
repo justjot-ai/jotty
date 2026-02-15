@@ -10,7 +10,7 @@ Requires WhatsApp Web session initialized in same process (/whatsapp login).
 import asyncio
 import logging
 from typing import Dict, Any, List, Optional
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper, async_tool_wrapper
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper, async_tool_wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -176,7 +176,7 @@ async def summarize_whatsapp_chat_learnings_tool(params: Dict[str, Any]) -> Dict
 
     # Use summarize skill if available (via registry)
     try:
-        from Jotty.core.registry.skills_registry import get_skills_registry
+        from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
         reg = get_skills_registry()
         reg.init()
         skill = reg.get_skill("summarize")

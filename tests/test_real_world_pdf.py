@@ -84,7 +84,7 @@ def snapshot_pdfs() -> set:
 # USE CASE: Research Topic → PDF Report
 # ══════════════════════════════════════════════════════════════
 async def test_research_to_pdf():
-    from Jotty.core.orchestration.swarm_manager import Orchestrator
+    from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
 
     print(f'\n{B}{"═"*60}{E}')
     print(f'{B}  USE CASE: Research → PDF Report{E}')

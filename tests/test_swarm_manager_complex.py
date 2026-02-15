@@ -111,7 +111,7 @@ def _status_trail():
 @pytest.mark.complex
 async def test_multistep_research_summarize_save():
     """Multi-step: research a topic, summarize, and save to file."""
-    from Jotty.core.orchestration.swarm_manager import Orchestrator
+    from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
 
     goal = (
         "Research 'Python 3.12 new features' (use web search if needed), "
@@ -147,7 +147,7 @@ async def test_multistep_research_summarize_save():
 @pytest.mark.complex
 async def test_comparison_three_items_table():
     """Compare 3 items with table and recommendation."""
-    from Jotty.core.orchestration.swarm_manager import Orchestrator
+    from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
 
     goal = (
         "Compare these three Python web frameworks: FastAPI, Flask, and Django. "
@@ -188,7 +188,7 @@ async def test_comparison_three_items_table():
 @pytest.mark.complex
 async def test_creation_code_and_docs():
     """Create a small script and brief usage instructions."""
-    from Jotty.core.orchestration.swarm_manager import Orchestrator
+    from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
 
     goal = (
         "Create a minimal Python script that reads a JSON file path from the command line, "
@@ -226,7 +226,7 @@ async def test_creation_code_and_docs():
 @pytest.mark.complex
 async def test_analysis_ranked_list():
     """Produce a ranked list with brief explanations."""
-    from Jotty.core.orchestration.swarm_manager import Orchestrator
+    from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
 
     goal = (
         "List the top 5 risks of using AI in healthcare, in order of severity. "
@@ -260,7 +260,7 @@ async def test_analysis_ranked_list():
 @pytest.mark.complex
 async def test_mixed_search_summarize_followup():
     """Search (or reason), summarize, and suggest a follow-up."""
-    from Jotty.core.orchestration.swarm_manager import Orchestrator
+    from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
 
     goal = (
         "What are the main benefits of TypeScript over JavaScript for large codebases? "

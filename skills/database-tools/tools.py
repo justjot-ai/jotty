@@ -11,8 +11,8 @@ import logging
 from typing import Dict, Any, List, Optional
 from urllib.parse import quote_plus
 
-from Jotty.core.utils.skill_status import SkillStatus
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -427,7 +427,7 @@ def natural_language_query_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     status.set_callback(params.pop('_status_callback', None))
 
     try:
-        from Jotty.core.llm import generate
+        from Jotty.core.infrastructure.integration.llm import generate
 
         question = params.get('question')
         if not question:

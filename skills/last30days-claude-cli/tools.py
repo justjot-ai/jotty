@@ -13,8 +13,8 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 from pathlib import Path
 
-from Jotty.core.utils.skill_status import SkillStatus
-from Jotty.core.utils.tool_helpers import async_tool_wrapper
+from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import async_tool_wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ fetch_webpage_tool = None
 
 try:
     # Method 1: Try registry-based import
-    from Jotty.core.registry.skills_registry import get_skills_registry
+    from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
     registry = get_skills_registry()
     if registry:
         web_skill = registry.get_skill('web-search')

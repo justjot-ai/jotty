@@ -55,7 +55,7 @@ B = '\033[1m'; G = '\033[92m'; R = '\033[91m'; Y = '\033[93m'; D = '\033[2m'; E 
 # Tests: planner routing, file extension fix, code quality
 # ══════════════════════════════════════════════════════════════════
 async def scenario_1_codegen():
-    from Jotty.core.orchestration.swarm_manager import Orchestrator
+    from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
 
     print(f"\n{B}SCENARIO 1: FastAPI REST API Code Generation{E}")
     print(f"{D}  Goal: Generate a complete FastAPI CRUD API with models{E}")
@@ -100,7 +100,7 @@ async def scenario_1_codegen():
 # This was the one that TIMED OUT before the fix.
 # ══════════════════════════════════════════════════════════════════
 async def scenario_2_architecture():
-    from Jotty.core.orchestration.swarm_manager import Orchestrator
+    from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
 
     print(f"\n{B}SCENARIO 2: Event-Driven Architecture Design{E}")
     print(f"{D}  Goal: Design document WITHOUT web scraping (LLM knowledge only){E}")
@@ -147,9 +147,9 @@ async def scenario_2_architecture():
 # Tests: multi-agent coordination, parallel execution, synthesis
 # ══════════════════════════════════════════════════════════════════
 async def scenario_3_multi_agent():
-    from Jotty.core.orchestration.swarm_manager import Orchestrator
-    from Jotty.core.agents.auto_agent import AutoAgent
-    from Jotty.core.foundation.agent_config import AgentConfig
+    from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
+    from Jotty.core.modes.agent.auto_agent import AutoAgent
+    from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
 
     print(f"\n{B}SCENARIO 3: Multi-Agent AI Market Analysis{E}")
     print(f"{D}  Goal: 3 specialized agents produce coordinated analysis{E}")
@@ -211,7 +211,7 @@ async def scenario_3_multi_agent():
 # Tests: code gen + file write + execution pipeline
 # ══════════════════════════════════════════════════════════════════
 async def scenario_4_code_execute():
-    from Jotty.core.orchestration.swarm_manager import Orchestrator
+    from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
 
     print(f"\n{B}SCENARIO 4: Stock Monte Carlo Simulation + Execution{E}")
     print(f"{D}  Goal: Generate Python script, save as .py, and execute{E}")
