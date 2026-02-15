@@ -171,6 +171,15 @@ from Jotty.core.capabilities.registry.unified_registry import (
 )
 from Jotty.core.capabilities.registry.skills_registry import SkillsRegistry
 
+# SEMANTIC — Database schema understanding, NL→SQL, visualization
+from Jotty.core.capabilities.semantic.facade import (
+    get_semantic_layer,      # Main semantic layer interface
+    get_query_engine,        # NL→SQL query generation
+    get_visualization_layer, # LIDA-based data visualization
+    list_components,         # List all semantic components
+    get_supported_databases, # List supported database types
+)
+
 # TOOLS — Tool management
 from Jotty.core.capabilities.tools.content_generation import ContentGenerator
 
@@ -286,6 +295,103 @@ result = ctx.build_context(
     system_prompt="You are a research assistant",
     user_input="Find recent AI startup funding rounds",
 )
+```
+
+### Semantic Layer — Natural Language to SQL
+```python
+from Jotty.core.capabilities.semantic.facade import get_semantic_layer
+
+# From live database
+layer = get_semantic_layer(
+    db_type="postgresql",
+    host="localhost",
+    database="sales",
+    user="admin",
+    password="secret"
+)
+
+# Query with natural language
+result = layer.query("Show total revenue by region this year")
+print(result['generated_sql'])  # SELECT region, SUM(revenue) ...
+print(result['results'])        # Query results (if execute=True)
+
+# From DDL string (no database connection needed)
+layer = get_semantic_layer(
+    ddl="CREATE TABLE products (id INT, name VARCHAR(100), price DECIMAL)",
+    dialect="postgresql"
+)
+
+# Generate LookML semantic model
+lookml = layer.to_lookml()
+
+# Suggest queries based on schema
+suggestions = layer.suggest_queries(num_suggestions=5)
+```
+
+### Data Visualization — Charts from Natural Language
+```python
+from Jotty.core.capabilities.semantic.facade import get_visualization_layer
+
+# Create viz layer from database
+viz = get_visualization_layer(
+    db_type="postgresql",
+    host="localhost",
+    database="sales"
+)
+
+# Generate charts from natural language
+charts = viz.visualize(
+    question="Show sales trends over the last 6 months",
+    library="matplotlib",  # or seaborn, plotly, altair
+    n=3  # Generate 3 chart variations
+)
+
+# Create multi-chart dashboard
+dashboard = viz.dashboard(
+    questions=[
+        "Total revenue by region",
+        "Monthly sales trends",
+        "Top 10 products by quantity"
+    ],
+    library="plotly"
+)
+
+# Get suggested visualizations based on data
+suggestions = viz.goals(n=5)  # Returns 5 visualization suggestions
+```
+
+### Semantic Skills — Use via Skill Wrappers
+```python
+# Option 1: Use semantic-sql-query skill
+from skills.semantic_sql_query import query_database_natural_language
+
+result = query_database_natural_language({
+    "question": "Show customers with orders over $1000",
+    "db_type": "postgresql",
+    "host": "localhost",
+    "database": "sales",
+    "user": "admin",
+    "password": "secret"
+})
+
+# Option 2: Use schema-analyzer skill
+from skills.schema_analyzer import analyze_ddl_schema, generate_lookml_from_ddl
+
+schema = analyze_ddl_schema({
+    "ddl": "CREATE TABLE users (id INT PRIMARY KEY, email VARCHAR(255))",
+    "dialect": "postgresql"
+})
+
+# Option 3: Use data-visualizer skill
+from skills.data_visualizer import visualize_data_from_query
+
+viz = visualize_data_from_query({
+    "question": "Visualize sales by month",
+    "db_type": "postgresql",
+    "database": "sales",
+    "library": "plotly",
+    "output_format": "html"
+})
 ```
 
 ---

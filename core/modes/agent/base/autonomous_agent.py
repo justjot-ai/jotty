@@ -533,7 +533,7 @@ class AutonomousAgent(BaseAgent):
                 prev_outputs['_learning_guidance'] = learning_context[:2000]
             if workspace_dir:
                 try:
-                    from Jotty.core.prompts.rules import load_project_rules
+                    from Jotty.core.capabilities.prompts.rules import load_project_rules
                     rules = load_project_rules(workspace_dir)
                     if rules:
                         prev_outputs['_project_rules'] = rules[:2000]

@@ -78,6 +78,7 @@ dev = [
     "isort>=5.13.0",
     "flake8>=6.1.0",
     "mypy>=1.7.0",
+    "python-code-analyzer>=1.0.14",
 ]
 
 [project.urls]

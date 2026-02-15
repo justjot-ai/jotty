@@ -29,9 +29,14 @@ from Jotty.core.infrastructure.foundation.exceptions import (
     ConsolidationError,
     LearningError,
 )
-from Jotty.core.modes.agent.inspector import ValidatorAgent, MultiRoundValidator
+from Jotty.core.modes.agent.base.inspector import ValidatorAgent, MultiRoundValidator
 from Jotty.core.intelligence.memory.cortex import SwarmMemory
 from Jotty.core.infrastructure.utils.prompt_selector import get_prompt_selector, PromptSelector
+from Jotty.core.intelligence.orchestration.prompts import (
+    get_swarm_architect_prompt,
+    get_swarm_auditor_prompt,
+    get_generic_auditor_prompt,
+)
 from Jotty.core.intelligence.learning.learning import (
     TDLambdaLearner, AdaptiveLearningRate,
 )
@@ -341,6 +346,9 @@ class AgentRunner:
         self._current_task_type: str = 'default'
         self._scratchpad = scratchpad  # Store for validator recreation
 
+        # Swarm-level prompts cache
+        self._swarm_prompts_loaded = False
+
         # Intelligent validation gate (Haiku-powered)
         # Replaces boolean skip_validation with per-task LLM classification:
         #   DIRECT     → actor only  (simple Q&A, lookups)
@@ -493,6 +501,7 @@ class AgentRunner:
 
         # Recreate validators with new prompts
         try:
+            # Task-specific validation (primary layer)
             architect_agents = [
                 ValidatorAgent(
                     md_path=Path(architect_path),
@@ -513,6 +522,49 @@ class AgentRunner:
                 )
             ]
 
+            # Add swarm-level validation (orchestration/coordination layer)
+            # Only load once, then reuse across task types
+            if not self._swarm_prompts_loaded:
+                try:
+                    import tempfile
+
+                    # Create temp files for swarm prompts (ValidatorAgent needs file paths)
+                    swarm_arch_file = tempfile.NamedTemporaryFile(mode='w', suffix='_swarm_architect.md', delete=False)
+                    swarm_arch_file.write(get_swarm_architect_prompt())
+                    swarm_arch_file.close()
+
+                    swarm_aud_file = tempfile.NamedTemporaryFile(mode='w', suffix='_swarm_auditor.md', delete=False)
+                    swarm_aud_file.write(get_swarm_auditor_prompt('coordination'))
+                    swarm_aud_file.close()
+
+                    # Add swarm architect (orchestration readiness)
+                    architect_agents.append(
+                        ValidatorAgent(
+                            md_path=Path(swarm_arch_file.name),
+                            is_architect=True,
+                            tools=[],
+                            config=self.config.config,
+                            scratchpad=self._scratchpad
+                        )
+                    )
+
+                    # Add swarm auditor (coordination & goal alignment)
+                    auditor_agents.append(
+                        ValidatorAgent(
+                            md_path=Path(swarm_aud_file.name),
+                            is_architect=False,
+                            tools=[],
+                            config=self.config.config,
+                            scratchpad=self._scratchpad
+                        )
+                    )
+
+                    self._swarm_prompts_loaded = True
+                    logger.info(" Swarm-level validators added (orchestration + coordination)")
+
+                except Exception as e:
+                    logger.warning(f"Failed to load swarm prompts: {e}")
+
             self.architect_validator = MultiRoundValidator(architect_agents, self.config.config)
             self.auditor_validator = MultiRoundValidator(auditor_agents, self.config.config)
 
@@ -521,6 +573,26 @@ class AgentRunner:
 
         except Exception as e:
             logger.warning(f"Failed to update validators for {task_type}: {e}")
+            # Fallback to generic auditor if task-specific prompts fail
+            try:
+                import tempfile
+                generic_aud_file = tempfile.NamedTemporaryFile(mode='w', suffix='_generic_auditor.md', delete=False)
+                generic_aud_file.write(get_generic_auditor_prompt())
+                generic_aud_file.close()
+
+                auditor_agents = [
+                    ValidatorAgent(
+                        md_path=Path(generic_aud_file.name),
+                        is_architect=False,
+                        tools=[],
+                        config=self.config.config,
+                        scratchpad=self._scratchpad
+                    )
+                ]
+                self.auditor_validator = MultiRoundValidator(auditor_agents, self.config.config)
+                logger.info(" Fallback: Using generic auditor for validation")
+            except Exception as fallback_err:
+                logger.error(f"Fallback validator also failed: {fallback_err}")
 
         return task_type
 

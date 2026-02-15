@@ -353,4 +353,25 @@ def _explanations() -> Dict[str, str]:
             "  orch = Orchestrator(actors=[...], config=config)\n"
             "  result = await orch.run(goal='...')"
         ),
+        "semantic": (
+            "Semantic Layer Subsystem (Jotty.core.capabilities.semantic)\n"
+            "=============================================================\n"
+            "Database schema understanding and intelligent querying:\n"
+            "- SemanticLayer: Main interface for schema extraction and querying\n"
+            "- SemanticQueryEngine: Natural language to SQL query generation\n"
+            "- MongoDBQueryEngine: Natural language to MongoDB aggregation pipelines\n"
+            "- VisualizationLayer: LIDA-based data visualization from NL\n"
+            "- DatabaseExtractor: Extract schema from live database connections\n"
+            "- DDLExtractor: Extract schema from DDL strings\n"
+            "- LookMLGenerator: Generate LookML semantic models (like Looker)\n\n"
+            "Supported databases: PostgreSQL, MySQL, SQLite, SQL Server, Oracle, MongoDB\n\n"
+            "Access via facade:\n"
+            "  from Jotty.core.capabilities.semantic.facade import get_semantic_layer\n"
+            "  layer = get_semantic_layer(db_type='postgresql', host='localhost', database='sales')\n"
+            "  result = layer.query('Show total revenue by region')\n\n"
+            "Or use skill wrappers:\n"
+            "  - semantic-sql-query: Natural language to SQL queries\n"
+            "  - schema-analyzer: Schema extraction and analysis\n"
+            "  - data-visualizer: Data visualization from natural language"
+        ),
     }

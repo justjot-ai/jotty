@@ -30,7 +30,7 @@ class PromptSelector:
         Args:
             registry_path: Path to template_registry.yaml
         """
-        self.base_path = Path(__file__).parent.parent.parent / "configs" / "prompts"
+        self.base_path = Path(__file__).parent.parent / "foundation" / "presets" / "prompts"
 
         if registry_path:
             self.registry_path = Path(registry_path)

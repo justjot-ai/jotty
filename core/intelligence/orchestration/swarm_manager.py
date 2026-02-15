@@ -2374,7 +2374,7 @@ class Orchestrator:
         This is a utility — the existing raw string path still works.
         Use this when you want model-optimized prompts.
         """
-        from Jotty.core.prompts import PromptComposer
+        from Jotty.core.capabilities.prompts import PromptComposer
 
         # Detect model from agent config
         model = ""

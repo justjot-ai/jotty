@@ -23,12 +23,12 @@ import logging
 import asyncio
 import time # CRITICAL FIX: Missing import causing "name 'time' is not defined"
 
-from ..foundation.data_structures import (
+from Jotty.core.infrastructure.foundation.data_structures import (
     SwarmConfig, ValidationResult, OutputTag, ValidationRound,
     MemoryLevel, AgentMessage, SharedScratchpad, CommunicationType
 )
-from ..memory.cortex import SwarmMemory
-from ..learning.learning import DynamicBudgetManager
+from Jotty.core.intelligence.memory.cortex import SwarmMemory
+from Jotty.core.intelligence.learning.learning import DynamicBudgetManager
 
 logger = logging.getLogger(__name__)
 

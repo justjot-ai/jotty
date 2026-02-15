@@ -420,3 +420,12 @@ __all__ = [
     "SemanticQueryEngine",
     "MongoDBQueryEngine",
 ]
+
+# Facade imports for convenience
+from .facade import (
+    get_semantic_layer,
+    get_query_engine,
+    get_visualization_layer,
+    list_components as list_semantic_components,
+    get_supported_databases,
+)

@@ -1,0 +1,106 @@
+####################################################################################################
+*** CODE ANALYSIS ***
+####################################################################################################
+
+--------------------------------------------------
+Execution Analysis
+--------------------------------------------------
+
+Execution Index Line #  Scope depth   Indent depth  Interpretable Count   Code  {Variable: Value}  (Comments)
+0               64      0             0             1                     if args.scenario == "capabilities":
+1               67      0             0             1                     elif args.scenario == "jotty-init":
+2               70      0             0             1                     elif args.scenario == "explain":
+3               74      0             0             1                     elif args.scenario == "minimal":
+4               77      0             0             1                     elif args.scenario == "self-test":
+5               79      0             1             1                         def _dummy(n: int) -> int:
+6               81      0             1             1                         _ = [_dummy(i) for i in range(3)]  {'_dummy': <function main.<locals>._dummy at 0xfffeb0a36fc0>}
+7               81      0             1             2                         _ = [_dummy(i) for i in range(3)]  {'.0': <range_iterator object at 0xfffeb0a30c60>}
+8               81      1             2             3                             _ = [_dummy(i) for i in range(3)]  {'.0': <range_iterator object at 0xfffeb0a30c60>, '_dummy': <function main.<locals>._dummy at 0xfffeb0a36fc0>}
+9               79      1             2             2                             def _dummy(n: int) -> int:  {'n': 0}
+10              80      2             3             1                                 return n + 1  {'n': 0}
+11              81      1             2             4                             _ = [_dummy(i) for i in range(3)]  {'i': 0}
+12              79      1             2             3                             def _dummy(n: int) -> int:  {'n': 1}
+13              80      2             3             2                                 return n + 1  {'n': 1}
+14              81      1             2             5                             _ = [_dummy(i) for i in range(3)]  {'i': 1}
+15              79      1             2             4                             def _dummy(n: int) -> int:  {'n': 2}
+16              80      2             3             3                                 return n + 1  {'n': 2}
+17              81      1             2             6                             _ = [_dummy(i) for i in range(3)]  {'i': 2}
+
+--------------------------------------------------
+Line of code Analysis
+--------------------------------------------------
+
+Filename: /var/www/sites/personal/stock_market/Jotty/scripts/analyze_jotty_runtime.py
+Line #: 64
+Code: if args.scenario == "capabilities":
+Call Count: 1
+   Execution Index  Scope depth  Interpretable Count {Variable: Value} (Comments)
+0                0            0                    1                {}           
+
+
+Filename: /var/www/sites/personal/stock_market/Jotty/scripts/analyze_jotty_runtime.py
+Line #: 67
+Code: elif args.scenario == "jotty-init":
+Call Count: 1
+   Execution Index  Scope depth  Interpretable Count {Variable: Value} (Comments)
+0                1            0                    1                {}           
+
+
+Filename: /var/www/sites/personal/stock_market/Jotty/scripts/analyze_jotty_runtime.py
+Line #: 70
+Code: elif args.scenario == "explain":
+Call Count: 1
+   Execution Index  Scope depth  Interpretable Count {Variable: Value} (Comments)
+0                2            0                    1                {}           
+
+
+Filename: /var/www/sites/personal/stock_market/Jotty/scripts/analyze_jotty_runtime.py
+Line #: 74
+Code: elif args.scenario == "minimal":
+Call Count: 1
+   Execution Index  Scope depth  Interpretable Count {Variable: Value} (Comments)
+0                3            0                    1                {}           
+
+
+Filename: /var/www/sites/personal/stock_market/Jotty/scripts/analyze_jotty_runtime.py
+Line #: 77
+Code: elif args.scenario == "self-test":
+Call Count: 1
+   Execution Index  Scope depth  Interpretable Count {Variable: Value} (Comments)
+0                4            0                    1                {}           
+
+
+Filename: /var/www/sites/personal/stock_market/Jotty/scripts/analyze_jotty_runtime.py
+Line #: 79
+Code: def _dummy(n: int) -> int:
+Call Count: 4
+   Execution Index  Scope depth  Interpretable Count {Variable: Value} (Comments)
+0                5            0                    1                {}           
+1                9            1                    2          {'n': 0}           
+2               12            1                    3          {'n': 1}           
+3               15            1                    4          {'n': 2}           
+
+
+Filename: /var/www/sites/personal/stock_market/Jotty/scripts/analyze_jotty_runtime.py
+Line #: 81
+Code: _ = [_dummy(i) for i in range(3)]
+Call Count: 6
+   Execution Index  Scope depth  Interpretable Count                                                                                               {Variable: Value} (Comments)
+0                6            0                    1                                                   {'_dummy': <function main.<locals>._dummy at 0xfffeb0a36fc0>}           
+1                7            0                    2                                                               {'.0': <range_iterator object at 0xfffeb0a30c60>}           
+2                8            1                    3  {'.0': <range_iterator object at 0xfffeb0a30c60>, '_dummy': <function main.<locals>._dummy at 0xfffeb0a36fc0>}           
+3               11            1                    4                                                                                                        {'i': 0}           
+4               14            1                    5                                                                                                        {'i': 1}           
+5               17            1                    6                                                                                                        {'i': 2}           
+
+
+Filename: /var/www/sites/personal/stock_market/Jotty/scripts/analyze_jotty_runtime.py
+Line #: 80
+Code: return n + 1
+Call Count: 3
+   Execution Index  Scope depth  Interpretable Count {Variable: Value} (Comments)
+0               10            2                    1          {'n': 0}           
+1               13            2                    2          {'n': 1}           
+2               16            2                    3          {'n': 2}           
+
+

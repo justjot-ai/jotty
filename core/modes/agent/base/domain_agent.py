@@ -203,7 +203,7 @@ class DomainAgent(BaseAgent):
 
         try:
             import dspy
-            from Jotty.core.prompts import PromptComposer
+            from Jotty.core.capabilities.prompts import PromptComposer
 
             # Get existing signature instructions (docstring)
             base_instructions = getattr(self.signature, 'instructions', '') or ''
