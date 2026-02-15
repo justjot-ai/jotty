@@ -58,10 +58,17 @@ def main() -> int:
     # 2. Mypy (type checking)
     # Configuration is in mypy.ini
     if not args.no_mypy:
-        code, out = run(
-            [sys.executable, "-m", "mypy"],
-            "mypy",
+        # Need to run from parent directory (stock_market/) so Jotty.* imports work
+        parent_dir = repo.parent
+        code_out = subprocess.run(
+            [sys.executable, "-m", "mypy", "Jotty/core", "Jotty/apps", "Jotty/sdk",
+             "--config-file", "Jotty/mypy.ini"],
+            capture_output=True,
+            text=True,
+            timeout=300,
+            cwd=parent_dir
         )
+        code, out = code_out.returncode, (code_out.stdout or "") + (code_out.stderr or "")
         print("=== mypy ===")
         print(out or "(no output)")
         print()

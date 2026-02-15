@@ -33,7 +33,8 @@ from .telegram_bot import TelegramCommand
 from .web_server import WebServerCommand
 from .model_chat import ModelChatCommand
 from .gateway import GatewayCommand
-from .whatsapp_cmd import WhatsAppCommand
+# WhatsApp moved to apps/whatsapp/
+# from .whatsapp_cmd import WhatsAppCommand  # TODO: Import from apps.whatsapp.command
 from .heartbeat_cmd import HeartbeatCommand, RemindCommand
 from .task_queue import TaskCommand
 from .supervisor_cmd import SupervisorCommand

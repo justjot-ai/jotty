@@ -289,8 +289,8 @@ class ProfessionalMLReport(VisualizationMixin, InterpretabilityMixin, DriftMixin
         self.figures_dir = self.output_dir / "figures"
         self.figures_dir.mkdir(exist_ok=True)
 
-        self._content = []
-        self._figures = []
+        self._content: list[Any] = []
+        self._figures: list[Any] = []
         self._metadata = {}
         self._raw_data = {}
 
@@ -298,7 +298,7 @@ class ProfessionalMLReport(VisualizationMixin, InterpretabilityMixin, DriftMixin
         self._section_data = []
         self._failed_sections = []
         self._failed_charts = []
-        self._warnings = []
+        self._warnings: list[Any] = []
         self._llm_narrative_enabled = llm_narrative
         self._html_enabled = html_enabled
         self._llm = None  # Lazy-loaded UnifiedLLM

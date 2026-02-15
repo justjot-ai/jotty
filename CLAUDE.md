@@ -12,8 +12,8 @@ Jotty follows world-class clean architecture with strict layering:
 ┌─────────────────────────────────────────────────────────────┐
 │  LAYER 5: APPLICATIONS (apps/)                              │
 │  ├── apps/cli/          → Command-line interface            │
-│  ├── apps/frontend/     → Web UI                            │
-│  └── apps/telegram_bot/ → Telegram integration              │
+│  ├── apps/web/     → Web UI                            │
+│  └── apps/telegram/ → Telegram integration              │
 │  ✅ Apps use SDK ONLY, never import from core directly      │
 └────────────────────────┬────────────────────────────────────┘
                          ↓ Uses

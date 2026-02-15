@@ -56,7 +56,7 @@ class TelegramCommand(BaseCommand):
             return CommandResult.fail("Bot is already running. Use /telegram stop first.")
 
         try:
-            from ...telegram_bot.bot import TelegramBotHandler
+            from ...telegram.bot import TelegramBotHandler
 
             # Create status callback
             def status_callback(stage: str, detail: str = '') -> Any:
