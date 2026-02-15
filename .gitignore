@@ -61,3 +61,4 @@ mlruns/
 test_extracted/*
 catboost_info/
 expert_data/
+.mypy_cache/

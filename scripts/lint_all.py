@@ -56,14 +56,10 @@ def main() -> int:
             failures.append("import-linter")
 
     # 2. Mypy (type checking)
+    # Configuration is in mypy.ini
     if not args.no_mypy:
         code, out = run(
-            [
-                sys.executable, "-m", "mypy",
-                "core", "apps", "sdk",
-                "--no-error-summary",
-                "--explicit-package-bases",
-            ],
+            [sys.executable, "-m", "mypy"],
             "mypy",
         )
         print("=== mypy ===")
