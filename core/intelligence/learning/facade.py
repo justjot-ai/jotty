@@ -36,12 +36,12 @@ def _resolve_learning_config(config: Any) -> 'SwarmConfig':
         - SwarmConfig → pass through
     """
     if config is None:
-        from Jotty.core.infrastructure.foundation.data_structures import SwarmLearningConfig
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
         return SwarmConfig()
 
     from Jotty.core.infrastructure.foundation.configs.learning import LearningConfig
     if isinstance(config, LearningConfig):
-        from Jotty.core.infrastructure.foundation.data_structures import SwarmLearningConfig
+        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
         return SwarmConfig.from_configs(learning=config)
 
     # Assume SwarmConfig

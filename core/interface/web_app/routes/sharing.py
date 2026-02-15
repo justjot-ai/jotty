@@ -27,7 +27,7 @@ def register_sharing_routes(app, api):
     @app.post("/api/share/create")
     async def create_share_link(request: CreateShareLinkRequest):
         """Create a shareable link for a conversation."""
-        from Jotty.core.interface.cli.repl.session import get_share_link_registry, get_session_registry
+        from Jotty.apps.cli.repl.session import get_share_link_registry, get_session_registry
 
         # Verify session exists
         registry = get_session_registry()
@@ -53,7 +53,7 @@ def register_sharing_routes(app, api):
     @app.get("/api/share/{token}")
     async def get_share_link_info(token: str):
         """Get information about a share link."""
-        from Jotty.core.interface.cli.repl.session import get_share_link_registry
+        from Jotty.apps.cli.repl.session import get_share_link_registry
 
         share_registry = get_share_link_registry()
         link = share_registry.get_link(token)
@@ -66,7 +66,7 @@ def register_sharing_routes(app, api):
     @app.get("/api/share/{token}/conversation")
     async def get_shared_conversation(token: str):
         """Get the shared conversation (public read-only view)."""
-        from Jotty.core.interface.cli.repl.session import get_share_link_registry, get_session_registry
+        from Jotty.apps.cli.repl.session import get_share_link_registry, get_session_registry
 
         share_registry = get_share_link_registry()
         link = share_registry.get_link(token)
@@ -98,7 +98,7 @@ def register_sharing_routes(app, api):
     @app.post("/api/share/{token}/revoke")
     async def revoke_share_link(token: str):
         """Revoke a share link."""
-        from Jotty.core.interface.cli.repl.session import get_share_link_registry
+        from Jotty.apps.cli.repl.session import get_share_link_registry
 
         share_registry = get_share_link_registry()
         success = share_registry.revoke_link(token)
@@ -111,7 +111,7 @@ def register_sharing_routes(app, api):
     @app.post("/api/share/{token}/refresh")
     async def refresh_share_link(token: str, expires_in_days: int = 30):
         """Refresh a share link with new token and expiry."""
-        from Jotty.core.interface.cli.repl.session import get_share_link_registry
+        from Jotty.apps.cli.repl.session import get_share_link_registry
 
         share_registry = get_share_link_registry()
         new_link = share_registry.refresh_link(token, expires_in_days)
@@ -128,7 +128,7 @@ def register_sharing_routes(app, api):
     @app.get("/api/share/{token}/qrcode")
     async def get_share_qrcode(token: str, base_url: str = None):
         """Generate QR code for a share link."""
-        from Jotty.core.interface.cli.repl.session import get_share_link_registry
+        from Jotty.apps.cli.repl.session import get_share_link_registry
 
         share_registry = get_share_link_registry()
         link = share_registry.get_link(token)
@@ -168,7 +168,7 @@ def register_sharing_routes(app, api):
     @app.get("/share/{token}")
     async def share_page(token: str):
         """Serve the public share page."""
-        from Jotty.core.interface.cli.repl.session import get_share_link_registry
+        from Jotty.apps.cli.repl.session import get_share_link_registry
 
         share_registry = get_share_link_registry()
         link = share_registry.get_link(token)

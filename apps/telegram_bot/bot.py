@@ -123,8 +123,8 @@ class TelegramBotHandler:
                 logger.error(f"Failed to initialize command registry: {e}")
                 # Fallback to direct import
                 try:
-                    from Jotty.core.interface.cli.commands.base import CommandRegistry
-                    from Jotty.core.interface.cli.commands import register_all_commands
+                    from Jotty.apps.cli.commands.base import CommandRegistry
+                    from Jotty.apps.cli.commands import register_all_commands
                     self._command_registry = CommandRegistry()
                     register_all_commands(self._command_registry)
                     logger.info(f"Command registry initialized directly with {len(self._command_registry._commands)} commands")
@@ -166,7 +166,7 @@ class TelegramBotHandler:
         try:
             from ..cli.repl.session import get_session_registry, InterfaceType
         except ImportError:
-            from Jotty.core.interface.cli.repl.session import get_session_registry, InterfaceType
+            from Jotty.apps.cli.repl.session import get_session_registry, InterfaceType
         return get_session_registry, InterfaceType
 
     def _get_interface_type(self):

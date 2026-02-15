@@ -14,7 +14,9 @@ from Jotty.core.infrastructure.context.context_manager import ContextPriority
 
 async def main():
     # Create context manager (max 10,000 tokens, 85% safety margin)
-    ctx = get_context_manager(max_tokens=10000, safety_margin=0.85)
+    # Note: After consolidation, import SmartContextManager directly for custom params
+    from Jotty.core.infrastructure.context import SmartContextManager
+    ctx = SmartContextManager(max_tokens=10000, safety_margin=0.85)
 
     print("=== Token Budget Allocation ===\n")
     print(f"Max tokens: {ctx.max_tokens}")

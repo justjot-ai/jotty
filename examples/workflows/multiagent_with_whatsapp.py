@@ -18,7 +18,7 @@ env_path = Path(__file__).parent.parent.parent / ".env.anthropic"
 if env_path.exists():
     load_dotenv(env_path)
 
-from Jotty.core.interface.cli.channels.whatsapp_web.client import WhatsAppWebClient
+from Jotty.apps.cli.channels.whatsapp_web.client import WhatsAppWebClient
 
 
 async def find_mynotes_chat(client: WhatsAppWebClient):

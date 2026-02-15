@@ -7,10 +7,21 @@ Shows how to use distributed tracing for multi-swarm execution.
 """
 
 import asyncio
+import os
+from dotenv import load_dotenv
+
+# Load API key
+load_dotenv()
 
 async def main():
+    import dspy
+    from Jotty.core.infrastructure.foundation.direct_anthropic_lm import DirectAnthropicLM
     from Jotty.core.infrastructure.monitoring.observability import get_distributed_tracer
     from Jotty.core.intelligence.orchestration import SwarmAdapter, get_multi_swarm_coordinator, MergeStrategy
+
+    # Setup LLM
+    lm = DirectAnthropicLM(model="haiku")
+    dspy.configure(lm=lm)
 
     print("\n" + "="*70)
     print("EXAMPLE: Distributed Tracing")

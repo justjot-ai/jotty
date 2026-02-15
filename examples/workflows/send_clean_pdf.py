@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from Jotty.core.interface.cli.channels.whatsapp_web.client import WhatsAppWebClient
+from Jotty.apps.cli.channels.whatsapp_web.client import WhatsAppWebClient
 
 
 async def find_mynotes_chat(client: WhatsAppWebClient):

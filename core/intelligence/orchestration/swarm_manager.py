@@ -38,7 +38,7 @@ from typing import TYPE_CHECKING, List, Dict, Any, Optional, Union, Callable
 
 if TYPE_CHECKING:
     from Jotty.core.intelligence.orchestration.swarm_roadmap import SwarmTaskBoard
-    from Jotty.core.modes.agent.baseic_planner import TaskPlanner
+    from Jotty.core.modes.agent.base.agentic_planner import TaskPlanner
     from Jotty.core.modes.agent.autonomous.intent_parser import IntentParser
     from Jotty.core.intelligence.memory.cortex import SwarmMemory
     from Jotty.core.intelligence.orchestration.swarm_provider_gateway import SwarmProviderGateway
@@ -146,7 +146,7 @@ def _create_task_board() -> "SwarmTaskBoard":
     return SwarmTaskBoard()
 
 def _create_planner() -> "TaskPlanner":
-    from Jotty.core.modes.agent.baseic_planner import TaskPlanner
+    from Jotty.core.modes.agent.base.agentic_planner import TaskPlanner
     return TaskPlanner()
 
 def _create_intent_parser(planner: "TaskPlanner") -> "IntentParser":
@@ -237,8 +237,8 @@ def _create_data_registry() -> "DataRegistry":
     return DataRegistry()
 
 def _create_context_guard() -> "LLMContextManager":
-    from Jotty.core.infrastructure.context.context_guard import LLMContextManager
-    return LLMContextManager()
+    from Jotty.core.infrastructure.context.context_manager import SmartContextManager
+    return SmartContextManager()
 
 def _create_learning_pipeline(config: SwarmConfig) -> "SwarmLearningPipeline":
     from Jotty.core.intelligence.orchestration.learning_pipeline import SwarmLearningPipeline
@@ -1757,6 +1757,9 @@ class Orchestrator:
         self.architect_prompts = architect_prompts or ["configs/prompts/architect/base_architect.md"]
         self.auditor_prompts = auditor_prompts or ["configs/prompts/auditor/base_auditor.md"]
 
+        # Composed AgentFactory — create BEFORE zero-config (needed for agent creation)
+        self._agent_factory = AgentFactory(self)
+
         # Zero-config: natural language -> agents
         if isinstance(agents, str) and enable_zero_config:
             logger.info("Zero-config mode: analyzing task for agent configuration")
@@ -1809,9 +1812,6 @@ class Orchestrator:
         # Model tier router: maps task complexity -> cheap/balanced/quality LM
         # Lazy-init on first use. Integrates with ValidationGate decisions.
         self._model_tier_router: Optional[ModelTierRouter] = None
-
-        # Composed AgentFactory — separates agent/runner creation from orchestration
-        self._agent_factory = AgentFactory(self)
 
         # Composed ExecutionEngine — separates task execution from management
         self._engine = ExecutionEngine(self)

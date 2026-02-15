@@ -221,7 +221,7 @@ def register_sessions_routes(app, api):
     @app.get("/api/share/session/{session_id}")
     async def get_session_share_links(session_id: str):
         """Get all share links for a session."""
-        from Jotty.core.interface.cli.repl.session import get_share_link_registry
+        from Jotty.apps.cli.repl.session import get_share_link_registry
 
         share_registry = get_share_link_registry()
         links = share_registry.get_session_links(session_id)
@@ -234,7 +234,7 @@ def register_sessions_routes(app, api):
     @app.post("/api/sessions/temporary")
     async def create_temporary_session(request: CreateTempSessionRequest = None):
         """Create a temporary (ephemeral) chat session."""
-        from Jotty.core.interface.cli.repl.session import SessionManager, InterfaceType
+        from Jotty.apps.cli.repl.session import SessionManager, InterfaceType
 
         expiry_days = (request.expiry_days if request else None) or 30
         session = SessionManager(
@@ -252,7 +252,7 @@ def register_sessions_routes(app, api):
     @app.post("/api/sessions/{session_id}/temporary")
     async def toggle_session_temporary(session_id: str, is_temporary: bool, expiry_days: Optional[int] = 30):
         """Toggle temporary mode for a session."""
-        from Jotty.core.interface.cli.repl.session import get_session_registry
+        from Jotty.apps.cli.repl.session import get_session_registry
 
         registry = get_session_registry()
         session = registry.get_session(session_id, create=False)
@@ -276,7 +276,7 @@ def register_sessions_routes(app, api):
     @app.post("/api/sessions/cleanup")
     async def cleanup_expired_sessions():
         """Clean up expired temporary sessions."""
-        from Jotty.core.interface.cli.repl.session import SessionManager
+        from Jotty.apps.cli.repl.session import SessionManager
 
         deleted = SessionManager.cleanup_expired_sessions()
 
@@ -289,7 +289,7 @@ def register_sessions_routes(app, api):
     @app.get("/api/sessions")
     async def list_all_sessions(include_temporary: bool = False, include_expired: bool = False):
         """List all available sessions with filters."""
-        from Jotty.core.interface.cli.repl.session import SessionManager
+        from Jotty.apps.cli.repl.session import SessionManager
 
         session_manager = SessionManager()
         sessions = session_manager.list_sessions(

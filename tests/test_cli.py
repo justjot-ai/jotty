@@ -21,7 +21,7 @@ class TestCLICommands:
     @pytest.fixture
     def cli(self):
         """Create CLI instance."""
-        from Jotty.core.interface.cli.app import JottyCLI
+        from Jotty.apps.cli.app import JottyCLI
         return JottyCLI()
 
     @pytest.mark.asyncio
@@ -66,7 +66,7 @@ class TestMLPipeline:
 
     @pytest.fixture
     def cli(self):
-        from Jotty.core.interface.cli.app import JottyCLI
+        from Jotty.apps.cli.app import JottyCLI
         return JottyCLI()
 
     @pytest.mark.asyncio
@@ -91,7 +91,7 @@ class TestFileOperations:
 
     @pytest.fixture
     def cli(self):
-        from Jotty.core.interface.cli.app import JottyCLI
+        from Jotty.apps.cli.app import JottyCLI
         return JottyCLI()
 
     @pytest.mark.asyncio
@@ -118,7 +118,7 @@ class TestResearch:
 
     @pytest.fixture
     def cli(self):
-        from Jotty.core.interface.cli.app import JottyCLI
+        from Jotty.apps.cli.app import JottyCLI
         return JottyCLI()
 
     @pytest.mark.asyncio
@@ -135,7 +135,7 @@ class TestSessionManagement:
 
     @pytest.fixture
     def cli(self):
-        from Jotty.core.interface.cli.app import JottyCLI
+        from Jotty.apps.cli.app import JottyCLI
         return JottyCLI()
 
     @pytest.mark.asyncio
@@ -150,7 +150,7 @@ class TestWorkflowIntegration:
 
     @pytest.fixture
     def cli(self):
-        from Jotty.core.interface.cli.app import JottyCLI
+        from Jotty.apps.cli.app import JottyCLI
         return JottyCLI()
 
     @pytest.mark.asyncio
@@ -177,8 +177,8 @@ class TestCommandRegistry:
 
     def test_commands_registered(self):
         """Test all commands are registered."""
-        from Jotty.core.interface.cli.commands import register_all_commands
-        from Jotty.core.interface.cli.commands.base import CommandRegistry
+        from Jotty.apps.cli.commands import register_all_commands
+        from Jotty.apps.cli.commands.base import CommandRegistry
 
         registry = CommandRegistry()
         register_all_commands(registry)
@@ -194,8 +194,8 @@ class TestCommandRegistry:
 
     def test_aliases_work(self):
         """Test command aliases resolve correctly."""
-        from Jotty.core.interface.cli.commands import register_all_commands
-        from Jotty.core.interface.cli.commands.base import CommandRegistry
+        from Jotty.apps.cli.commands import register_all_commands
+        from Jotty.apps.cli.commands.base import CommandRegistry
 
         registry = CommandRegistry()
         register_all_commands(registry)
@@ -212,9 +212,9 @@ class TestCompleter:
 
     def test_command_completions(self):
         """Test command completions."""
-        from Jotty.core.interface.cli.commands import register_all_commands
-        from Jotty.core.interface.cli.commands.base import CommandRegistry
-        from Jotty.core.interface.cli.repl.completer import CommandCompleter
+        from Jotty.apps.cli.commands import register_all_commands
+        from Jotty.apps.cli.commands.base import CommandRegistry
+        from Jotty.apps.cli.repl.completer import CommandCompleter
         from prompt_toolkit.document import Document
 
         registry = CommandRegistry()
@@ -228,9 +228,9 @@ class TestCompleter:
 
     def test_ml_dataset_completions(self):
         """Test ML dataset completions."""
-        from Jotty.core.interface.cli.commands import register_all_commands
-        from Jotty.core.interface.cli.commands.base import CommandRegistry
-        from Jotty.core.interface.cli.repl.completer import CommandCompleter
+        from Jotty.apps.cli.commands import register_all_commands
+        from Jotty.apps.cli.commands.base import CommandRegistry
+        from Jotty.apps.cli.repl.completer import CommandCompleter
         from prompt_toolkit.document import Document
 
         registry = CommandRegistry()
@@ -252,7 +252,7 @@ class TestAPIServer:
     def test_api_server_creation(self):
         """Test API server can be created."""
         try:
-            from Jotty.core.interface.cli.api import JottyAPIServer
+            from Jotty.apps.cli.api import JottyAPIServer
             server = JottyAPIServer()
             assert server.port == 8765
         except ImportError:
@@ -261,7 +261,7 @@ class TestAPIServer:
     def test_api_app_creation(self):
         """Test FastAPI app can be created."""
         try:
-            from Jotty.core.interface.cli.api import JottyAPIServer
+            from Jotty.apps.cli.api import JottyAPIServer
             server = JottyAPIServer()
             app = server.create_app()
             assert app is not None

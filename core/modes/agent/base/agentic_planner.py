@@ -195,7 +195,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
         """
         import os
 
-        from ..foundation.config_defaults import LLM_PLANNING_MAX_TOKENS
+        from Jotty.core.infrastructure.foundation.config_defaults import LLM_PLANNING_MAX_TOKENS
 
         # 1. Try Gemini Flash via OpenRouter (35% faster than Haiku, 8x cheaper)
         or_key = os.environ.get('OPENROUTER_API_KEY')
