@@ -1,0 +1,52 @@
+name: messaging-tools
+version: 1.0.0
+description: |
+  Multi-channel messaging and delivery utilities.
+
+  Provides message delivery across multiple channels (Telegram, WhatsApp,
+  Email, Slack, Discord, Notion) through OutputChannelManager which
+  orchestrates individual messaging skills.
+
+category: communication
+tags:
+  - messaging
+  - telegram
+  - whatsapp
+  - email
+  - slack
+  - discord
+  - delivery
+
+capabilities:
+  - Send messages via Telegram
+  - Send messages via WhatsApp
+  - Send emails
+  - Send Slack messages
+  - Send Discord messages
+  - Post to Notion
+  - Multi-channel batch delivery
+
+dependencies:
+  skills:
+    - telegram-sender    # Telegram delivery
+    - whatsapp          # WhatsApp delivery
+    - email skills      # Email delivery
+    - slack skills      # Slack delivery
+
+usage: |
+  from Jotty.skills.messaging_tools import OutputChannelManager, OutputChannel
+
+  manager = OutputChannelManager()
+
+  # Single channel
+  result = manager.send_to_telegram(
+      file_path="report.pdf",
+      caption="Check this out!"
+  )
+
+  # Multiple channels
+  results = manager.send_to_all(
+      file_path="report.pdf",
+      channels=["telegram", "whatsapp"],
+      caption="New report"
+  )

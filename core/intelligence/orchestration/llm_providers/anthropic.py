@@ -14,7 +14,7 @@ from .types import LLMResponse, TextBlock, ToolUseBlock
 
 
 def _get_client_kwargs(api_key: Optional[str] = None) -> Any:
-    from Jotty.core.infrastructure.foundation.anthropic_client_kwargs import (
+    from Jotty.core.infrastructure.foundation.direct_anthropic_lm import (
         get_anthropic_client_kwargs,
     )
 

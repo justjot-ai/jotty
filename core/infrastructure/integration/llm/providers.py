@@ -191,7 +191,7 @@ class AnthropicAPIProvider:
                 model=model,
             )
 
-        from Jotty.core.infrastructure.foundation.anthropic_client_kwargs import (
+        from Jotty.core.infrastructure.foundation.direct_anthropic_lm import (
             get_anthropic_client_kwargs,
         )
 

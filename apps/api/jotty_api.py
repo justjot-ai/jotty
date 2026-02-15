@@ -155,7 +155,7 @@ class JottyAPI:
             )
 
             # Try Anthropic SDK directly (best for vision); respects ANTHROPIC_BASE_URL (CCR)
-            from Jotty.core.infrastructure.foundation.anthropic_client_kwargs import (
+            from Jotty.core.infrastructure.foundation.direct_anthropic_lm import (
                 get_anthropic_client_kwargs,
             )
 

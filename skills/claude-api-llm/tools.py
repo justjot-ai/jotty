@@ -77,7 +77,7 @@ class ClaudeAPIClient:
         except ImportError:
             pass
 
-        from Jotty.core.infrastructure.foundation.anthropic_client_kwargs import (
+        from Jotty.core.infrastructure.foundation.direct_anthropic_lm import (
             get_anthropic_client_kwargs,
         )
         from Jotty.core.infrastructure.foundation.config_defaults import MODEL_SONNET

@@ -1,0 +1,48 @@
+name: document-tools
+version: 1.0.0
+description: |
+  Document generation and format conversion utilities.
+
+  Provides multi-format document generation (PDF, EPUB, HTML, DOCX, PPTX)
+  through OutputFormatManager which orchestrates individual document skills.
+
+category: productivity
+tags:
+  - documents
+  - pdf
+  - epub
+  - html
+  - conversion
+  - formatting
+
+capabilities:
+  - Generate PDF documents from Markdown
+  - Generate EPUB ebooks with chapters
+  - Generate HTML documents
+  - Generate DOCX documents
+  - Generate presentations (PPTX)
+  - Multi-format batch generation
+
+dependencies:
+  skills:
+    - document-converter  # Core conversion engine
+    - pdf-tools          # PDF generation
+    - epub-builder       # EPUB generation
+    - presenton          # Presentation generation
+
+usage: |
+  from Jotty.skills.document_tools import OutputFormatManager, OutputFormat
+
+  manager = OutputFormatManager()
+
+  # Single format
+  result = manager.generate_pdf(
+      markdown_path="content.md",
+      title="My Report"
+  )
+
+  # Multiple formats
+  results = manager.generate_all(
+      markdown_path="content.md",
+      formats=["pdf", "epub", "html"]
+  )
