@@ -204,41 +204,26 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
 
         from Jotty.core.infrastructure.foundation.config_defaults import LLM_PLANNING_MAX_TOKENS
 
-        # 1. Try Gemini Flash via OpenRouter (35% faster than Haiku, 8x cheaper)
-        or_key = os.environ.get("OPENROUTER_API_KEY")
-        if or_key:
+        # Use global LM singleton (shared across all components)
+        try:
+            from Jotty.core.infrastructure.foundation.llm_singleton import get_global_lm
+
+            # Try to use Haiku for fast planning/routing
+            self._fast_lm = get_global_lm(provider="anthropic", model="claude-haiku-4-5-20251001")
+            self._fast_model = "haiku"
+            logger.info(f"Fast LM: Using global LM (routing/classification)")
+        except Exception as e:
+            logger.warning(f"Could not get global LM for planning: {e}")
+            # Fallback: try global LM without specifying model
             try:
-                import dspy
+                from Jotty.core.infrastructure.foundation.llm_singleton import get_global_lm
 
-                self._fast_lm = dspy.LM(
-                    "openrouter/google/gemini-2.0-flash-001",
-                    api_key=or_key,
-                    max_tokens=LLM_PLANNING_MAX_TOKENS,
-                )
-                self._fast_model = "gemini-2.0-flash"
-                logger.info(f"Fast LM: Gemini 2.0 Flash via OpenRouter (routing/classification)")
-                return
-            except Exception as e:
-                logger.debug(f"Gemini Flash not available: {e}")
-
-        # 2. Try DirectAnthropicLM Haiku (fast, reliable)
-        if os.environ.get("ANTHROPIC_API_KEY"):
-            try:
-                from ..foundation.direct_anthropic_lm import DirectAnthropicLM
-
-                self._fast_lm = DirectAnthropicLM(
-                    model="haiku",
-                    max_tokens=LLM_PLANNING_MAX_TOKENS,
-                )
-                self._fast_model = "haiku"
-                logger.info(f"Fast LM: Anthropic Haiku (routing/classification)")
-                return
-            except Exception as e:
-                logger.debug(f"DirectAnthropicLM Haiku not available: {e}")
-
-        # 3. Fallback: use whatever DSPy has configured (Sonnet)
-        self._fast_lm = None
-        logger.info(f"Fast LM: using default DSPy LM (no dedicated routing model)")
+                self._fast_lm = get_global_lm()
+                self._fast_model = "default"
+                logger.info(f"Fast LM: Using global LM default model")
+            except Exception as e2:
+                logger.warning(f"Global LM not available: {e2}")
+                self._fast_lm = None
 
     def _call_with_retry(
         self,

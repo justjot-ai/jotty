@@ -14,7 +14,7 @@ async def test_command_handling():
     """Test command handling logic."""
     from apps.shared import ChatInterface
     from apps.shared.renderers import TelegramMessageRenderer, TelegramStatusRenderer
-    from apps.telegram.bot_migrated import TelegramBotMigrated
+    from apps.telegram.bot import JottyTelegramBot
 
     messages_sent = []
 
@@ -31,7 +31,7 @@ async def test_command_handling():
     )
 
     # Create bot
-    bot = TelegramBotMigrated()
+    bot = JottyTelegramBot()
 
     # Test each command
     commands = [

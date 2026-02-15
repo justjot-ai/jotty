@@ -2,8 +2,8 @@
 # Restart Telegram Bot
 
 echo "Stopping old Telegram bot..."
-pkill -f "bot_migrated"
+pkill -f "apps.telegram.bot"
 sleep 2
 
 echo "Starting Telegram bot..."
-./start_telegram_bot_full.sh
+./start_telegram_bot.sh

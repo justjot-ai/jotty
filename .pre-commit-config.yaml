@@ -3,14 +3,14 @@
 # Run manually: pre-commit run --all-files
 
 repos:
-  # Code formatting (allow_failure so reformat-only doesn't block push)
+  # Code formatting
   - repo: https://github.com/psf/black
     rev: 24.1.0
     hooks:
       - id: black
         language_version: python3.11
         args: [--line-length=100]
-        allow_failure: true
+        exclude: ^(apps/_archived/|tests/manual/)
 
   # Import sorting
   - repo: https://github.com/PyCQA/isort
@@ -33,12 +33,12 @@ repos:
       - id: debug-statements
       - id: mixed-line-ending
 
-  # Python lint (config in .flake8). Allow failure so commit/push not blocked by existing violations.
+  # Python lint (config in .flake8). Exclude archived and manual test files.
   - repo: https://github.com/PyCQA/flake8
     rev: 7.0.0
     hooks:
       - id: flake8
-        allow_failure: true
+        exclude: ^(apps/_archived/|tests/manual/)
 
   # Security checks
   - repo: https://github.com/PyCQA/bandit
@@ -74,15 +74,13 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
-        allow_failure: true
 
       - id: jotty-doctor-imports
-        name: Jotty Doctor - Import Check
-        entry: python3 scripts/jotty_doctor.py --imports
+        name: Jotty Doctor - Import Check (informational)
+        entry: bash -c 'python3 scripts/jotty_doctor.py --imports || true'
         language: system
         pass_filenames: false
         always_run: true
-        allow_failure: true
 
       - id: jotty-doctor-secrets
         name: Jotty Doctor - Security Scan

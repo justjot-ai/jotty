@@ -138,24 +138,31 @@ Claude CLI → Cursor CLI → Anthropic API → OpenRouter → OpenAI → Groq
 
 ```
 Jotty/
-├── cli/                    # CLI application
-│   ├── app.py              # JottyCLI main class
-│   ├── gateway/            # UnifiedGateway + ChannelRouter
-│   ├── commands/           # Slash commands
-│   └── config/             # CLI configuration
-├── core/
-│   ├── orchestration/v2/   # Orchestrator, AgentRunner, LeanExecutor
-│   ├── agents/             # TaskPlanner, AutoAgent, ValidatorAgent
-│   ├── memory/             # MemoryCortex (5-level)
-│   ├── learning/           # TD-Lambda, credit assignment
-│   ├── registry/           # UnifiedRegistry, Skills, UI
-│   └── foundation/         # Config, exceptions, data structures
+├── apps/                   # Applications
+│   ├── cli/                # CLI application
+│   ├── telegram/           # Telegram bot
+│   ├── web/                # Web app (frontend + backend)
+│   └── shared/             # Shared UI components
+├── core/                   # Core framework
+│   ├── interface/          # Entry points & APIs
+│   ├── modes/              # Execution modes (agent, workflow)
+│   ├── capabilities/       # Skills & registry
+│   ├── intelligence/       # Learning, memory, orchestration, swarms
+│   └── infrastructure/     # Foundation, utils, context, monitoring
+├── sdk/                    # Public SDK
 ├── skills/                 # 273 skill definitions
-├── layers/                 # Layer-based imports
-├── docs/                   # Architecture documentation
-│   ├── JOTTY_ARCHITECTURE.md
-│   └── JOTTY_V2_ARCHITECTURE.md
-└── web.py                  # Web server entry point
+├── scripts/                # Development & deployment scripts
+│   ├── telegram/           # Telegram bot scripts
+│   └── *.py                # Development utilities
+├── tests/                  # Test suite
+│   └── manual/             # Manual test scripts
+├── docs/                   # Documentation
+│   ├── guides/             # User guides
+│   ├── reports/            # Project reports
+│   └── *.md                # Architecture docs
+├── web.py                  # Web server entry point
+├── jotty.py                # Legacy entry point
+└── README.md               # This file
 ```
 
 ## Execution Flow
@@ -214,9 +221,32 @@ python docs/scripts/verify_architecture.py
 
 ## Documentation
 
+### Architecture
 - [Full Architecture](docs/JOTTY_ARCHITECTURE.md)
 - [V2 Architecture Diagrams](docs/JOTTY_V2_ARCHITECTURE.md)
 - [Component Relationships](docs/ARCHITECTURE_INTERLINKED.md)
+
+### User Guides
+- [Testing All Platforms](docs/guides/TEST_ALL_PLATFORMS.md)
+- [Telegram Bot Setup](docs/guides/RUN_TELEGRAM_BOT.md)
+- [Telegram Commands](docs/guides/TELEGRAM_BOT_COMMANDS.md)
+- [Web App Setup](docs/guides/WEB_APP_SETUP.md)
+- [Platform Architecture](docs/guides/PLATFORMS_MODES_MODALITIES.md)
+
+### Project Reports
+- [LLM Consolidation](docs/reports/LLM_CONSOLIDATION_COMPLETE.md)
+- [Naming Cleanup](docs/reports/NAMING_CLEANUP_COMPLETE.md)
+- [Platform Status](docs/reports/PLATFORMS_STATUS.md)
+- [All Reports](docs/reports/README.md)
+
+### Scripts
+- [Telegram Bot Scripts](scripts/telegram/README.md)
+- [Test All Platforms](scripts/test_all.sh)
+- [Development Scripts](scripts/README.md)
+
+### Testing
+- [Manual Tests](tests/manual/README.md)
+- [Automated Tests](tests/README.md)
 
 ## License
 

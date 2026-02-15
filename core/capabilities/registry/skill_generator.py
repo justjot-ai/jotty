@@ -72,29 +72,20 @@ class SkillGenerator:
         self.skills_dir.mkdir(parents=True, exist_ok=True)
         self.skills_registry = skills_registry  # For auto-reload after generation
 
-        # Use provided LM or get from DSPy configuration (same approach as supervisor)
+        # Use provided LM or get global LM singleton
         if lm:
             self.lm = lm
         else:
-            # Try to get from DSPy configuration (may already be configured)
             try:
-                self.lm = dspy.LM()
-            except Exception:
-                self.lm = None
+                from Jotty.core.infrastructure.foundation.llm_singleton import get_global_lm
 
-            # If not configured, use UnifiedLMProvider (same as supervisor)
-            if self.lm is None:
-                try:
-                    from ..foundation.unified_lm_provider import UnifiedLMProvider
-
-                    self.lm = UnifiedLMProvider.configure_default_lm()
-                    logger.info(" SkillGenerator using unified LLM provider (auto-detected)")
-                except Exception as e:
-                    logger.warning(f" Could not configure unified LM provider: {e}")
-                    raise ValueError(
-                        "No LLM available. Provide 'lm' parameter or ensure DSPy is configured with "
-                        "UnifiedLMProvider.configure_default_lm()"
-                    )
+                self.lm = get_global_lm()
+                logger.info("SkillGenerator using global LM singleton")
+            except Exception as e:
+                logger.warning(f"Could not get global LM: {e}")
+                raise ValueError(
+                    "No LLM available. Provide 'lm' parameter or ensure global LM is initialized"
+                )
 
     def generate_skill(
         self,

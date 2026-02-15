@@ -59,7 +59,9 @@ def _ensure_dspy_lm() -> None:
         return
     try:
         if dspy.settings.lm is None:
-            lm = dspy.LM("anthropic/claude-haiku-4-5-20251001")
+            from Jotty.core.infrastructure.foundation.llm_singleton import get_global_lm
+
+            lm = get_global_lm(provider="anthropic", model="claude-haiku-4-5-20251001")
             dspy.configure(lm=lm)
         _dspy_lm_configured = True
     except Exception:

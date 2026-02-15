@@ -62,8 +62,8 @@ class DirectChatExecutor:
             DirectChatResult with LLM response
         """
         try:
-            # Get LLM provider
-            provider = self._get_provider()
+            # Get global LLM instance
+            lm = self._get_provider()
 
             # Simple system prompt
             system_prompt = (
@@ -71,25 +71,24 @@ class DirectChatExecutor:
                 "For greetings, be friendly and brief. For questions, give clear answers."
             )
 
-            # Make single LLM call
-            response = await provider.chat_completion(
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": message}
-                ],
-                model=self.model,
-                max_tokens=500,  # Keep it short for simple queries
-                temperature=0.7,
-            )
+            # Build prompt for DSPy
+            prompt = f"{system_prompt}\n\nUser: {message}\n\nAssistant:"
 
-            # Extract content
-            content = response.get("content", "")
-            if isinstance(content, list) and content:
-                content = content[0].get("text", str(content))
+            # Make single LLM call using DSPy format
+            response = lm(prompt=prompt, temperature=0.7, max_tokens=500)
 
-            tokens = response.get("usage", {}).get("total_tokens", 0)
+            # Extract content from DSPy response
+            if isinstance(response, list) and response:
+                content = response[0]
+            elif isinstance(response, dict):
+                content = response.get("choices", [{}])[0].get("text", str(response))
+            else:
+                content = str(response)
 
-            logger.info(f"Direct chat completed: {len(content)} chars, {tokens} tokens")
+            # Estimate tokens (DSPy doesn't always return usage)
+            tokens = len(prompt.split()) + len(content.split())
+
+            logger.info(f"Direct chat completed: {len(content)} chars, ~{tokens} tokens")
 
             return DirectChatResult(
                 success=True,
@@ -107,11 +106,10 @@ class DirectChatExecutor:
             )
 
     def _get_provider(self) -> Any:
-        """Get LLM provider."""
+        """Get global LLM instance (shared across all components)."""
         if self._provider is None:
-            # Use the Jotty Claude provider
-            from Jotty.core.infrastructure.foundation.jotty_claude_provider import (
-                JottyClaudeProvider,
-            )
-            self._provider = JottyClaudeProvider()
+            from Jotty.core.infrastructure.foundation.llm_singleton import get_global_lm
+
+            self._provider = get_global_lm(provider="anthropic", model=self.model)
+            logger.info(f"DirectChatExecutor: Using global LLM (model={self.model})")
         return self._provider

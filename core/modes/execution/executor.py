@@ -482,13 +482,15 @@ class TierExecutor:
                 scratchpad=scratchpad,
             )
 
-            # Inject DSPy LM so validation works without global dspy.configure()
+            # Inject global LM so validation works
             try:
-                import dspy
+                from Jotty.core.infrastructure.foundation.llm_singleton import get_global_lm
 
-                auditor._dspy_lm = dspy.LM(model="anthropic/claude-haiku-4-5-20251001")
+                auditor._dspy_lm = get_global_lm(
+                    provider="anthropic", model="claude-haiku-4-5-20251001"
+                )
             except Exception as lm_err:
-                logger.debug(f"Could not inject DSPy LM into auditor: {lm_err}")
+                logger.debug(f"Could not inject global LM into auditor: {lm_err}")
 
             return MultiRoundValidator([auditor], swarm_config)
         except (ImportError, ConfigurationError) as e:

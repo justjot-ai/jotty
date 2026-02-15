@@ -252,7 +252,7 @@ async def main():
             "\n[bold green]🎉 All tests passed! Shared components work correctly.[/bold green]"
         )
         console.print("\n[yellow]Next steps:[/yellow]")
-        console.print("1. Run: python -m apps.cli.app_migrated")
+        console.print("1. Run: python -m apps.cli")
         console.print("2. Try basic chat and commands (/help, /status, /clear)")
         console.print("3. See docs/shared/TUI_FEATURE_COMPARISON.md for full details")
     else:

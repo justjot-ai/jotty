@@ -15,16 +15,16 @@ AttributeError: 'Jotty' object has no attribute 'chat_stream'
 ```
 
 **Root Cause:**
-- `app_migrated.py` was calling `sdk.chat_stream()` which doesn't exist
+- `app.py` was calling `sdk.chat_stream()` which doesn't exist
 - The SDK method is `stream()`, not `chat_stream()`
 
 **Fix:**
-- Updated `apps/cli/app_migrated.py` line 152
+- Updated `apps/cli/app.py` line 152
 - Changed: `async for event in self.sdk.chat_stream(user_input):`
 - To: `async for event in self.sdk.stream(user_input):`
 
 **File Changed:**
-- `apps/cli/app_migrated.py`
+- `apps/cli/app.py`
 
 **Test:**
 ```bash
@@ -146,7 +146,7 @@ Send to Telegram bot:
 ## What Changed
 
 ### Code Changes:
-1. **apps/cli/app_migrated.py** - Line 152: `chat_stream` → `stream`
+1. **apps/cli/app.py** - Line 152: `chat_stream` → `stream`
 2. **apps/shared/renderers/telegram_renderer.py** - Improved MarkdownV2 escaping
 3. **apps/web/frontend/.env.development** - New file for host configuration
 

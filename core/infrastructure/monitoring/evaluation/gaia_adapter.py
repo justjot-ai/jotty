@@ -338,15 +338,17 @@ class JottyGAIAAdapter:
                         key, _, value = line.partition("=")
                         os.environ.setdefault(key.strip(), value.strip())
 
-            # Configure DSPy to use Anthropic API directly (not Claude CLI)
+            # Configure DSPy to use global LM singleton
             # to avoid "cannot be launched inside another Claude Code session" errors
             try:
                 import dspy
 
-                api_lm = dspy.LM("anthropic/claude-sonnet-4-20250514")
+                from Jotty.core.infrastructure.foundation.llm_singleton import get_global_lm
+
+                api_lm = get_global_lm(provider="anthropic", model="claude-sonnet-4-20250514")
                 dspy.configure(lm=api_lm)
             except Exception as e:
-                logger.debug(f"DSPy API LM configuration: {e}")
+                logger.debug(f"DSPy global LM configuration: {e}")
 
             from Jotty.jotty import Jotty
 

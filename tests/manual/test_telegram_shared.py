@@ -227,7 +227,7 @@ def main():
         console.print("\n[bold green]🎉 All tests passed![/bold green]")
         console.print("\n[yellow]Ready to test Telegram bot:[/yellow]")
         console.print("1. Make sure TELEGRAM_TOKEN is set in .env")
-        console.print("2. Run: python -m apps.telegram.bot_migrated")
+        console.print("2. Run: python -m apps.telegram.bot")
         console.print("3. Send /start to your bot on Telegram")
         console.print("4. Try chatting and commands")
     else:

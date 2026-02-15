@@ -164,7 +164,7 @@ A **world-class shared UI component architecture** that provides consistent chat
 - **Total Renderers: ~870 lines**
 
 **Platform Integration:**
-- `apps/cli/app_migrated.py` - 150 lines
+- `apps/cli/app.py` - 150 lines
 - `apps/telegram/bot (using shared)` - 80 lines
 - `apps/web/ChatInterface.tsx` - 100 lines
 - **Total Integration: ~330 lines**
@@ -198,7 +198,7 @@ A **world-class shared UI component architecture** that provides consistent chat
 - [x] Move all docs to docs/shared/
 
 ### Phase 3: Migration Examples ✅ COMPLETE
-- [x] app_migrated.py (CLI migration example)
+- [x] app.py (CLI migration example)
 - [x] client_shared.py (WhatsApp migration example)
 - [x] Web integration example (in MIGRATION_GUIDE.md)
 

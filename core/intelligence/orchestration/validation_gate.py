@@ -392,96 +392,26 @@ class ValidationGate:
 
     def _init_lm(self) -> bool:
         """
-        Lazy-init the cheapest available LM.
+        Initialize LM using global singleton provider.
 
-        Tries in order of cost/speed:
-            1. Gemini 2.0 Flash via OpenRouter — fastest, cheapest
-            2. DirectAnthropicLM (Haiku) — fast, needs ANTHROPIC_API_KEY
-            3. LiteLLM (Groq llama-3.1-8b) — free tier, ultra-fast, needs GROQ_API_KEY
-            4. LiteLLM (any available) — fallback to whatever API key exists
+        Uses the unified LLM provider shared across all components.
+        This prevents duplicate API calls and rate limit issues.
 
         Returns True if any LM is available.
         """
-        import os
-
-        # 1. Try Gemini Flash via OpenRouter (fastest + cheapest for classification)
-        or_key = os.environ.get("OPENROUTER_API_KEY")
-        if or_key:
-            try:
-                import dspy
-
-                self._lm = dspy.LM(
-                    "openrouter/google/gemini-2.0-flash-001",
-                    api_key=or_key,
-                    max_tokens=10,
-                )
-                logger.info("ValidationGate: Gemini 2.0 Flash via OpenRouter")
-                return True
-            except Exception as e:
-                logger.debug(f"ValidationGate: Gemini Flash not available: {e}")
-
-        # 2. Try Anthropic Haiku (fast, reliable)
         try:
-            from Jotty.core.infrastructure.foundation.direct_anthropic_lm import (
-                DirectAnthropicLM,
-                is_api_key_available,
+            from Jotty.core.infrastructure.foundation.llm_singleton import get_global_lm
+
+            # Use global LLM provider (shared across all components)
+            self._lm = get_global_lm()
+            logger.info(
+                f"ValidationGate: Using global LLM provider "
+                f"(model={getattr(self._lm, 'model', 'unknown')})"
             )
-
-            if is_api_key_available():
-                self._lm = DirectAnthropicLM(model=self.model, max_tokens=10)
-                logger.info(f"ValidationGate: Haiku LM initialized ({self.model})")
-                return True
+            return True
         except Exception as e:
-            logger.debug(f"ValidationGate: Anthropic LM not available: {e}")
-
-        # 2. Try Groq (free tier, ultra-fast inference — ideal for gate)
-        if os.environ.get("GROQ_API_KEY"):
-            try:
-                import litellm
-
-                def _groq_call(prompt: str) -> list:
-                    resp = litellm.completion(
-                        model="groq/llama-3.1-8b-instant",
-                        messages=[{"role": "user", "content": prompt}],
-                        max_tokens=10,
-                        temperature=0.0,
-                    )
-                    return [resp.choices[0].message.content]
-
-                self._lm = _groq_call
-                logger.info("ValidationGate: Groq LM initialized (llama-3.1-8b)")
-                return True
-            except Exception as e:
-                logger.debug(f"ValidationGate: Groq not available: {e}")
-
-        # 3. Try any LiteLLM-compatible model
-        for key, model in [
-            ("OPENAI_API_KEY", "gpt-4o-mini"),
-            ("GEMINI_API_KEY", "gemini/gemini-2.0-flash"),
-        ]:
-            if os.environ.get(key):
-                try:
-                    import litellm
-
-                    _model = model
-
-                    def _litellm_call(prompt: str, m: Any = _model) -> list:
-                        resp = litellm.completion(
-                            model=m,
-                            messages=[{"role": "user", "content": prompt}],
-                            max_tokens=10,
-                            temperature=0.0,
-                        )
-                        return [resp.choices[0].message.content]
-
-                    self._lm = _litellm_call
-                    logger.info(f"ValidationGate: LiteLLM initialized ({model})")
-                    return True
-                except Exception as e:
-                    logger.debug(f"ValidationGate: {model} not available: {e}")
-
-        logger.info("ValidationGate: No LLM available, using heuristic fallback")
-        return False
+            logger.warning(f"ValidationGate: LLM init failed: {e}")
+            return False
 
     # =====================================================================
     # HEURISTIC FALLBACK (no LLM needed)

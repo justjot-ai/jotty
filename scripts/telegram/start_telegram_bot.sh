@@ -1,11 +1,10 @@
 #!/bin/bash
-# Start Full-Featured Telegram Bot
+# Start Jotty Telegram Bot
 
 cd /var/www/sites/personal/stock_market/Jotty
 
 echo "================================"
 echo "Starting Jotty Telegram Bot"
-echo "Full CLI Feature Parity"
 echo "================================"
 echo ""
 echo "Available commands:"
@@ -18,4 +17,4 @@ echo "Press Ctrl+C to stop"
 echo "================================"
 echo ""
 
-python -m apps.telegram.bot_migrated_full
+python -m apps.telegram.bot

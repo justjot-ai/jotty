@@ -2,13 +2,13 @@
 
 **Date:** February 15, 2026
 
-This document compares the production CLI (`apps/cli/app.py`) with the migration example (`apps/cli/app_migrated.py`) to identify what needs to be added for full feature parity.
+This document compares the production CLI (`apps/cli/app.py`) with the migration example (`apps/cli/app.py`) to identify what needs to be added for full feature parity.
 
 ---
 
 ## Current Status
 
-| Feature | Production CLI (`app.py`) | Migration Example (`app_migrated.py`) | Status |
+| Feature | Production CLI (`app.py`) | Migration Example (`app.py`) | Status |
 |---------|--------------------------|--------------------------------------|--------|
 | **Basic chat** | ✅ Full ChatExecutor | ✅ SDK streaming | ✅ **WORKS** |
 | **Markdown rendering** | ✅ RichRenderer | ✅ TerminalMessageRenderer | ✅ **WORKS** |
@@ -184,10 +184,10 @@ python -m apps.cli.app_migrated
 
 ### Option 1: Update Migration Example (Recommended)
 
-Add all missing features to `app_migrated.py`:
+Add all missing features to `app.py`:
 
 ```python
-# Add to app_migrated.py
+# Add to app.py
 
 # 1. Import full command registry
 from apps.cli.commands import register_all_commands
@@ -241,7 +241,7 @@ self.event_processor = EventProcessor(self.chat)
 
 Keep production CLI as-is for now, but verify the shared components work with a subset of features:
 
-1. Test `app_migrated.py` for core chat (works now)
+1. Test `app.py` for core chat (works now)
 2. Add top 10 most-used commands to migration example
 3. Gradually migrate production CLI later
 
