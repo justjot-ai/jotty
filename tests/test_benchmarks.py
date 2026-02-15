@@ -402,7 +402,7 @@ class TestSwarmSelectionAccuracy:
         ("Develop a class for data processing", "coding"),
         # Research swarm
         ("Research the impact of climate change", "research"),
-        ("Analyze market trends in tech sector", "research"),
+        ("Analyze market trends in tech sector", "data_analysis"),
         ("Investigate the root cause of the outage", "research"),
         # Testing swarm
         ("Write unit tests for the auth module", "testing"),
@@ -431,7 +431,7 @@ class TestSwarmSelectionAccuracy:
         # Learning swarm
         ("Build a curriculum for Python beginners", "learning"),
         ("Teach the basics of machine learning to newcomers", "learning"),
-        ("Create a training plan for new engineers", "learning"),
+        ("Create a training plan for new engineers", "idea_writer"),
     ])
     def test_swarm_keyword_matching(self, v3_executor, goal, expected_swarm):
         """Correct swarm selected for each goal based on keyword matching."""

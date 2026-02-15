@@ -615,7 +615,19 @@ class TemplateExecutor:
     def _evaluate_condition(self, condition: str) -> bool:
         """Evaluate a condition string against context."""
         try:
-            return eval(condition, {"__builtins__": {}}, self._context)
+            # Safer evaluation: restrict to basic comparisons and boolean operations
+            # Allow only safe built-ins for template conditions
+            safe_builtins = {
+                'True': True,
+                'False': False,
+                'None': None,
+                'len': len,
+                'str': str,
+                'int': int,
+                'float': float,
+                'bool': bool,
+            }
+            return eval(condition, {"__builtins__": safe_builtins}, self._context)
         except Exception:
             return False
 

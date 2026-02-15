@@ -271,7 +271,9 @@ class SandboxManager:
             # Create execution namespace with context
             namespace = dict(context)
 
-            # Execute code
+            # Execute code (SECURITY: Only reaches here for TrustLevel.TRUSTED code)
+            # TRUSTED code includes built-in Jotty skills and verified packages
+            # All user/generated code goes through Docker/E2B sandboxes
             exec(code, namespace)
 
             # Extract result (look for 'result' variable)

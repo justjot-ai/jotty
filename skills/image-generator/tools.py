@@ -3,7 +3,7 @@ image-generator Skill Tools — Generate images using open-source models.
 """
 from typing import Any, Dict
 
-from core.utils.skill_helpers import tool_wrapper, tool_response, tool_error
+from Jotty.core.utils.tool_helpers import tool_wrapper, tool_response, tool_error
 
 
 @tool_wrapper(required_params=["prompt"])
