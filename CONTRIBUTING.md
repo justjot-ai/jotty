@@ -90,7 +90,9 @@ git commit -m "feat: add new feature
 **If pre-commit blocks your commit (black, flake8, import-linter, etc.):**
 
 - Hooks with `allow_failure: true` (black, flake8, import-linter, jotty-doctor-imports) will **not** block the commit; they only report. Your commit will succeed.
-- If something still blocks: run `black .` and `isort .`, then `git add -A` and commit again.
+- If **trailing-whitespace** or **fix end of files** modified files: run `git add -A` and commit again (they fixed the files on disk).
+- If **black** or **isort** reformatted files: run `git add -A` and commit again.
+- If something else blocks: run `black .` and `isort .`, then `git add -A` and commit again.
 - To skip hooks once (emergency): `git commit --no-verify -m "your message"`. Prefer fixing the reported issues when you can.
 
 ### 6. Push and Create PR
