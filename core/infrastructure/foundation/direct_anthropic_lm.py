@@ -57,8 +57,6 @@ def reset_cost_tracker() -> None:
     _cost_tracker = None
 
 
-from Jotty.core.infrastructure.foundation.anthropic_client_kwargs import get_anthropic_client_kwargs
-
 # Model name mapping — centralized in config_defaults
 from Jotty.core.infrastructure.foundation.config_defaults import (
     LLM_TEMPERATURE,
@@ -67,6 +65,31 @@ from Jotty.core.infrastructure.foundation.config_defaults import (
     MODEL_OPUS,
     MODEL_SONNET,
 )
+
+# ============================================================================
+# Anthropic Client Configuration
+# ============================================================================
+
+
+def get_anthropic_client_kwargs(api_key: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Build kwargs for anthropic.Anthropic(**kwargs) / AsyncAnthropic(**kwargs).
+
+    - api_key: from param, or ANTHROPIC_API_KEY, or ANTHROPIC_AUTH_TOKEN (CCR).
+    - base_url: from ANTHROPIC_BASE_URL when set (e.g. CCR at http://127.0.0.1:3456).
+
+    Returns:
+        Dict to pass as **kwargs to Anthropic() / AsyncAnthropic().
+    """
+    key = api_key or os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")
+    kwargs: Dict[str, Any] = {}
+    if key:
+        kwargs["api_key"] = key
+    base = os.environ.get("ANTHROPIC_BASE_URL")
+    if base:
+        kwargs["base_url"] = base.rstrip("/")
+    return kwargs
+
 
 MODEL_MAP = {
     "haiku": MODEL_HAIKU,

@@ -742,7 +742,7 @@ Maximum 500 words, extremely clear and actionable.""",
 
         # Generate outputs using OutputFormatManager
         try:
-            from .output_formats import OutputFormatManager
+            from Jotty.skills.document_tools import OutputFormatManager
 
             manager = OutputFormatManager(output_dir=str(output_path))
             outputs = manager.generate_all(

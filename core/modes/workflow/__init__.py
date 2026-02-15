@@ -10,6 +10,15 @@ Three Domain-Specific Workflows:
 3. LearningWorkflow - Educational content (K-12 to Olympiad)
 """
 
+from Jotty.core.infrastructure.outputs import (
+    ChannelDeliveryResult,
+    OutputChannel,
+    OutputChannelManager,
+    OutputFormat,
+    OutputFormatManager,
+    OutputFormatResult,
+)
+
 from .auto_workflow import AutoWorkflow, WorkflowIntent, build, develop
 from .auto_workflow import research as research_stage  # Rename to avoid conflict
 from .learning_workflow import (
@@ -20,8 +29,6 @@ from .learning_workflow import (
     Subject,
     learn,
 )
-from .output_channels import ChannelDeliveryResult, OutputChannel, OutputChannelManager
-from .output_formats import OutputFormat, OutputFormatManager, OutputFormatResult
 from .research_workflow import (
     ResearchDepth,
     ResearchIntent,

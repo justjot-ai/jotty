@@ -11,6 +11,17 @@ Four Domain-Specific Workflows:
 4. AutoMLWorkflow - Machine learning pipelines (AutoML)
 """
 
+from Jotty.skills.document_tools import (
+    OutputFormat,
+    OutputFormatManager,
+    OutputFormatResult,
+)
+from Jotty.skills.messaging_tools import (
+    ChannelDeliveryResult,
+    OutputChannel,
+    OutputChannelManager,
+)
+
 from .auto_workflow import AutoWorkflow, WorkflowIntent, build, develop
 from .auto_workflow import research as research_stage  # Rename to avoid conflict
 from .automl_workflow import (
@@ -28,8 +39,6 @@ from .learning_workflow import (
     Subject,
     learn,
 )
-from .output_channels import ChannelDeliveryResult, OutputChannel, OutputChannelManager
-from .output_formats import OutputFormat, OutputFormatManager, OutputFormatResult
 from .research_workflow import (
     ResearchDepth,
     ResearchIntent,

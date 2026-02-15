@@ -743,7 +743,7 @@ Perfect for review before test.""",
 
         # Generate outputs using OutputFormatManager
         try:
-            from .output_formats import OutputFormatManager
+            from Jotty.skills.document_tools import OutputFormatManager
 
             manager = OutputFormatManager(output_dir=str(output_path))
 
