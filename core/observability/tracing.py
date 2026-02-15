@@ -348,7 +348,7 @@ except ImportError:
 
 class SpanWrapper:
     """Wrapper for OpenTelemetry spans to add custom methods."""
-    def __init__(self, span: Any):
+    def __init__(self, span: Any) -> None:
         self._span = span
 
     def __enter__(self) -> SpanWrapper:

@@ -73,7 +73,7 @@ class PipelineResult:
                 return stage
         return None
 
-    def print_summary(self, verbose: bool = True):
+    def print_summary(self, verbose: bool = True) -> Any:
         """Print formatted pipeline summary."""
         print("\n" + "="*80)
         print("MULTI-STAGE PIPELINE RESULTS")
@@ -122,11 +122,7 @@ class MultiStagePipeline:
         result.print_summary()
     """
 
-    def __init__(
-        self,
-        task: str,
-        coordinator: Optional[MultiSwarmCoordinator] = None
-    ):
+    def __init__(self, task: str, coordinator: Optional[MultiSwarmCoordinator] = None) -> None:
         """
         Initialize pipeline.
 
@@ -301,7 +297,7 @@ def extract_code_from_markdown(text: str, language: str = "python") -> Optional[
 
 
 # Facade function
-def create_pipeline(task: str, **kwargs) -> MultiStagePipeline:
+def create_pipeline(task: str, **kwargs: Any) -> MultiStagePipeline:
     """
     Quick function to create a pipeline.
 

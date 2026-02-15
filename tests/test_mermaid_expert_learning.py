@@ -104,40 +104,26 @@ async def test_mermaid_expert_learning():
     )
     
     expert = MermaidExpertAgent(config=config)
-    
-    # Train the expert
+
+    # Verify training data (BaseExpert does not have .train())
     print("=" * 80)
-    print("PHASE 1: TRAINING")
+    print("PHASE 1: VERIFY TRAINING DATA")
     print("=" * 80)
     print()
-    
-    try:
-        training_results = await expert.train()
-        
-        print(f"Training Results:")
-        print(f"  Success: {training_results.get('overall_success')}")
-        print(f"  Passed: {training_results.get('passed_cases')}/{training_results.get('total_cases')}")
+
+    training_data = expert.get_training_data()
+    print(f"Training Data:")
+    print(f"  Cases available: {len(training_data)}")
+    print()
+
+    for i, case in enumerate(training_data, 1):
+        print(f"  Case {i}: {case.get('task', 'Unknown')}")
         print()
-        
-        # Show what was learned
-        for case_result in training_results.get('training_cases', []):
-            print(f"  Case {case_result['case_number']}: {case_result['task']}")
-            print(f"    Success: {case_result['success']}")
-            print(f"    Final Score: {case_result['final_score']:.2f}")
-            print(f"    Iterations: {case_result['iterations']}")
-            print()
-        
-        # Show improvements learned
-        status = expert.get_status()
-        print(f"Improvements Learned: {status['improvements_count']}")
-        print()
-        
-    except Exception as e:
-        print(f"⚠️  Training failed (likely no LLM configured): {e}")
-        print()
-        print("   This is expected if no LLM is configured.")
-        print("   The test will continue to show the structure.")
-        print()
+
+    # Show stats
+    stats = expert.get_stats()
+    print(f"Improvements: {stats['improvements_count']}")
+    print()
     
     # Test with complex descriptions the agent hasn't seen
     print("=" * 80)
@@ -284,30 +270,23 @@ async def test_mermaid_expert_learning():
     
     print()
     print("=" * 80)
-    
-    # Show improvements if available
-    improvements_file = Path(expert.data_dir) / "improvements.json"
-    if improvements_file.exists():
-        import json
-        with open(improvements_file, 'r') as f:
-            improvements = json.load(f)
-        
+
+    # Show improvements from expert instance
+    if expert.improvements:
         print()
         print("=" * 80)
-        print("LEARNED IMPROVEMENTS")
+        print("EXPERT IMPROVEMENTS")
         print("=" * 80)
         print()
-        print(f"Total Improvements: {len(improvements)}")
+        print(f"Total Improvements: {len(expert.improvements)}")
         print()
-        
-        for i, imp in enumerate(improvements[:3], 1):
+
+        for i, imp in enumerate(expert.improvements[:3], 1):
             print(f"Improvement {i}:")
             print(f"  Task: {imp.get('task', 'Unknown')}")
-            print(f"  Student Output: {imp.get('student_output', '')[:60]}...")
-            print(f"  Teacher Output: {imp.get('teacher_output', '')[:60]}...")
             print(f"  Learned Pattern: {imp.get('learned_pattern', '')[:100]}...")
             print()
-    
+
     return results
 
 

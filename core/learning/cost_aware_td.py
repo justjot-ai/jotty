@@ -39,7 +39,7 @@ class CostAwareTDLambda:
     - Balances quality vs cost automatically
     """
 
-    def __init__(self, cost_sensitivity: float = 0.5):
+    def __init__(self, cost_sensitivity: float = 0.5) -> None:
         """
         Args:
             cost_sensitivity: How much to penalize cost (higher = more penalty)
@@ -60,15 +60,7 @@ class CostAwareTDLambda:
             f"(cost_sensitivity={cost_sensitivity})"
         )
 
-    def update(
-        self,
-        state: Dict[str, Any],
-        action: Dict[str, Any],
-        reward: float,
-        next_state: Dict[str, Any],
-        cost_usd: float = 0.0,
-        done: bool = False,
-    ):
+    def update(self, state: Dict[str, Any], action: Dict[str, Any], reward: float, next_state: Dict[str, Any], cost_usd: float = 0.0, done: bool = False) -> Any:
         """
         Update TD-Lambda with cost-adjusted reward.
 

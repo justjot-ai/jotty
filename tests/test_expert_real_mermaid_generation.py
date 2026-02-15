@@ -56,9 +56,9 @@ async def test_expert_real_mermaid_generation():
     # Step 1: Create expert
     print("\n1. Creating MermaidExpertAgent...")
     expert = MermaidExpertAgent()
-    print(f"   ✅ Expert created: {expert.config.name}")
-    print(f"   ✅ Expert trained: {expert.trained}")
-    print(f"   ✅ Training is optional - can generate without training")
+    print(f"   Expert created: {expert.config.name}")
+    print(f"   Expert domain: {expert.domain}")
+    print(f"   Training data available: {len(expert.get_training_data())} cases")
     
     # Step 2: Check if DSPy is configured
     print("\n2. Checking DSPy configuration...")
@@ -77,12 +77,9 @@ async def test_expert_real_mermaid_generation():
     # Step 3: Generate Mermaid diagram
     print("\n3. Generating Mermaid diagram (no mock)...")
     try:
-        result = await expert.generate(
-            task="Create a simple flowchart",
-            context={
-                "description": "A simple flow from Start to End",
-                "diagram_type": "flowchart"
-            }
+        result = await expert.generate_mermaid(
+            description="A simple flow from Start to End",
+            diagram_type="flowchart"
         )
         
         print(f"   ✅ Generation completed")

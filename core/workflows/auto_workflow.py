@@ -55,7 +55,7 @@ class AutoWorkflow:
         result = await workflow.run()
     """
 
-    def __init__(self, intent: WorkflowIntent):
+    def __init__(self, intent: WorkflowIntent) -> None:
         """
         Initialize auto workflow.
 
@@ -141,7 +141,7 @@ class AutoWorkflow:
         workflow.build_pipeline()
         return await workflow.run(verbose=verbose)
 
-    def build_pipeline(self):
+    def build_pipeline(self) -> Any:
         """Build pipeline from intent by decomposing into stages."""
         # Determine deliverables
         deliverables = self.intent.deliverables or self._infer_deliverables()
@@ -169,7 +169,7 @@ class AutoWorkflow:
         # Default: full software development
         return ["requirements", "code", "tests", "docs"]
 
-    def _add_stages_for_deliverables(self, deliverables: List[str]):
+    def _add_stages_for_deliverables(self, deliverables: List[str]) -> Any:
         """Add pipeline stages based on deliverables."""
 
         # Map deliverable names to stage types
@@ -292,15 +292,7 @@ class AutoWorkflow:
 
         return context
 
-    def customize_stage(
-        self,
-        stage_name: str,
-        model: Optional[str] = None,
-        max_tokens: Optional[int] = None,
-        merge_strategy: Optional[MergeStrategy] = None,
-        additional_context: Optional[str] = None,
-        custom_prompts: Optional[List[str]] = None
-    ):
+    def customize_stage(self, stage_name: str, model: Optional[str] = None, max_tokens: Optional[int] = None, merge_strategy: Optional[MergeStrategy] = None, additional_context: Optional[str] = None, custom_prompts: Optional[List[str]] = None) -> Any:
         """
         Customize a specific stage (keeps auto-generation but tweaks it).
 
@@ -326,13 +318,7 @@ class AutoWorkflow:
         if custom_prompts:
             self.stage_configs[stage_name]["custom_prompts"] = custom_prompts
 
-    def replace_stage(
-        self,
-        stage_name: str,
-        swarms: List[Any],
-        merge_strategy: Optional[MergeStrategy] = None,
-        context_from: Optional[List[str]] = None
-    ):
+    def replace_stage(self, stage_name: str, swarms: List[Any], merge_strategy: Optional[MergeStrategy] = None, context_from: Optional[List[str]] = None) -> Any:
         """
         Completely replace a stage with custom swarms (full control).
 
@@ -352,14 +338,7 @@ class AutoWorkflow:
         if context_from:
             self.stage_configs[stage_name]["context_from"] = context_from
 
-    def add_custom_stage(
-        self,
-        stage_name: str,
-        swarms: List[Any],
-        position: Optional[int] = None,
-        merge_strategy: MergeStrategy = MergeStrategy.BEST_OF_N,
-        context_from: Optional[List[str]] = None
-    ):
+    def add_custom_stage(self, stage_name: str, swarms: List[Any], position: Optional[int] = None, merge_strategy: MergeStrategy = MergeStrategy.BEST_OF_N, context_from: Optional[List[str]] = None) -> Any:
         """
         Add a completely custom stage (insert new stage).
 
@@ -404,7 +383,7 @@ class AutoWorkflow:
 
         return inspection
 
-    def show_pipeline(self, verbose: bool = True):
+    def show_pipeline(self, verbose: bool = True) -> Any:
         """
         Print pipeline structure (useful before executing).
         """
@@ -440,10 +419,7 @@ class AutoWorkflow:
 
 
 # Convenience functions
-async def build(
-    goal: str,
-    **kwargs
-) -> PipelineResult:
+async def build(goal: str, **kwargs: Any) -> PipelineResult:
     """
     Simplest API - just build something from a goal.
 
@@ -454,11 +430,7 @@ async def build(
     return await AutoWorkflow.execute(goal, **kwargs)
 
 
-async def research(
-    topic: str,
-    depth: str = "comprehensive",
-    **kwargs
-) -> PipelineResult:
+async def research(topic: str, depth: str = 'comprehensive', **kwargs: Any) -> PipelineResult:
     """
     Research a topic automatically.
 
@@ -473,11 +445,7 @@ async def research(
     )
 
 
-async def develop(
-    description: str,
-    tech_stack: Optional[List[str]] = None,
-    **kwargs
-) -> PipelineResult:
+async def develop(description: str, tech_stack: Optional[List[str]] = None, **kwargs: Any) -> PipelineResult:
     """
     Develop software from description.
 

@@ -84,7 +84,7 @@ class ResearchWorkflow:
     9. Bibliography - Compile citations
     """
 
-    def __init__(self, intent: ResearchIntent):
+    def __init__(self, intent: ResearchIntent) -> None:
         """Initialize research workflow."""
         self.intent = intent
         self.pipeline = None
@@ -169,7 +169,7 @@ class ResearchWorkflow:
         workflow.build_pipeline()
         return await workflow.run(verbose=verbose)
 
-    def build_pipeline(self):
+    def build_pipeline(self) -> Any:
         """Build pipeline from research intent."""
         deliverables = self.intent.deliverables or self._infer_deliverables()
 
@@ -202,7 +202,7 @@ class ResearchWorkflow:
 
         return base
 
-    def _add_research_stages(self, deliverables: List[str]):
+    def _add_research_stages(self, deliverables: List[str]) -> Any:
         """Add pipeline stages for research deliverables."""
 
         # Determine max sources based on depth
@@ -549,14 +549,7 @@ Maximum 500 words, extremely clear and actionable."""),
                     max_context_chars=2000
                 )
 
-    def customize_stage(
-        self,
-        stage_name: str,
-        model: Optional[str] = None,
-        max_tokens: Optional[int] = None,
-        merge_strategy: Optional[MergeStrategy] = None,
-        additional_context: Optional[str] = None
-    ):
+    def customize_stage(self, stage_name: str, model: Optional[str] = None, max_tokens: Optional[int] = None, merge_strategy: Optional[MergeStrategy] = None, additional_context: Optional[str] = None) -> Any:
         """Customize a specific stage."""
         if stage_name not in self.stage_configs:
             self.stage_configs[stage_name] = {}
@@ -570,13 +563,7 @@ Maximum 500 words, extremely clear and actionable."""),
         if additional_context:
             self.stage_configs[stage_name]["additional_context"] = additional_context
 
-    def replace_stage(
-        self,
-        stage_name: str,
-        swarms: List[Any],
-        merge_strategy: Optional[MergeStrategy] = None,
-        context_from: Optional[List[str]] = None
-    ):
+    def replace_stage(self, stage_name: str, swarms: List[Any], merge_strategy: Optional[MergeStrategy] = None, context_from: Optional[List[str]] = None) -> Any:
         """Completely replace a stage with custom swarms."""
         if stage_name not in self.stage_configs:
             self.stage_configs[stage_name] = {}
@@ -588,14 +575,7 @@ Maximum 500 words, extremely clear and actionable."""),
         if context_from:
             self.stage_configs[stage_name]["context_from"] = context_from
 
-    def add_custom_stage(
-        self,
-        stage_name: str,
-        swarms: List[Any],
-        position: Optional[int] = None,
-        merge_strategy: MergeStrategy = MergeStrategy.BEST_OF_N,
-        context_from: Optional[List[str]] = None
-    ):
+    def add_custom_stage(self, stage_name: str, swarms: List[Any], position: Optional[int] = None, merge_strategy: MergeStrategy = MergeStrategy.BEST_OF_N, context_from: Optional[List[str]] = None) -> Any:
         """Add a completely custom stage."""
         self.stage_configs[stage_name] = {
             "custom_stage": True,
@@ -605,7 +585,7 @@ Maximum 500 words, extremely clear and actionable."""),
             "context_from": context_from
         }
 
-    def show_pipeline(self, verbose: bool = True):
+    def show_pipeline(self, verbose: bool = True) -> Any:
         """Print pipeline structure."""
         deliverables = self.intent.deliverables or self._infer_deliverables()
 
@@ -737,10 +717,7 @@ Maximum 500 words, extremely clear and actionable."""),
 
 
 # Convenience functions
-async def research(
-    topic: str,
-    **kwargs
-) -> PipelineResult:
+async def research(topic: str, **kwargs: Any) -> PipelineResult:
     """
     Simplest API - research a topic.
 

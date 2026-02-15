@@ -76,10 +76,10 @@ class PilotSwarm(DomainSwarm):
         (PilotValidatorAgent, "Validator", "_validator"),
     )
 
-    def __init__(self, config: PilotConfig = None):
+    def __init__(self, config: PilotConfig = None) -> None:
         super().__init__(config or PilotConfig())
 
-    async def _execute_domain(self, topic: str = None, **kwargs) -> PilotResult:
+    async def _execute_domain(self, topic: str = None, **kwargs: Any) -> PilotResult:
         """Execute goal completion."""
         return await self.run_goal(goal=topic, **kwargs)
 
@@ -647,7 +647,7 @@ class PilotSwarm(DomainSwarm):
         return await self._searcher.search(task=f"Browse and find: {task}", context=context)
 
     @staticmethod
-    def _load_skill_tool(tools_path: Path, module_name: str, *func_names: str):
+    def _load_skill_tool(tools_path: Path, module_name: str, *func_names: str) -> Any:
         """Load a tool function from a skill's tools.py by absolute path."""
         try:
             import importlib.util

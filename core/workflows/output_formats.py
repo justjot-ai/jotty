@@ -69,11 +69,7 @@ class OutputFormatManager:
         )
     """
 
-    def __init__(
-        self,
-        output_dir: Optional[str] = None,
-        auto_load_skills: bool = True
-    ):
+    def __init__(self, output_dir: Optional[str] = None, auto_load_skills: bool = True) -> None:
         """
         Initialize output format manager.
 
@@ -90,7 +86,7 @@ class OutputFormatManager:
         if auto_load_skills:
             self._load_skills()
 
-    def _load_skills(self):
+    def _load_skills(self) -> Any:
         """Load required skills from Jotty registry."""
         try:
             from Jotty.core.registry.skills_registry import get_skills_registry
@@ -517,14 +513,7 @@ class OutputFormatManager:
                 error=str(e)
             )
 
-    def generate_all(
-        self,
-        markdown_path: str,
-        formats: List[str],
-        title: str,
-        author: Optional[str] = None,
-        **kwargs
-    ) -> Dict[str, OutputFormatResult]:
+    def generate_all(self, markdown_path: str, formats: List[str], title: str, author: Optional[str] = None, **kwargs: Any) -> Dict[str, OutputFormatResult]:
         """
         Generate multiple output formats.
 

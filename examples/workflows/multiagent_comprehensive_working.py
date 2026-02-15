@@ -44,20 +44,17 @@ async def main():
     print("✅ Course Generation Complete!")
     print(f"   Result type: {type(result)}")
 
-    # Extract content
-    if hasattr(result, 'content'):
-        content = result.content
-    elif hasattr(result, 'lesson_content'):
-        content = result.lesson_content
-    elif hasattr(result, '__dict__'):
-        print(f"   Available attributes: {list(result.__dict__.keys())}")
-        # Try to find any content field
-        for key in result.__dict__.keys():
-            if 'content' in key.lower() or 'output' in key.lower() or 'text' in key.lower():
-                content = getattr(result, key)
-                break
+    # Extract content (LessonContent object has markdown property)
+    print(f"   Result attributes: {list(result.__dict__.keys())}")
+
+    if hasattr(result, 'lesson_content'):
+        lesson_content = result.lesson_content
+        if hasattr(lesson_content, 'markdown'):
+            content = lesson_content.markdown
+        elif hasattr(lesson_content, 'full_markdown'):
+            content = lesson_content.full_markdown
         else:
-            content = str(result)
+            content = str(lesson_content)
     else:
         content = str(result)
 

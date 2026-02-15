@@ -63,7 +63,7 @@ class PilotConfig(SwarmBaseConfig):
     use_fast_predict: bool = True
     llm_timeout: int = 0
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.name = "PilotSwarm"
         self.domain = "pilot"
         if self.llm_timeout <= 0:

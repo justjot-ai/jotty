@@ -79,7 +79,7 @@ class EthicalRedTeam:
     ...         print(f"⚠️  {rec}")
     """
 
-    def __init__(self, bias_threshold: float = 0.15):
+    def __init__(self, bias_threshold: float = 0.15) -> None:
         """
         Args:
             bias_threshold: Deviation threshold for bias detection (default 15%)

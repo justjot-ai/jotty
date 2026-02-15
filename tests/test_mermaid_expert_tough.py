@@ -24,12 +24,10 @@ async def test_tough_mermaid_examples():
     # Create expert agent
     expert = MermaidExpertAgent()
     
-    # Train first (if not already trained)
-    if not expert.trained:
-        print("📚 Training expert agent first...")
-        training_results = await expert.train()
-        print(f"Training: {training_results['passed_cases']}/{training_results['total_cases']} cases passed")
-        print()
+    # Verify training data is available
+    training_data = expert.get_training_data()
+    print(f"Training data available: {len(training_data)} cases")
+    print()
     
     # Tough test cases
     tough_cases = [
@@ -311,7 +309,7 @@ async def test_tough_mermaid_examples():
             print()
             
             # Evaluate
-            eval_result = await expert.config.evaluation_function(
+            eval_result = await expert._evaluate_domain(
                 output=generated,
                 gold_standard=case['gold_standard'],
                 task=case['name'],

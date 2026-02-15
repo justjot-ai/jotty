@@ -29,7 +29,7 @@ class DistributedTracer:
     DRY: Delegates to existing JottyTracer for local spans
     """
 
-    def __init__(self, service_name: str = "jotty"):
+    def __init__(self, service_name: str = 'jotty') -> None:
         self.service_name = service_name
         self.trace_contexts: Dict[str, Dict[str, Any]] = {}
 
@@ -38,7 +38,7 @@ class DistributedTracer:
 
         logger.info(f"🔍 DistributedTracer initialized: service={service_name}")
 
-    def _get_local_tracer(self):
+    def _get_local_tracer(self) -> Any:
         """Lazy-load local tracer (DRY - reuse existing)."""
         if self._local_tracer is None:
             try:
@@ -50,7 +50,7 @@ class DistributedTracer:
         return self._local_tracer
 
     @contextmanager
-    def trace(self, operation: str, parent_context: Optional[str] = None):
+    def trace(self, operation: str, parent_context: Optional[str] = None) -> Any:
         """
         Trace an operation with distributed context propagation.
 
@@ -133,7 +133,7 @@ class NoopTracer:
     """Noop tracer for fallback (KISS - no errors if observability unavailable)."""
 
     @contextmanager
-    def span(self, *args, **kwargs):
+    def span(self, *args: Any, **kwargs: Any) -> Any:
         yield
 
 

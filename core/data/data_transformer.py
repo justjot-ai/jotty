@@ -267,9 +267,11 @@ class FormatTools:
             
             elif target_type_name == 'str':
                 result = str(data)
-            
+
             elif target_type_name in ('int', 'float', 'bool'):
-                result = eval(target_type_name)(data)
+                # Safe type conversion without eval()
+                type_constructors = {'int': int, 'float': float, 'bool': bool}
+                result = type_constructors[target_type_name](data)
             
             else:
                 return {'success': False, 'current_type': current_type,

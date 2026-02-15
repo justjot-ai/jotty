@@ -271,9 +271,10 @@ Choose the BEST section format for this query and generate appropriate content.
 # Example usage
 """
 # Initialize with LLM
+import os
 assistant = ChatAssistantV2(
     state_manager=state_manager,
-    anthropic_api_key='sk-ant-...'
+    anthropic_api_key=os.getenv('ANTHROPIC_API_KEY')
 )
 
 # User query: "show tasks"

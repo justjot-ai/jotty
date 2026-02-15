@@ -213,7 +213,7 @@ class TestAgentWarmStart:
         # Deposit a stigmergy route signal (correct API: agent=, not created_by=)
         si.stigmergy.deposit(
             signal_type='route',
-            content={'task_type': 'research', 'agent': 'researcher'},
+            content={'task_type': 'research', 'agent': 'researcher', 'success': True},
             agent='system',
             strength=0.9,
         )

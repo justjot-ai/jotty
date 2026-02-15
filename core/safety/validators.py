@@ -63,7 +63,7 @@ class SafetyConstraint(ABC):
     3. Return ValidationResult (PASS/FAIL + explanation)
     """
 
-    def __init__(self, name: str, severity: str = "blocking", enabled: bool = True):
+    def __init__(self, name: str, severity: str = 'blocking', enabled: bool = True) -> None:
         """
         Args:
             name: Unique constraint identifier
@@ -124,7 +124,7 @@ class PIIConstraint(SafetyConstraint):
         'ip_address': r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b',  # 192.168.1.1
     }
 
-    def __init__(self, enabled: bool = True, redact_on_detect: bool = False):
+    def __init__(self, enabled: bool = True, redact_on_detect: bool = False) -> None:
         super().__init__(name="pii_detection", severity="blocking", enabled=enabled)
         self.redact_on_detect = redact_on_detect
 
@@ -196,7 +196,7 @@ class CostBudgetConstraint(SafetyConstraint):
     → Remediation: "Use cheaper models or reduce complexity"
     """
 
-    def __init__(self, max_cost_usd: float = 1.0, enabled: bool = True):
+    def __init__(self, max_cost_usd: float = 1.0, enabled: bool = True) -> None:
         super().__init__(name="cost_budget", severity="blocking", enabled=enabled)
         self.max_cost_usd = max_cost_usd
 
@@ -258,7 +258,7 @@ class QualityThresholdConstraint(SafetyConstraint):
     → Remediation: "Retry with higher-tier model or more detailed prompt"
     """
 
-    def __init__(self, min_quality: float = 0.7, enabled: bool = True):
+    def __init__(self, min_quality: float = 0.7, enabled: bool = True) -> None:
         super().__init__(name="quality_threshold", severity="warning", enabled=enabled)
         self.min_quality = min_quality
 
@@ -319,7 +319,7 @@ class RateLimitConstraint(SafetyConstraint):
     → Remediation: "Wait 10 seconds before retrying"
     """
 
-    def __init__(self, max_calls_per_minute: int = 60, enabled: bool = True):
+    def __init__(self, max_calls_per_minute: int = 60, enabled: bool = True) -> None:
         super().__init__(name="rate_limit", severity="blocking", enabled=enabled)
         self.max_calls_per_minute = max_calls_per_minute
         self.call_timestamps: List[datetime] = []
@@ -399,7 +399,7 @@ class MaliciousInputConstraint(SafetyConstraint):
         (r'javascript:', 'xss'),
     ]
 
-    def __init__(self, enabled: bool = True):
+    def __init__(self, enabled: bool = True) -> None:
         super().__init__(name="malicious_input", severity="blocking", enabled=enabled)
 
     def validate(self, context: Dict[str, Any]) -> ValidationResult:

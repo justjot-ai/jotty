@@ -39,7 +39,7 @@ class BenchmarkResults:
     speedup: float
     best_strategy: StrategyResult
 
-    def print_summary(self, verbose: bool = True):
+    def print_summary(self, verbose: bool = True) -> Any:
         """Print formatted benchmark summary."""
         print("\n" + "="*80)
         print("MULTI-STRATEGY BENCHMARK RESULTS")
@@ -105,13 +105,7 @@ class MultiStrategyBenchmark:
         results.print_summary()
     """
 
-    def __init__(
-        self,
-        swarms: List[Any],
-        task: str,
-        strategies: Optional[List[MergeStrategy]] = None,
-        coordinator: Optional[MultiSwarmCoordinator] = None
-    ):
+    def __init__(self, swarms: List[Any], task: str, strategies: Optional[List[MergeStrategy]] = None, coordinator: Optional[MultiSwarmCoordinator] = None) -> None:
         """
         Initialize benchmark.
 
@@ -258,12 +252,7 @@ class MultiStrategyBenchmark:
 
 
 # Facade function
-def benchmark_strategies(
-    swarms: List[Any],
-    task: str,
-    strategies: Optional[List[MergeStrategy]] = None,
-    **kwargs
-) -> "MultiStrategyBenchmark":
+def benchmark_strategies(swarms: List[Any], task: str, strategies: Optional[List[MergeStrategy]] = None, **kwargs: Any) -> 'MultiStrategyBenchmark':
     """
     Quick function to create a benchmark.
 

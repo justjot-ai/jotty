@@ -105,7 +105,7 @@ class LearningWorkflow:
     11. PDF Generation - Professional document
     """
 
-    def __init__(self, intent: LearningIntent):
+    def __init__(self, intent: LearningIntent) -> None:
         """Initialize learning workflow."""
         self.intent = intent
         self.pipeline = None
@@ -202,7 +202,7 @@ class LearningWorkflow:
         workflow.build_pipeline()
         return await workflow.run(verbose=verbose)
 
-    def build_pipeline(self):
+    def build_pipeline(self) -> Any:
         """Build pipeline from learning intent."""
         deliverables = self.intent.deliverables or self._infer_deliverables()
 
@@ -238,7 +238,7 @@ class LearningWorkflow:
 
         return base
 
-    def _add_learning_stages(self, deliverables: List[str]):
+    def _add_learning_stages(self, deliverables: List[str]) -> Any:
         """Add pipeline stages for learning deliverables."""
 
         # Determine problem counts based on depth
@@ -531,14 +531,7 @@ Perfect for review before test."""),
                     max_context_chars=2500
                 )
 
-    def customize_stage(
-        self,
-        stage_name: str,
-        model: Optional[str] = None,
-        max_tokens: Optional[int] = None,
-        merge_strategy: Optional[MergeStrategy] = None,
-        additional_context: Optional[str] = None
-    ):
+    def customize_stage(self, stage_name: str, model: Optional[str] = None, max_tokens: Optional[int] = None, merge_strategy: Optional[MergeStrategy] = None, additional_context: Optional[str] = None) -> Any:
         """Customize a specific stage."""
         if stage_name not in self.stage_configs:
             self.stage_configs[stage_name] = {}
@@ -552,13 +545,7 @@ Perfect for review before test."""),
         if additional_context:
             self.stage_configs[stage_name]["additional_context"] = additional_context
 
-    def replace_stage(
-        self,
-        stage_name: str,
-        swarms: List[Any],
-        merge_strategy: Optional[MergeStrategy] = None,
-        context_from: Optional[List[str]] = None
-    ):
+    def replace_stage(self, stage_name: str, swarms: List[Any], merge_strategy: Optional[MergeStrategy] = None, context_from: Optional[List[str]] = None) -> Any:
         """Completely replace a stage with custom swarms."""
         if stage_name not in self.stage_configs:
             self.stage_configs[stage_name] = {}
@@ -570,14 +557,7 @@ Perfect for review before test."""),
         if context_from:
             self.stage_configs[stage_name]["context_from"] = context_from
 
-    def add_custom_stage(
-        self,
-        stage_name: str,
-        swarms: List[Any],
-        position: Optional[int] = None,
-        merge_strategy: MergeStrategy = MergeStrategy.BEST_OF_N,
-        context_from: Optional[List[str]] = None
-    ):
+    def add_custom_stage(self, stage_name: str, swarms: List[Any], position: Optional[int] = None, merge_strategy: MergeStrategy = MergeStrategy.BEST_OF_N, context_from: Optional[List[str]] = None) -> Any:
         """Add a completely custom stage."""
         self.stage_configs[stage_name] = {
             "custom_stage": True,
@@ -587,7 +567,7 @@ Perfect for review before test."""),
             "context_from": context_from
         }
 
-    def show_pipeline(self, verbose: bool = True):
+    def show_pipeline(self, verbose: bool = True) -> Any:
         """Print pipeline structure."""
         deliverables = self.intent.deliverables or self._infer_deliverables()
 
@@ -749,12 +729,7 @@ Perfect for review before test."""),
 
 
 # Convenience functions
-async def learn(
-    subject: str,
-    topic: str,
-    student_name: str,
-    **kwargs
-) -> PipelineResult:
+async def learn(subject: str, topic: str, student_name: str, **kwargs: Any) -> PipelineResult:
     """
     Simplest API - create learning materials.
 

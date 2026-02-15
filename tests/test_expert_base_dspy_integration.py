@@ -19,117 +19,126 @@ except ImportError:
     print("⚠️  DSPy not available. Install with: pip install dspy-ai")
     sys.exit(1)
 
-from core.experts import ExpertAgent, ExpertAgentConfig
+from core.experts.base_expert import BaseExpert
+from core.experts import ExpertAgentConfig
 
 
-class TestExpertAgent(ExpertAgent):
+class TestExpertAgent(BaseExpert):
     """Test expert agent to verify base class DSPy integration."""
-    
-    def _create_default_agent(self):
+
+    @property
+    def domain(self) -> str:
+        return "test"
+
+    @property
+    def description(self) -> str:
+        return "Test expert for DSPy integration"
+
+    def _create_domain_agent(self, improvements=None):
         """Create a simple DSPy agent for testing."""
         class TestSignature(dspy.Signature):
             """Test signature."""
             task: str = dspy.InputField(desc="Task description")
             description: str = dspy.InputField(desc="Description")
-            
+
             output: str = dspy.OutputField(desc="Output")
-        
+
         return dspy.ChainOfThought(TestSignature)
+
+    def _create_domain_teacher(self):
+        """Create teacher agent."""
+        class TeacherSignature(dspy.Signature):
+            """Teacher signature."""
+            task: str = dspy.InputField(desc="Task description")
+            gold_standard: str = dspy.InputField(desc="Correct output")
+            student_output: str = dspy.InputField(desc="Student output")
+            output: str = dspy.OutputField(desc="Correct output")
+        return dspy.Predict(TeacherSignature)
+
+    @staticmethod
+    def _get_default_training_cases():
+        return [{"task": "Test task", "context": {"description": "Test description"}, "gold_standard": "Test output"}]
+
+    @staticmethod
+    def _get_default_validation_cases():
+        return [{"task": "Validation task", "context": {"description": "Test"}, "gold_standard": "Test output"}]
+
+    async def _evaluate_domain(self, output, gold_standard, task, context):
+        return {"score": 1.0 if str(output).strip() == str(gold_standard).strip() else 0.0, "status": "CORRECT"}
 
 
 async def test_base_class_dspy_support():
-    """Test that base ExpertAgent class handles DSPy correctly."""
+    """Test that BaseExpert class handles DSPy correctly."""
     print("=" * 80)
     print("TESTING BASE CLASS DSPy INTEGRATION")
     print("=" * 80)
     print()
-    
-    # Create test expert
-    config = ExpertAgentConfig(
-        name="test_expert",
-        domain="test",
-        description="Test expert for DSPy integration",
-        training_gold_standards=[
-            {
-                "task": "Test task",
-                "context": {"description": "Test description"},
-                "gold_standard": "Test output"
-            }
-        ],
-        max_training_iterations=2,
-        required_training_pass_count=1,
-        enable_teacher_model=True
-    )
-    
-    expert = TestExpertAgent(config)
-    
-    # Test DSPy detection
-    print("1. Testing DSPy Module Detection")
+
+    # Create test expert (BaseExpert-based, no ExpertAgentConfig needed for init)
+    expert = TestExpertAgent()
+
+    # Test DSPy agent creation
+    print("1. Testing DSPy Agent Creation")
     print("-" * 80)
-    agents = expert._create_agents()
-    main_agent = agents[0].agent
-    
-    is_dspy = expert._is_dspy_module(main_agent)
-    print(f"   Agent Type: {type(main_agent).__name__}")
+    agent = expert._create_domain_agent()
+
+    is_dspy = expert._is_dspy_available() and isinstance(agent, dspy.Module)
+    print(f"   Agent Type: {type(agent).__name__}")
     print(f"   Is DSPy Module: {is_dspy}")
     assert is_dspy, "Agent should be detected as DSPy module"
-    print("   ✅ DSPy detection works!")
+    print("   DSPy detection works!")
     print()
-    
-    # Test DSPy output extraction
-    print("2. Testing DSPy Output Extraction")
+
+    # Test _create_default_agent delegates to _create_domain_agent
+    print("2. Testing _create_default_agent Delegation")
     print("-" * 80)
-    
-    # Create a mock DSPy Prediction
-    class MockPrediction:
-        def __init__(self):
-            self.output = "Test output from DSPy"
-    
-    mock_result = MockPrediction()
-    extracted = expert._extract_dspy_output(mock_result)
-    print(f"   Mock Result Type: {type(mock_result).__name__}")
-    print(f"   Extracted Output: {extracted}")
-    assert extracted == "Test output from DSPy", "Should extract output from DSPy Prediction"
-    print("   ✅ DSPy output extraction works!")
+    default_agent = expert._create_default_agent(improvements=[])
+    print(f"   Default Agent Type: {type(default_agent).__name__}")
+    assert isinstance(default_agent, dspy.Module), "Default agent should be DSPy module"
+    print("   _create_default_agent delegation works!")
     print()
-    
-    # Test regular output extraction
-    print("3. Testing Regular Output Extraction")
+
+    # Test training data access
+    print("3. Testing Training Data Access")
     print("-" * 80)
-    
-    class RegularResult:
-        def __init__(self):
-            self._store = {"output": "Regular output"}
-    
-    regular_result = RegularResult()
-    extracted = expert._extract_dspy_output(regular_result)
-    print(f"   Regular Result Type: {type(regular_result).__name__}")
-    print(f"   Extracted Output: {extracted}")
-    assert extracted == "Regular output", "Should extract from _store dict"
-    print("   ✅ Regular output extraction works!")
+    training_data = expert.get_training_data()
+    print(f"   Training cases: {len(training_data)}")
+    assert len(training_data) > 0, "Should have training data"
+    print("   Training data access works!")
     print()
-    
+
     # Test teacher creation (should use DSPy if available)
     print("4. Testing Teacher Creation")
     print("-" * 80)
-    teacher = expert._create_default_teacher()
+    teacher = expert._create_domain_teacher()
     print(f"   Teacher Type: {type(teacher).__name__}")
-    is_dspy_teacher = expert._is_dspy_module(teacher)
+    is_dspy_teacher = isinstance(teacher, dspy.Module)
     print(f"   Is DSPy Module: {is_dspy_teacher}")
-    print("   ✅ Teacher creation works!")
+    print("   Teacher creation works!")
     print()
-    
+
+    # Test get_stats
+    print("5. Testing get_stats")
+    print("-" * 80)
+    stats = expert.get_stats()
+    print(f"   Stats: {stats}")
+    assert stats['domain'] == 'test'
+    assert stats['expert_type'] == 'TestExpertAgent'
+    print("   get_stats works!")
+    print()
+
     print("=" * 80)
-    print("✅ ALL BASE CLASS TESTS PASSED")
+    print("ALL BASE CLASS TESTS PASSED")
     print("=" * 80)
     print()
     print("Summary:")
-    print("  ✅ DSPy module detection works")
-    print("  ✅ DSPy output extraction works")
-    print("  ✅ Regular output extraction works")
-    print("  ✅ Teacher creation uses DSPy when available")
+    print("  DSPy agent creation works")
+    print("  _create_default_agent delegation works")
+    print("  Training data access works")
+    print("  Teacher creation uses DSPy when available")
+    print("  get_stats works")
     print()
-    print("All expert agents now benefit from base class DSPy integration!")
+    print("All expert agents now benefit from BaseExpert DSPy integration!")
 
 
 if __name__ == "__main__":

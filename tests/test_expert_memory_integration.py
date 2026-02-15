@@ -51,8 +51,8 @@ async def test_memory_integration():
     )
     
     expert = MermaidExpertAgent(config=config, memory=memory)
-    print(f"✅ Expert created")
-    print(f"   Uses memory storage: {expert.use_memory_storage}")
+    print(f"Expert created")
+    print(f"   Uses memory storage: {config.use_memory_storage}")
     print(f"   Memory system: {type(expert.memory).__name__ if expert.memory else 'None'}")
     print()
     
@@ -112,10 +112,10 @@ async def test_memory_integration():
     
     # Create new expert instance (should load from memory)
     expert2 = MermaidExpertAgent(config=config, memory=memory)
-    loaded_improvements = expert2._load_improvements()
-    
-    print(f"✅ Expert loaded {len(loaded_improvements)} improvements")
-    print(f"   From memory: {expert2.use_memory_storage}")
+    loaded_improvements = expert2.improvements
+
+    print(f"Expert loaded {len(loaded_improvements)} improvements")
+    print(f"   Has memory: {expert2.memory is not None}")
     print()
     
     # Verify improvements are in memory

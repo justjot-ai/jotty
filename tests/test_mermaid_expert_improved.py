@@ -119,23 +119,18 @@ async def test_and_improve_mermaid_expert():
     )
     
     expert = MermaidExpertAgent(config=config)
-    
-    # Train on tough examples
-    print("📚 Training on tough examples...")
+
+    # Verify training data is accessible (BaseExpert does not have .train())
+    print("Verifying training data...")
     print()
-    training_results = await expert.train()
-    
-    print(f"Training Results:")
-    print(f"  Success: {training_results.get('overall_success')}")
-    print(f"  Passed: {training_results.get('passed_cases')}/{training_results.get('total_cases')}")
+    training_data = expert.get_training_data()
+    print(f"Training Data Available:")
+    print(f"  Cases: {len(training_data)}")
     print()
-    
-    # Show training details
-    for case_result in training_results.get('training_cases', []):
-        print(f"  Case {case_result['case_number']}: {case_result['task']}")
-        print(f"    Success: {case_result['success']}")
-        print(f"    Score: {case_result['final_score']:.2f}")
-        print(f"    Iterations: {case_result['iterations']}")
+
+    # Show training case summaries
+    for i, case in enumerate(training_data, 1):
+        print(f"  Case {i}: {case.get('task', 'Unknown')}")
         print()
     
     # Test on new tough examples
@@ -194,29 +189,18 @@ async def test_and_improve_mermaid_expert():
         
         print()
     
-    # Show improvements learned
+    # Show expert stats
     print("=" * 80)
-    print("IMPROVEMENTS LEARNED")
+    print("EXPERT STATS")
     print("=" * 80)
     print()
-    
-    status = expert.get_status()
-    print(f"Total Improvements: {status['improvements_count']}")
+
+    stats = expert.get_stats()
+    print(f"Total Improvements: {stats['improvements_count']}")
+    print(f"Training Cases: {stats['training_cases']}")
+    print(f"Validation Cases: {stats['validation_cases']}")
     print()
-    
-    # Load and show some improvements
-    improvements_file = Path(expert.data_dir) / "improvements.json"
-    if improvements_file.exists():
-        import json
-        with open(improvements_file, 'r') as f:
-            improvements = json.load(f)
-        
-        print(f"Sample Improvements ({min(3, len(improvements))} of {len(improvements)}):")
-        for i, imp in enumerate(improvements[:3], 1):
-            print(f"\n  {i}. Task: {imp.get('task', 'Unknown')}")
-            print(f"     Learned Pattern: {imp.get('learned_pattern', '')[:100]}...")
-    
-    print()
+
     print("=" * 80)
     print("CONCLUSION")
     print("=" * 80)
@@ -227,11 +211,10 @@ async def test_and_improve_mermaid_expert():
     print("  3. Using better agent implementations that generate based on descriptions")
     print("  4. Iteratively training on failures")
     print()
-    print("Current Status:")
-    print(f"  - Trained: {status['trained']}")
-    print(f"  - Improvements Learned: {status['improvements_count']}")
-    print(f"  - Ready for use: {'✅ YES' if status['trained'] else '❌ NO'}")
-    
+    print("Current Stats:")
+    print(f"  - Domain: {stats['domain']}")
+    print(f"  - Improvements Learned: {stats['improvements_count']}")
+
     return expert
 
 

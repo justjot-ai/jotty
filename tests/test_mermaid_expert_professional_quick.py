@@ -5,6 +5,7 @@ Tests if improvements are loaded and renderer validation works.
 """
 
 import asyncio
+import os
 import sys
 from pathlib import Path
 import json
@@ -78,7 +79,6 @@ async def test_quick():
     print("=" * 80)
     print()
     
-    import os
     if not configure_llm():
         print("❌ Cannot proceed without LLM")
         return []
@@ -125,16 +125,11 @@ async def test_quick():
             )
             print(f"   ✅ Synced {synced}/{len(file_improvements)} improvements to memory")
             
-            expert.improvements = expert._load_improvements()
-            print(f"   ✅ Loaded {len(expert.improvements)} improvements from memory")
+            print(f"   Loaded {len(expert.improvements)} improvements")
         except Exception as e:
-            print(f"   ⚠️  Failed to sync improvements: {e}")
-            expert.improvements = expert._load_improvements()
+            print(f"   Failed to sync improvements: {e}")
     else:
-        print(f"   ⚠️  No improvements file found at {improvements_file}")
-        expert.improvements = expert._load_improvements()
-    
-    expert.trained = True
+        print(f"   No improvements file found at {improvements_file}")
     
     print(f"✅ Expert created")
     print(f"   Improvements loaded: {len(expert.improvements)}")

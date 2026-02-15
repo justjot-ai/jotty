@@ -45,9 +45,8 @@ async def test_mermaid_expert_with_llm():
     expert = MermaidExpertAgent()
     
     # Check if agent uses DSPy
-    agents = expert._create_agents()
-    main_agent = agents[0].agent
-    
+    main_agent = expert._create_domain_agent()
+
     print(f"  Agent Type: {type(main_agent).__name__}")
     print(f"  Is DSPy Module: {isinstance(main_agent, dspy.Module) if DSPY_AVAILABLE else False}")
     print()
@@ -77,27 +76,18 @@ async def test_mermaid_expert_with_llm():
     ]
     
     try:
-        training_results = await expert.train(gold_standards=simple_training_cases)
-        
-        print(f"Training Results:")
-        print(f"  Success: {training_results.get('overall_success')}")
-        print(f"  Passed: {training_results.get('passed_cases')}/{training_results.get('total_cases')}")
+        # Verify training data (BaseExpert does not have .train())
+        training_data = expert.get_training_data()
+        print(f"Training Data:")
+        print(f"  Cases available: {len(training_data)}")
         print()
-        
-        # Show training details
-        for case_result in training_results.get('training_cases', []):
-            print(f"  Case {case_result['case_number']}: {case_result['task']}")
-            print(f"    Success: {case_result['success']}")
-            print(f"    Score: {case_result['final_score']:.2f}")
-            print(f"    Iterations: {case_result['iterations']}")
-            print()
-        
+
         # Test generation
         print("=" * 80)
         print("TESTING GENERATION")
         print("=" * 80)
         print()
-        
+
         test_cases = [
             {
                 "description": "Simple workflow from start to end",
@@ -108,54 +98,54 @@ async def test_mermaid_expert_with_llm():
                 "diagram_type": "flowchart"
             }
         ]
-        
+
         for i, test_case in enumerate(test_cases, 1):
             print(f"Test {i}: {test_case['description']}")
             print()
-            
+
             try:
                 diagram = await expert.generate_mermaid(
                     description=test_case['description'],
                     diagram_type=test_case['diagram_type']
                 )
-                
+
                 print(f"Generated Diagram:")
                 print("```mermaid")
                 print(diagram)
                 print("```")
                 print()
-                
+
                 # Check if valid
                 is_valid = "graph" in str(diagram).lower() or "flowchart" in str(diagram).lower()
                 has_nodes = "[" in str(diagram) or "{" in str(diagram)
                 has_arrow = "-->" in str(diagram)
-                
+
                 print(f"Validation:")
-                print(f"  Has graph declaration: {'✅' if is_valid else '❌'}")
-                print(f"  Has nodes: {'✅' if has_nodes else '❌'}")
-                print(f"  Has arrows: {'✅' if has_arrow else '❌'}")
+                print(f"  Has graph declaration: {is_valid}")
+                print(f"  Has nodes: {has_nodes}")
+                print(f"  Has arrows: {has_arrow}")
                 print()
-                
+
             except Exception as e:
-                print(f"❌ ERROR: {e}")
+                print(f"ERROR: {e}")
                 import traceback
                 traceback.print_exc()
                 print()
-        
-        # Show status
+
+        # Show stats
         print("=" * 80)
-        print("EXPERT STATUS")
+        print("EXPERT STATS")
         print("=" * 80)
         print()
-        
-        status = expert.get_status()
-        print(f"  Trained: {status['trained']}")
-        print(f"  Improvements Learned: {status['improvements_count']}")
-        print(f"  Data Directory: {status['data_dir']}")
+
+        stats = expert.get_stats()
+        print(f"  Domain: {stats['domain']}")
+        print(f"  Improvements: {stats['improvements_count']}")
+        print(f"  Training Cases: {stats['training_cases']}")
         print()
-        
+
     except Exception as e:
-        print(f"❌ ERROR during training or testing: {e}")
+        print(f"ERROR during testing: {e}")
         import traceback
         traceback.print_exc()
         print()

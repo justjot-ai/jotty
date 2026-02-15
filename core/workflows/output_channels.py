@@ -70,10 +70,7 @@ class OutputChannelManager:
         )
     """
 
-    def __init__(
-        self,
-        auto_load_skills: bool = True
-    ):
+    def __init__(self, auto_load_skills: bool = True) -> None:
         """
         Initialize output channel manager.
 
@@ -86,7 +83,7 @@ class OutputChannelManager:
         if auto_load_skills:
             self._load_skills()
 
-    def _load_skills(self):
+    def _load_skills(self) -> Any:
         """Load required skills from Jotty registry."""
         try:
             from Jotty.core.registry.skills_registry import get_skills_registry
@@ -337,14 +334,7 @@ class OutputChannelManager:
                 error=str(e)
             )
 
-    async def send_to_all(
-        self,
-        channels: List[str],
-        file_path: Optional[str] = None,
-        message: Optional[str] = None,
-        caption: Optional[str] = None,
-        **channel_params
-    ) -> Dict[str, ChannelDeliveryResult]:
+    async def send_to_all(self, channels: List[str], file_path: Optional[str] = None, message: Optional[str] = None, caption: Optional[str] = None, **channel_params: Any) -> Dict[str, ChannelDeliveryResult]:
         """
         Send to multiple channels.
 

@@ -18,7 +18,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from core.experts import PlantUMLExpertAgent, ExpertAgentConfig
 from core.experts.memory_integration import (
     consolidate_improvements,
-    retrieve_improvements_from_memory
+    retrieve_improvements_from_memory,
+    store_improvement_to_memory
 )
 from core.memory.cortex import SwarmMemory
 from core.foundation.data_structures import SwarmConfig, MemoryLevel
@@ -81,10 +82,9 @@ async def test_all_fixes():
     )
     
     expert = PlantUMLExpertAgent(config=config, memory=memory)
-    print(f"✅ Expert created")
-    print(f"   Memory persistence: {expert.memory_persistence is not None}")
-    if expert.memory_persistence:
-        print(f"   Persistence dir: {expert.memory_persistence.persistence_dir}")
+    print(f"Expert created")
+    print(f"   Has memory: {expert.memory is not None}")
+    print(f"   Domain: {expert.domain}")
     print()
     
     # Test training with proper gold standards
@@ -104,17 +104,25 @@ async def test_all_fixes():
         }
     ]
     
-    try:
-        training_results = await asyncio.wait_for(
-            expert.train(gold_standards=training_cases, force_retrain=True),
-            timeout=180
+    # Verify training data is accessible (BaseExpert does not have .train())
+    training_data = expert.get_training_data()
+    print(f"Training data available: {len(training_data)} cases")
+    print(f"   Improvements: {len(expert.improvements)}")
+
+    # Store training cases as improvements to memory for consolidation testing
+    for case in training_cases:
+        test_improvement = {
+            "timestamp": "2026-01-13T22:00:00",
+            "task": case.get("task", ""),
+            "learned_pattern": f"When generating {case.get('context', {}).get('diagram_type', 'unknown')} diagrams, use proper PlantUML syntax",
+            "source": "test"
+        }
+        store_improvement_to_memory(
+            memory=memory,
+            improvement=test_improvement,
+            expert_name=config.name,
+            domain=config.domain
         )
-        print(f"✅ Training completed")
-        print(f"   Passed cases: {training_results.get('passed_cases', 0)}")
-        print(f"   Improvements: {len(expert.improvements)}")
-    except Exception as e:
-        print(f"⚠️  Training: {e}")
-        expert.trained = True
     
     # Check memory
     procedural_count = len(memory.memories[MemoryLevel.PROCEDURAL])
@@ -143,25 +151,15 @@ async def test_all_fixes():
         print(f"⚠️  Not enough improvements for consolidation ({procedural_count} < 2)")
     print()
     
-    # Test memory persistence
-    print("5. Testing Memory Persistence")
+    # Test memory access
+    print("5. Testing Memory Access")
     print("-" * 80)
-    
-    if expert.memory_persistence:
-        saved = expert.memory_persistence.save()
-        if saved:
-            print(f"✅ Memory saved to disk")
-            print(f"   Location: {expert.memory_persistence.persistence_dir}")
-            
-            # List saved files
-            for level, file_path in expert.memory_persistence.level_files.items():
-                if file_path.exists():
-                    size = file_path.stat().st_size
-                    print(f"   {level.value}: {file_path.name} ({size} bytes)")
-        else:
-            print("❌ Failed to save memory")
+
+    if expert.memory is not None:
+        print(f"Memory system available: {type(expert.memory).__name__}")
+        print(f"   Domain: {expert.domain}")
     else:
-        print("⚠️  Memory persistence not enabled")
+        print("No memory system attached")
     print()
     
     # Show consolidated improvements
@@ -205,11 +203,11 @@ async def test_all_fixes():
     print("=" * 80)
     print("SUMMARY")
     print("=" * 80)
-    print(f"✅ PROCEDURAL memories: {procedural_count}")
-    print(f"✅ SEMANTIC memories: {semantic_count}")
-    print(f"✅ Consolidation: {consolidation_result.get('consolidated', 0) if procedural_count >= 2 else 0} patterns")
-    print(f"✅ Memory persistence: {'Enabled' if expert.memory_persistence else 'Disabled'}")
-    print(f"✅ Pattern grouping: {len(pattern_types)} types")
+    print(f"PROCEDURAL memories: {procedural_count}")
+    print(f"SEMANTIC memories: {semantic_count}")
+    print(f"Consolidation: {consolidation_result.get('consolidated', 0) if procedural_count >= 2 else 0} patterns")
+    print(f"Memory available: {expert.memory is not None}")
+    print(f"Pattern grouping: {len(pattern_types)} types")
     print()
 
 

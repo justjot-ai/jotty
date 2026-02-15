@@ -34,12 +34,12 @@ class PilotPlannerAgent(BaseOlympiadAgent):
     all downstream execution.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._ensure_sonnet_lm()
         self._planner = self._create_module(PlannerSignature)
 
-    def _ensure_sonnet_lm(self):
+    def _ensure_sonnet_lm(self) -> Any:
         """Create Sonnet LM for planning."""
         try:
             from Jotty.core.foundation.direct_anthropic_lm import DirectAnthropicLM, is_api_key_available
@@ -90,7 +90,7 @@ class PilotSearchAgent(BaseOlympiadAgent):
     using the web-search skill, then synthesizes results.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._searcher = self._create_module(SearchSignature)
 
@@ -163,12 +163,12 @@ class PilotCoderAgent(BaseOlympiadAgent):
     Uses Sonnet for higher quality code generation.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._ensure_sonnet_lm()
         self._coder = self._create_module(CoderSignature)
 
-    def _ensure_sonnet_lm(self):
+    def _ensure_sonnet_lm(self) -> Any:
         """Create Sonnet LM for code generation."""
         try:
             from Jotty.core.foundation.direct_anthropic_lm import DirectAnthropicLM, is_api_key_available
@@ -214,7 +214,7 @@ class PilotTerminalAgent(BaseOlympiadAgent):
     whether to actually execute them.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._terminal = self._create_module(TerminalSignature)
 
@@ -291,12 +291,12 @@ class PilotSkillWriterAgent(BaseOlympiadAgent):
     Uses Sonnet for higher quality skill generation.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._ensure_sonnet_lm()
         self._writer = self._create_module(SkillWriterSignature)
 
-    def _ensure_sonnet_lm(self):
+    def _ensure_sonnet_lm(self) -> Any:
         """Create Sonnet LM for skill writing."""
         try:
             from Jotty.core.foundation.direct_anthropic_lm import DirectAnthropicLM, is_api_key_available
@@ -343,7 +343,7 @@ class PilotSkillWriterAgent(BaseOlympiadAgent):
 class PilotValidatorAgent(BaseOlympiadAgent):
     """Validates whether a goal has been achieved."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._validator = self._create_module(ValidatorSignature)
 

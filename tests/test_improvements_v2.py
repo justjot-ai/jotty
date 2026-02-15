@@ -123,7 +123,7 @@ class TestTrainingDaemon:
             assert status['running'] is True
 
             # Wait for it to complete
-            await sm._training_daemon
+            await sm._training._daemon_task
 
             status = sm.training_daemon_status()
             assert status['running'] is False
@@ -140,15 +140,15 @@ class TestTrainingDaemon:
         async def _long_running():
             await asyncio.sleep(100)
 
-        sm._training_daemon = asyncio.ensure_future(_long_running())
+        sm._training._daemon_task = asyncio.ensure_future(_long_running())
 
         started = sm.start_training_daemon()
         assert started is False
 
         # Cleanup
-        sm._training_daemon.cancel()
+        sm._training._daemon_task.cancel()
         try:
-            await sm._training_daemon
+            await sm._training._daemon_task
         except asyncio.CancelledError:
             pass
 
@@ -160,7 +160,7 @@ class TestTrainingDaemon:
         async def _long_running():
             await asyncio.sleep(100)
 
-        sm._training_daemon = asyncio.ensure_future(_long_running())
+        sm._training._daemon_task = asyncio.ensure_future(_long_running())
 
         stopped = sm.stop_training_daemon()
         assert stopped is True

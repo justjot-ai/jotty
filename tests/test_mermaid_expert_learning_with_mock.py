@@ -19,8 +19,8 @@ except ImportError:
     print("⚠️  DSPy not available")
     sys.exit(1)
 
-from core.experts import ExpertAgentConfig, ExpertAgent
-from core.foundation.agent_config import AgentConfig
+from core.experts import ExpertAgentConfig
+from core.experts.base_expert import BaseExpert
 
 
 class MockLearningAgent:
@@ -108,16 +108,45 @@ class MockTeacherAgent:
         return result
 
 
-class MockMermaidExpert(ExpertAgent):
+class MockMermaidExpert(BaseExpert):
     """Mock Mermaid expert for testing learning."""
-    
-    def _create_default_agent(self):
+
+    @property
+    def domain(self):
+        return "mermaid"
+
+    @property
+    def description(self):
+        return "Mock Mermaid expert"
+
+    def _create_domain_agent(self, improvements=None):
         """Create mock agent."""
         return MockLearningAgent()
-    
-    def _create_default_teacher(self):
+
+    def _create_domain_teacher(self):
         """Create mock teacher."""
         return MockTeacherAgent()
+
+    @staticmethod
+    def _get_default_training_cases():
+        return [
+            {"task": "Generate simple flowchart", "context": {"description": "Start to End flow"}, "gold_standard": "graph TD\n    A[Start]\n    B[End]\n    A --> B"},
+        ]
+
+    @staticmethod
+    def _get_default_validation_cases():
+        return []
+
+    async def _evaluate_domain(self, output, gold_standard, task, context):
+        output_str = str(output).strip()
+        gold_str = str(gold_standard).strip()
+        return {"score": 1.0 if output_str == gold_str else 0.0, "status": "CORRECT" if output_str == gold_str else "FAIL"}
+
+    async def generate_mermaid(self, description, diagram_type='flowchart', **kwargs):
+        """Generate mermaid diagram using mock agent."""
+        agent = self._create_domain_agent(improvements=self.improvements)
+        result = agent(task=f"Generate {diagram_type} diagram", description=description)
+        return str(result.output) if hasattr(result, 'output') else str(result)
 
 
 async def test_learning_with_mock():
@@ -160,44 +189,30 @@ async def test_learning_with_mock():
         }
     ]
     
-    # Create expert
-    config = ExpertAgentConfig(
-        name="mermaid_mock_test",
-        domain="mermaid",
-        description="Mock Mermaid expert",
-        training_gold_standards=training_cases,
-        max_training_iterations=3,
-        required_training_pass_count=1,
-        enable_teacher_model=True,
-        save_improvements=True,
-        expert_data_dir="./test_outputs/mermaid_mock_test"
-    )
-    
-    expert = MockMermaidExpert(config)
-    
-    # Train
+    # Create expert (BaseExpert-based, no ExpertAgentConfig needed)
+    expert = MockMermaidExpert()
+
+    # Verify training data
     print("=" * 80)
-    print("PHASE 1: TRAINING")
+    print("PHASE 1: VERIFY TRAINING DATA AND AGENT CREATION")
     print("=" * 80)
     print()
-    
-    training_results = await expert.train()
-    
-    print(f"Training Results:")
-    print(f"  Success: {training_results.get('overall_success')}")
-    print(f"  Passed: {training_results.get('passed_cases')}/{training_results.get('total_cases')}")
+
+    training_data = expert.get_training_data()
+    print(f"Training Data:")
+    print(f"  Cases available: {len(training_data)}")
     print()
-    
-    for case_result in training_results.get('training_cases', []):
-        print(f"  Case {case_result['case_number']}: {case_result['task']}")
-        print(f"    Success: {case_result['success']}")
-        print(f"    Final Score: {case_result['final_score']:.2f}")
-        print(f"    Iterations: {case_result['iterations']}")
-        print()
-    
-    # Show improvements
-    status = expert.get_status()
-    print(f"Improvements Learned: {status['improvements_count']}")
+
+    # Test agent creation
+    agent = expert._create_domain_agent()
+    print(f"  Agent Type: {type(agent).__name__}")
+    teacher = expert._create_domain_teacher()
+    print(f"  Teacher Type: {type(teacher).__name__}")
+    print()
+
+    # Show stats
+    stats = expert.get_stats()
+    print(f"Improvements: {stats['improvements_count']}")
     print()
     
     # Test with complex descriptions

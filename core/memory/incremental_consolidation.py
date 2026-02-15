@@ -36,7 +36,7 @@ class IncrementalConsolidator:
     3. Yields to event loop between memories (non-blocking)
     """
 
-    def __init__(self, batch_size: int = 1, delay_between_ms: int = 50):
+    def __init__(self, batch_size: int = 1, delay_between_ms: int = 50) -> None:
         """
         Args:
             batch_size: Memories to consolidate per iteration (1 = true streaming)
@@ -58,7 +58,7 @@ class IncrementalConsolidator:
             f"(batch_size={batch_size}, delay={delay_between_ms}ms)"
         )
 
-    def _get_base_consolidator(self):
+    def _get_base_consolidator(self) -> Any:
         """Lazy-load base consolidator (DRY)."""
         if self._base_consolidator is None:
             try:
@@ -69,7 +69,7 @@ class IncrementalConsolidator:
                 self._base_consolidator = NoopConsolidator()
         return self._base_consolidator
 
-    def enqueue_memory(self, memory: Any):
+    def enqueue_memory(self, memory: Any) -> Any:
         """
         Add memory to consolidation queue.
 
@@ -82,7 +82,7 @@ class IncrementalConsolidator:
         if not self.processing:
             asyncio.create_task(self._process_queue())
 
-    async def _process_queue(self):
+    async def _process_queue(self) -> Any:
         """Background task to process consolidation queue."""
         if self.processing:
             return  # Already running
@@ -111,7 +111,7 @@ class IncrementalConsolidator:
                 f"(processed={self.processed_count}, failed={self.failed_count})"
             )
 
-    async def _consolidate_batch(self, memories: List[Any]):
+    async def _consolidate_batch(self, memories: List[Any]) -> Any:
         """Consolidate a small batch of memories."""
         consolidator = self._get_base_consolidator()
 
@@ -144,7 +144,7 @@ class IncrementalConsolidator:
             ),
         }
 
-    async def flush(self, timeout: float = 30.0):
+    async def flush(self, timeout: float = 30.0) -> Any:
         """
         Wait for queue to be fully processed.
 
@@ -165,7 +165,7 @@ class IncrementalConsolidator:
 class NoopConsolidator:
     """Noop consolidator for fallback."""
 
-    async def consolidate_single(self, memory):
+    async def consolidate_single(self, memory: Any) -> Any:
         pass
 
 

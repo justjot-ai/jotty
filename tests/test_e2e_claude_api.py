@@ -181,6 +181,7 @@ class TestClaudeAPIIntegration:
 class TestComponentBehavior:
     """Test individual component behavior without API calls."""
 
+    @pytest.mark.skip(reason="ParameterResolver module was removed in refactoring")
     def test_parameter_resolver_component_standalone(self):
         """Test ParameterResolver component works standalone."""
         from core.orchestration.parameter_resolver import ParameterResolver

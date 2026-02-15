@@ -93,7 +93,7 @@ class ValidatorAgent:
         'quality_threshold'
     ]
 
-    def __init__(self, constraints: List[SafetyConstraint]):
+    def __init__(self, constraints: List[SafetyConstraint]) -> None:
         """
         Initialize validator with safety constraints.
 
@@ -308,13 +308,13 @@ class ValidatorAgent:
             ]
         }
 
-    def enable_constraint(self, constraint_name: str):
+    def enable_constraint(self, constraint_name: str) -> Any:
         """Enable a specific constraint."""
         if constraint_name in self.constraints:
             self.constraints[constraint_name].enabled = True
             logger.info(f"Enabled constraint: {constraint_name}")
 
-    def disable_constraint(self, constraint_name: str):
+    def disable_constraint(self, constraint_name: str) -> Any:
         """Disable a specific constraint."""
         if constraint_name in self.constraints:
             self.constraints[constraint_name].enabled = False

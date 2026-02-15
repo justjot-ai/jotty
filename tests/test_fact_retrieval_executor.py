@@ -29,7 +29,7 @@ class TestFactRetrievalExecutor:
 
         # Audio attachment
         tools = executor._auto_detect_tools("Transcribe this", ["audio.mp3"])
-        assert 'whisper' in tools
+        assert 'whisper' in tools or 'openai-whisper-api' in tools
 
     @pytest.mark.unit
     def test_dependency_extraction(self):

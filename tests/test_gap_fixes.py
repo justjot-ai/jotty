@@ -43,7 +43,8 @@ def _agent_obj(name):
 def _agent_spec(name, capabilities=None):
     """Create an AgentConfig with a dummy agent."""
     dummy = type('DummyAgent', (), {
-        'forward': lambda self, **kw: None,
+        'forward': lambda self, **kw: type('R', (), {'_store': {'output': 'ok'}, 'output': 'ok'})(),
+        '__call__': lambda self, **kw: type('R', (), {'_store': {'output': 'ok'}, 'output': 'ok'})(),
         'config': type('C', (), {'system_prompt': None})(),
     })()
     spec = AgentConfig(name=name, agent=dummy)
@@ -84,7 +85,7 @@ class TestGap1AgentSelection:
         for _ in range(5):
             lp.stigmergy.deposit(
                 signal_type='route',
-                content={'task_type': 'analysis', 'agent': 'strong'},
+                content={'task_type': 'analysis', 'agent': 'strong', 'success': True},
                 agent='strong',
                 strength=0.9,
             )

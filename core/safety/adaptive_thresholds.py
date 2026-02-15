@@ -51,12 +51,7 @@ class AdaptiveThresholdManager:
     → Lower threshold to $0.48 (catch anomalies sooner)
     """
 
-    def __init__(
-        self,
-        adaptation_interval: int = 100,
-        percentile_margin: float = 0.10,
-        max_adjustment: float = 0.20,
-    ):
+    def __init__(self, adaptation_interval: int = 100, percentile_margin: float = 0.1, max_adjustment: float = 0.2) -> None:
         """
         Args:
             adaptation_interval: Review thresholds every N observations
@@ -75,13 +70,7 @@ class AdaptiveThresholdManager:
             f"(interval={adaptation_interval}, margin={percentile_margin:.0%})"
         )
 
-    def record_observation(
-        self,
-        constraint_name: str,
-        value: float,
-        violated: bool,
-        current_threshold: float,
-    ):
+    def record_observation(self, constraint_name: str, value: float, violated: bool, current_threshold: float) -> Any:
         """
         Record an observation for threshold adaptation.
 
@@ -112,7 +101,7 @@ class AdaptiveThresholdManager:
         if self.observation_count % self.adaptation_interval == 0:
             self._adapt_thresholds()
 
-    def _adapt_thresholds(self):
+    def _adapt_thresholds(self) -> Any:
         """Review and adapt all thresholds based on accumulated data."""
         logger.info(f"\n📊 Reviewing thresholds ({self.observation_count} observations)...")
 
@@ -151,7 +140,7 @@ class AdaptiveThresholdManager:
             hist.non_violations = hist.non_violations[-100:]
             hist.violations = hist.violations[-20:]
 
-    def _apply_adjustment(self, hist: ThresholdHistory, new_threshold: float, reason: str):
+    def _apply_adjustment(self, hist: ThresholdHistory, new_threshold: float, reason: str) -> Any:
         """Apply threshold adjustment."""
         old = hist.current_threshold
         hist.current_threshold = new_threshold

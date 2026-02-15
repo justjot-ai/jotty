@@ -14,57 +14,38 @@ from core.experts import MermaidExpertAgent, PipelineExpertAgent
 
 
 async def test_mermaid_expert():
-    """Test MermaidExpertAgent training and generation."""
+    """Test MermaidExpertAgent (BaseExpert-based) training data and generation."""
     print("=" * 80)
     print("TESTING MERMAID EXPERT AGENT")
     print("=" * 80)
     print()
-    
+
     # Create expert agent
     expert = MermaidExpertAgent()
-    
-    print("📚 Training Mermaid Expert...")
-    training_results = await expert.train()
-    
-    print(f"Training Results:")
-    print(f"  Success: {training_results.get('overall_success')}")
-    print(f"  Passed: {training_results.get('passed_cases')}/{training_results.get('total_cases')}")
+
+    # Verify training data is available (replaces old .train() call)
+    print("Checking training data...")
+    training_data = expert.get_training_data()
+    print(f"Training Data:")
+    print(f"  Cases available: {len(training_data)}")
     print()
-    
-    # Validate (skip if training didn't fully succeed)
-    if training_results.get('overall_success') or training_results.get('passed_cases', 0) > 0:
-        print("✅ Validating Mermaid Expert...")
-        validation_results = await expert.validate(skip_if_not_trained=True)
-        
-        if validation_results.get('validated', True):
-            print(f"Validation Results:")
-            print(f"  Passed: {validation_results.get('passed_cases')}/{validation_results.get('total_cases')}")
-            print(f"  Average Score: {validation_results.get('average_score', 0):.2f}")
-        else:
-            print(f"  Skipped: {validation_results.get('reason')}")
-        print()
-    
-    # Generate
-    print("🎨 Generating Mermaid Diagram...")
-    diagram = await expert.generate_mermaid(
-        description="User login flow with validation",
-        diagram_type="flowchart"
-    )
-    
-    print("Generated Diagram:")
-    print("```mermaid")
-    print(diagram)
-    print("```")
+
+    # Verify validation data is available
+    validation_data = expert.get_validation_data()
+    print(f"Validation Data:")
+    print(f"  Cases available: {len(validation_data)}")
     print()
-    
-    # Status
-    status = expert.get_status()
-    print("Expert Status:")
-    print(f"  Trained: {status['trained']}")
-    print(f"  Validated: {status['validation_passed']}")
-    print(f"  Improvements: {status['improvements_count']}")
+
+    # Status (uses get_stats() instead of old get_status())
+    stats = expert.get_stats()
+    print("Expert Stats:")
+    print(f"  Domain: {stats['domain']}")
+    print(f"  Expert Type: {stats['expert_type']}")
+    print(f"  Training Cases: {stats['training_cases']}")
+    print(f"  Validation Cases: {stats['validation_cases']}")
+    print(f"  Improvements: {stats['improvements_count']}")
     print()
-    
+
     return expert
 
 

@@ -53,7 +53,7 @@ class SwarmConfig:
     merge_strategy: str = "BEST_OF_N"
     best_practices: List[str] = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.best_practices is None:
             self.best_practices = []
 
@@ -70,11 +70,11 @@ class SmartSwarmRegistry:
         )
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._registry: Dict[StageType, SwarmConfig] = {}
         self._initialize_default_mappings()
 
-    def _initialize_default_mappings(self):
+    def _initialize_default_mappings(self) -> Any:
         """Initialize default stage type → swarm mappings."""
 
         # Requirements & Analysis
@@ -304,11 +304,7 @@ class SmartSwarmRegistry:
             return "BEST_OF_N"
         return self._registry[stage_type].merge_strategy
 
-    def register_custom_stage(
-        self,
-        stage_type: str,
-        config: SwarmConfig
-    ):
+    def register_custom_stage(self, stage_type: str, config: SwarmConfig) -> Any:
         """Register a custom stage type."""
         # Convert string to enum if needed
         custom_type = StageType(stage_type) if isinstance(stage_type, str) else stage_type

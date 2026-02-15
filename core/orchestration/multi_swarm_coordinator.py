@@ -36,7 +36,7 @@ class SwarmResult:
     confidence: float = 0.0
     metadata: Dict[str, Any] = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.metadata is None:
             self.metadata = {}
 
@@ -61,7 +61,7 @@ class MultiSwarmCoordinator:
     - Fault tolerance (if one swarm fails, others succeed)
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.execution_count = 0
         self.merge_stats: Dict[str, int] = {}
 

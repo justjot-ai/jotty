@@ -146,11 +146,11 @@ class SwarmAdapter:
 class _RunToExecuteAdapter:
     """Adapts swarm.run() → swarm.execute() for Multi-Swarm compatibility."""
 
-    def __init__(self, swarm: Any):
+    def __init__(self, swarm: Any) -> None:
         self.swarm = swarm
         self.name = getattr(swarm, 'name', 'unnamed')
 
-    async def execute(self, task: str):
+    async def execute(self, task: str) -> Any:
         """Execute by calling swarm.run()."""
         from .multi_swarm_coordinator import SwarmResult
 
@@ -191,19 +191,13 @@ class _RunToExecuteAdapter:
 class _QuickSwarm:
     """Quick swarm created from name + system prompt."""
 
-    def __init__(
-        self,
-        name: str,
-        system_prompt: str,
-        model: str = "claude-3-5-haiku-20241022",
-        max_tokens: int = 200
-    ):
+    def __init__(self, name: str, system_prompt: str, model: str = 'claude-3-5-haiku-20241022', max_tokens: int = 200) -> None:
         self.name = name
         self.system_prompt = system_prompt
         self.model = model
         self.max_tokens = max_tokens
 
-    async def execute(self, task: str):
+    async def execute(self, task: str) -> Any:
         """Execute using Anthropic API directly."""
         from .multi_swarm_coordinator import SwarmResult
         import os
@@ -259,11 +253,11 @@ class _QuickSwarm:
 class _AgentToSwarmAdapter:
     """Adapts Jotty agent to Multi-Swarm interface."""
 
-    def __init__(self, agent: Any):
+    def __init__(self, agent: Any) -> None:
         self.agent = agent
         self.name = getattr(agent, 'name', 'agent')
 
-    async def execute(self, task: str):
+    async def execute(self, task: str) -> Any:
         """Execute by calling agent.run() or agent.execute()."""
         from .multi_swarm_coordinator import SwarmResult
 
