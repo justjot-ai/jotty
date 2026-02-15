@@ -63,7 +63,6 @@ class ResumeCommand(BaseCommand):
             target_session = other_sessions[0]
 
         # Load the session
-        old_id = cli.session.session_id
         cli.session.load(target_session["session_id"])
 
         # Show summary

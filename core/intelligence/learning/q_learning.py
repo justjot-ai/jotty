@@ -1092,7 +1092,7 @@ class LLMQPredictor:
 
             return q_val, conf, alt
 
-        except Exception as e:
+        except Exception:
             # Fallback: use Q-table if available
             state_desc = self._state_to_natural_language(state)
             action_desc = self._action_to_natural_language(action)
@@ -1288,7 +1288,7 @@ class LLMQPredictor:
 
                 lm = getattr(self.config, "lm", None) or dspy.settings.lm
                 self._chunker = ContextChunker(lm=lm)
-            except Exception as e:
+            except Exception:
                 # Fallback: no chunking
                 self._chunker = None
         return self._chunker
@@ -1432,7 +1432,7 @@ class LLMQPredictor:
             # Keep only top N clusters
             self.tier2_clusters = dict(list(clusters.items())[: self.tier2_max_clusters])
 
-        except Exception as e:
+        except Exception:
             # Fallback: no clustering
             pass
 

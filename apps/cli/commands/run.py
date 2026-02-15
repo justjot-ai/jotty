@@ -46,8 +46,6 @@ class RunCommand(BaseCommand):
 
         # Get options
         verbose = args.flags.get("verbose", False) or args.flags.get("v", False)
-        agent_name = args.flags.get("agent") or args.flags.get("a")
-
         # Zero-config swarm mode - system decides single vs multi-agent
         cli.renderer.info("Swarm mode: zero-config (system decides single/multi-agent)")
 

@@ -424,7 +424,6 @@ class StigmergyLayer:
             signal_type = "approach_warning"
 
         # Check for existing approach signal for this task_type + approach combo
-        approach_key = f"{task_type}:{approach_summary[:50]}"
         for sid, signal in self.signals.items():
             if (
                 signal.signal_type in ("approach_success", "approach_warning")

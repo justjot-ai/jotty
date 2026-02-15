@@ -347,7 +347,6 @@ class JottyDecorator:
 
     def _wrap_function(self, func: Callable) -> Callable:
         """Wrap a regular function."""
-        decorator = self
 
         if asyncio.iscoroutinefunction(func):
 

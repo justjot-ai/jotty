@@ -53,7 +53,7 @@ import logging
 import traceback
 from abc import abstractmethod
 from datetime import datetime
-from typing import Any, Callable, ClassVar, Dict, List, Optional, Tuple, Type
+from typing import Callable, ClassVar, Dict, List, Optional, Tuple, Type
 
 from ..base_swarm import AgentRole, BaseSwarm, SwarmBaseConfig, SwarmResult
 from ..swarm_types import _safe_join, _safe_num, _split_field

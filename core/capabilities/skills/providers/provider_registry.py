@@ -162,7 +162,6 @@ class ProviderSelector:
 
         # Get task hash for lookup
         task_hash = self._hash_task(task)
-        key = (category.value, task_hash)
 
         # Epsilon-greedy exploration
         import random
@@ -775,7 +774,7 @@ class ProviderRegistry:
         """
         try:
             # Get sandbox manager
-            sandbox = self._get_sandbox_manager()
+            self._get_sandbox_manager()
 
             # For now, execute provider normally
             # Future: intercept code execution and route through sandbox

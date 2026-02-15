@@ -11,15 +11,17 @@ coordination and core learning lifecycle concerns.
 
 import json
 import logging
+import tempfile
 from datetime import datetime
 from typing import Any, Dict, List
 
+from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
 from Jotty.core.infrastructure.foundation.exceptions import (
     MemoryError,
     MemoryRetrievalError,
     MemoryStorageError,
 )
-
+from .evaluation import EvaluationHistory, ImprovementHistory
 
 logger = logging.getLogger(__name__)
 
@@ -551,7 +553,6 @@ class SwarmKnowledgeMixin:
     @classmethod
     def test_learning_pathways(cls) -> Dict[str, Dict[str, Any]]:
         """Diagnostic: inject synthetic data to verify all 5 learning pathways produce prompt text."""
-        import tempfile
 
         results = {}
 

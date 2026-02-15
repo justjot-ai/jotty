@@ -93,7 +93,6 @@ class WhatsAppWebClient:
             return False
 
         # Check if dependencies installed
-        package_json = self._bridge_path.parent / "package.json"
         node_modules = self._bridge_path.parent / "node_modules"
 
         if not node_modules.exists():

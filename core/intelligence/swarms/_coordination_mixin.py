@@ -129,7 +129,6 @@ class SwarmCoordinationMixin:
             try:
                 coord["coalition_formed"] = None
                 if len(available) >= 3 and not si.coalitions:
-                    swarm_name = getattr(self.config, "name", None) or "base_swarm"
                     task_type = getattr(self.config, "domain", "general")
                     coalition = si.form_coalition(
                         task_type=task_type,

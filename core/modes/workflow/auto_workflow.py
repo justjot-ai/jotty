@@ -12,12 +12,7 @@ User provides intent, system figures out the rest.
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-from ..orchestration import (
-    MergeStrategy,
-    MultiStagePipeline,
-    PipelineResult,
-    SwarmAdapter,
-)
+from ..orchestration import MergeStrategy, MultiStagePipeline, PipelineResult, SwarmAdapter
 from .smart_swarm_registry import StageType, get_smart_registry
 
 

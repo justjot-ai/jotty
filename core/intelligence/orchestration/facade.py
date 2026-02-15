@@ -18,9 +18,7 @@ import threading
 from typing import TYPE_CHECKING, Any, Dict, Optional, Type, Union
 
 if TYPE_CHECKING:
-    from Jotty.core.infrastructure.foundation.data_structures import (
-        SwarmConfig,
-    )
+    from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
     from Jotty.core.intelligence.orchestration.ensemble_manager import EnsembleManager
     from Jotty.core.intelligence.orchestration.model_tier_router import ModelTierRouter
     from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor

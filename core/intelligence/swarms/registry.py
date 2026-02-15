@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
 
 if TYPE_CHECKING:
     from .base_swarm import BaseSwarm
-
+    from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
 
 
 class SwarmRegistry:
@@ -39,7 +39,7 @@ class SwarmRegistry:
         return list(cls._swarms.keys())
 
     @classmethod
-    def create(cls, name: str, config: SwarmBaseConfig = None) -> Optional["BaseSwarm"]:
+    def create(cls, name: str, config: "SwarmConfig" = None) -> Optional["BaseSwarm"]:
         """Create a swarm instance by name."""
         swarm_class = cls.get(name)
         if not swarm_class:

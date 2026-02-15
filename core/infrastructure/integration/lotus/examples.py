@@ -119,7 +119,7 @@ async def example_model_cascade() -> Any:
         return is_spam, confidence
 
     # Execute with cascade
-    results = await cascade.execute("classify", items, prompt_fn, parse_fn)
+    await cascade.execute("classify", items, prompt_fn, parse_fn)
 
     # Analyze tier usage
     stats = cascade.get_stats()

@@ -127,7 +127,7 @@ class PersistentClaudeCLI(dspy.BaseLM):
     def __call__(self, prompt: str = None, messages: List[Dict] = None, **kwargs: Any) -> List[str]:
         """Synchronous call interface (required by DSPy)."""
         try:
-            loop = asyncio.get_running_loop()
+            asyncio.get_running_loop()
             import concurrent.futures
 
             with concurrent.futures.ThreadPoolExecutor() as executor:

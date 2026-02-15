@@ -45,7 +45,7 @@ Streaming Response + Tool Executions + A2UI Sections
 
 import asyncio
 import logging
-from typing import Any, AsyncGenerator, Callable, Dict, List, Optional, Tuple
+from typing import AsyncGenerator, Callable, Dict, List, Optional, Tuple
 
 # Import types and providers from extracted llm_providers package
 from .llm_providers import (

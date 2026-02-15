@@ -28,10 +28,7 @@ except ImportError:
     dspy = None
 
 from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
-from Jotty.core.infrastructure.foundation.data_structures import (
-    EpisodeResult,
-    SwarmConfig,
-)
+from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult, SwarmConfig
 
 from .adaptive_learning import AdaptiveLearning
 
@@ -408,7 +405,7 @@ class OptimizationPipeline:
         # Handle DSPy Prediction with _store dict
         if hasattr(agent_output, "_store") and isinstance(agent_output._store, dict):
             # Try common output fields (generic - works for any domain)
-            for field in [
+            for field_name in [
                 "output",
                 "result",
                 "content",
@@ -417,9 +414,9 @@ class OptimizationPipeline:
                 "final_output",
                 "final_result",
             ]:
-                if field in agent_output._store:
-                    extracted = agent_output._store[field]
-                    logger.debug(f"Extracted output from field '{field}': {extracted}")
+                if field_name in agent_output._store:
+                    extracted = agent_output._store[field_name]
+                    logger.debug(f"Extracted output from field '{field_name}': {extracted}")
                     return extracted
             # Fallback: return first value
             if agent_output._store:

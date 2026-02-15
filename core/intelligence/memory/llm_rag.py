@@ -563,7 +563,7 @@ Score 0.0: Completely unrelated
                         else:
                             all_scores[mem.key] = 0.5
 
-            except Exception as e:
+            except Exception:
                 # On error, use neutral score
                 for mem in batch:
                     all_scores[mem.key] = 0.5
@@ -915,7 +915,7 @@ class CausalExtractor:
                 if link.get("confidence", 0) >= self.config.causal_confidence_threshold
             ]
 
-        except Exception as e:
+        except Exception:
             return []
 
     def _summarize_episodes(self, episodes: List[Dict]) -> str:

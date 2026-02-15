@@ -386,7 +386,6 @@ class SharpWaveRippleConsolidator:
         """Extract common pattern from similar-outcome episodes."""
         # Simple: Find common actions/contexts
         actions = [ep.get("action", "") for ep in episodes]
-        contexts = [str(ep.get("context", "")) for ep in episodes]
 
         # Count action frequencies
         action_counts = defaultdict(int)

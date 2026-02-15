@@ -165,7 +165,7 @@ class OutputChannelManager:
 
                     # If we're already in an event loop, await directly
                     try:
-                        loop = asyncio.get_running_loop()
+                        asyncio.get_running_loop()
                         # We're in an async context - create task and wait
                         result = await send_tool(params)
                     except RuntimeError:

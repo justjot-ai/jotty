@@ -35,7 +35,6 @@ from ..foundation.data_structures import SwarmConfig
 from ..utils.algorithmic_foundations import (
     ContentGate,
     DifferenceRewardEstimator,
-    GlobalContextGuard,
     MutualInformationRetriever,
     ShapleyValueEstimator,
     SurpriseEstimator,

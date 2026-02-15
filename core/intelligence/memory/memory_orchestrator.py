@@ -498,12 +498,6 @@ def load_brain_config(config: Dict[str, Any]) -> SimpleBrain:
         # Advanced: dict with options
         preset_name = brain_config.get("preset", "balanced")
         model = brain_config.get("model", "gpt-4.1")
-        consolidate_on_str = brain_config.get("consolidate_on", "episode_count")
-
-        try:
-            consolidate_on = ConsolidationTrigger(consolidate_on_str)
-        except ValueError:
-            consolidate_on = ConsolidationTrigger.EPISODE_COUNT
 
         return SimpleBrain.from_preset(preset_name, model_name=model)
 
@@ -549,7 +543,7 @@ import logging
 import math
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 logger = logging.getLogger(__name__)
 

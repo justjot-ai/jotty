@@ -10,9 +10,7 @@ import time
 from collections import defaultdict
 from typing import Any, Dict, List, Optional
 
-from ..swarm_data_structures import (
-    AgentProfile,
-)
+from ..swarm_data_structures import AgentProfile
 
 logger = logging.getLogger(__name__)
 

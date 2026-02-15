@@ -37,10 +37,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
 from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel, SwarmConfig
-from Jotty.core.intelligence.orchestration import (
-    OptimizationPipeline,
-    create_optimization_pipeline,
-)
+from Jotty.core.intelligence.orchestration import OptimizationPipeline, create_optimization_pipeline
 
 from ..memory.cortex import SwarmMemory
 

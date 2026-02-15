@@ -508,9 +508,6 @@ class JottyAPI:
             # Get shared CLI instance
             cli = self._get_cli()
 
-            # Capture stdout/stderr for web display
-            output_buffer = io.StringIO()
-
             # Execute command through CLI's command handler
             cmd_input = f"/{command} {args}".strip()
 
@@ -576,7 +573,7 @@ class JottyAPI:
 
             try:
                 # Execute via CLI's command handler
-                result = await cli._handle_command(cmd_input)
+                await cli._handle_command(cmd_input)
 
                 return {
                     "success": True,

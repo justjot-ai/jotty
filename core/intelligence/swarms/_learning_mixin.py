@@ -618,36 +618,3 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
 # EXPORTS
 # =============================================================================
 
-__all__ = [
-    # Enums
-    "AgentRole",
-    "EvaluationResult",
-    "ImprovementType",
-    # Data classes
-    "GoldStandard",
-    "Evaluation",
-    "ImprovementSuggestion",
-    "AgentConfig",
-    "ExecutionTrace",
-    "SwarmConfig",
-    "SwarmResult",
-    # DSPy Signatures
-    "ExpertEvaluationSignature",
-    "ReviewerAnalysisSignature",
-    "PlannerOptimizationSignature",
-    "ActorExecutionSignature",
-    "AuditorVerificationSignature",
-    "LearnerExtractionSignature",
-    # Core classes
-    "GoldStandardDB",
-    "ImprovementHistory",
-    "ExpertAgent",
-    "ReviewerAgent",
-    "PlannerAgent",
-    "ActorAgent",
-    "AuditorAgent",
-    "LearnerAgent",
-    "BaseSwarm",
-    "SwarmRegistry",
-    "register_swarm",
-]

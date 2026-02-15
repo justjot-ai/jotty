@@ -36,11 +36,7 @@ from typing import Any, Dict, List
 
 import dspy
 
-from .ateam_presets import (
-    ATeamPreset,
-    get_preset_config,
-    get_preset_experts,
-)
+from .ateam_presets import ATeamPreset, get_preset_config, get_preset_experts
 from .ateam_roster import Expert, get_all_experts, get_experts_by_names
 from .debate_manager import ConsensusResult, DebateManager
 

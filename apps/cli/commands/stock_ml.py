@@ -675,7 +675,7 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
                 df = pd.read_csv(f, compression="gzip", on_bad_lines="skip")
                 df = df.loc[:, ~df.columns.duplicated()]
                 dfs.append(df)
-            except Exception as e:
+            except Exception:
                 continue
 
         if not dfs:
@@ -1050,7 +1050,6 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
         signals = df["signal"]
         signal_changes = signals.diff().fillna(0)
         entries = signal_changes[signal_changes == 1]
-        exits = signal_changes[signal_changes == -1]
 
         # Simplified trade calculation
         trades_info = {
@@ -2273,7 +2272,7 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
                 json.dump(stocks, f)
 
             return stocks
-        except Exception as e:
+        except Exception:
             return []
 
     def _get_stocks_for_sweep(self, stocks_input: str) -> List[str]:

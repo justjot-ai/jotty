@@ -17,10 +17,7 @@ from typing import Any, Dict, Optional
 import dspy
 
 from ..base import AgentTeam, DomainSwarm
-from ..base_swarm import (
-    AgentRole,
-    register_swarm,
-)
+from ..base_swarm import AgentRole, register_swarm
 from ..swarm_signatures import CodingSwarmSignature
 from . import utils as _coding_utils
 from ._codebase_mixin import CodebaseMixin
@@ -44,14 +41,7 @@ from .agents import (
 )
 from .signatures import ScopeClassificationSignature
 from .teams import TEAM_PRESETS, TeamConfig
-from .types import (
-    CodeLanguage,
-    CodeOutput,
-    CodeStyle,
-    CodingConfig,
-    CodingResult,
-    FullStackContext,
-)
+from .types import CodeLanguage, CodeOutput, CodeStyle, CodingConfig, CodingResult, FullStackContext
 from .utils import _progress, _strip_code_fences
 from .workspace import WorkspaceManager
 

@@ -90,13 +90,10 @@ agent = dspy.ReAct(ChatSignature, tools=provider.get_tools())
 import json
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 
 from .base_metadata_provider import BaseMetadataProvider
-from .widget_params_schema import (
-    WidgetParamSchema,
-    generate_tool_examples,
-)
+from .widget_params_schema import WidgetParamSchema, generate_tool_examples
 
 logger = logging.getLogger(__name__)
 

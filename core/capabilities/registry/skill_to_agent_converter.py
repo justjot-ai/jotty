@@ -86,7 +86,7 @@ class SkillToAgentConverter:
             analysis = await self._analyze_skill(skill)
 
             # Step 2: Generate DSPy signature class
-            signature_class = self._create_signature_class(skill_name=skill.name, analysis=analysis)
+            self._create_signature_class(skill_name=skill.name, analysis=analysis)
 
             # Step 3: Create DSPy module that uses AutoAgent
             # Use SkillBasedAgent which wraps AutoAgent execution

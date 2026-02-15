@@ -626,7 +626,6 @@ class CoordinationMixin:
         # 5. No double-booking (agents can only join one coalition at a time)
         # =====================================================================
 
-
         # STEP 1: Filter available agents (not in other coalitions)
         available = [a for a in self.agent_profiles.keys() if a not in self.agent_coalitions]
 

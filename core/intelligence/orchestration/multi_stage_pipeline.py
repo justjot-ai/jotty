@@ -201,7 +201,7 @@ class MultiStagePipeline:
 
         # Main trace context
         trace_ctx = tracer.trace(f"pipeline_{self.task[:30]}") if tracer else None
-        main_trace_id = trace_ctx.__enter__() if trace_ctx else None
+        _main_trace_id = trace_ctx.__enter__() if trace_ctx else None
 
         try:
             for i, stage in enumerate(self.stages, 1):

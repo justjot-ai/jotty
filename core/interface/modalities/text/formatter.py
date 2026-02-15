@@ -6,7 +6,6 @@ Formats text output for different platforms (markdown, emoji, etc.).
 """
 
 
-
 class TextFormatter:
     """Format text output for different platforms."""
 

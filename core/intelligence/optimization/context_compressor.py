@@ -200,7 +200,7 @@ Summary:"""
                 summary = summary[: self.max_length - 3] + "..."
 
             return summary
-        except Exception as e:
+        except Exception:
             # Fallback to truncate
             return self._truncate(context)
 

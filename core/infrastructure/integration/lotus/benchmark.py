@@ -424,7 +424,7 @@ async def run_benchmarks() -> Any:
 
     for r in results:
         savings = (1 - r.total_cost / baseline_cost) * 100 if baseline_cost > 0 else 0
-        time_reduction = (1 - r.total_time_ms / baseline_time) * 100 if baseline_time > 0 else 0
+        _time_reduction = (1 - r.total_time_ms / baseline_time) * 100 if baseline_time > 0 else 0
         print(f"{r.name:<45} ${r.total_cost:>8.4f} {savings:>9.1f}% {r.total_time_ms:>8.0f}ms")
 
     print("\n" + "=" * 70)

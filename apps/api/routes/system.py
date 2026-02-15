@@ -166,7 +166,7 @@ def register_system_routes(app, api):
                     agents = await agents
                 return {"agents": agents if agents else [], "count": len(agents) if agents else 0}
             return {"agents": [], "count": 0}
-        except (ImportError, Exception) as e:
+        except (ImportError, Exception):
             # Fallback: Return basic agent list from CLI commands
             return {
                 "agents": [

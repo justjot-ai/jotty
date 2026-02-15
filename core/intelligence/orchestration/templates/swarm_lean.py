@@ -41,7 +41,7 @@ Usage:
     )
 """
 
-from typing import Any, List
+from typing import List
 
 try:
     import dspy

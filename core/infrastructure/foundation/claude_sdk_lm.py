@@ -80,7 +80,7 @@ class ClaudeSDKLM(dspy.BaseLM):
         """
         # Check if we're already in an async context
         try:
-            loop = asyncio.get_running_loop()
+            asyncio.get_running_loop()
             # In async context - use thread pool
             import concurrent.futures
 

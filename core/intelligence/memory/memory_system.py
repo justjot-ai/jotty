@@ -44,7 +44,7 @@ import logging
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -146,9 +146,7 @@ class MemorySystem:
         from Jotty.core.infrastructure.foundation.configs.memory import (
             MemoryConfig as FocusedMemoryConfig,
         )
-        from Jotty.core.infrastructure.foundation.data_structures import (
-            MemoryLevel,
-        )
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel, SwarmConfig
 
         jc = self._jotty_config
         if isinstance(jc, FocusedMemoryConfig):

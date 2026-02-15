@@ -114,7 +114,6 @@ def register_chat_routes(app, api):
                     add_output(text)
 
                 # Monkey-patch renderer methods
-                original_print = cli.renderer.print
                 cli.renderer.print = capture_print
                 cli.renderer.info = lambda t: add_output(f"ℹ️ {t}")
                 cli.renderer.success = lambda t: add_output(f"✅ {t}")
@@ -122,14 +121,11 @@ def register_chat_routes(app, api):
                 cli.renderer.error = lambda t: add_output(f"❌ {t}")
 
                 # Capture panel output
-                original_panel = getattr(cli.renderer, "panel", None)
                 cli.renderer.panel = lambda content, **kwargs: add_output(
                     f"📋 {kwargs.get('title', 'Panel')}:\n{content}"
                 )
 
                 # Capture tree output
-                original_tree = getattr(cli.renderer, "tree", None)
-
                 def capture_tree(data, **kwargs):
                     title = kwargs.get("title", "Data")
                     if isinstance(data, dict):
@@ -143,8 +139,6 @@ def register_chat_routes(app, api):
                 cli.renderer.tree = capture_tree
 
                 # Capture table output
-                original_print_table = cli.renderer.tables.print_table
-
                 def capture_table(table):
                     try:
                         from rich.console import Console

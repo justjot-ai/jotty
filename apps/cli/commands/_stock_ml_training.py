@@ -483,10 +483,6 @@ class StockMLTrainingMixin:
             else:
                 predictions = best_model.predict(X_test.values)
 
-            # Get price data for backtesting
-            test_dates = df.loc[X_test.index, "date"]
-            test_prices = df.loc[X_test.index, "close"].values
-
             # Run World-Class Backtest Engine
             cli.renderer.info("")
             cli.renderer.header("Running World-Class Backtest Engine")
@@ -630,7 +626,6 @@ class StockMLTrainingMixin:
         """Run comprehensive sweep across stocks, targets, timeframes, periods."""
         from datetime import datetime
 
-
         # Parse sweep parameters
         stocks_input = args.flags.get("stocks", args.flags.get("s", "top10"))
         targets_input = args.flags.get(
@@ -710,7 +705,7 @@ class StockMLTrainingMixin:
                                     "timestamp": datetime.now().isoformat(),
                                 }
                             )
-                        except Exception as e:
+                        except Exception:
                             continue
 
         if not all_results:
@@ -908,7 +903,7 @@ class StockMLTrainingMixin:
 
                 all_train_data.append(X_normalized)
 
-            except Exception as e:
+            except Exception:
                 continue
 
         if len(all_train_data) < 2:

@@ -20,10 +20,7 @@ from .signatures import (
     SingleConceptDeepSignature,
     UnifiedConceptLearningSignature,
 )
-from .types import (
-    Concept,
-    PaperInfo,
-)
+from .types import Concept, PaperInfo
 
 # Import LOTUS
 try:
@@ -300,7 +297,7 @@ class ConceptExtractorAgent(BaseSwarmAgent):
                 if concepts_json.startswith("```"):
                     # Remove ```json and ``` markers
                     lines = concepts_json.split("\n")
-                    lines = [l for l in lines if not l.strip().startswith("```")]
+                    lines = [line for line in lines if not line.strip().startswith("```")]
                     concepts_json = "\n".join(lines)
                 concepts_data = json.loads(concepts_json)
             except Exception as e:

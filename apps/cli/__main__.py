@@ -178,7 +178,7 @@ For more info: https://github.com/yourusername/jotty
     skills_parser.add_argument("--category", "-c", help="Filter by category")
 
     # agents command
-    agents_parser = subparsers.add_parser("agents", help="List agents")
+    subparsers.add_parser("agents", help="List agents")
 
     # warmup command
     warmup_parser = subparsers.add_parser("warmup", help="Run DrZero warmup")

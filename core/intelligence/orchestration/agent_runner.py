@@ -17,10 +17,7 @@ import time as _time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
 
-from Jotty.core.infrastructure.foundation.data_structures import (
-    EpisodeResult,
-    SwarmConfig,
-)
+from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult, SwarmConfig
 from Jotty.core.infrastructure.foundation.exceptions import (
     AgentExecutionError,
     DSPyError,
@@ -403,9 +400,7 @@ class AgentRunner:
                 try:
                     if asyncio.iscoroutinefunction(fn):
                         # Can't await in sync hook runner — skip async agent hooks
-                        logger.debug(
-                            "Skipping async agent pre-hook (not supported in AgentRunner)"
-                        )
+                        logger.debug("Skipping async agent pre-hook (not supported in AgentRunner)")
                         return
                     fn(agent, **{k: v for k, v in ctx.items() if k in ("goal", "kwargs")})
                 except Exception as e:
@@ -1530,7 +1525,7 @@ class AgentRunner:
                         "not found",
                     ]
                     if any(kw in error_str.lower() for kw in error_keywords):
-                        diagnostics = await self.swarm_terminal.diagnose_system()
+                        await self.swarm_terminal.diagnose_system()
                         solution = await self.swarm_terminal._find_solution(ctx.goal, error_str)
                         if solution and solution.commands:
                             logger.info(f"   Found solution: {solution.solution[:100]}")

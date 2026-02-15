@@ -530,7 +530,7 @@ class SmartAgentSlack:
         original_tokens = self.context_budget_tracker[agent_name]
 
         try:
-            compressed_context = self.compressor.compress(
+            self.compressor.compress(
                 messages=agent_messages, agent_name=agent_name, target_ratio=0.5  # Compress to 50%
             )
 
@@ -573,10 +573,10 @@ class SmartAgentSlack:
         try:
             # Check if signature has input_fields
             if hasattr(signature, "input_fields"):
-                for field_name, field in signature.input_fields.items():
+                for field_name, field_obj in signature.input_fields.items():
                     # Check for format hints in description
-                    if hasattr(field, "desc") and field.desc:
-                        desc_lower = field.desc.lower()
+                    if hasattr(field_obj, "desc") and field_obj.desc:
+                        desc_lower = field_obj.desc.lower()
                         if "json" in desc_lower:
                             preferred_format = "json"
                             acceptable_formats = ["json", "dict"]
@@ -588,8 +588,8 @@ class SmartAgentSlack:
                             acceptable_formats = ["str", "text"]
 
                     # Check for type annotations
-                    if hasattr(field, "annotation"):
-                        annotation = field.annotation
+                    if hasattr(field_obj, "annotation"):
+                        annotation = field_obj.annotation
                         if annotation == dict or str(annotation) == "Dict":
                             preferred_format = "dict"
                             acceptable_formats = ["dict", "json"]
@@ -778,7 +778,6 @@ class SmartAgentSlack:
             True if should communicate
         """
         # LEARNED VALUE: Incorporate historical cooperation success
-        pair_key = (from_agent, to_agent)
         historical_success = self._get_cooperation_success_rate(from_agent, to_agent)
 
         # Value = base_value * historical_success * (1 - receiver_confidence)

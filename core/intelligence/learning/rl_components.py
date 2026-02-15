@@ -68,8 +68,6 @@ class RLComponents:
 
         # Extract state features for comparison
         current_pending = state.get("todo", "").count("pending") if "todo" in state else 0
-        current_iteration = state.get("iteration", 0)
-
         scored_experiences = []
         for exp in experience_buffer:
             similarity_score = 0.0

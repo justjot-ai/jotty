@@ -37,7 +37,6 @@ class StockMLSwarmMixin:
         """
         from datetime import datetime
 
-
         cli.renderer.header("SwarmML Auto-Learning")
         cli.renderer.info("")
 
@@ -247,7 +246,6 @@ class StockMLSwarmMixin:
                 continue
 
             aucs = [r.get("auc", 0) for r in results]
-            accuracies = [r.get("accuracy", 0) for r in results]
 
             # Find best config for this stock
             best_result = max(results, key=lambda x: x.get("auc", 0))
@@ -697,24 +695,6 @@ class StockMLSwarmMixin:
 # =============================================================================
 # REAL Q-LEARNING INTEGRATION FOR STOCK ML
 # =============================================================================
-
-
-class StockMLQLearner:
-    """
-    Q-Learning for Stock ML Strategy Selection.
-
-    Uses Jotty's Q-learning infrastructure to learn:
-    - Which configs (target, timeframe) work for which stock characteristics
-    - How to adapt strategies based on market conditions
-    - Transfer learning across similar stocks
-
-    State = (sector, volatility_regime, trend_strength, predictability_tier)
-    Action = (target, timeframe, feature_set)
-    Reward = AUC + Sharpe_bonus - drawdown_penalty
-    """
-
-    # Q-table persistence path
-    Q_TABLE_PATH = Path.home() / ".jotty" / "stock_ml_qtable.json"
 
 
 class StockMLQLearner:

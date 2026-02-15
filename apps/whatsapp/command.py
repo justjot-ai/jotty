@@ -320,7 +320,7 @@ class WhatsAppCommand(BaseCommand):
 
             return CommandResult.ok()
 
-        except Exception as e:
+        except Exception:
             cli.renderer.warning("WhatsApp: Not initialized")
             cli.renderer.info("Run /whatsapp login to connect")
             return CommandResult.ok()

@@ -39,12 +39,7 @@ def _get_dspy() -> Any:
 
 # Import context utilities for error handling and compression
 try:
-    from ..utils.context_utils import (
-        ContextCompressor,
-        ErrorDetector,
-        ErrorType,
-        detect_error_type,
-    )
+    from ..utils.context_utils import ContextCompressor, ErrorDetector, ErrorType, detect_error_type
 
     CONTEXT_UTILS_AVAILABLE = True
 except ImportError:
@@ -199,7 +194,6 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
         2. DirectAnthropicLM Haiku (fast: ~5.6s avg)
         3. DSPy global LM fallback (Sonnet — slower but works)
         """
-
 
         # Use global LM singleton (shared across all components)
         try:

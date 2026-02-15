@@ -9,10 +9,7 @@ logger = logging.getLogger(__name__)
 
 import dspy
 
-from Jotty.core.infrastructure.foundation.data_structures import (
-    MemoryEntry,
-    MemoryLevel,
-)
+from Jotty.core.infrastructure.foundation.data_structures import MemoryEntry, MemoryLevel
 
 # =============================================================================
 # CONSOLIDATION SIGNATURES

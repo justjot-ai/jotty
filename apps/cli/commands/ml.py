@@ -571,10 +571,8 @@ class MLCommand(BaseCommand):
         # Detect problem type
         if y.nunique() <= 20 and y.nunique() / len(y) < 0.05:
             problem_type = "classification"
-            cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
         else:
             problem_type = "regression"
-            cv = KFold(n_splits=5, shuffle=True, random_state=42)
 
         cli.renderer.info(f"Problem type: {problem_type}")
 

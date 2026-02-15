@@ -151,7 +151,7 @@ class JottyMemoryMCPServer:
 
             elif tool_name == "jotty_consolidate_memory":
                 # Run consolidation
-                agent_name = arguments.get("agent_name", self.agent_name)
+                _agent_name = arguments.get("agent_name", self.agent_name)
                 consolidation_result = self.memory.consolidate()
                 return {
                     "success": True,

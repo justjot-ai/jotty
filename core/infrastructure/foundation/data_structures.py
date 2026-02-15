@@ -114,15 +114,6 @@ __all__ = [
     "SwarmIntelligenceView",
     # Parameter aliases
     "DEFAULT_PARAM_ALIASES",
-    # Focused configs (Phase 3)
-    "PersistenceConfig",
-    "ExecutionConfig",
-    "MemoryConfig",
-    "ContextBudgetConfig",
-    "LearningConfig",
-    "ValidationConfig",
-    "MonitoringConfig",
-    "IntelligenceConfig",
 ]
 
 
@@ -145,6 +136,22 @@ def __getattr__(name: str) -> Any:
         val = getattr(mod, name)
         globals()[name] = val
         return val
+    if name == "SwarmConfig":
+        import warnings
+
+        warnings.warn(
+            "\n" + "=" * 80 + "\n"
+            "DEPRECATED: 'SwarmConfig' has been renamed to 'SwarmLearningConfig'\n\n"
+            "This config is for learning/RL/orchestration (175 fields).\n"
+            "For basic swarm metadata, use 'SwarmConfig' from swarm_types.py instead.\n\n"
+            "Fix your code:\n"
+            "  from ..foundation.data_structures import SwarmConfig\n"
+            "  from ..foundation.data_structures import SwarmLearningConfig\n\n"
+            "See: Jotty/docs/CONFIG_REFERENCE.md\n" + "=" * 80,
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return SwarmLearningConfig
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -1153,24 +1160,3 @@ class SwarmLearningConfig:
 
 # Deprecated: SwarmConfig renamed to SwarmLearningConfig
 SwarmConfig = SwarmLearningConfig
-
-
-def __getattr__(name: str) -> Any:
-    """Provide deprecation warnings for old names."""
-    if name == "SwarmConfig":
-        import warnings
-
-        warnings.warn(
-            "\n" + "=" * 80 + "\n"
-            "⚠️  DEPRECATED: 'SwarmConfig' has been renamed to 'SwarmLearningConfig'\n\n"
-            "This config is for learning/RL/orchestration (175 fields).\n"
-            "For basic swarm metadata, use 'SwarmConfig' from swarm_types.py instead.\n\n"
-            "Fix your code:\n"
-            "  ❌ from ..foundation.data_structures import SwarmConfig\n"
-            "  ✅ from ..foundation.data_structures import SwarmLearningConfig\n\n"
-            "See: Jotty/docs/CONFIG_REFERENCE.md\n" + "=" * 80,
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return SwarmLearningConfig
-    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")

@@ -178,7 +178,7 @@ class TokenCounter:
                 count = count_string_tokens(str(text), model=tokencost_model)
                 logger.debug(f" Counted {count} tokens in {len(text)} chars ({model_to_use})")
                 return count
-            except Exception as e:
+            except Exception:
                 # Fallback to approximation silently
                 pass
 
@@ -211,7 +211,7 @@ class TokenCounter:
                     f" Counted {count} tokens in {len(messages)} messages ({model_to_use})"
                 )
                 return count
-            except Exception as e:
+            except Exception:
                 # Fallback to approximation silently
                 pass
 

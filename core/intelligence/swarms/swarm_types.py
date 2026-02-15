@@ -260,6 +260,10 @@ def _safe_num(value: Any, default: Any = 0) -> Any:
     return default
 
 
+# Deprecated alias
+SwarmBaseConfig = SwarmConfig
+
+
 __all__ = [
     "AgentRole",
     "EvaluationResult",

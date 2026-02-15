@@ -654,7 +654,7 @@ class TransferableLearningStore:
 
         # 1. Find similar experiences using embeddings
         if self.experiences:
-            query_embedding = self.embedder.embed(query)
+            self.embedder.embed(query)
             similarities = []
 
             for exp in self.experiences:

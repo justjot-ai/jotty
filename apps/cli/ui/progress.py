@@ -780,9 +780,9 @@ class SwarmDashboard:
         for fname in file_list:
             parts = fname.rsplit("/", 1)
             if len(parts) == 2:
-                dir_name, base_name = parts
+                dir_name, _ = parts
             else:
-                dir_name, base_name = ".", parts[0]
+                dir_name = "."
             dirs.setdefault(dir_name, []).append(fname)
 
         tree = RichTree("[bold]Project[/bold]")

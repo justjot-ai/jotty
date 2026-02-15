@@ -81,7 +81,7 @@ class AsyncClaudeCLILM(dspy.BaseLM):
         """
         # Check if we're already in an async context
         try:
-            loop = asyncio.get_running_loop()
+            asyncio.get_running_loop()
             # In async context - create a task
             import concurrent.futures
 

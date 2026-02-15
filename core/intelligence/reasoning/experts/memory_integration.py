@@ -368,7 +368,7 @@ def consolidate_improvements(memory: SwarmMemory, expert_name: str, domain: str)
                         pass
 
                     # Store consolidated pattern as SEMANTIC memory
-                    consolidated_entry = memory.store(
+                    memory.store(
                         content=consolidated_pattern,
                         level=MemoryLevel.SEMANTIC,
                         context={

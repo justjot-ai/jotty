@@ -77,7 +77,6 @@ class ParadigmExecutor:
         bypass the full AutoAgent pipeline and make a direct LLM call.
         Saves 2-4 LLM calls per agent.
         """
-        sm = self._manager
         _tool_keywords = [
             "search",
             "fetch",

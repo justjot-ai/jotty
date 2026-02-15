@@ -594,13 +594,6 @@ class SmartContextManager:
             f"Auto-recovering..."
         )
 
-        # Calculate reduction needed
-        if overflow_info.detected_tokens and overflow_info.max_allowed:
-            reduction_needed = overflow_info.detected_tokens - overflow_info.max_allowed
-        else:
-            # Assume 30% reduction needed
-            reduction_needed = int(len(current_context) / self.chars_per_token * 0.3)
-
         # Compress context
         target_tokens = self.effective_limit - 1000  # Extra safety margin
         compressed = self._simple_compress(current_context, target_tokens)

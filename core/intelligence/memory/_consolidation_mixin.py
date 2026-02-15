@@ -175,7 +175,7 @@ CONFIDENCE: {confidence:.2f}
                 cluster.extracted_pattern = result.pattern
                 cluster.pattern_confidence = confidence
 
-        except Exception as e:
+        except Exception:
             pass  # Consolidation failure is non-fatal
 
     async def _extract_procedural(self, episodes: List[StoredEpisode]) -> Any:

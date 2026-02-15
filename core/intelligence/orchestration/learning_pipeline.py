@@ -19,10 +19,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
-from Jotty.core.infrastructure.foundation.data_structures import (
-    EpisodeResult,
-    SwarmConfig,
-)
+from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult, SwarmConfig
 from Jotty.core.infrastructure.foundation.robust_parsing import AdaptiveWeightGroup
 
 logger = logging.getLogger(__name__)

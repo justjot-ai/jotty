@@ -36,6 +36,7 @@ import logging
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
 
 if TYPE_CHECKING:
+    from Jotty.core.intelligence.orchestration.agent_runner import AgentRunner
     from Jotty.core.intelligence.orchestration.swarm_roadmap import SwarmTaskBoard
     from Jotty.core.modes.agent.planners.agentic_planner import TaskPlanner
     from Jotty.core.modes.agent.autonomous.intent_parser import IntentParser
@@ -57,12 +58,10 @@ if TYPE_CHECKING:
     from Jotty.core.intelligence.orchestration.learning_pipeline import SwarmLearningPipeline
     from Jotty.core.intelligence.orchestration.mas_learning import MASLearning
     from Jotty.core.infrastructure.monitoring.monitoring.profiler import PerformanceProfiler
+    from Jotty.core.modes.agent.base.auto_agent import AutoAgent
 
 from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
-from Jotty.core.infrastructure.foundation.data_structures import (
-    EpisodeResult,
-    SwarmConfig,
-)
+from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult, SwarmConfig
 from Jotty.core.infrastructure.foundation.exceptions import (
     AgentExecutionError,
     ConfigurationError,
@@ -552,14 +551,12 @@ class ExecutionEngine:
 
         # Observability: Start trace and root span
         try:
-            from Jotty.core.infrastructure.monitoring.observability import get_metrics, get_tracer
+            from Jotty.core.infrastructure.monitoring.observability import get_tracer
 
             _tracer = get_tracer()
-            _metrics = get_metrics()
             _tracer.new_trace(metadata={"goal": goal[:200], "mode": sm.mode})
         except ImportError:
             _tracer = None
-            _metrics = None
 
         # Lazy init: Build runners on first run
         sm._ensure_runners()
@@ -1226,10 +1223,12 @@ class ExecutionEngine:
 
         # Observability: trace agent execution
         _tracer = None
+        _metrics = None
         try:
             from Jotty.core.infrastructure.monitoring.observability import get_metrics, get_tracer
 
             _tracer = get_tracer()
+            _metrics = get_metrics()
         except ImportError:
             pass
 
@@ -1246,17 +1245,13 @@ class ExecutionEngine:
             _exec_elapsed = _t.time() - _exec_start
 
         # Observability: record metrics
-        try:
-            from Jotty.core.infrastructure.monitoring.observability import get_metrics
-
-            get_metrics().record_execution(
+        if _metrics:
+            _metrics.record_execution(
                 agent_name=agent_config.name,
                 task_type="single_agent",
                 duration_s=_exec_elapsed,
                 success=result.success,
             )
-        except (ImportError, Exception):
-            pass
 
         # Learn from execution (DRY: reuse workflow learner)
         if result.success:

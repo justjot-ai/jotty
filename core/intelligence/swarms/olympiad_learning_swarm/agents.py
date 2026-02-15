@@ -38,14 +38,7 @@ from .signatures import (
     SingleTopicDeepSignature,
     SolutionStrategistSignature,
 )
-from .types import (
-    BuildingBlock,
-    DifficultyTier,
-    MistakeEntry,
-    PatternEntry,
-    Problem,
-    StrategyCard,
-)
+from .types import BuildingBlock, DifficultyTier, MistakeEntry, PatternEntry, Problem, StrategyCard
 
 logger = logging.getLogger(__name__)
 
@@ -136,7 +129,7 @@ class BaseOlympiadAgent(BaseSwarmAgent):
         # Strip markdown code blocks
         if text.startswith("```"):
             lines = text.split("\n")
-            lines = [l for l in lines if not l.strip().startswith("```")]
+            lines = [line for line in lines if not line.strip().startswith("```")]
             text = "\n".join(lines)
 
         # Try strict parsing first, then lenient (strict=False allows

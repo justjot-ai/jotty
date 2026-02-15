@@ -363,7 +363,7 @@ class DeadLetterQueue:
                 stats["success"] += 1
                 self.total_successful_retries += 1
                 logger.info(f" DLQ: Retry succeeded for '{failed_op.operation_name}'")
-            except Exception as e:
+            except Exception:
                 stats["failed"] += 1
                 # Put back in queue (up to max retries)
                 if failed_op.retry_count < 3:

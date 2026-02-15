@@ -53,7 +53,7 @@ class LearnCommand(BaseCommand):
             # Run warmup with progress
             async with await cli.renderer.progress.spinner_async(
                 f"Running warmup ({episodes} episodes)...", style="cyan"
-            ) as spinner:
+            ):
                 stats = await swarm.warmup(num_episodes=episodes, verbose=verbose)
 
             # Display results

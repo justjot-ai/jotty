@@ -799,11 +799,9 @@ class SessionManager:
         """
         # Find the source message
         source_msg = None
-        source_idx = -1
-        for i, msg in enumerate(self.conversation_history):
+        for msg in self.conversation_history:
             if msg.message_id == from_message_id:
                 source_msg = msg
-                source_idx = i
                 break
 
         if not source_msg:
@@ -854,11 +852,9 @@ class SessionManager:
         """
         # Find the message
         target_msg = None
-        target_idx = -1
-        for i, msg in enumerate(self.conversation_history):
+        for msg in self.conversation_history:
             if msg.message_id == message_id:
                 target_msg = msg
-                target_idx = i
                 break
 
         if not target_msg:

@@ -177,7 +177,7 @@ class MultiStrategyBenchmark:
 
         # Main trace context
         trace_ctx = tracer.trace("multi_strategy_benchmark") if tracer else None
-        main_trace_id = trace_ctx.__enter__() if trace_ctx else None
+        _main_trace_id = trace_ctx.__enter__() if trace_ctx else None
 
         try:
             for strategy in self.strategies:

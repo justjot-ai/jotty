@@ -12,14 +12,6 @@ logger = logging.getLogger(__name__)
 def register_voice_routes(app, api):
     from fastapi import File, Form, HTTPException, UploadFile, WebSocket
 
-    @app.get("/api/voice/voices")
-    async def list_voices():
-        """Get available TTS voices."""
-        from .voice import get_voice_processor
-
-        processor = get_voice_processor()
-        return {"voices": processor.get_available_voices()}
-
     @app.get("/api/voice/config")
     async def get_voice_config():
         """
@@ -858,4 +850,3 @@ def register_voice_routes(app, api):
         return StreamingResponse(generate_sse(), media_type="text/event-stream")
 
     # Explicit routes for static files (ensure they work)
-    static_dir = Path(__file__).parent / "static"

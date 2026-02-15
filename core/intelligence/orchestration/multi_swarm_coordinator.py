@@ -190,10 +190,6 @@ class MultiSwarmCoordinator:
         most_common_output, votes = counter.most_common(1)[0]
 
         # Find a result with the winning output
-        winning_result = next(
-            (r for r in results if r.output.strip() == most_common_output), results[0]
-        )
-
         return SwarmResult(
             swarm_name="multi_swarm_voting",
             output=most_common_output,

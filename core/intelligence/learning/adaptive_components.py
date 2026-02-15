@@ -14,10 +14,7 @@ logger = logging.getLogger(__name__)
 from Jotty.core.infrastructure.foundation.configs.learning import (
     LearningConfig as FocusedLearningConfig,
 )
-from Jotty.core.infrastructure.foundation.data_structures import (
-    MemoryEntry,
-    SwarmConfig,
-)
+from Jotty.core.infrastructure.foundation.data_structures import MemoryEntry, SwarmConfig
 
 if TYPE_CHECKING:
     pass

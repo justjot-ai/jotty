@@ -13,9 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict
 
 if TYPE_CHECKING:
-    from Jotty.core.infrastructure.foundation.data_structures import (
-        SwarmConfig,
-    )
+    from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
 
 logger = logging.getLogger(__name__)
 

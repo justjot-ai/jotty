@@ -12,13 +12,7 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from .types import (
-    LANGUAGE_LABELS,
-    PERSPECTIVE_LABELS,
-    Language,
-    LessonContent,
-    PerspectiveType,
-)
+from .types import LANGUAGE_LABELS, PERSPECTIVE_LABELS, Language, LessonContent, PerspectiveType
 
 logger = logging.getLogger(__name__)
 

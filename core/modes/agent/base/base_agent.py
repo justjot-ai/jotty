@@ -308,9 +308,7 @@ class BaseAgent(ABC):
         """Lazy-load SwarmMemory."""
         if self._memory is None and self.config.enable_memory:
             try:
-                from Jotty.core.infrastructure.foundation.data_structures import (
-                    SwarmConfig,
-                )
+                from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
                 from Jotty.core.intelligence.memory.cortex import SwarmMemory
 
                 # Use the shared _jotty_config if one was injected, otherwise
@@ -651,34 +649,6 @@ class BaseAgent(ABC):
         except Exception as e:
             logger.warning(f"Failed to get compressed context: {e}")
             return ""
-
-    # =========================================================================
-    # I/O SCHEMA
-    # =========================================================================
-
-    def get_io_schema(self) -> Any:
-        """Get typed AgentIOSchema describing this agent's inputs and outputs.
-
-        Base implementation returns a generic schema accepting 'task' input
-        and producing 'output' + 'success' outputs. Subclasses (DomainAgent)
-        override with richer schemas extracted from DSPy Signatures.
-        """
-        from Jotty.core.modes.agent._execution_types import AgentIOSchema, ToolParam
-
-        if hasattr(self, "_io_schema") and self._io_schema is not None:
-            return self._io_schema
-
-        self._io_schema = AgentIOSchema(
-            agent_name=getattr(self.config, "name", self.__class__.__name__),
-            inputs=[ToolParam(name="task", description="Task to execute")],
-            outputs=[
-                ToolParam(name="output", description="Execution result"),
-                ToolParam(
-                    name="success", type_hint="bool", description="Whether execution succeeded"
-                ),
-            ],
-        )
-        return self._io_schema
 
     # =========================================================================
     # SKILL DISCOVERY

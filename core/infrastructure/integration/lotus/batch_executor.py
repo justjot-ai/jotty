@@ -230,8 +230,8 @@ class BatchExecutor:
 
     def _ensure_flush_timer(self, operation_type: str) -> None:
         """Ensure flush timer is running for operation type."""
-        now = time.time()
-        last_flush = self._last_flush_time.get(operation_type, 0)
+        _now = time.time()
+        _last_flush = self._last_flush_time.get(operation_type, 0)
 
         # If no pending items or timer already scheduled, skip
         if not self._pending[operation_type]:

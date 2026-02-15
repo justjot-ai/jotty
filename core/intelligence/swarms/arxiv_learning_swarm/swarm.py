@@ -9,10 +9,7 @@ from typing import Any, Dict, List, Optional
 import dspy
 
 from ..base import AgentTeam, DomainSwarm
-from ..base_swarm import (
-    AgentRole,
-    register_swarm,
-)
+from ..base_swarm import AgentRole, register_swarm
 from .agents import (
     ConceptExtractorAgent,
     ContentPolisherAgent,
@@ -50,6 +47,14 @@ except ImportError:
     TELEGRAM_AVAILABLE = False
     send_telegram_message_tool = None
     send_telegram_file_tool = None
+
+# Check LOTUS availability
+try:
+    import lotus
+
+    LOTUS_AVAILABLE = True
+except ImportError:
+    LOTUS_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 

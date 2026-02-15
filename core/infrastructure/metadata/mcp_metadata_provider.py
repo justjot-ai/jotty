@@ -58,7 +58,7 @@ True SaaS Principle:
 """
 
 import logging
-from typing import Any, Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 
 from .base_metadata_provider import BaseMetadataProvider
 

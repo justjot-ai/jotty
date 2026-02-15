@@ -33,12 +33,8 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-
 from ..base import AgentTeam, DomainSwarm, PhaseExecutor
-from ..base_swarm import (
-    AgentRole,
-    register_swarm,
-)
+from ..base_swarm import AgentRole, register_swarm
 from .agents import (
     ConceptDecomposerAgent,
     ConnectionMapperAgent,

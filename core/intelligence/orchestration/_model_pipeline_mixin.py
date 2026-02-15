@@ -1,12 +1,13 @@
 """SkillOrchestrator mixin — model selection, hyperopt, and ensemble stages."""
 
 import logging
+import sys
 from typing import Any, Dict
 
 import numpy as np
 import pandas as pd
 
-from .skill_types import ProblemType, SkillResult
+from .skill_types import ProblemType, SkillCategory, SkillResult
 
 logger = logging.getLogger(__name__)
 
@@ -443,11 +444,7 @@ class ModelPipelineMixin:
             VotingRegressor,
         )
         from sklearn.linear_model import LogisticRegression, Ridge
-        from sklearn.model_selection import (
-            KFold,
-            StratifiedKFold,
-            cross_val_score,
-        )
+        from sklearn.model_selection import KFold, StratifiedKFold, cross_val_score
 
         X_scaled = self._encode_categoricals_and_scale(X)
 
@@ -462,7 +459,6 @@ class ModelPipelineMixin:
                 model_metadata.update(result.metadata)
 
         all_scores = model_metadata.get("all_scores", {})
-        oof_predictions = model_metadata.get("oof_predictions", {})
 
         if problem_type == ProblemType.CLASSIFICATION:
             cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)

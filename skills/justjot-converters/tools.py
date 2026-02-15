@@ -6,13 +6,12 @@ Provides conversion and distribution tools for various content types.
 """
 
 import logging
-import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
-from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
+from Jotty.core.infrastructure.utils.tool_helpers import tool_wrapper
 
 logger = logging.getLogger(__name__)
 
