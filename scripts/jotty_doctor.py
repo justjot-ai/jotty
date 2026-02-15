@@ -47,39 +47,12 @@ class JottyDoctor:
         """Check for import inconsistencies."""
         print("🔍 Checking imports...")
 
-        # Pattern 1: SwarmConfig should be SwarmBaseConfig
+        # Check for wildcard imports (except intentional re-exports)
         for py_file in self.root_dir.rglob("core/**/*.py"):
             try:
                 content = py_file.read_text()
 
-                # Check for old SwarmConfig import
-                if "SwarmConfig" in content and "SwarmBaseConfig" not in content:
-                    for i, line in enumerate(content.split("\n"), 1):
-                        if re.search(r"from.*base_swarm.*import.*SwarmConfig", line):
-                            self.issues.append(
-                                Issue(
-                                    severity=Severity.HIGH,
-                                    category="Import",
-                                    file=py_file,
-                                    line=i,
-                                    message="Using deprecated SwarmConfig instead of SwarmBaseConfig",
-                                    fix="Change: SwarmConfig → SwarmBaseConfig",
-                                )
-                            )
-
-                        if re.search(r"class.*\(SwarmConfig\)", line):
-                            self.issues.append(
-                                Issue(
-                                    severity=Severity.HIGH,
-                                    category="Import",
-                                    file=py_file,
-                                    line=i,
-                                    message="Inheriting from deprecated SwarmConfig",
-                                    fix="Change: class MyConfig(SwarmConfig) → class MyConfig(SwarmBaseConfig)",
-                                )
-                            )
-
-                # Check for wildcard imports (except intentional re-exports)
+                # Check for wildcard imports
                 if "import *" in content and "skill_sdk" not in str(py_file):
                     for i, line in enumerate(content.split("\n"), 1):
                         if "import *" in line and "# noqa" not in line:

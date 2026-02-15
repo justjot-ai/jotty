@@ -14,7 +14,6 @@ Tier 5 (AUTONOMOUS): Sandbox + coalition + full features
 
 import asyncio
 import logging
-import re
 import time
 from datetime import datetime
 from pathlib import Path
@@ -27,6 +26,7 @@ from Jotty.core.infrastructure.foundation.exceptions import (
 )
 from Jotty.core.infrastructure.monitoring.observability.tracing import SpanStatus
 from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
+from Jotty.core.intelligence.swarms.swarm_types import SwarmConfig
 
 from .tier_detector import TierDetector
 from .types import (
@@ -464,10 +464,7 @@ class TierExecutor:
         cannot be instantiated (e.g. DSPy not configured).
         """
         try:
-            from Jotty.core.infrastructure.foundation.data_structures import (
-                SharedScratchpad,
-                SwarmLearningConfig,
-            )
+            from Jotty.core.infrastructure.foundation.data_structures import SharedScratchpad
             from Jotty.core.modes.agent.inspector import MultiRoundValidator, ValidatorAgent
 
             swarm_config_dict = self.config.to_swarm_config()
@@ -1425,7 +1422,6 @@ Correct answer:"""
         """Delegate to Orchestrator when no specific swarm matches."""
         logger.info("[Tier 4: RESEARCH] Delegating to Orchestrator...")
 
-        from Jotty.core.infrastructure.foundation.data_structures import SwarmLearningConfig
         from Jotty.core.intelligence.orchestration import Orchestrator
 
         swarm_config_dict = config.to_swarm_config()

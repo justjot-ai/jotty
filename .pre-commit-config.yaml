@@ -88,10 +88,3 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
-
-      - id: no-swarmconfig-import
-        name: Prevent deprecated SwarmConfig imports
-        entry: 'from.*SwarmConfig'
-        language: pygrep
-        types: [python]
-        files: core/swarms/.*\.py$

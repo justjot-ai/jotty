@@ -328,16 +328,16 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
 
                 if action == "compress" and compressible_fields and self._compressor:
                     # Compress specified fields
-                    for field in compressible_fields:
-                        if field in kwargs and kwargs[field]:
-                            original = kwargs[field]
+                    for field_name in compressible_fields:
+                        if field_name in kwargs and kwargs[field_name]:
+                            original = kwargs[field_name]
                             if isinstance(original, str) and len(original) > 1000:
                                 result = self._compressor.compress(
                                     original, target_ratio=compression_ratio
                                 )
-                                kwargs[field] = result.content
+                                kwargs[field_name] = result.content
                                 logger.info(
-                                    f"   Compressed {field}: {result.original_length} → {result.compressed_length} chars"
+                                    f"   Compressed {field_name}: {result.original_length} → {result.compressed_length} chars"
                                 )
 
                     compression_ratio *= 0.7  # More aggressive next time
@@ -451,16 +451,16 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
                 action = strategy.get("action", "fail")
 
                 if action == "compress" and compressible_fields and self._compressor:
-                    for field in compressible_fields:
-                        if field in kwargs and kwargs[field]:
-                            original = kwargs[field]
+                    for field_name in compressible_fields:
+                        if field_name in kwargs and kwargs[field_name]:
+                            original = kwargs[field_name]
                             if isinstance(original, str) and len(original) > 1000:
                                 result = self._compressor.compress(
                                     original, target_ratio=compression_ratio
                                 )
-                                kwargs[field] = result.content
+                                kwargs[field_name] = result.content
                                 logger.info(
-                                    f"   Compressed {field}: {result.original_length} → {result.compressed_length} chars"
+                                    f"   Compressed {field_name}: {result.original_length} → {result.compressed_length} chars"
                                 )
                     compression_ratio *= 0.7
 

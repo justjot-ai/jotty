@@ -422,6 +422,8 @@ class JottyGAIAAdapter:
 
         Returns the agent's answer as a string.
         """
+        from Jotty.core.modes.execution.types import ExecutionConfig, ExecutionTier
+
         expected_answer = kwargs.pop("expected_answer", None)
         force_tier = kwargs.pop("force_tier", None)
 
@@ -438,21 +440,15 @@ class JottyGAIAAdapter:
         run_kwargs = {}
         tier_to_use = force_tier or self.tier
         if tier_to_use:
-            from Jotty.core.modes.execution.types import ExecutionTier
-
             tier_map = {t.name: t for t in ExecutionTier}
             tier_enum = tier_map.get(str(tier_to_use).upper())
             if tier_enum:
                 run_kwargs["tier"] = tier_enum
 
         if self.model:
-            from Jotty.core.modes.execution.types import ExecutionConfig
-
             run_kwargs["config"] = ExecutionConfig(model=self.model)
         else:
             # GAIA requires deterministic answers - use temperature=0.0
-            from Jotty.core.modes.execution.types import ExecutionConfig
-
             run_kwargs["config"] = ExecutionConfig(temperature=0.0)
 
         if self.progress_callback:
@@ -486,7 +482,6 @@ class JottyGAIAAdapter:
 
                 # CREATIVE DIVERSITY: Each attempt uses different strategy
                 attempt_kwargs = run_kwargs.copy()
-                from Jotty.core.modes.execution.types import ExecutionConfig
 
                 if i == 0:
                     # Attempt 1: Standard approach (deterministic, careful)

@@ -91,8 +91,8 @@ class TelegramBotFull:
                                 text=text,
                             )
                         )
-                    except:
-                        pass
+                    except Exception as e2:
+                        logger.error(f"Failed to send message even in plain text: {e2}")
 
             self.sessions[chat_id] = ChatInterface(
                 message_renderer=TelegramMessageRenderer(send_telegram_message),
@@ -138,8 +138,8 @@ class TelegramBotFull:
             logger.error(f"Error in handle_message: {e}", exc_info=True)
             try:
                 await update.message.reply_text(f"❌ Bot error: {str(e)}")
-            except:
-                pass  # Give up if we can't even send error message
+            except Exception as e2:
+                logger.error(f"Failed to send error message to user: {e2}")
 
     async def _handle_command(self, command: str, chat: ChatInterface, update, context):
         """Handle ALL Telegram slash commands (full CLI parity)."""
