@@ -136,6 +136,8 @@ class CodingTemplate(SwarmTemplate):
 
         return CodingResult(
             success=team_result.success if hasattr(team_result, "success") else True,
+            swarm_name="CodingTemplate",
+            domain="coding",
             output={
                 "architecture": architecture.get("architecture", ""),
                 "components": architecture.get("components", []),

@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 def configure_dspy_with_claude_cli() -> bool:
     """Configure DSPy to use Claude CLI as the LM"""
     try:
-        from core.integration.direct_claude_cli_lm import DirectClaudeCLI
+        from Jotty.core.infrastructure.integration.direct_claude_cli_lm import DirectClaudeCLI
 
         lm = DirectClaudeCLI(model="sonnet", max_retries=2)
         dspy.configure(lm=lm)

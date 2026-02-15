@@ -47,7 +47,7 @@ async def test_real_claude_cli():
     print("-" * 80)
 
     try:
-        from core.integration.direct_claude_cli_lm import DirectClaudeCLI
+        from Jotty.core.infrastructure.integration.direct_claude_cli_lm import DirectClaudeCLI
 
         # Create Claude CLI provider (direct binary call, no HTTP API)
         lm = DirectClaudeCLI(model="sonnet")

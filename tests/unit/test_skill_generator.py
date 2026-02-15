@@ -38,7 +38,7 @@ except ImportError:
 
 # Try importing the modules under test
 try:
-    from Jotty.core.capabilities.registry.skill_generator import SkillGenerator, get_skill_generator
+    from Jotty.skills.skill_writer.skill_generator import SkillGenerator, get_skill_generator
 
     SKILL_GENERATOR_AVAILABLE = True
 except ImportError:

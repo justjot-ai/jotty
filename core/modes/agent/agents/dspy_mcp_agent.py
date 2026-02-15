@@ -7,21 +7,14 @@ from __future__ import annotations
 
 import json
 import logging
-import sys
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import dspy
 
 logger = logging.getLogger(__name__)
 
-# Import MCP Tool Executor with fallback
-try:
-    from ..integration.mcp_tool_executor import MCPToolExecutor
-except ImportError:
-    # Fallback for direct execution
-    sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-    from core.integration.mcp_tool_executor import MCPToolExecutor
+# Import MCP Tool Executor
+from Jotty.core.infrastructure.integration.mcp_tool_executor import MCPToolExecutor
 
 
 class ToolUseSignature(dspy.Signature):

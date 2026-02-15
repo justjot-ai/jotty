@@ -132,18 +132,18 @@ def _load_providers() -> bool:
         return True
 
     try:
-        from Jotty.core.capabilities.skills.providers import ProviderRegistry, SkillCategory
-        from Jotty.core.capabilities.skills.providers.agent_s_provider import AgentSProvider
-        from Jotty.core.capabilities.skills.providers.browser_use_provider import BrowserUseProvider
-        from Jotty.core.capabilities.skills.providers.composite_provider import (
+        from Jotty.skills._infrastructure import ProviderRegistry, SkillCategory
+        from Jotty.skills._providers.agent_s_provider import AgentSProvider
+        from Jotty.skills._providers.browser_use_provider import BrowserUseProvider
+        from Jotty.skills._providers.composite_provider import (
             AutomateWorkflowProvider,
             FullStackAgentProvider,
             ResearchAndAnalyzeProvider,
         )
-        from Jotty.core.capabilities.skills.providers.open_interpreter_provider import (
+        from Jotty.skills._providers.open_interpreter_provider import (
             OpenInterpreterProvider,
         )
-        from Jotty.core.capabilities.skills.providers.openhands_provider import OpenHandsProvider
+        from Jotty.skills._providers.openhands_provider import OpenHandsProvider
 
         _provider_cache.update(
             {

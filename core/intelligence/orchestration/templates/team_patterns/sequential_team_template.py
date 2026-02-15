@@ -182,7 +182,7 @@ async def sequential_team_workflow() -> bool:
     print("\nWaterfall pattern: Each agent waits for previous to complete\n")
 
     # Configure LLM (adjust to your setup)
-    from core.integration.direct_claude_cli_lm import DirectClaudeCLI
+    from Jotty.core.infrastructure.integration.direct_claude_cli_lm import DirectClaudeCLI
 
     lm = DirectClaudeCLI(model="sonnet")
     dspy.configure(lm=lm)

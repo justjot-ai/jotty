@@ -15,7 +15,13 @@ import os
 import time
 from typing import Any, Dict, List
 
-from .base import ContributedSkill, ProviderCapability, ProviderResult, SkillCategory, SkillProvider
+from .._infrastructure.base import (
+    ContributedSkill,
+    ProviderCapability,
+    ProviderResult,
+    SkillCategory,
+    SkillProvider,
+)
 
 logger = logging.getLogger(__name__)
 

@@ -35,7 +35,7 @@ async def simple_real_learning():
     print("\nDemonstrating learning with clear, measurable improvement\n")
 
     # Setup
-    from core.integration.direct_claude_cli_lm import DirectClaudeCLI
+    from Jotty.core.infrastructure.integration.direct_claude_cli_lm import DirectClaudeCLI
 
     lm = DirectClaudeCLI(model="sonnet")
     dspy.configure(lm=lm)

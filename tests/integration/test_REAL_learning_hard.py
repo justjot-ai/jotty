@@ -36,7 +36,7 @@ async def real_learning_hard():
 
     # Configure
     from core.experts.plantuml_expert import PlantUMLExpertAgent
-    from core.integration.direct_claude_cli_lm import DirectClaudeCLI
+    from Jotty.core.infrastructure.integration.direct_claude_cli_lm import DirectClaudeCLI
 
     lm = DirectClaudeCLI(model="sonnet")
     dspy.configure(lm=lm)

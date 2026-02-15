@@ -47,6 +47,8 @@ class MlComprehensiveTemplate(SwarmTemplate):
         # Placeholder implementation - to be enhanced
         return SwarmResult(
             success=True,
+            swarm_name="MlComprehensiveTemplate",
+            domain="ml_comprehensive",
             output={
                 "query": query,
                 "result": "Placeholder result - template requires full implementation",

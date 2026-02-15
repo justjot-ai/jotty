@@ -46,6 +46,8 @@ class FundamentalTemplate(SwarmTemplate):
         # Placeholder implementation - to be enhanced
         return SwarmResult(
             success=True,
+            swarm_name="FundamentalTemplate",
+            domain="fundamental",
             output={
                 "query": query,
                 "result": "Placeholder result - template requires full implementation",

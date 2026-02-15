@@ -84,7 +84,9 @@ class SwarmLearningAgent(SwarmLearningAgent):
 
             # Fallback to Claude CLI
             try:
-                from ..integration.direct_claude_cli_lm import DirectClaudeCLI
+                from Jotty.core.infrastructure.integration.direct_claude_cli_lm import (
+                    DirectClaudeCLI,
+                )
 
                 self._lm = DirectClaudeCLI(model=self.model)
                 dspy.configure(lm=self._lm)

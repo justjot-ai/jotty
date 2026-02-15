@@ -48,7 +48,10 @@ class TestingTemplate(SwarmTemplate):
 
         return SwarmResult(
             success=True,
+            swarm_name="TestingTemplate",
+            domain="testing",
             output={
+                "code_tested": len(code) > 0,
                 "test_code": test_code,
                 "framework": framework,
                 "language": language,

@@ -579,8 +579,8 @@ class SkillsRegistry:
         self.initialized = False
         self.skill_generator = skill_generator  # For AI-powered skill generation
 
-        # Dependency management
-        from .skill_dependency_manager import get_dependency_manager
+        # Dependency management (now in skills/skill-package-manager/)
+        from . import get_dependency_manager
 
         self.dependency_manager = get_dependency_manager()
 

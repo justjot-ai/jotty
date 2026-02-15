@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 async def main():
-    from Jotty.core.capabilities.skills.providers import ContributedSkill, ProviderRegistry
+    from Jotty.skills._infrastructure import ContributedSkill, ProviderRegistry
 
     n8n_url = os.getenv("N8N_BASE_URL", "http://localhost:5678")
     ap_url = os.getenv("ACTIVEPIECES_BASE_URL", "http://localhost:8080")

@@ -47,6 +47,8 @@ class DataAnalysisTemplate(SwarmTemplate):
         # Placeholder implementation - to be enhanced
         return SwarmResult(
             success=True,
+            swarm_name="DataAnalysisTemplate",
+            domain="data_analysis",
             output={
                 "query": query,
                 "result": "Placeholder result - template requires full implementation",

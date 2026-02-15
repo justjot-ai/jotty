@@ -44,6 +44,8 @@ class DevopsTemplate(SwarmTemplate):
         # Placeholder implementation - to be enhanced
         return SwarmResult(
             success=True,
+            swarm_name="DevopsTemplate",
+            domain="devops",
             output={
                 "query": query,
                 "result": "Placeholder result - template requires full implementation",

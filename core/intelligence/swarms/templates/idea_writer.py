@@ -46,6 +46,8 @@ class IdeaWriterTemplate(SwarmTemplate):
         # Placeholder implementation - to be enhanced
         return SwarmResult(
             success=True,
+            swarm_name="IdeaWriterTemplate",
+            domain="idea_writer",
             output={
                 "query": query,
                 "result": "Placeholder result - template requires full implementation",

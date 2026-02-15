@@ -43,13 +43,13 @@ repos:
         pass_filenames: false
 
   # Type checking with mypy (strict mode — leverages 100% return type coverage)
-  # Checks: syntax errors, type mismatches, untyped defs
-  # Skips: import-not-found (too many optional deps with try/except)
+  # Fails on: type mismatches, untyped defs, wrong return types, missing annotations
+  # Ignores: import-not-found, import-untyped, no-redef (optional deps with try/except)
   - repo: local
     hooks:
       - id: mypy-strict
         name: mypy - Strict Type Checking
-        entry: bash -c 'mypy core/ apps/ sdk/ --config-file=mypy.ini 2>&1 | grep -E "\[syntax\]" && exit 1 || exit 0'
+        entry: bash scripts/mypy_strict_check.sh
         language: system
         pass_filenames: false
         always_run: true

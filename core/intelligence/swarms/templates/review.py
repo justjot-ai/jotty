@@ -52,6 +52,8 @@ class ReviewTemplate(SwarmTemplate):
         # Placeholder - can be enhanced with actual review logic
         return SwarmResult(
             success=True,
+            swarm_name="ReviewTemplate",
+            domain="review",
             output={
                 "code_analyzed": len(code) > 0,
                 "language": language,

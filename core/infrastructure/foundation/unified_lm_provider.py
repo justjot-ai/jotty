@@ -4,10 +4,10 @@ Unified DSPy LM Provider Registry
 =================================
 
 Consolidates ALL providers behind DSPy LM abstraction:
-- Direct providers (OpenRouter, OpenCode)
-- Vercel AI SDK providers (via AISDKProviderLM)
-- CLI providers (Claude CLI, Cursor CLI)
-- API providers (Anthropic, OpenAI, Google, Groq)
+- API providers (Anthropic, OpenAI, Google, Groq, OpenRouter)
+- CLI providers (Claude CLI via DirectClaudeCLI, Cursor CLI)
+- OpenCode Zen (free and paid models via opencode.ai)
+- OpenCode legacy (free GLM model)
 
 All providers accessible through single DSPy LM interface.
 Automatically injects current date/time context to all LLM calls.
@@ -160,34 +160,24 @@ class UnifiedLMProvider:
             lm = UnifiedLMProvider._create_zen_lm(model, **kwargs)
             return ContextAwareLM(lm) if inject_context else lm
 
-        # CLI providers and OpenCode use AISDKProviderLM
-        try:
-            from Jotty.core.integration.ai_sdk_provider_adapter import AISDKProviderLM
+        # CLI providers — use direct subprocess wrappers
+        if provider == "claude-cli":
+            from Jotty.core.infrastructure.integration.direct_claude_cli_lm import DirectClaudeCLI
 
-            # Default models per provider
-            default_models = {
-                "opencode": "default",  # OpenCode free model (default)
-                "claude-cli": "sonnet",
-                "cursor-cli": "sonnet",
-            }
-
-            model = model or default_models.get(provider, "sonnet")
-
-            lm = AISDKProviderLM(provider=provider, model=model, **kwargs)
+            lm = DirectClaudeCLI(model=model or "sonnet", **kwargs)
             return ContextAwareLM(lm) if inject_context else lm
-        except ImportError:
-            # Fallback: Try direct CLI LM for CLI providers
-            if provider == "claude-cli":
-                from .claude_cli_lm import ClaudeCLILM
+        elif provider == "cursor-cli":
+            from .cursor_cli_lm import CursorCLILM
 
-                lm = ClaudeCLILM(model=model or "sonnet", **kwargs)
-                return ContextAwareLM(lm) if inject_context else lm
-            elif provider == "cursor-cli":
-                from .cursor_cli_lm import CursorCLILM
+            lm = CursorCLILM(model=model or "composer-1", **kwargs)
+            return ContextAwareLM(lm) if inject_context else lm
+        elif provider == "opencode":
+            from .opencode_lm import OpenCodeLM
 
-                lm = CursorCLILM(model=model or "composer-1", **kwargs)
-                return ContextAwareLM(lm) if inject_context else lm
-            raise InvalidConfigError(f"Provider '{provider}' not available")
+            lm = OpenCodeLM(model=model or "glm-4", **kwargs)
+            return ContextAwareLM(lm) if inject_context else lm
+
+        raise InvalidConfigError(f"Provider '{provider}' not available")
 
     @staticmethod
     def _create_direct_lm(provider: str, model: Optional[str] = None, **kwargs: Any) -> BaseLM:
@@ -530,7 +520,9 @@ class UnifiedLMProvider:
         claude_path = shutil.which("claude")
         if claude_path:
             try:
-                from Jotty.core.integration.direct_claude_cli_lm import DirectClaudeCLI
+                from Jotty.core.infrastructure.integration.direct_claude_cli_lm import (
+                    DirectClaudeCLI,
+                )
 
                 raw_lm = DirectClaudeCLI(model="sonnet")
                 # Wrap with context injection

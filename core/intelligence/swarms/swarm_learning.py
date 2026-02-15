@@ -157,7 +157,9 @@ class SwarmLearning(SwarmLearningMixin, ABC):
                     except Exception:
                         # Fallback to Claude CLI
                         try:
-                            from ..integration.direct_claude_cli_lm import DirectClaudeCLI
+                            from Jotty.core.infrastructure.integration.direct_claude_cli_lm import (
+                                DirectClaudeCLI,
+                            )
 
                             lm = DirectClaudeCLI()
                             dspy.configure(lm=lm)

@@ -359,7 +359,7 @@ class SwarmTemplate(SwarmLearning):
         """
         if hasattr(self, "_io_schema") and self._io_schema is not None:
             return self._io_schema
-        from Jotty.core.modes.agent._execution_types import AgentIOSchema
+        from Jotty.core.modes.agent.types.execution_types import AgentIOSchema
 
         if self.SWARM_SIGNATURE is not None:
             self._io_schema = AgentIOSchema.from_dspy_signature(
@@ -391,7 +391,7 @@ class SwarmTemplate(SwarmLearning):
                 result.output[field_name] = ""
 
         # Coerce non-string values using TypeCoercer where type_hint != 'str'
-        from Jotty.core.modes.agent._execution_types import TypeCoercer
+        from Jotty.core.modes.agent.types.execution_types import TypeCoercer
 
         for field_name, value in list(result.output.items()):
             if field_name in expected:

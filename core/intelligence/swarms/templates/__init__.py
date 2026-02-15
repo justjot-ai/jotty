@@ -27,14 +27,14 @@ from .arxiv_learning import ArxivLearningTemplate
 # Core templates
 from .coding import CodingTemplate
 from .data_analysis import DataAnalysisTemplate
-from .devops import DevOpsTemplate
+from .devops import DevopsTemplate
 from .fundamental import FundamentalTemplate
 from .idea_writer import IdeaWriterTemplate
 from .learning import LearningTemplate
 
 # ML templates
 from .ml import MLTemplate
-from .ml_comprehensive import MLComprehensiveTemplate
+from .ml_comprehensive import MlComprehensiveTemplate
 from .olympiad_learning import OlympiadLearningTemplate
 from .perspective_learning import PerspectiveLearningTemplate
 
@@ -55,7 +55,7 @@ ResearchSwarm = ResearchTemplate
 ReviewSwarm = ReviewTemplate
 TestingSwarm = TestingTemplate
 DataAnalysisSwarm = DataAnalysisTemplate
-DevOpsSwarm = DevOpsTemplate
+DevOpsSwarm = DevopsTemplate
 FundamentalSwarm = FundamentalTemplate
 IdeaWriterSwarm = IdeaWriterTemplate
 LearningSwarm = LearningTemplate
@@ -67,7 +67,7 @@ PerspectiveLearningSwarm = PerspectiveLearningTemplate
 PilotSwarm = PilotTemplate
 
 SwarmML = MLTemplate
-SwarmMLComprehensive = MLComprehensiveTemplate
+SwarmMLComprehensive = MlComprehensiveTemplate
 
 CollaborativeTeam = CollaborativeTemplate
 HybridTeam = HybridTemplate
@@ -80,7 +80,7 @@ __all__ = [
     "ReviewTemplate",
     "TestingTemplate",
     "DataAnalysisTemplate",
-    "DevOpsTemplate",
+    "DevopsTemplate",
     "FundamentalTemplate",
     "IdeaWriterTemplate",
     "LearningTemplate",
@@ -89,7 +89,7 @@ __all__ = [
     "PerspectiveLearningTemplate",
     "PilotTemplate",
     "MLTemplate",
-    "MLComprehensiveTemplate",
+    "MlComprehensiveTemplate",
     "CollaborativeTemplate",
     "HybridTemplate",
     "SequentialTemplate",

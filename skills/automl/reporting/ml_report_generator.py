@@ -36,7 +36,8 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-from ._analysis_sections_mixin import AnalysisSectionsMixin
+from ._data_feature_analysis_mixin import DataFeatureAnalysisMixin
+from ._model_performance_mixin import ModelPerformanceMixin
 from ._deployment_mixin import DeploymentMixin
 from ._drift_mixin import DriftMixin
 from ._error_analysis_mixin import ErrorAnalysisMixin
@@ -243,7 +244,8 @@ class ProfessionalMLReport(
     InterpretabilityMixin,
     DriftMixin,
     RenderingMixin,
-    AnalysisSectionsMixin,
+    DataFeatureAnalysisMixin,
+    ModelPerformanceMixin,
     FairnessMixin,
     ErrorAnalysisMixin,
     DeploymentMixin,

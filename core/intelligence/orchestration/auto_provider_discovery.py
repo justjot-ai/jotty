@@ -144,7 +144,7 @@ class AutoProviderDiscovery:
             self._code_generator = SwarmCodeGenerator(self.config)
 
         if self._registry is None:
-            from Jotty.core.capabilities.skills.providers.provider_registry import ProviderRegistry
+            from Jotty.skills._infrastructure.provider_registry import ProviderRegistry
 
             self._registry = ProviderRegistry()
 
@@ -412,7 +412,7 @@ class AutoProviderDiscovery:
                 provider = module.create_provider()
             else:
                 # Find first SkillProvider subclass
-                from Jotty.core.capabilities.skills.providers.base import SkillProvider
+                from Jotty.skills._infrastructure.base import SkillProvider
 
                 for name in dir(module):
                     obj = getattr(module, name)

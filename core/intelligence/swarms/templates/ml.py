@@ -52,6 +52,8 @@ class MLTemplate(SwarmTemplate):
         # Placeholder - can be enhanced with actual ML logic
         return SwarmResult(
             success=True,
+            swarm_name="MLTemplate",
+            domain="ml",
             output={
                 "model_type": model_type,
                 "target": target,

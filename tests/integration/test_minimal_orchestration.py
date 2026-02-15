@@ -39,7 +39,7 @@ async def test_minimal_orchestration():
     print("\n[1/5] Configuring Real Claude CLI")
     print("-" * 80)
 
-    from core.integration.direct_claude_cli_lm import DirectClaudeCLI
+    from Jotty.core.infrastructure.integration.direct_claude_cli_lm import DirectClaudeCLI
 
     lm = DirectClaudeCLI(model="sonnet")
     dspy.configure(lm=lm)

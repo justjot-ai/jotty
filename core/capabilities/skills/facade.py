@@ -77,15 +77,15 @@ def get_provider(name: str) -> Any:
         ValueError: If the provider name is unknown.
     """
     providers = {
-        "browser-use": ("Jotty.core.skills.providers.browser_use_provider", "BrowserUseProvider"),
-        "openhands": ("Jotty.core.skills.providers.openhands_provider", "OpenHandsProvider"),
-        "agent-s": ("Jotty.core.skills.providers.agent_s_provider", "AgentSProvider"),
+        "browser-use": ("Jotty.skills._providers.browser_use_provider", "BrowserUseProvider"),
+        "openhands": ("Jotty.skills._providers.openhands_provider", "OpenHandsProvider"),
+        "agent-s": ("Jotty.skills._providers.agent_s_provider", "AgentSProvider"),
         "open-interpreter": (
-            "Jotty.core.skills.providers.open_interpreter_provider",
+            "Jotty.skills._providers.open_interpreter_provider",
             "OpenInterpreterProvider",
         ),
-        "streamlit": ("Jotty.core.skills.providers.streamlit_provider", "StreamlitProvider"),
-        "morph": ("Jotty.core.skills.providers.morph_provider", "MorphProvider"),
+        "streamlit": ("Jotty.skills._providers.streamlit_provider", "StreamlitProvider"),
+        "morph": ("Jotty.skills._providers.morph_provider", "MorphProvider"),
     }
     if name not in providers:
         raise ValueError(f"Unknown provider: {name!r}. " f"Available: {list(providers.keys())}")

@@ -330,9 +330,12 @@ def reset_singletons():
 
     reset_cost_tracker()
     # Integration
-    from Jotty.core.infrastructure.integration.integration import JottyIntegration
+    try:
+        from Jotty.core.infrastructure.integration.integration import JottyIntegration
 
-    JottyIntegration.reset_instance()
+        JottyIntegration.reset_instance()
+    except (ImportError, ModuleNotFoundError):
+        pass  # Module doesn't exist or was moved
     # Event broadcaster
     from Jotty.core.infrastructure.utils.async_utils import AgentEventBroadcaster
 

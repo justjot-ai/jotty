@@ -172,7 +172,7 @@ class ModelChatAgent:
 
         # Initialize LLM
         try:
-            from core.integration.direct_claude_cli_lm import DirectClaudeCLI
+            from Jotty.core.infrastructure.integration.direct_claude_cli_lm import DirectClaudeCLI
 
             self._llm = DirectClaudeCLI(model=self._llm_model)
         except Exception as e:

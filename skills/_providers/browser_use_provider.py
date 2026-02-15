@@ -20,7 +20,7 @@ import logging
 import time
 from typing import Any, Dict, List
 
-from .base import ProviderCapability, ProviderResult, SkillCategory, SkillProvider
+from .._infrastructure.base import ProviderCapability, ProviderResult, SkillCategory, SkillProvider
 
 logger = logging.getLogger(__name__)
 
@@ -123,7 +123,7 @@ class BrowserUseProvider(SkillProvider):
             # Try to use Claude CLI via our adapter
             import dspy
 
-            from Jotty.core.integration.direct_claude_cli_lm import DirectClaudeCLI
+            from Jotty.core.infrastructure.integration.direct_claude_cli_lm import DirectClaudeCLI
 
             self._llm = DirectClaudeCLI(model="sonnet")
             dspy.configure(lm=self._llm)
@@ -291,7 +291,7 @@ class BrowserUseCompositeProvider(SkillProvider):
         """Initialize composite provider."""
         browser_ok = await self.browser_provider.initialize()
 
-        from .base import JottyDefaultProvider
+        from .._infrastructure.base import JottyDefaultProvider
 
         self.jotty_provider = JottyDefaultProvider()
         await self.jotty_provider.initialize()

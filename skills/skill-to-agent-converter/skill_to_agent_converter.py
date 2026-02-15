@@ -17,8 +17,8 @@ try:
 except ImportError:
     DSPY_AVAILABLE = False
 
-from ..foundation.agent_config import AgentConfig
-from .skills_registry import SkillDefinition, get_skills_registry
+from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
+from Jotty.core.capabilities.registry.skills_registry import SkillDefinition, get_skills_registry
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +90,7 @@ class SkillToAgentConverter:
 
             # Step 3: Create DSPy module that uses AutoAgent
             # Use SkillBasedAgent which wraps AutoAgent execution
-            from ..agent.skill_based_agent import SkillBasedAgent
+            from Jotty.core.modes.agent.agents.skill_based_agent import SkillBasedAgent
 
             dspy_module = SkillBasedAgent(
                 skill_name=skill.name,

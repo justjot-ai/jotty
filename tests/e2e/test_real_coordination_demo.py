@@ -38,7 +38,7 @@ async def test_real_coordination():
     print("\n[1/4] Configuring Claude CLI")
     print("-" * 90)
 
-    from core.integration.direct_claude_cli_lm import DirectClaudeCLI
+    from Jotty.core.infrastructure.integration.direct_claude_cli_lm import DirectClaudeCLI
 
     lm = DirectClaudeCLI(model="sonnet")
     dspy.configure(lm=lm)

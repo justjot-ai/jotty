@@ -272,7 +272,7 @@ async def hybrid_workflow() -> bool:
     print("\nPhase 1: Parallel exploration | Phase 2: Ordered build\n")
 
     # Configure LLM
-    from core.integration.direct_claude_cli_lm import DirectClaudeCLI
+    from Jotty.core.infrastructure.integration.direct_claude_cli_lm import DirectClaudeCLI
 
     lm = DirectClaudeCLI(model="sonnet")
     dspy.configure(lm=lm)

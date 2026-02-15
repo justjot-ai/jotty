@@ -19,7 +19,7 @@ status = SkillStatus("skill-writer")
 
 def _get_generator():
     """Get or create the SkillGenerator singleton."""
-    from Jotty.core.capabilities.registry.skill_generator import get_skill_generator
+    from .skill_generator import get_skill_generator
 
     try:
         from Jotty.core.capabilities.skills import get_registry

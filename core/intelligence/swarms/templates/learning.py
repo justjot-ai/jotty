@@ -46,6 +46,8 @@ class LearningTemplate(SwarmTemplate):
         # Placeholder implementation - to be enhanced
         return SwarmResult(
             success=True,
+            swarm_name="LearningTemplate",
+            domain="learning",
             output={
                 "query": query,
                 "result": "Placeholder result - template requires full implementation",

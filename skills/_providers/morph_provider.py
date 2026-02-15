@@ -32,7 +32,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from .base import ProviderCapability, ProviderResult, SkillCategory, SkillProvider
+from .._infrastructure.base import ProviderCapability, ProviderResult, SkillCategory, SkillProvider
 
 logger = logging.getLogger(__name__)
 

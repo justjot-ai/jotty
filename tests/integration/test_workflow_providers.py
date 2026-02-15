@@ -14,7 +14,7 @@ class TestWorkflowProvidersRegistration:
     """Providers must be registered and discoverable."""
 
     def test_registry_has_n8n_and_activepieces(self):
-        from Jotty.core.capabilities.skills.providers import ProviderRegistry
+        from Jotty.skills._infrastructure import ProviderRegistry
 
         reg = ProviderRegistry()
         n8n = reg.get_provider("n8n")
@@ -25,7 +25,7 @@ class TestWorkflowProvidersRegistration:
         assert ap.name == "activepieces"
 
     def test_get_all_contributed_skills_returns_list(self):
-        from Jotty.core.capabilities.skills.providers import ProviderRegistry
+        from Jotty.skills._infrastructure import ProviderRegistry
 
         reg = ProviderRegistry()
         skills = reg.get_all_contributed_skills()
@@ -43,7 +43,7 @@ class TestWorkflowProvidersLocalhost:
     """Test against localhost (n8n :5678, activepieces :8080). No server = empty list."""
 
     async def test_n8n_provider_initialize(self):
-        from Jotty.core.capabilities.skills.providers import ProviderRegistry
+        from Jotty.skills._infrastructure import ProviderRegistry
 
         reg = ProviderRegistry()
         n8n = reg.get_provider("n8n")
@@ -54,7 +54,7 @@ class TestWorkflowProvidersLocalhost:
         assert isinstance(skills, list)
 
     async def test_activepieces_provider_initialize(self):
-        from Jotty.core.capabilities.skills.providers import ProviderRegistry
+        from Jotty.skills._infrastructure import ProviderRegistry
 
         reg = ProviderRegistry()
         ap = reg.get_provider("activepieces")
@@ -64,7 +64,7 @@ class TestWorkflowProvidersLocalhost:
         assert isinstance(skills, list)
 
     async def test_n8n_execute_without_workflow_id_returns_error_result(self):
-        from Jotty.core.capabilities.skills.providers import ProviderRegistry
+        from Jotty.skills._infrastructure import ProviderRegistry
 
         reg = ProviderRegistry()
         n8n = reg.get_provider("n8n")
@@ -74,7 +74,7 @@ class TestWorkflowProvidersLocalhost:
         assert "workflow_id" in result.error or "skill_id" in result.error.lower()
 
     async def test_contributed_skill_shape(self):
-        from Jotty.core.capabilities.skills.providers import ContributedSkill, ProviderRegistry
+        from Jotty.skills._infrastructure import ContributedSkill, ProviderRegistry
 
         reg = ProviderRegistry()
         await reg.get_provider("n8n").initialize()
@@ -100,7 +100,7 @@ class TestWorkflowProvidersRealServer:
         base = os.getenv("N8N_BASE_URL")
         if not base or "localhost" not in base:
             pytest.skip("N8N_BASE_URL not set or not localhost (tunnel)")
-        from Jotty.core.capabilities.skills.providers import ProviderRegistry
+        from Jotty.skills._infrastructure import ProviderRegistry
 
         reg = ProviderRegistry()
         n8n = reg.get_provider("n8n")
