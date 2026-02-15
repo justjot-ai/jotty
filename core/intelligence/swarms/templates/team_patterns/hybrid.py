@@ -2,14 +2,14 @@
 
 from Jotty.core.infrastructure.foundation.types.execution_types import CoordinationPattern
 
-from ...base.agent_team import AgentTeam
-from ...base_swarm import BaseSwarm, SwarmBaseConfig, SwarmResult
+from ...base.team_coordinator import TeamCoordinator
+from ...swarm_learning import SwarmBaseConfig, SwarmLearning, SwarmResult
 
 
-class HybridTemplate(BaseSwarm):
+class HybridTemplate(SwarmLearning):
     """Hybrid team pattern - combines multiple coordination approaches."""
 
-    AGENT_TEAM = AgentTeam.define(pattern=CoordinationPattern.AUTO)
+    AGENT_TEAM = TeamCoordinator.define(pattern=CoordinationPattern.AUTO)
     TEMPLATE_NAME = "hybrid_team"
 
     def __init__(self, config: SwarmBaseConfig = None):

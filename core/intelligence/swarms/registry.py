@@ -14,22 +14,23 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
 
 if TYPE_CHECKING:
-    from .base_swarm import BaseSwarm
     from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
+
+    from .swarm_learning import SwarmLearning
 
 
 class SwarmRegistry:
     """Registry for all available swarms."""
 
-    _swarms: Dict[str, Type["BaseSwarm"]] = {}
+    _swarms: Dict[str, Type["SwarmLearning"]] = {}
 
     @classmethod
-    def register(cls, name: str, swarm_class: Type["BaseSwarm"]) -> None:
+    def register(cls, name: str, swarm_class: Type["SwarmLearning"]) -> None:
         """Register a swarm class."""
         cls._swarms[name] = swarm_class
 
     @classmethod
-    def get(cls, name: str) -> Optional[Type["BaseSwarm"]]:
+    def get(cls, name: str) -> Optional[Type["SwarmLearning"]]:
         """Get a swarm class by name."""
         return cls._swarms.get(name)
 
@@ -39,7 +40,7 @@ class SwarmRegistry:
         return list(cls._swarms.keys())
 
     @classmethod
-    def create(cls, name: str, config: "SwarmConfig" = None) -> Optional["BaseSwarm"]:
+    def create(cls, name: str, config: "SwarmConfig" = None) -> Optional["SwarmLearning"]:
         """Create a swarm instance by name."""
         swarm_class = cls.get(name)
         if not swarm_class:

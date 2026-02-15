@@ -63,10 +63,10 @@ from typing import Dict, List, Optional, Type
 
 import dspy
 
-from Jotty.core.modes.agent.base import BaseSwarmAgent
+from Jotty.core.modes.agent.base import SwarmLearningAgent
 
-from .base import AgentTeam, DomainSwarm, _split_field
-from .base_swarm import AgentRole, SwarmBaseConfig, SwarmResult, register_swarm
+from .base import SwarmTemplate, TeamCoordinator, _split_field
+from .swarm_learning import AgentRole, SwarmBaseConfig, SwarmResult, register_swarm
 from .swarm_signatures import IdeaWriterSwarmSignature
 
 logger = logging.getLogger(__name__)
@@ -678,7 +678,7 @@ class ResearchFindingsWriter(SectionWriter):
 # =============================================================================
 
 
-class OutlineAgent(BaseSwarmAgent):
+class OutlineAgent(SwarmLearningAgent):
     """Generates content outlines."""
 
     def __init__(
@@ -725,7 +725,7 @@ class OutlineAgent(BaseSwarmAgent):
             )
 
 
-class ResearchAgent(BaseSwarmAgent):
+class ResearchAgent(SwarmLearningAgent):
     """Researches topics."""
 
     def __init__(
@@ -772,7 +772,7 @@ class ResearchAgent(BaseSwarmAgent):
             return {"facts": [], "expert_views": [], "trends": [], "sources": []}
 
 
-class PolishAgent(BaseSwarmAgent):
+class PolishAgent(SwarmLearningAgent):
     """Polishes and refines content."""
 
     def __init__(
@@ -813,7 +813,7 @@ class PolishAgent(BaseSwarmAgent):
 
 
 @register_swarm("idea_writer")
-class IdeaWriterSwarm(DomainSwarm):
+class IdeaWriterSwarm(SwarmTemplate):
     """
     World-Class Idea Writer Swarm.
 
@@ -824,7 +824,7 @@ class IdeaWriterSwarm(DomainSwarm):
     - Professional polishing
     """
 
-    AGENT_TEAM = AgentTeam.define(
+    AGENT_TEAM = TeamCoordinator.define(
         (OutlineAgent, "Outline", "_outline_agent"),
         (ResearchAgent, "Research", "_research_agent"),
         (PolishAgent, "Polish", "_polish_agent"),

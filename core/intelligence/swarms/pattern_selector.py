@@ -9,7 +9,7 @@ Intelligently selects the best coordination pattern based on:
 4. Memory retrieval (similar past tasks)
 5. Fallback heuristics (keyword-based rules)
 
-Used by BaseSwarm when COORDINATION = CoordinationPattern.AUTO.
+Used by SwarmLearning when COORDINATION = CoordinationPattern.AUTO.
 
 Author: Jotty Team
 Date: February 2026

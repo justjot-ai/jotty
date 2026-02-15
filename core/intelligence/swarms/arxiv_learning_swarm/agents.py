@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 
 import dspy
 
-from Jotty.core.modes.agent.base import BaseSwarmAgent
+from Jotty.core.modes.agent.base import SwarmLearningAgent
 
 from .signatures import (
     ConceptExtractionSignature,
@@ -39,8 +39,8 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
-class BaseSwarmAgent(BaseSwarmAgent):
-    """Base class for arxiv learning agents. Extends BaseSwarmAgent with LLM model selection."""
+class SwarmLearningAgent(SwarmLearningAgent):
+    """Base class for arxiv learning agents. Extends SwarmLearningAgent with LLM model selection."""
 
     def __init__(
         self,
@@ -101,7 +101,7 @@ class BaseSwarmAgent(BaseSwarmAgent):
             return dspy.ChainOfThought(signature)
 
 
-class PaperFetcherAgent(BaseSwarmAgent):
+class PaperFetcherAgent(SwarmLearningAgent):
     """Fetches papers from ArXiv via the ``arxiv-downloader`` skill.
 
     All networking, caching, retry, and XML parsing is delegated to the
@@ -263,7 +263,7 @@ class PaperFetcherAgent(BaseSwarmAgent):
         return papers
 
 
-class ConceptExtractorAgent(BaseSwarmAgent):
+class ConceptExtractorAgent(SwarmLearningAgent):
     """Extracts concepts from papers."""
 
     def __init__(
@@ -338,7 +338,7 @@ class ConceptExtractorAgent(BaseSwarmAgent):
             return []
 
 
-class IntuitionBuilderAgent(BaseSwarmAgent):
+class IntuitionBuilderAgent(SwarmLearningAgent):
     """Builds intuition for concepts."""
 
     def __init__(
@@ -384,7 +384,7 @@ class IntuitionBuilderAgent(BaseSwarmAgent):
             return {}
 
 
-class MathSimplifierAgent(BaseSwarmAgent):
+class MathSimplifierAgent(SwarmLearningAgent):
     """Simplifies math to be accessible."""
 
     def __init__(
@@ -430,7 +430,7 @@ class MathSimplifierAgent(BaseSwarmAgent):
             return {}
 
 
-class ExampleGeneratorAgent(BaseSwarmAgent):
+class ExampleGeneratorAgent(SwarmLearningAgent):
     """Generates examples to reinforce learning."""
 
     def __init__(
@@ -477,7 +477,7 @@ class ExampleGeneratorAgent(BaseSwarmAgent):
             return {}
 
 
-class ProgressiveBuilderAgent(BaseSwarmAgent):
+class ProgressiveBuilderAgent(SwarmLearningAgent):
     """Builds progressive learning content."""
 
     def __init__(
@@ -541,7 +541,7 @@ class ProgressiveBuilderAgent(BaseSwarmAgent):
             return {}
 
 
-class ContentPolisherAgent(BaseSwarmAgent):
+class ContentPolisherAgent(SwarmLearningAgent):
     """Polishes content to be engaging."""
 
     def __init__(
@@ -589,7 +589,7 @@ class ContentPolisherAgent(BaseSwarmAgent):
             }
 
 
-class UnifiedLearningAgent(BaseSwarmAgent):
+class UnifiedLearningAgent(SwarmLearningAgent):
     """
     Optimized learning content generator with two modes:
 

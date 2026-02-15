@@ -5,7 +5,7 @@ Multi-Swarm Coordination
 Run multiple swarms in parallel and merge results intelligently.
 
 KISS PRINCIPLE: Simple asyncio.gather (no complex orchestration).
-DRY PRINCIPLE: Reuses existing BaseSwarm infrastructure.
+DRY PRINCIPLE: Reuses existing SwarmLearning infrastructure.
 """
 
 import asyncio
@@ -71,7 +71,7 @@ class MultiSwarmCoordinator:
 
     async def execute_parallel(
         self,
-        swarms: List[Any],  # List[BaseSwarm]
+        swarms: List[Any],  # List[SwarmLearning]
         task: str,
         merge_strategy: MergeStrategy = MergeStrategy.VOTING,
         timeout_per_swarm: float = 60.0,

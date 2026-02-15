@@ -156,7 +156,7 @@ class SwarmConfig:
     If you see import errors, use: from ..swarm_types import SwarmConfig
     """
 
-    name: str = "BaseSwarm"
+    name: str = "SwarmLearning"
     domain: str = "general"
     version: str = "1.0.0"
     enable_self_improvement: bool = True

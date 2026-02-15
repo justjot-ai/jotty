@@ -275,8 +275,8 @@ result = skill.tools[0].function({
 - `core/learning/td_lambda.py` - TDLambdaLearner
 
 **Automatic hooks:**
-- `BaseSwarm._pre_execute_learning()` - Load context
-- `BaseSwarm._post_execute_learning()` - Store results
+- `SwarmLearning._pre_execute_learning()` - Load context
+- `SwarmLearning._post_execute_learning()` - Store results
 
 ---
 
@@ -628,7 +628,7 @@ After understanding the happy path:
 
 1. **Add a new skill** → See `CONTRIBUTING.md` "Adding New Components"
 2. **Add a new channel** → Model after Telegram webhook in `server.py`
-3. **Create a new swarm** → Use `DomainSwarm` pattern
+3. **Create a new swarm** → Use `SwarmTemplate` pattern
 4. **Customize learning** → Adjust `SwarmLearningConfig` parameters
 5. **Build SDK client** → Use `/api/chat` endpoint
 

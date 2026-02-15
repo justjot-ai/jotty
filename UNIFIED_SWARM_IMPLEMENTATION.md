@@ -3,10 +3,10 @@
 ## Executive Summary
 
 Successfully implemented the world's best self-learning swarm manager by unifying:
-- **DomainSwarm** + **SwarmTemplate** + **AgentTeam** → **ONE unified BaseSwarm**
+- **SwarmTemplate** + **SwarmTemplate** + **TeamCoordinator** → **ONE unified SwarmLearning**
 - **ALL 8 learning layers** integrated (ZERO learning lost)
 - **AUTO pattern selection** using multi-layer intelligence
-- **16 swarms → simple templates** on BaseSwarm
+- **16 swarms → simple templates** on SwarmLearning
 
 ---
 
@@ -15,7 +15,7 @@ Successfully implemented the world's best self-learning swarm manager by unifyin
 ### Before (Fragmented)
 ```
 ┌──────────────┐   ┌───────────────┐   ┌──────────────┐
-│ DomainSwarm  │   │ SwarmTemplate │   │  AgentTeam   │
+│ SwarmTemplate  │   │ SwarmTemplate │   │  TeamCoordinator   │
 │ (learning)   │   │ (agents dict) │   │ (topology)   │
 └──────────────┘   └───────────────┘   └──────────────┘
        ↓                   ↓                    ↓
@@ -51,8 +51,8 @@ Successfully implemented the world's best self-learning swarm manager by unifyin
 Intelligently selects coordination pattern using 5-layer decision making:
 
 ```python
-class CodingSwarm(BaseSwarm):
-    AGENT_TEAM = AgentTeam.define(
+class CodingSwarm(SwarmLearning):
+    AGENT_TEAM = TeamCoordinator.define(
         (ArchitectAgent, "Architect"),
         (DeveloperAgent, "Developer"),
         pattern=CoordinationPattern.AUTO,  # 🧠 Swarm decides!
@@ -110,7 +110,7 @@ BEST:    max(scores) = B
 
 #### SYNTHESIZE (Intelligent) ✨
 ```python
-AGENT_TEAM = AgentTeam.define(
+AGENT_TEAM = TeamCoordinator.define(
     (Reviewer1, "Security"),
     (Reviewer2, "Performance"),
     pattern=CoordinationPattern.PARALLEL,
@@ -139,8 +139,8 @@ Declarative multi-stage workflows:
 ```python
 from core.swarms.stage_config import StageConfig
 
-class CodingSwarm(BaseSwarm):
-    AGENT_TEAM = AgentTeam.define(
+class CodingSwarm(SwarmLearning):
+    AGENT_TEAM = TeamCoordinator.define(
         (Architect, "Architect"),
         (Developer, "Developer"),
         (Tester, "Tester"),
@@ -181,7 +181,7 @@ class CodingSwarm(BaseSwarm):
 
 ### 5. All 8 Learning Layers (Integrated)
 
-**BaseSwarm automatically provides:**
+**SwarmLearning automatically provides:**
 
 #### Layer 1: Memory (5 Levels)
 ```python
@@ -257,10 +257,10 @@ CAUSAL: Cause-effect relationships
 
 ```
 core/intelligence/swarms/
-├── base_swarm.py                    # BaseSwarm (all learning)
+├── base_swarm.py                    # SwarmLearning (all learning)
 ├── base/
-│   ├── domain_swarm.py              # DomainSwarm (template pattern + AUTO)
-│   └── agent_team.py                # AgentTeam (all coordination patterns)
+│   ├── domain_swarm.py              # SwarmTemplate (template pattern + AUTO)
+│   └── agent_team.py                # TeamCoordinator (all coordination patterns)
 ├── pattern_selector.py              # NEW: AUTO pattern selection
 ├── stage_config.py                  # NEW: CUSTOM pattern STAGES
 ├── _learning_mixin.py               # Learning lifecycle hooks
@@ -298,9 +298,9 @@ core/intelligence/swarms/
 ```python
 from core.swarms.templates.review import ReviewTemplate
 
-# Just configuration - ALL learning from BaseSwarm
-class ReviewTemplate(BaseSwarm):
-    AGENT_TEAM = AgentTeam.define(
+# Just configuration - ALL learning from SwarmLearning
+class ReviewTemplate(SwarmLearning):
+    AGENT_TEAM = TeamCoordinator.define(
         (CodeReviewer, "CodeReviewer"),
         (SecurityScanner, "SecurityScanner"),
         (PerformanceAnalyzer, "PerformanceAnalyzer"),
@@ -327,8 +327,8 @@ class ReviewTemplate(BaseSwarm):
 ```python
 from core.swarms.templates.coding import CodingTemplate
 
-class CodingTemplate(BaseSwarm):
-    AGENT_TEAM = AgentTeam.define(
+class CodingTemplate(SwarmLearning):
+    AGENT_TEAM = TeamCoordinator.define(
         (Architect, "Architect"),
         (Developer, "Developer"),
         (Tester, "Tester"),
@@ -360,8 +360,8 @@ class CodingTemplate(BaseSwarm):
 ```python
 from core.swarms.templates.ml import MLTemplate
 
-class MLTemplate(BaseSwarm):
-    AGENT_TEAM = AgentTeam.define(
+class MLTemplate(SwarmLearning):
+    AGENT_TEAM = TeamCoordinator.define(
         (DataPreprocessor, "DataPreprocessor"),
         (FeatureEngineer, "FeatureEngineer"),
         (ModelTrainer, "ModelTrainer"),
@@ -389,13 +389,13 @@ class MLTemplate(BaseSwarm):
 
 | Metric | Before | After | Improvement |
 |--------|--------|-------|-------------|
-| **Learning Layers** | Fragmented across 3 classes | All 8 in BaseSwarm | ✅ Unified |
+| **Learning Layers** | Fragmented across 3 classes | All 8 in SwarmLearning | ✅ Unified |
 | **Template LoC** | 800-1200 lines | 70-90 lines | ✅ 90% reduction |
 | **Pattern Selection** | Manual | AUTO (5-layer intelligence) | ✅ Automated |
 | **Coordination Patterns** | 6 patterns | 9 patterns + AUTO | ✅ 50% more |
 | **Synthesis** | Mechanical only | SYNTHESIZE (LLM-based) | ✅ Intelligent |
 | **Multi-stage** | Imperative code | STAGES (declarative) | ✅ Declarative |
-| **Code Duplication** | High (3 similar classes) | Zero (single BaseSwarm) | ✅ DRY |
+| **Code Duplication** | High (3 similar classes) | Zero (single SwarmLearning) | ✅ DRY |
 
 ---
 
@@ -420,7 +420,7 @@ from core.swarms.templates import CodingSwarm  # ← Same as CodingTemplate
 
 **Test Examples:**
 ```bash
-# All templates inherit from BaseSwarm
+# All templates inherit from SwarmLearning
 pytest tests/test_templates.py -v
 
 # Pattern selection
@@ -444,14 +444,14 @@ Convert in 3 steps:
 **Step 1: Extract AGENT_TEAM**
 ```python
 # Before
-class MySwarm(DomainSwarm):
+class MySwarm(SwarmTemplate):
     def __init__(self):
         self.agent1 = Agent1()
         self.agent2 = Agent2()
 
 # After
-class MyTemplate(BaseSwarm):
-    AGENT_TEAM = AgentTeam.define(
+class MyTemplate(SwarmLearning):
+    AGENT_TEAM = TeamCoordinator.define(
         (Agent1, "Agent1"),
         (Agent2, "Agent2"),
         pattern=CoordinationPattern.AUTO,  # Let swarm decide

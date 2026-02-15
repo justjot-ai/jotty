@@ -17,7 +17,7 @@ from typing import Any, Dict, List
 import dspy
 
 from Jotty.core.intelligence.swarms.base import _split_field
-from Jotty.core.modes.agent.base import BaseSwarmAgent
+from Jotty.core.modes.agent.base import SwarmLearningAgent
 
 from .signatures import (
     APIGenerationSignature,
@@ -47,8 +47,8 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 
-class BaseCodeAgent(BaseSwarmAgent):
-    """Base class for coding agents. Extends BaseSwarmAgent with streaming support."""
+class BaseCodeAgent(SwarmLearningAgent):
+    """Base class for coding agents. Extends SwarmLearningAgent with streaming support."""
 
     async def _stream(
         self, module: Any, phase: str, agent: str, listener_field: str = "reasoning", **kwargs: Any

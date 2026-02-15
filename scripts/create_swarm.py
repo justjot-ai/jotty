@@ -80,13 +80,13 @@ class {swarm_pascal}Result(SwarmResult):
 import logging
 from typing import Dict, Any
 
-from ..base.domain_swarm import DomainSwarm
+from ..base.swarm_template import SwarmTemplate
 from .types import {swarm_pascal}Config, {swarm_pascal}Result
 
 logger = logging.getLogger(__name__)
 
 
-class {swarm_pascal}(DomainSwarm):
+class {swarm_pascal}(SwarmTemplate):
     """{description}
 
     Features:

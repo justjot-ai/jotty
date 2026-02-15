@@ -5,11 +5,11 @@ CompositeAgent - Unified Agent/Swarm Bridge
 An agent that orchestrates sub-agents with optional DSPy signature,
 bridging the Agent and Swarm hierarchies via the Bridge Pattern.
 
-CompositeAgent extends BaseAgent only (NOT BaseSwarm). It wraps swarms
+CompositeAgent extends BaseAgent only (NOT SwarmLearning). It wraps swarms
 via delegation, preserving all learning hooks and agent lifecycle.
 
 Three modes of use:
-    1. Wrap a DomainSwarm:     CodingSwarm().to_composite()
+    1. Wrap a SwarmTemplate:     CodingSwarm().to_composite()
     2. Compose sub-agents:     CompositeAgent.compose("Name", a=agent1, b=agent2)
     3. Nest composites:        CompositeAgent.compose("Outer", inner=composite1, ...)
 
@@ -34,7 +34,7 @@ from Jotty.core.infrastructure.foundation.types.execution_types import (
 from .base_agent import AgentResult, AgentRuntimeConfig, BaseAgent
 
 if TYPE_CHECKING:
-    from Jotty.core.intelligence.swarms.base.domain_swarm import DomainSwarm
+    from Jotty.core.intelligence.swarms.base.domain_swarm import SwarmTemplate
     from Jotty.core.intelligence.swarms.swarm_types import SwarmResult
 
 logger = logging.getLogger(__name__)
@@ -151,7 +151,7 @@ _COORDINATION_DISPATCH: Dict[CoordinationPattern, str] = {
 class CompositeAgent(BaseAgent):
     """Agent that orchestrates sub-agents with optional DSPy signature.
 
-    Extends BaseAgent only (Bridge Pattern). Wraps DomainSwarm via
+    Extends BaseAgent only (Bridge Pattern). Wraps SwarmTemplate via
     delegation — no multiple inheritance, no diamond problems.
     """
 
@@ -165,15 +165,15 @@ class CompositeAgent(BaseAgent):
         super().__init__(config)
         self.signature = signature
         self._sub_agents: Dict[str, BaseAgent] = sub_agents or {}
-        self._wrapped_swarm: Optional[DomainSwarm] = None
+        self._wrapped_swarm: Optional[SwarmTemplate] = None
 
     # =========================================================================
     # FACTORY METHODS
     # =========================================================================
 
     @classmethod
-    def from_swarm(cls, swarm: DomainSwarm, signature: Optional[Type] = None) -> CompositeAgent:
-        """Wrap a DomainSwarm as a CompositeAgent.
+    def from_swarm(cls, swarm: SwarmTemplate, signature: Optional[Type] = None) -> CompositeAgent:
+        """Wrap a SwarmTemplate as a CompositeAgent.
 
         Delegates execute() to the swarm, preserving all learning hooks.
         Uses the swarm's timeout_seconds (default 300s) instead of the

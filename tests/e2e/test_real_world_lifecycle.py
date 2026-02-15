@@ -78,7 +78,7 @@ class RealWorldSwarm:
     """
     Simulated swarm that exercises the full V2 learning/coordination stack.
 
-    This mirrors the exact lifecycle of a real DomainSwarm.execute():
+    This mirrors the exact lifecycle of a real SwarmTemplate.execute():
     1. _pre_execute_learning() → loads context, coalition, gossip, evaporation
     2. Agent execution → results + traces
     3. _post_execute_learning() → evaluation, benchmarks, byzantine, save
@@ -129,7 +129,7 @@ class RealWorldSwarm:
 
     async def execute(self, task_type: str, reset_circuits: bool = False) -> dict:
         """
-        Execute one full lifecycle — mirrors DomainSwarm.execute().
+        Execute one full lifecycle — mirrors SwarmTemplate.execute().
         """
         self.run_count += 1
         run_id = f"run_{self.run_count}"

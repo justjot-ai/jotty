@@ -2,14 +2,14 @@
 
 from Jotty.core.infrastructure.foundation.types.execution_types import CoordinationPattern
 
-from ...base.agent_team import AgentTeam
-from ...base_swarm import BaseSwarm, SwarmBaseConfig, SwarmResult
+from ...base.team_coordinator import TeamCoordinator
+from ...swarm_learning import SwarmBaseConfig, SwarmLearning, SwarmResult
 
 
-class CollaborativeTemplate(BaseSwarm):
+class CollaborativeTemplate(SwarmLearning):
     """Collaborative team pattern - agents work together on shared workspace."""
 
-    AGENT_TEAM = AgentTeam.define(pattern=CoordinationPattern.BLACKBOARD)
+    AGENT_TEAM = TeamCoordinator.define(pattern=CoordinationPattern.BLACKBOARD)
     TEMPLATE_NAME = "collaborative_team"
 
     def __init__(self, config: SwarmBaseConfig = None):

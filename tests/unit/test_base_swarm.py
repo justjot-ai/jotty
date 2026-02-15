@@ -1,8 +1,8 @@
 """
-Comprehensive tests for BaseSwarm, SwarmLearningMixin, and Improvement Agents.
+Comprehensive tests for SwarmLearning, SwarmLearningMixin, and Improvement Agents.
 
 Covers:
-- BaseSwarm initialization and lazy resource management
+- SwarmLearning initialization and lazy resource management
 - SwarmLearningMixin pre/post-execution learning hooks
 - All 6 improvement agents (Expert, Reviewer, Planner, Actor, Auditor, Learner)
 - Shared resources, self-improvement, caching, circuit breaker, priority queue
@@ -26,9 +26,6 @@ import pytest
 # Import learning mixin
 from Jotty.core.intelligence.swarms._learning_mixin import SwarmLearningMixin
 
-# Import base swarm
-from Jotty.core.intelligence.swarms.base_swarm import BaseSwarm
-
 # Import evaluation components
 from Jotty.core.intelligence.swarms.evaluation import (
     EvaluationHistory,
@@ -47,6 +44,9 @@ from Jotty.core.intelligence.swarms.improvement_agents import (
     PlannerAgent,
     ReviewerAgent,
 )
+
+# Import base swarm
+from Jotty.core.intelligence.swarms.swarm_learning import SwarmLearning
 
 # Import swarm types
 from Jotty.core.intelligence.swarms.swarm_types import (
@@ -67,8 +67,8 @@ from Jotty.core.intelligence.swarms.swarm_types import (
 # =============================================================================
 
 
-class ConcreteSwarm(BaseSwarm):
-    """Concrete implementation of BaseSwarm for testing."""
+class ConcreteSwarm(SwarmLearning):
+    """Concrete implementation of SwarmLearning for testing."""
 
     async def execute(self, *args, **kwargs):
         """Simple execute implementation."""
@@ -186,13 +186,13 @@ def mock_memory():
 
 
 # =============================================================================
-# TEST CLASS 1: BaseSwarm Initialization
+# TEST CLASS 1: SwarmLearning Initialization
 # =============================================================================
 
 
 @pytest.mark.unit
-class TestBaseSwarmInit:
-    """Test BaseSwarm constructor and lazy field initialization."""
+class TestSwarmLearningInit:
+    """Test SwarmLearning constructor and lazy field initialization."""
 
     def test_init_basic_fields(self, swarm_config):
         """Test basic field initialization."""
@@ -247,7 +247,7 @@ class TestBaseSwarmInit:
 
 
 @pytest.mark.unit
-class TestBaseSwarmSharedResources:
+class TestSwarmLearningSharedResources:
     """Test _init_shared_resources method."""
 
     def test_init_shared_resources_skips_if_initialized(self, swarm_config):
@@ -287,7 +287,7 @@ class TestBaseSwarmSharedResources:
 
 
 @pytest.mark.unit
-class TestBaseSwarmSelfImprovement:
+class TestSwarmLearningSelfImprovement:
     """Test _init_self_improvement and related methods."""
 
     def test_init_self_improvement_creates_databases(self, swarm_config, tmp_path):
@@ -381,7 +381,7 @@ class TestBaseSwarmSelfImprovement:
 
 
 @pytest.mark.unit
-class TestBaseSwarmTracing:
+class TestSwarmLearningTracing:
     """Test execution tracing."""
 
     def test_trace_phase(self, swarm_config):
@@ -434,7 +434,7 @@ class TestBaseSwarmTracing:
 
 
 @pytest.mark.unit
-class TestBaseSwarmCaching:
+class TestSwarmLearningCaching:
     """Test caching methods."""
 
     def test_cache_result_no_si(self, swarm_config):
@@ -488,7 +488,7 @@ class TestBaseSwarmCaching:
 
 
 @pytest.mark.unit
-class TestBaseSwarmCircuitBreaker:
+class TestSwarmLearningCircuitBreaker:
     """Test circuit breaker methods."""
 
     def test_record_circuit_failure(self, swarm_config, mock_swarm_intelligence):
@@ -526,7 +526,7 @@ class TestBaseSwarmCircuitBreaker:
 
 
 @pytest.mark.unit
-class TestBaseSwarmPriorityQueue:
+class TestSwarmLearningPriorityQueue:
     """Test priority queue methods."""
 
     def test_enqueue_task(self, swarm_config, mock_swarm_intelligence):
@@ -566,7 +566,7 @@ class TestBaseSwarmPriorityQueue:
 
 
 @pytest.mark.unit
-class TestBaseSwarmTaskDecomposition:
+class TestSwarmLearningTaskDecomposition:
     """Test task decomposition and aggregation."""
 
     def test_decompose_task(self, swarm_config, mock_swarm_intelligence):
@@ -614,7 +614,7 @@ class TestBaseSwarmTaskDecomposition:
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-class TestBaseSwarmParallel:
+class TestSwarmLearningParallel:
     """Test parallel execution methods."""
 
     async def test_execute_parallel_with_si(self, swarm_config, mock_swarm_intelligence):
@@ -691,7 +691,7 @@ class TestBaseSwarmParallel:
 
 
 @pytest.mark.unit
-class TestBaseSwarmLoadBalancing:
+class TestSwarmLearningLoadBalancing:
     """Test load balancing methods."""
 
     def test_get_load(self, swarm_config, mock_swarm_intelligence):
@@ -933,7 +933,7 @@ class TestImprovementAgents:
 
 
 @pytest.mark.unit
-class TestBaseSwarmEdgeCases:
+class TestSwarmLearningEdgeCases:
     """Test edge cases and error handling."""
 
     def test_empty_traces(self, swarm_config):
@@ -983,7 +983,7 @@ class TestBaseSwarmEdgeCases:
 
 
 @pytest.mark.unit
-class TestBaseSwarmSwarmIntelligence:
+class TestSwarmLearningSwarmIntelligence:
     """Test SwarmIntelligence connection and integration."""
 
     def test_connect_swarm_intelligence_basic(self, swarm_config, mock_swarm_intelligence):
@@ -1045,7 +1045,7 @@ class TestBaseSwarmSwarmIntelligence:
 
 
 @pytest.mark.unit
-class TestBaseSwarmCoordination:
+class TestSwarmLearningCoordination:
     """Test coordination protocols (handoff, coalition, gossip, etc.)."""
 
     def test_handoff_task(self, swarm_config, mock_swarm_intelligence):
@@ -1175,14 +1175,14 @@ class TestCollapsedAgents:
 
 
 # =============================================================================
-# TEST CLASS 17: Additional BaseSwarm Methods
+# TEST CLASS 17: Additional SwarmLearning Methods
 # =============================================================================
 
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-class TestBaseSwarmAdditional:
-    """Test additional BaseSwarm methods."""
+class TestSwarmLearningAdditional:
+    """Test additional SwarmLearning methods."""
 
     async def test_run_auto_warmup(self, swarm_config, mock_swarm_intelligence):
         """Test auto-warmup initialization."""
@@ -1288,7 +1288,7 @@ class TestBaseSwarmAdditional:
 
 
 @pytest.mark.unit
-class TestBaseSwarmMemoryIntegration:
+class TestSwarmLearningMemoryIntegration:
     """Test memory system integration."""
 
     def test_store_execution_as_improvement(self, swarm_config, mock_memory):
@@ -1432,7 +1432,7 @@ class TestLearningPathways:
 Test Coverage Summary:
 ======================
 
-BaseSwarm (50+ tests):
+SwarmLearning (50+ tests):
 - Initialization and lazy fields
 - Shared resource management
 - Self-improvement setup

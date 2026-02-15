@@ -229,10 +229,10 @@ class MySwarmResult(SwarmResult):
 
 ```python
 # swarm.py
-from ..base.domain_swarm import DomainSwarm
+from ..base.domain_swarm import SwarmTemplate
 from .types import MySwarmConfig, MySwarmResult
 
-class MySwarm(DomainSwarm):
+class MySwarm(SwarmTemplate):
     """MySwarm description."""
 
     def __init__(self, config: MySwarmConfig = None):

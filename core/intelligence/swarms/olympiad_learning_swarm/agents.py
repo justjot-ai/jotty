@@ -22,7 +22,7 @@ from typing import Any, Dict, List
 
 import dspy
 
-from Jotty.core.modes.agent.base import BaseSwarmAgent
+from Jotty.core.modes.agent.base import SwarmLearningAgent
 
 from .signatures import (
     ConceptDecomposerSignature,
@@ -48,8 +48,8 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 
-class BaseOlympiadAgent(BaseSwarmAgent):
-    """Base class for all olympiad learning agents. Extends BaseSwarmAgent with LLM model selection."""
+class BaseOlympiadAgent(SwarmLearningAgent):
+    """Base class for all olympiad learning agents. Extends SwarmLearningAgent with LLM model selection."""
 
     def __init__(
         self,

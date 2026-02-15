@@ -199,16 +199,16 @@ Synthesize: "For our team, Vue is optimal because:
 CODE EXAMPLE: Complete Integration
 ═══════════════════════════════════════════════════════════════════════════
 
-from Jotty.core.intelligence.swarms import BaseSwarm
-from Jotty.core.intelligence.swarms.base.agent_team import AgentTeam, CoordinationPattern
+from Jotty.core.intelligence.swarms import SwarmLearning
+from Jotty.core.intelligence.swarms.base.agent_team import TeamCoordinator, CoordinationPattern
 
-class MySwarm(BaseSwarm):
+class MySwarm(SwarmLearning):
     """
     Complete example showing all features.
     """
 
     # Define agent team
-    AGENT_TEAM = AgentTeam.define(
+    AGENT_TEAM = TeamCoordinator.define(
         (ResearcherAgent, "Researcher"),
         (AnalystAgent, "Analyst"),
         (WriterAgent, "Writer"),

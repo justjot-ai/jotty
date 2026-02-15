@@ -58,10 +58,10 @@ from typing import Dict, List, Optional
 
 import dspy
 
-from Jotty.core.modes.agent.base import BaseSwarmAgent
+from Jotty.core.modes.agent.base import SwarmLearningAgent
 
-from .base import AgentTeam, DomainSwarm, _split_field
-from .base_swarm import AgentRole, SwarmBaseConfig, SwarmResult, register_swarm
+from .base import SwarmTemplate, TeamCoordinator, _split_field
+from .swarm_learning import AgentRole, SwarmBaseConfig, SwarmResult, register_swarm
 from .swarm_signatures import DevOpsSwarmSignature
 
 logger = logging.getLogger(__name__)
@@ -349,7 +349,7 @@ class IaCGenerationSignature(dspy.Signature):
 # =============================================================================
 
 
-class InfrastructureArchitect(BaseSwarmAgent):
+class InfrastructureArchitect(SwarmLearningAgent):
     """Designs cloud infrastructure."""
 
     def __init__(
@@ -397,7 +397,7 @@ class InfrastructureArchitect(BaseSwarmAgent):
             return {"error": str(e)}
 
 
-class CICDDesigner(BaseSwarmAgent):
+class CICDDesigner(SwarmLearningAgent):
     """Designs CI/CD pipelines."""
 
     def __init__(
@@ -444,7 +444,7 @@ class CICDDesigner(BaseSwarmAgent):
             )
 
 
-class ContainerSpecialist(BaseSwarmAgent):
+class ContainerSpecialist(SwarmLearningAgent):
     """Handles containerization."""
 
     def __init__(
@@ -487,7 +487,7 @@ class ContainerSpecialist(BaseSwarmAgent):
             )
 
 
-class SecurityHardener(BaseSwarmAgent):
+class SecurityHardener(SwarmLearningAgent):
     """Handles security hardening."""
 
     def __init__(
@@ -540,7 +540,7 @@ class SecurityHardener(BaseSwarmAgent):
             )
 
 
-class MonitoringSpecialist(BaseSwarmAgent):
+class MonitoringSpecialist(SwarmLearningAgent):
     """Sets up monitoring and observability."""
 
     def __init__(
@@ -586,7 +586,7 @@ class MonitoringSpecialist(BaseSwarmAgent):
             return MonitoringConfig(metrics=[], alerts=[], dashboards=[], logging={}, tracing={})
 
 
-class IaCGenerator(BaseSwarmAgent):
+class IaCGenerator(SwarmLearningAgent):
     """Generates Infrastructure as Code."""
 
     def __init__(
@@ -626,7 +626,7 @@ class IaCGenerator(BaseSwarmAgent):
 
 
 @register_swarm("devops")
-class DevOpsSwarm(DomainSwarm):
+class DevOpsSwarm(SwarmTemplate):
     """
     World-Class DevOps Swarm.
 
@@ -639,7 +639,7 @@ class DevOpsSwarm(DomainSwarm):
     - IaC generation
     """
 
-    AGENT_TEAM = AgentTeam.define(
+    AGENT_TEAM = TeamCoordinator.define(
         (InfrastructureArchitect, "InfrastructureArchitect", "_infra_architect"),
         (CICDDesigner, "CICDDesigner", "_cicd_designer"),
         (ContainerSpecialist, "ContainerSpecialist", "_container_specialist"),

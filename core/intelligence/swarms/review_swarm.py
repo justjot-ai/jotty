@@ -58,10 +58,10 @@ from typing import Dict, List
 
 import dspy
 
-from Jotty.core.modes.agent.base import BaseSwarmAgent
+from Jotty.core.modes.agent.base import SwarmLearningAgent
 
-from .base import AgentTeam, DomainSwarm, _split_field
-from .base_swarm import AgentRole, SwarmBaseConfig, SwarmResult, register_swarm
+from .base import SwarmTemplate, TeamCoordinator, _split_field
+from .swarm_learning import AgentRole, SwarmBaseConfig, SwarmResult, register_swarm
 from .swarm_signatures import ReviewSwarmSignature
 
 logger = logging.getLogger(__name__)
@@ -332,7 +332,7 @@ class ReviewSynthesisSignature(dspy.Signature):
 # =============================================================================
 
 
-class CodeReviewer(BaseSwarmAgent):
+class CodeReviewer(SwarmLearningAgent):
     """Reviews code quality."""
 
     def __init__(
@@ -376,7 +376,7 @@ class CodeReviewer(BaseSwarmAgent):
             return {"error": str(e)}
 
 
-class SecurityScanner(BaseSwarmAgent):
+class SecurityScanner(SwarmLearningAgent):
     """Scans for security vulnerabilities."""
 
     def __init__(
@@ -415,7 +415,7 @@ class SecurityScanner(BaseSwarmAgent):
             return {"error": str(e)}
 
 
-class PerformanceAnalyzer(BaseSwarmAgent):
+class PerformanceAnalyzer(SwarmLearningAgent):
     """Analyzes performance issues."""
 
     def __init__(
@@ -454,7 +454,7 @@ class PerformanceAnalyzer(BaseSwarmAgent):
             return {"error": str(e)}
 
 
-class ArchitectureReviewer(BaseSwarmAgent):
+class ArchitectureReviewer(SwarmLearningAgent):
     """Reviews architecture."""
 
     def __init__(
@@ -497,7 +497,7 @@ class ArchitectureReviewer(BaseSwarmAgent):
             return {"error": str(e)}
 
 
-class StyleChecker(BaseSwarmAgent):
+class StyleChecker(SwarmLearningAgent):
     """Checks code style."""
 
     def __init__(
@@ -541,7 +541,7 @@ class StyleChecker(BaseSwarmAgent):
             return {"error": str(e)}
 
 
-class ReviewSynthesizer(BaseSwarmAgent):
+class ReviewSynthesizer(SwarmLearningAgent):
     """Synthesizes all reviews."""
 
     def __init__(
@@ -602,7 +602,7 @@ class ReviewSynthesizer(BaseSwarmAgent):
 
 
 @register_swarm("review")
-class ReviewSwarm(DomainSwarm):
+class ReviewSwarm(SwarmTemplate):
     """
     World-Class Review Swarm.
 
@@ -614,7 +614,7 @@ class ReviewSwarm(DomainSwarm):
     - Style checking
     """
 
-    AGENT_TEAM = AgentTeam.define(
+    AGENT_TEAM = TeamCoordinator.define(
         (CodeReviewer, "CodeReviewer", "_code_reviewer"),
         (SecurityScanner, "SecurityScanner", "_security_scanner"),
         (PerformanceAnalyzer, "PerformanceAnalyzer", "_performance_analyzer"),

@@ -13,7 +13,7 @@ from typing import Any
 
 from Jotty.core.infrastructure.foundation.types.execution_types import CoordinationPattern
 
-from ..base_swarm import BaseSwarm, SwarmBaseConfig, SwarmResult
+from ..swarm_learning import SwarmBaseConfig, SwarmLearning, SwarmResult
 
 # Import existing agents (will be defined/imported from SwarmML)
 try:
@@ -26,17 +26,17 @@ try:
     )
 except ImportError:
     # Fallback
-    from Jotty.core.modes.agent.base import BaseSwarmAgent as DataPreprocessorAgent
-    from Jotty.core.modes.agent.base import BaseSwarmAgent as FeatureEngineerAgent
-    from Jotty.core.modes.agent.base import BaseSwarmAgent as ModelTrainerAgent
+    from Jotty.core.modes.agent.base import SwarmLearningAgent as DataPreprocessorAgent
+    from Jotty.core.modes.agent.base import SwarmLearningAgent as FeatureEngineerAgent
+    from Jotty.core.modes.agent.base import SwarmLearningAgent as ModelTrainerAgent
 
     MLConfig = SwarmBaseConfig
     MLResult = SwarmResult
 
-from ..base.agent_team import AgentTeam
+from ..base.team_coordinator import TeamCoordinator
 
 
-class MLTemplate(BaseSwarm):
+class MLTemplate(SwarmLearning):
     """
     ML swarm template - ITERATIVE pattern.
 
@@ -46,7 +46,7 @@ class MLTemplate(BaseSwarm):
     3. If quality < 0.85: improve and repeat (max 5 iterations)
     4. Return best model across all iterations
 
-    Inherits ALL learning layers from BaseSwarm automatically.
+    Inherits ALL learning layers from SwarmLearning automatically.
 
     Usage:
         swarm = MLTemplate()
@@ -58,7 +58,7 @@ class MLTemplate(BaseSwarm):
     """
 
     # Agent team definition - ITERATIVE pattern
-    AGENT_TEAM = AgentTeam.define(
+    AGENT_TEAM = TeamCoordinator.define(
         (DataPreprocessorAgent, "DataPreprocessor"),
         (FeatureEngineerAgent, "FeatureEngineer"),
         (ModelTrainerAgent, "ModelTrainer"),

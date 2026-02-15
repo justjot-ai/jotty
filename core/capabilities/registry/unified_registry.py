@@ -23,7 +23,7 @@ Architecture:
 │  └─────────────────────────────────┘  └─────────────────────────────────┘  │
 │                                                                              │
 │  Integration Points:                                                         │
-│  • BaseSwarm queries available tools and UI components                      │
+│  • SwarmLearning queries available tools and UI components                      │
 │  • Agents use skills for execution, UI for output rendering                 │
 │  • SwarmIntelligence tracks tool/component usage for optimization           │
 │  • AutoAgent discovers skills for autonomous execution                       │

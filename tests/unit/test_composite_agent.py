@@ -33,7 +33,7 @@ def _make_mock_base_agent(name="MockAgent", timeout=120.0):
 
 
 def _make_mock_domain_swarm(name="TestSwarm", timeout_seconds=300):
-    """Create a mock DomainSwarm with config.timeout_seconds."""
+    """Create a mock SwarmTemplate with config.timeout_seconds."""
     swarm = MagicMock()
     swarm.__class__.__name__ = name
     swarm.config = MagicMock()

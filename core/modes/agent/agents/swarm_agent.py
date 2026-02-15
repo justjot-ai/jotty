@@ -1,5 +1,5 @@
 """
-BaseSwarmAgent - Shared Base for All Swarm-Internal Agents
+SwarmLearningAgent - Shared Base for All Swarm-Internal Agents
 ==========================================================
 
 Deduplicates the identical BaseXxxAgent classes found across 10+ swarms.
@@ -22,7 +22,7 @@ from .domain_agent import DomainAgent, DomainAgentConfig
 logger = logging.getLogger(__name__)
 
 
-class BaseSwarmAgent(DomainAgent):
+class SwarmLearningAgent(DomainAgent):
     """Shared base for all swarm-internal agents.
 
     Provides:

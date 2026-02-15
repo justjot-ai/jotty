@@ -10,7 +10,7 @@ DRY PRINCIPLE: Reuses all existing Jotty infrastructure.
 Usage:
     from Jotty.core.intelligence.orchestration import SwarmAdapter, get_multi_swarm_coordinator
 
-    # Option 1: From BaseSwarm
+    # Option 1: From SwarmLearning
     swarms = SwarmAdapter.from_swarms([
         research_swarm,
         coding_swarm,

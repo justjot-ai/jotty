@@ -173,7 +173,7 @@ Multi-agent coordination engine:
 - **Byzantine verification**: Detect and isolate faulty agents
 - **Curriculum generation**: Synthetic training tasks targeting weaknesses
 
-### BaseSwarm (`core/swarms/base_swarm.py`)
+### SwarmLearning (`core/swarms/base_swarm.py`)
 
 Foundation for all swarm types. Implements the self-improving loop:
 

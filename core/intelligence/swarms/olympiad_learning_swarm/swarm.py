@@ -33,8 +33,8 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from ..base import AgentTeam, DomainSwarm, PhaseExecutor
-from ..base_swarm import AgentRole, register_swarm
+from ..base import PhaseExecutor, SwarmTemplate, TeamCoordinator
+from ..swarm_learning import AgentRole, register_swarm
 from .agents import (
     ConceptDecomposerAgent,
     ConnectionMapperAgent,
@@ -86,7 +86,7 @@ logger = logging.getLogger(__name__)
 
 
 @register_swarm("olympiad_learning")
-class OlympiadLearningSwarm(DomainSwarm):
+class OlympiadLearningSwarm(SwarmTemplate):
     """
     World-Class Olympiad Learning Swarm.
 
@@ -108,7 +108,7 @@ class OlympiadLearningSwarm(DomainSwarm):
     Supports: Mathematics, Physics, Chemistry, CS, Biology, Astronomy
     """
 
-    AGENT_TEAM = AgentTeam.define(
+    AGENT_TEAM = TeamCoordinator.define(
         (CurriculumArchitectAgent, "CurriculumArchitect", "_curriculum_architect"),
         (ConceptDecomposerAgent, "ConceptDecomposer", "_concept_decomposer"),
         (IntuitionBuilderAgent, "IntuitionBuilder", "_intuition_builder"),

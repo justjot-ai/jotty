@@ -2,16 +2,16 @@
 
 from Jotty.core.infrastructure.foundation.types.execution_types import CoordinationPattern
 
-from ..base.agent_team import AgentTeam
-from ..base_swarm import BaseSwarm, SwarmBaseConfig, SwarmResult
+from ..base.team_coordinator import TeamCoordinator
+from ..swarm_learning import SwarmBaseConfig, SwarmLearning, SwarmResult
 
 # TODO: Import actual agents from research_swarm
 
 
-class ResearchTemplate(BaseSwarm):
+class ResearchTemplate(SwarmLearning):
     """Research swarm template."""
 
-    AGENT_TEAM = AgentTeam.define(
+    AGENT_TEAM = TeamCoordinator.define(
         # TODO: Add research agents
         pattern=CoordinationPattern.AUTO,  # Let swarm decide best pattern
     )

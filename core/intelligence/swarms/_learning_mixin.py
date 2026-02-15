@@ -1,5 +1,5 @@
 """
-Learning mixin for BaseSwarm.
+Learning mixin for SwarmLearning.
 
 Contains the core learning lifecycle methods: pre/post-execution learning hooks,
 improvement cycles, and trace recording.
@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 
 
 class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
-    """Mixin providing learning infrastructure for BaseSwarm.
+    """Mixin providing learning infrastructure for SwarmLearning.
 
     Inherits from:
     - SwarmCoordinationMixin: circuit breakers, gossip, coalitions, etc.
@@ -51,7 +51,7 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
     - Post-execution: store results, run improvement cycle, update learner
     - Trace recording: log execution traces for debugging
 
-    Expects to be mixed into BaseSwarm which provides:
+    Expects to be mixed into SwarmLearning which provides:
     - self._memory, self._context_manager, self._learner
     - self._gold_db, self._improvement_history, self._evaluation_history
     - self.config, self._traces, self._execution_count

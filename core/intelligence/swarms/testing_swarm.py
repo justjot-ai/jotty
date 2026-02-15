@@ -58,10 +58,10 @@ from typing import Dict, List, Optional
 
 import dspy
 
-from Jotty.core.modes.agent.base import BaseSwarmAgent
+from Jotty.core.modes.agent.base import SwarmLearningAgent
 
-from .base import AgentTeam, DomainSwarm, _split_field
-from .base_swarm import AgentRole, SwarmBaseConfig, SwarmResult, register_swarm
+from .base import SwarmTemplate, TeamCoordinator, _split_field
+from .swarm_learning import AgentRole, SwarmBaseConfig, SwarmResult, register_swarm
 from .swarm_signatures import TestingSwarmSignature
 
 logger = logging.getLogger(__name__)
@@ -327,7 +327,7 @@ class TestQualitySignature(dspy.Signature):
 # =============================================================================
 
 
-class CodeAnalyzerAgent(BaseSwarmAgent):
+class CodeAnalyzerAgent(SwarmLearningAgent):
     """Analyzes code for testability."""
 
     def __init__(
@@ -375,7 +375,7 @@ class CodeAnalyzerAgent(BaseSwarmAgent):
             return {"error": str(e)}
 
 
-class UnitTestAgent(BaseSwarmAgent):
+class UnitTestAgent(SwarmLearningAgent):
     """Generates unit tests."""
 
     def __init__(
@@ -413,7 +413,7 @@ class UnitTestAgent(BaseSwarmAgent):
             return {"error": str(e)}
 
 
-class IntegrationTestAgent(BaseSwarmAgent):
+class IntegrationTestAgent(SwarmLearningAgent):
     """Generates integration tests."""
 
     def __init__(
@@ -457,7 +457,7 @@ class IntegrationTestAgent(BaseSwarmAgent):
             return {"error": str(e)}
 
 
-class E2ETestAgent(BaseSwarmAgent):
+class E2ETestAgent(SwarmLearningAgent):
     """Generates end-to-end tests."""
 
     def __init__(
@@ -495,7 +495,7 @@ class E2ETestAgent(BaseSwarmAgent):
             return {"error": str(e)}
 
 
-class CoverageAgent(BaseSwarmAgent):
+class CoverageAgent(SwarmLearningAgent):
     """Analyzes test coverage."""
 
     def __init__(
@@ -541,7 +541,7 @@ class CoverageAgent(BaseSwarmAgent):
             return {"error": str(e)}
 
 
-class QualityAgent(BaseSwarmAgent):
+class QualityAgent(SwarmLearningAgent):
     """Assesses test quality."""
 
     def __init__(
@@ -588,7 +588,7 @@ class QualityAgent(BaseSwarmAgent):
 
 
 @register_swarm("testing")
-class TestingSwarm(DomainSwarm):
+class TestingSwarm(SwarmTemplate):
     """
     World-Class Testing Swarm.
 
@@ -600,8 +600,8 @@ class TestingSwarm(DomainSwarm):
     - Quality assessment
     """
 
-    # Declarative agent team - auto-initialized by DomainSwarm
-    AGENT_TEAM = AgentTeam.define(
+    # Declarative agent team - auto-initialized by SwarmTemplate
+    AGENT_TEAM = TeamCoordinator.define(
         (CodeAnalyzerAgent, "CodeAnalyzer", "_analyzer"),
         (UnitTestAgent, "UnitTest", "_unit_tester"),
         (IntegrationTestAgent, "IntegrationTest", "_integration_tester"),
@@ -620,7 +620,7 @@ class TestingSwarm(DomainSwarm):
     async def _execute_domain(
         self, code: str, language: str = None, **kwargs: Any
     ) -> TestingResult:
-        """Execute test generation (called by DomainSwarm.execute())."""
+        """Execute test generation (called by SwarmTemplate.execute())."""
         return await self.generate_tests(code, language, **kwargs)
 
     async def generate_tests(

@@ -1,7 +1,7 @@
-# Phase 2: Unified BaseSwarm Implementation
+# Phase 2: Unified SwarmLearning Implementation
 ## Converting ALL to Templates
 
-**Total Conversions:** 16 swarms/templates → templates on BaseSwarm
+**Total Conversions:** 16 swarms/templates → templates on SwarmLearning
 
 ---
 
@@ -45,20 +45,20 @@ Each template is just configuration:
 ```python
 # core/intelligence/swarms/templates/coding.py
 
-from ..base_swarm import BaseSwarm
-from ..base.agent_team import AgentTeam, CoordinationPattern
+from ..base_swarm import SwarmLearning
+from ..base.agent_team import TeamCoordinator, CoordinationPattern
 from .agents import ArchitectAgent, DeveloperAgent, TestWriterAgent
 from .types import CodingConfig, CodingResult
 
-class CodingTemplate(BaseSwarm):
+class CodingTemplate(SwarmLearning):
     """
     Coding swarm template - production-quality code generation.
 
-    Template (not base class) - inherits ALL learning from BaseSwarm.
+    Template (not base class) - inherits ALL learning from SwarmLearning.
     """
 
     # Agent team definition
-    AGENT_TEAM = AgentTeam.define(
+    AGENT_TEAM = TeamCoordinator.define(
         (ArchitectAgent, "Architect", "_architect"),
         (DeveloperAgent, "Developer", "_developer"),
         (TestWriterAgent, "TestWriter", "_test_writer"),
@@ -93,7 +93,7 @@ For each swarm, extract:
 1. **AGENT_TEAM** → Keep as-is
 2. **Custom logic** → Move to _execute_domain() or STAGES
 3. **Mixins** → Move to separate utilities (if needed)
-4. **Learning** → Already in BaseSwarm!
+4. **Learning** → Already in SwarmLearning!
 5. **Everything else** → Template config
 
 ---
@@ -104,16 +104,16 @@ For each swarm, extract:
 
 ```python
 # BEFORE (domain swarm)
-class ReviewSwarm(DomainSwarm):
-    AGENT_TEAM = AgentTeam.define(
+class ReviewSwarm(SwarmTemplate):
+    AGENT_TEAM = TeamCoordinator.define(
         (SecurityReviewer, "Security"),
         (PerformanceReviewer, "Performance"),
         pattern=CoordinationPattern.PARALLEL,
     )
 
 # AFTER (template)
-class ReviewTemplate(BaseSwarm):
-    AGENT_TEAM = AgentTeam.define(
+class ReviewTemplate(SwarmLearning):
+    AGENT_TEAM = TeamCoordinator.define(
         (SecurityReviewer, "Security"),
         (PerformanceReviewer, "Performance"),
     )
@@ -127,8 +127,8 @@ ReviewSwarm = ReviewTemplate  # Backward compat
 
 ```python
 # BEFORE (domain swarm with custom logic)
-class CodingSwarm(DomainSwarm):
-    AGENT_TEAM = AgentTeam.define(...)
+class CodingSwarm(SwarmTemplate):
+    AGENT_TEAM = TeamCoordinator.define(...)
 
     async def _execute_domain(self, **kwargs):
         # Custom multi-stage workflow
@@ -138,8 +138,8 @@ class CodingSwarm(DomainSwarm):
         return result
 
 # AFTER (template with STAGES)
-class CodingTemplate(BaseSwarm):
-    AGENT_TEAM = AgentTeam.define(...)
+class CodingTemplate(SwarmLearning):
+    AGENT_TEAM = TeamCoordinator.define(...)
 
     # Option 1: Use STAGES (declarative)
     STAGES = [
@@ -170,9 +170,9 @@ class SwarmML(SwarmTemplate):
     }
     pipeline = [...]
 
-# AFTER (template on BaseSwarm)
-class MLTemplate(BaseSwarm):
-    AGENT_TEAM = AgentTeam.define(
+# AFTER (template on SwarmLearning)
+class MLTemplate(SwarmLearning):
+    AGENT_TEAM = TeamCoordinator.define(
         (DataAnalystAgent, "DataAnalyst"),
         (FeatureEngineerAgent, "FeatureEngineer"),
     )
@@ -206,7 +206,7 @@ __all__ = ["SwarmML"]
 
 ## Benefits
 
-✅ **Single source of truth** - BaseSwarm has ALL learning
+✅ **Single source of truth** - SwarmLearning has ALL learning
 ✅ **Templates are simple** - Just configuration
 ✅ **Zero learning lost** - All 8 layers in every template
 ✅ **Easy to create new** - Copy template, modify config
@@ -230,7 +230,7 @@ For each template, ensure:
 
 ## Implementation Order
 
-1. ✅ Enhance BaseSwarm (add all learning)
+1. ✅ Enhance SwarmLearning (add all learning)
 2. ✅ Create templates/ directory
 3. ✅ Convert simple templates first (ReviewTemplate, etc.)
 4. ✅ Convert complex templates (CodingTemplate, MLTemplate)

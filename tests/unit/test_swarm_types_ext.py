@@ -585,7 +585,7 @@ class TestSwarmBaseConfig:
     def test_creation_with_defaults(self):
         """Test config with all defaults."""
         config = SwarmBaseConfig()
-        assert config.name == "BaseSwarm"
+        assert config.name == "SwarmLearning"
         assert config.domain == "general"
         assert config.version == "1.0.0"
         assert config.enable_self_improvement is True

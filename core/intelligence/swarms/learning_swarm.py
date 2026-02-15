@@ -59,10 +59,10 @@ from typing import Dict, List, Optional
 
 import dspy
 
-from Jotty.core.modes.agent.base import BaseSwarmAgent
+from Jotty.core.modes.agent.base import SwarmLearningAgent
 
-from .base import AgentTeam, DomainSwarm, _split_field
-from .base_swarm import (
+from .base import SwarmTemplate, TeamCoordinator, _split_field
+from .swarm_learning import (
     AgentRole,
     Evaluation,
     EvaluationResult,
@@ -313,7 +313,7 @@ class MetaLearningSignature(dspy.Signature):
 # =============================================================================
 
 
-class PerformanceEvaluator(BaseSwarmAgent):
+class PerformanceEvaluator(SwarmLearningAgent):
     """Evaluates swarm performance."""
 
     def __init__(
@@ -382,7 +382,7 @@ class PerformanceEvaluator(BaseSwarmAgent):
             )
 
 
-class GoldCurator(BaseSwarmAgent):
+class GoldCurator(SwarmLearningAgent):
     """Curates gold standards."""
 
     def __init__(
@@ -432,7 +432,7 @@ class GoldCurator(BaseSwarmAgent):
             return []
 
 
-class PromptOptimizer(BaseSwarmAgent):
+class PromptOptimizer(SwarmLearningAgent):
     """Optimizes agent prompts."""
 
     def __init__(
@@ -488,7 +488,7 @@ class PromptOptimizer(BaseSwarmAgent):
             )
 
 
-class WorkflowOptimizer(BaseSwarmAgent):
+class WorkflowOptimizer(SwarmLearningAgent):
     """Optimizes swarm workflows."""
 
     def __init__(
@@ -541,7 +541,7 @@ class WorkflowOptimizer(BaseSwarmAgent):
             )
 
 
-class ParameterTuner(BaseSwarmAgent):
+class ParameterTuner(SwarmLearningAgent):
     """Tunes agent parameters."""
 
     def __init__(
@@ -593,7 +593,7 @@ class ParameterTuner(BaseSwarmAgent):
             )
 
 
-class MetaLearner(BaseSwarmAgent):
+class MetaLearner(SwarmLearningAgent):
     """Extracts cross-domain meta-learnings."""
 
     def __init__(
@@ -661,7 +661,7 @@ class MetaLearner(BaseSwarmAgent):
 
 
 @register_swarm("learning")
-class LearningSwarm(DomainSwarm):
+class LearningSwarm(SwarmTemplate):
     """
     World-Class Learning Swarm (Meta-Swarm).
 
@@ -674,7 +674,7 @@ class LearningSwarm(DomainSwarm):
     - Cross-domain meta-learning
     """
 
-    AGENT_TEAM = AgentTeam.define(
+    AGENT_TEAM = TeamCoordinator.define(
         (PerformanceEvaluator, "PerformanceEvaluator", "_evaluator"),
         (GoldCurator, "GoldCurator", "_curator"),
         (PromptOptimizer, "PromptOptimizer", "_prompt_optimizer"),
@@ -698,7 +698,7 @@ class LearningSwarm(DomainSwarm):
         """
         Execute learning cycle.
 
-        This is the domain-specific execution method called by DomainSwarm.execute().
+        This is the domain-specific execution method called by SwarmTemplate.execute().
         Agent initialization and pre/post learning hooks are handled by the parent class.
         """
         return await self._evaluate_and_improve_internal(swarm_name, **kwargs)

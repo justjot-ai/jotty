@@ -8,8 +8,8 @@ from typing import Any, Dict, List, Optional
 
 import dspy
 
-from ..base import AgentTeam, DomainSwarm
-from ..base_swarm import AgentRole, register_swarm
+from ..base import SwarmTemplate, TeamCoordinator
+from ..swarm_learning import AgentRole, register_swarm
 from .agents import (
     ConceptExtractorAgent,
     ContentPolisherAgent,
@@ -60,7 +60,7 @@ logger = logging.getLogger(__name__)
 
 
 @register_swarm("arxiv_learning")
-class ArxivLearningSwarm(DomainSwarm):
+class ArxivLearningSwarm(SwarmTemplate):
     """
     World-Class ArXiv Learning Swarm.
 
@@ -68,7 +68,7 @@ class ArxivLearningSwarm(DomainSwarm):
     Builds understanding from basics to advanced, always explaining WHY.
     """
 
-    AGENT_TEAM = AgentTeam.define(
+    AGENT_TEAM = TeamCoordinator.define(
         (PaperFetcherAgent, "PaperFetcher", "_paper_fetcher"),
         (ConceptExtractorAgent, "ConceptExtractor", "_concept_extractor"),
         (IntuitionBuilderAgent, "IntuitionBuilder", "_intuition_builder"),

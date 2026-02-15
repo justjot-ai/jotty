@@ -2,14 +2,14 @@
 
 from Jotty.core.infrastructure.foundation.types.execution_types import CoordinationPattern
 
-from ..base.agent_team import AgentTeam
-from ..base_swarm import BaseSwarm, SwarmBaseConfig, SwarmResult
+from ..base.team_coordinator import TeamCoordinator
+from ..swarm_learning import SwarmBaseConfig, SwarmLearning, SwarmResult
 
 
-class TestingTemplate(BaseSwarm):
+class TestingTemplate(SwarmLearning):
     """Testing swarm template."""
 
-    AGENT_TEAM = AgentTeam.define(
+    AGENT_TEAM = TeamCoordinator.define(
         pattern=CoordinationPattern.SEQUENTIAL,
     )
 

@@ -3,7 +3,7 @@ Review Template - Simple Parallel Review Swarm
 ===============================================
 
 Example of simple template using PARALLEL pattern.
-All 8 learning layers come from BaseSwarm automatically.
+All 8 learning layers come from SwarmLearning automatically.
 
 Author: Jotty Team
 Date: February 2026
@@ -17,7 +17,7 @@ from Jotty.core.infrastructure.foundation.types.execution_types import (
     SynthesisStrategy,
 )
 
-from ..base_swarm import BaseSwarm, SwarmBaseConfig, SwarmResult
+from ..swarm_learning import SwarmBaseConfig, SwarmLearning, SwarmResult
 
 # Import existing agents (will be defined/imported from original swarm)
 # For now, using placeholder - in real implementation, import from review_swarm
@@ -31,21 +31,21 @@ try:
     )
 except ImportError:
     # Fallback if not available yet
-    from Jotty.core.modes.agent.base import BaseSwarmAgent as CodeReviewer
-    from Jotty.core.modes.agent.base import BaseSwarmAgent as PerformanceAnalyzer
-    from Jotty.core.modes.agent.base import BaseSwarmAgent as SecurityScanner
+    from Jotty.core.modes.agent.base import SwarmLearningAgent as CodeReviewer
+    from Jotty.core.modes.agent.base import SwarmLearningAgent as PerformanceAnalyzer
+    from Jotty.core.modes.agent.base import SwarmLearningAgent as SecurityScanner
 
     ReviewConfig = SwarmBaseConfig
     ReviewResult = SwarmResult
 
-from ..base.agent_team import AgentTeam
+from ..base.team_coordinator import TeamCoordinator
 
 
-class ReviewTemplate(BaseSwarm):
+class ReviewTemplate(SwarmLearning):
     """
     Code review swarm template - PARALLEL pattern.
 
-    Template (not base class) - inherits ALL learning from BaseSwarm:
+    Template (not base class) - inherits ALL learning from SwarmLearning:
     1. ✅ Memory (5 levels: EPISODIC, SEMANTIC, PROCEDURAL, META, CAUSAL)
     2. ✅ TD-Lambda reinforcement learning
     3. ✅ Swarm Intelligence meta-learning
@@ -61,7 +61,7 @@ class ReviewTemplate(BaseSwarm):
     """
 
     # Agent team definition - PARALLEL execution
-    AGENT_TEAM = AgentTeam.define(
+    AGENT_TEAM = TeamCoordinator.define(
         (CodeReviewer, "CodeReviewer"),
         (SecurityScanner, "SecurityScanner"),
         (PerformanceAnalyzer, "PerformanceAnalyzer"),
@@ -100,7 +100,7 @@ class ReviewTemplate(BaseSwarm):
         await self._pre_execute_learning()
 
         # Execute team with PARALLEL pattern
-        # BaseSwarm automatically uses synthesis_strategy=SYNTHESIZE
+        # SwarmLearning automatically uses synthesis_strategy=SYNTHESIZE
         # to intelligently combine all reviewer outputs
         team_result = await self.execute_team(
             task={"code": code, "language": language}, context=kwargs

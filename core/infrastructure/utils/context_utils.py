@@ -3,7 +3,7 @@ Context Utilities for Jotty Agents
 ==================================
 
 Provides context compression, error detection, and retry utilities
-learned from BaseSwarmAgent patterns.
+learned from SwarmLearningAgent patterns.
 
 Features:
 - Automatic context compression when LLM calls fail due to length

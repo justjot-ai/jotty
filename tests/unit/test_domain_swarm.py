@@ -1,18 +1,18 @@
 """
-Comprehensive Test Suite for DomainSwarm and AgentTeam
+Comprehensive Test Suite for SwarmTemplate and TeamCoordinator
 =======================================================
 
 Tests cover:
 1. CoordinationPattern and MergeStrategy enums
 2. AgentSpec creation and attr_name generation
 3. TeamResult dataclass
-4. AgentTeam definition and operations
-5. AgentTeam execution patterns (pipeline, parallel, consensus, etc.)
-6. AgentTeam merge strategies
+4. TeamCoordinator definition and operations
+5. TeamCoordinator execution patterns (pipeline, parallel, consensus, etc.)
+6. TeamCoordinator merge strategies
 7. PhaseExecutor for swarm execution management
-8. DomainSwarm initialization and agent lifecycle
-9. DomainSwarm team coordination
-10. DomainSwarm template method execution
+8. SwarmTemplate initialization and agent lifecycle
+9. SwarmTemplate team coordination
+10. SwarmTemplate template method execution
 11. Edge cases and error handling
 
 Author: Jotty Team
@@ -28,12 +28,12 @@ import pytest
 
 from Jotty.core.intelligence.swarms.base.agent_team import (
     AgentSpec,
-    AgentTeam,
     CoordinationPattern,
     MergeStrategy,
+    TeamCoordinator,
     TeamResult,
 )
-from Jotty.core.intelligence.swarms.base.domain_swarm import DomainSwarm, PhaseExecutor
+from Jotty.core.intelligence.swarms.base.domain_swarm import PhaseExecutor, SwarmTemplate
 from Jotty.core.intelligence.swarms.swarm_types import AgentRole, SwarmBaseConfig, SwarmResult
 
 # =============================================================================
@@ -235,13 +235,13 @@ class TestTeamResult:
 
 
 # =============================================================================
-# Test AgentTeam Define
+# Test TeamCoordinator Define
 # =============================================================================
 
 
 @pytest.mark.unit
-class TestAgentTeamDefine:
-    """Test AgentTeam.define() class method."""
+class TestTeamCoordinatorDefine:
+    """Test TeamCoordinator.define() class method."""
 
     def test_define_simple_team(self):
         """Test defining a simple team."""
@@ -252,7 +252,7 @@ class TestAgentTeamDefine:
         class Agent2:
             pass
 
-        team = AgentTeam.define(
+        team = TeamCoordinator.define(
             (Agent1, "Agent1"),
             (Agent2, "Agent2"),
         )
@@ -271,7 +271,7 @@ class TestAgentTeamDefine:
         class Agent2:
             pass
 
-        team = AgentTeam.define(
+        team = TeamCoordinator.define(
             (Agent1, "Agent1"), (Agent2, "Agent2"), pattern=CoordinationPattern.PARALLEL
         )
 
@@ -286,7 +286,7 @@ class TestAgentTeamDefine:
         class Agent2:
             pass
 
-        team = AgentTeam.define(
+        team = TeamCoordinator.define(
             (Agent1, "Agent1"), (Agent2, "Agent2"), merge_strategy=MergeStrategy.CONCAT
         )
 
@@ -298,7 +298,7 @@ class TestAgentTeamDefine:
         class Agent1:
             pass
 
-        team = AgentTeam.define(
+        team = TeamCoordinator.define(
             (Agent1, "FirstAgent", "_custom"),
         )
 
@@ -313,7 +313,7 @@ class TestAgentTeamDefine:
         class Worker:
             pass
 
-        team = AgentTeam.define(
+        team = TeamCoordinator.define(
             (Manager, "Manager", None, "manager"),
             (Worker, "Worker", None, "worker"),
         )
@@ -330,7 +330,7 @@ class TestAgentTeamDefine:
         class Agent2:
             pass
 
-        team = AgentTeam.define(
+        team = TeamCoordinator.define(
             (Agent1, "Agent1", None, None, 10),
             (Agent2, "Agent2", None, None, 5),
         )
@@ -344,7 +344,7 @@ class TestAgentTeamDefine:
         class Agent1:
             pass
 
-        team = AgentTeam.define((Agent1, "Agent1"), timeout=60.0)
+        team = TeamCoordinator.define((Agent1, "Agent1"), timeout=60.0)
 
         assert team.timeout == 60.0
 
@@ -357,7 +357,9 @@ class TestAgentTeamDefine:
         class Worker:
             pass
 
-        team = AgentTeam.define((Manager, "Manager"), (Worker, "Worker"), manager_attr="_manager")
+        team = TeamCoordinator.define(
+            (Manager, "Manager"), (Worker, "Worker"), manager_attr="_manager"
+        )
 
         assert team.manager_attr == "_manager"
 
@@ -368,17 +370,17 @@ class TestAgentTeamDefine:
             pass
 
         with pytest.raises(ValueError):
-            AgentTeam.define((Agent1,))  # Too few elements
+            TeamCoordinator.define((Agent1,))  # Too few elements
 
 
 # =============================================================================
-# Test AgentTeam Operations
+# Test TeamCoordinator Operations
 # =============================================================================
 
 
 @pytest.mark.unit
-class TestAgentTeamOperations:
-    """Test AgentTeam operational methods."""
+class TestTeamCoordinatorOperations:
+    """Test TeamCoordinator operational methods."""
 
     def test_add_agent(self):
         """Test adding agent to team."""
@@ -386,7 +388,7 @@ class TestAgentTeamOperations:
         class Agent1:
             pass
 
-        team = AgentTeam()
+        team = TeamCoordinator()
         team.add(Agent1, "Agent1")
 
         assert len(team) == 1
@@ -398,7 +400,7 @@ class TestAgentTeamOperations:
         class Agent1:
             pass
 
-        team = AgentTeam()
+        team = TeamCoordinator()
         team.add(Agent1, "Agent1", attr_name="_custom")
 
         assert "_custom" in team.agents
@@ -412,7 +414,7 @@ class TestAgentTeamOperations:
         class Agent2:
             pass
 
-        team = AgentTeam.define(
+        team = TeamCoordinator.define(
             (Agent1, "FirstAgent"),
             (Agent2, "SecondAgent"),
         )
@@ -434,7 +436,7 @@ class TestAgentTeamOperations:
         class Worker2:
             pass
 
-        team = AgentTeam.define(
+        team = TeamCoordinator.define(
             (Manager, "Manager", None, "manager"),
             (Worker1, "Worker1", None, "worker"),
             (Worker2, "Worker2", None, "worker"),
@@ -458,7 +460,7 @@ class TestAgentTeamOperations:
         class Agent3:
             pass
 
-        team = AgentTeam.define(
+        team = TeamCoordinator.define(
             (Agent1, "Agent1", None, None, 5),
             (Agent2, "Agent2", None, None, 10),
             (Agent3, "Agent3", None, None, 1),
@@ -479,7 +481,7 @@ class TestAgentTeamOperations:
         class Agent2:
             pass
 
-        team = AgentTeam.define(
+        team = TeamCoordinator.define(
             (Agent1, "Agent1"),
             (Agent2, "Agent2"),
         )
@@ -495,7 +497,7 @@ class TestAgentTeamOperations:
         class Agent2:
             pass
 
-        team = AgentTeam.define(
+        team = TeamCoordinator.define(
             (Agent1, "Agent1"),
             (Agent2, "Agent2"),
         )
@@ -510,7 +512,7 @@ class TestAgentTeamOperations:
         class Agent1:
             pass
 
-        team = AgentTeam.define((Agent1, "Agent1"))
+        team = TeamCoordinator.define((Agent1, "Agent1"))
         agent_instance = Mock()
 
         team.set_instances({"_agent1": agent_instance})
@@ -519,13 +521,13 @@ class TestAgentTeamOperations:
 
 
 # =============================================================================
-# Test AgentTeam Execution
+# Test TeamCoordinator Execution
 # =============================================================================
 
 
 @pytest.mark.unit
-class TestAgentTeamExecution:
-    """Test AgentTeam execution with coordination patterns."""
+class TestTeamCoordinatorExecution:
+    """Test TeamCoordinator execution with coordination patterns."""
 
     @pytest.mark.asyncio
     async def test_execute_none_pattern(self):
@@ -534,7 +536,7 @@ class TestAgentTeamExecution:
         class Agent1:
             pass
 
-        team = AgentTeam.define((Agent1, "Agent1"))
+        team = TeamCoordinator.define((Agent1, "Agent1"))
         team.set_instances({"_agent1": Mock()})
 
         result = await team.execute(task="test")
@@ -551,7 +553,7 @@ class TestAgentTeamExecution:
         class Agent1:
             pass
 
-        team = AgentTeam.define((Agent1, "Agent1"))
+        team = TeamCoordinator.define((Agent1, "Agent1"))
 
         with pytest.raises(RuntimeError, match="instances not set"):
             await team.execute(task="test")
@@ -568,7 +570,7 @@ class TestAgentTeamExecution:
             async def execute(self, **kwargs):
                 return Mock(output="output2")
 
-        team = AgentTeam.define(
+        team = TeamCoordinator.define(
             (Agent1, "Agent1", None, None, 2),
             (Agent2, "Agent2", None, None, 1),
             pattern=CoordinationPattern.PIPELINE,
@@ -601,7 +603,7 @@ class TestAgentTeamExecution:
             async def execute(self, **kwargs):
                 return Mock(output="output2")
 
-        team = AgentTeam.define(
+        team = TeamCoordinator.define(
             (Agent1, "Agent1", None, None, 2),
             (Agent2, "Agent2", None, None, 1),
             pattern=CoordinationPattern.PIPELINE,
@@ -634,7 +636,7 @@ class TestAgentTeamExecution:
                 await asyncio.sleep(0.01)
                 return Mock(output="output2")
 
-        team = AgentTeam.define(
+        team = TeamCoordinator.define(
             (Agent1, "Agent1"), (Agent2, "Agent2"), pattern=CoordinationPattern.PARALLEL
         )
 
@@ -664,7 +666,7 @@ class TestAgentTeamExecution:
             async def execute(self, **kwargs):
                 raise ValueError("Agent2 failed")
 
-        team = AgentTeam.define(
+        team = TeamCoordinator.define(
             (Agent1, "Agent1"), (Agent2, "Agent2"), pattern=CoordinationPattern.PARALLEL
         )
 
@@ -697,7 +699,7 @@ class TestAgentTeamExecution:
             async def execute(self, **kwargs):
                 return Mock(output="result_B")
 
-        team = AgentTeam.define(
+        team = TeamCoordinator.define(
             (Agent1, "Agent1"),
             (Agent2, "Agent2"),
             (Agent3, "Agent3"),
@@ -730,7 +732,7 @@ class TestAgentTeamExecution:
             async def execute(self, **kwargs):
                 return Mock(output="worker_output")
 
-        team = AgentTeam.define(
+        team = TeamCoordinator.define(
             (Manager, "Manager", None, "manager"),
             (Worker, "Worker", None, "worker"),
             pattern=CoordinationPattern.HIERARCHICAL,
@@ -761,7 +763,7 @@ class TestAgentTeamExecution:
                     return "contribution1"
                 return None  # No more contributions
 
-        team = AgentTeam.define((Agent1, "Agent1"), pattern=CoordinationPattern.BLACKBOARD)
+        team = TeamCoordinator.define((Agent1, "Agent1"), pattern=CoordinationPattern.BLACKBOARD)
 
         agent = Agent1()
         team.set_instances({"_agent1": agent})
@@ -785,7 +787,7 @@ class TestAgentTeamExecution:
             async def execute(self, **kwargs):
                 return Mock(output="agent2_output")
 
-        team = AgentTeam.define(
+        team = TeamCoordinator.define(
             (Agent1, "Agent1"), (Agent2, "Agent2"), pattern=CoordinationPattern.ROUND_ROBIN
         )
 
@@ -805,7 +807,7 @@ class TestAgentTeamExecution:
     @pytest.mark.asyncio
     async def test_execute_unknown_pattern_raises(self):
         """Test unknown pattern raises ValueError."""
-        team = AgentTeam()
+        team = TeamCoordinator()
         team.pattern = "unknown_pattern"
         team.set_instances({"_agent": Mock()})
 
@@ -814,17 +816,17 @@ class TestAgentTeamExecution:
 
 
 # =============================================================================
-# Test AgentTeam Merge Outputs
+# Test TeamCoordinator Merge Outputs
 # =============================================================================
 
 
 @pytest.mark.unit
-class TestAgentTeamMergeOutputs:
-    """Test AgentTeam._merge_outputs method."""
+class TestTeamCoordinatorMergeOutputs:
+    """Test TeamCoordinator._merge_outputs method."""
 
     def test_merge_combine(self):
         """Test COMBINE merge strategy."""
-        team = AgentTeam(merge_strategy=MergeStrategy.COMBINE)
+        team = TeamCoordinator(merge_strategy=MergeStrategy.COMBINE)
         outputs = {"Agent1": "out1", "Agent2": "out2"}
 
         result = team._merge_outputs(outputs)
@@ -833,7 +835,7 @@ class TestAgentTeamMergeOutputs:
 
     def test_merge_first(self):
         """Test FIRST merge strategy."""
-        team = AgentTeam(merge_strategy=MergeStrategy.FIRST)
+        team = TeamCoordinator(merge_strategy=MergeStrategy.FIRST)
         outputs = {"Agent1": "out1", "Agent2": "out2"}
 
         result = team._merge_outputs(outputs)
@@ -842,7 +844,7 @@ class TestAgentTeamMergeOutputs:
 
     def test_merge_concat(self):
         """Test CONCAT merge strategy."""
-        team = AgentTeam(merge_strategy=MergeStrategy.CONCAT)
+        team = TeamCoordinator(merge_strategy=MergeStrategy.CONCAT)
         outputs = {"Agent1": "out1", "Agent2": "out2"}
 
         result = team._merge_outputs(outputs)
@@ -853,7 +855,7 @@ class TestAgentTeamMergeOutputs:
 
     def test_merge_vote(self):
         """Test VOTE merge strategy."""
-        team = AgentTeam(merge_strategy=MergeStrategy.VOTE)
+        team = TeamCoordinator(merge_strategy=MergeStrategy.VOTE)
         outputs = {"Agent1": "result_A", "Agent2": "result_A", "Agent3": "result_B"}
 
         result = team._merge_outputs(outputs)
@@ -862,7 +864,7 @@ class TestAgentTeamMergeOutputs:
 
     def test_merge_best(self):
         """Test BEST merge strategy (defaults to first)."""
-        team = AgentTeam(merge_strategy=MergeStrategy.BEST)
+        team = TeamCoordinator(merge_strategy=MergeStrategy.BEST)
         outputs = {"Agent1": "out1", "Agent2": "out2"}
 
         result = team._merge_outputs(outputs)
@@ -871,7 +873,7 @@ class TestAgentTeamMergeOutputs:
 
     def test_merge_empty_outputs(self):
         """Test merging empty outputs."""
-        team = AgentTeam(merge_strategy=MergeStrategy.COMBINE)
+        team = TeamCoordinator(merge_strategy=MergeStrategy.COMBINE)
 
         result = team._merge_outputs({})
 
@@ -1040,18 +1042,18 @@ class TestPhaseExecutor:
 
 
 # =============================================================================
-# Test DomainSwarm Init
+# Test SwarmTemplate Init
 # =============================================================================
 
 
 @pytest.mark.unit
-class TestDomainSwarmInit:
-    """Test DomainSwarm initialization."""
+class TestSwarmTemplateInit:
+    """Test SwarmTemplate initialization."""
 
     def test_create_swarm_no_team(self):
         """Test creating swarm without AGENT_TEAM."""
 
-        class TestSwarm(DomainSwarm):
+        class TestSwarm(SwarmTemplate):
             async def _execute_domain(self, *args, **kwargs):
                 return SwarmResult(
                     success=True, swarm_name="test", domain="test", output={}, execution_time=0.0
@@ -1070,8 +1072,8 @@ class TestDomainSwarmInit:
         class Agent1:
             pass
 
-        class TestSwarm(DomainSwarm):
-            AGENT_TEAM = AgentTeam.define((Agent1, "Agent1"))
+        class TestSwarm(SwarmTemplate):
+            AGENT_TEAM = TeamCoordinator.define((Agent1, "Agent1"))
 
             async def _execute_domain(self, *args, **kwargs):
                 return SwarmResult(
@@ -1090,8 +1092,10 @@ class TestDomainSwarmInit:
         class Agent1:
             pass
 
-        class TestSwarm(DomainSwarm):
-            AGENT_TEAM = AgentTeam.define((Agent1, "Agent1"), pattern=CoordinationPattern.PIPELINE)
+        class TestSwarm(SwarmTemplate):
+            AGENT_TEAM = TeamCoordinator.define(
+                (Agent1, "Agent1"), pattern=CoordinationPattern.PIPELINE
+            )
 
             async def _execute_domain(self, *args, **kwargs):
                 return SwarmResult(
@@ -1109,15 +1113,15 @@ class TestDomainSwarmInit:
 
 
 # =============================================================================
-# Test DomainSwarm Init Agents
+# Test SwarmTemplate Init Agents
 # =============================================================================
 
 
 @pytest.mark.unit
-class TestDomainSwarmInitAgents:
-    """Test DomainSwarm._init_agents method."""
+class TestSwarmTemplateInitAgents:
+    """Test SwarmTemplate._init_agents method."""
 
-    @patch("Jotty.core.swarms.base.domain_swarm.DomainSwarm._init_shared_resources")
+    @patch("Jotty.core.swarms.base.domain_swarm.SwarmTemplate._init_shared_resources")
     def test_init_agents_basic(self, mock_init_shared):
         """Test basic agent initialization."""
 
@@ -1125,8 +1129,8 @@ class TestDomainSwarmInitAgents:
             def __init__(self, **kwargs):
                 pass
 
-        class TestSwarm(DomainSwarm):
-            AGENT_TEAM = AgentTeam.define((MockAgent, "Agent1"))
+        class TestSwarm(SwarmTemplate):
+            AGENT_TEAM = TeamCoordinator.define((MockAgent, "Agent1"))
 
             async def _execute_domain(self, *args, **kwargs):
                 return SwarmResult(
@@ -1145,7 +1149,7 @@ class TestDomainSwarmInitAgents:
         assert hasattr(swarm, "_agent1")
         mock_init_shared.assert_called_once()
 
-    @patch("Jotty.core.swarms.base.domain_swarm.DomainSwarm._init_shared_resources")
+    @patch("Jotty.core.swarms.base.domain_swarm.SwarmTemplate._init_shared_resources")
     def test_init_agents_multiple(self, mock_init_shared):
         """Test initializing multiple agents."""
 
@@ -1157,8 +1161,8 @@ class TestDomainSwarmInitAgents:
             def __init__(self, **kwargs):
                 pass
 
-        class TestSwarm(DomainSwarm):
-            AGENT_TEAM = AgentTeam.define(
+        class TestSwarm(SwarmTemplate):
+            AGENT_TEAM = TeamCoordinator.define(
                 (Agent1, "Agent1"),
                 (Agent2, "Agent2"),
             )
@@ -1179,7 +1183,7 @@ class TestDomainSwarmInitAgents:
         assert hasattr(swarm, "_agent1")
         assert hasattr(swarm, "_agent2")
 
-    @patch("Jotty.core.swarms.base.domain_swarm.DomainSwarm._init_shared_resources")
+    @patch("Jotty.core.swarms.base.domain_swarm.SwarmTemplate._init_shared_resources")
     def test_init_agents_idempotent(self, mock_init_shared):
         """Test _init_agents is idempotent."""
 
@@ -1187,8 +1191,8 @@ class TestDomainSwarmInitAgents:
             def __init__(self, **kwargs):
                 pass
 
-        class TestSwarm(DomainSwarm):
-            AGENT_TEAM = AgentTeam.define((MockAgent, "Agent1"))
+        class TestSwarm(SwarmTemplate):
+            AGENT_TEAM = TeamCoordinator.define((MockAgent, "Agent1"))
 
             async def _execute_domain(self, *args, **kwargs):
                 return SwarmResult(
@@ -1209,7 +1213,7 @@ class TestDomainSwarmInitAgents:
     def test_init_agents_no_team(self):
         """Test _init_agents with no AGENT_TEAM."""
 
-        class TestSwarm(DomainSwarm):
+        class TestSwarm(SwarmTemplate):
             async def _execute_domain(self, *args, **kwargs):
                 return SwarmResult(
                     success=True, swarm_name="test", domain="test", output={}, execution_time=0.0
@@ -1225,13 +1229,13 @@ class TestDomainSwarmInitAgents:
 
 
 # =============================================================================
-# Test DomainSwarm Create Agent
+# Test SwarmTemplate Create Agent
 # =============================================================================
 
 
 @pytest.mark.unit
-class TestDomainSwarmCreateAgent:
-    """Test DomainSwarm._create_agent method."""
+class TestSwarmTemplateCreateAgent:
+    """Test SwarmTemplate._create_agent method."""
 
     def test_create_agent_with_matching_params(self):
         """Test creating agent with matching parameters."""
@@ -1241,7 +1245,7 @@ class TestDomainSwarmCreateAgent:
                 self.memory = memory
                 self.context = context
 
-        class TestSwarm(DomainSwarm):
+        class TestSwarm(SwarmTemplate):
             async def _execute_domain(self, *args, **kwargs):
                 return SwarmResult(
                     success=True, swarm_name="test", domain="test", output={}, execution_time=0.0
@@ -1267,7 +1271,7 @@ class TestDomainSwarmCreateAgent:
             def __init__(self, **kwargs):
                 self.kwargs = kwargs
 
-        class TestSwarm(DomainSwarm):
+        class TestSwarm(SwarmTemplate):
             async def _execute_domain(self, *args, **kwargs):
                 return SwarmResult(
                     success=True, swarm_name="test", domain="test", output={}, execution_time=0.0
@@ -1295,7 +1299,7 @@ class TestDomainSwarmCreateAgent:
             def __init__(self, learned_context):
                 self.learned_context = learned_context
 
-        class TestSwarm(DomainSwarm):
+        class TestSwarm(SwarmTemplate):
             async def _execute_domain(self, *args, **kwargs):
                 return SwarmResult(
                     success=True, swarm_name="test", domain="test", output={}, execution_time=0.0
@@ -1316,19 +1320,19 @@ class TestDomainSwarmCreateAgent:
 
 
 # =============================================================================
-# Test DomainSwarm Execute
+# Test SwarmTemplate Execute
 # =============================================================================
 
 
 @pytest.mark.unit
-class TestDomainSwarmExecute:
-    """Test DomainSwarm.execute template method."""
+class TestSwarmTemplateExecute:
+    """Test SwarmTemplate.execute template method."""
 
     @pytest.mark.asyncio
     async def test_execute_calls_init_agents(self):
         """Test execute calls _init_agents."""
 
-        class TestSwarm(DomainSwarm):
+        class TestSwarm(SwarmTemplate):
             async def _execute_domain(self, *args, **kwargs):
                 return SwarmResult(
                     success=True, swarm_name="test", domain="test", output={}, execution_time=0.0
@@ -1347,7 +1351,7 @@ class TestDomainSwarmExecute:
     async def test_execute_calls_pre_learning(self):
         """Test execute calls _pre_execute_learning."""
 
-        class TestSwarm(DomainSwarm):
+        class TestSwarm(SwarmTemplate):
             async def _execute_domain(self, *args, **kwargs):
                 return SwarmResult(
                     success=True, swarm_name="test", domain="test", output={}, execution_time=0.0
@@ -1366,7 +1370,7 @@ class TestDomainSwarmExecute:
     async def test_execute_calls_domain_logic(self):
         """Test execute calls _execute_domain."""
 
-        class TestSwarm(DomainSwarm):
+        class TestSwarm(SwarmTemplate):
             async def _execute_domain(self, *args, **kwargs):
                 return SwarmResult(
                     success=True,
@@ -1390,7 +1394,7 @@ class TestDomainSwarmExecute:
     async def test_execute_handles_pre_learning_error(self):
         """Test execute continues if pre-learning fails."""
 
-        class TestSwarm(DomainSwarm):
+        class TestSwarm(SwarmTemplate):
             async def _execute_domain(self, *args, **kwargs):
                 return SwarmResult(
                     success=True, swarm_name="test", domain="test", output={}, execution_time=0.0
@@ -1413,7 +1417,7 @@ class TestDomainSwarmExecute:
     async def test_execute_resets_learning_recorded(self):
         """Test execute resets _learning_recorded flag."""
 
-        class TestSwarm(DomainSwarm):
+        class TestSwarm(SwarmTemplate):
             async def _execute_domain(self, *args, **kwargs):
                 return SwarmResult(
                     success=True, swarm_name="test", domain="test", output={}, execution_time=0.0
@@ -1432,13 +1436,13 @@ class TestDomainSwarmExecute:
 
 
 # =============================================================================
-# Test DomainSwarm Team Coordination
+# Test SwarmTemplate Team Coordination
 # =============================================================================
 
 
 @pytest.mark.unit
-class TestDomainSwarmTeamCoordination:
-    """Test DomainSwarm team coordination methods."""
+class TestSwarmTemplateTeamCoordination:
+    """Test SwarmTemplate team coordination methods."""
 
     @pytest.mark.asyncio
     async def test_execute_team_basic(self):
@@ -1451,8 +1455,8 @@ class TestDomainSwarmTeamCoordination:
             async def execute(self, **kwargs):
                 return Mock(output="test")
 
-        class TestSwarm(DomainSwarm):
-            AGENT_TEAM = AgentTeam.define(
+        class TestSwarm(SwarmTemplate):
+            AGENT_TEAM = TeamCoordinator.define(
                 (MockAgent, "Agent1"), pattern=CoordinationPattern.PARALLEL
             )
 
@@ -1477,7 +1481,7 @@ class TestDomainSwarmTeamCoordination:
     async def test_execute_team_no_team_raises(self):
         """Test execute_team raises without AGENT_TEAM."""
 
-        class TestSwarm(DomainSwarm):
+        class TestSwarm(SwarmTemplate):
             async def _execute_domain(self, *args, **kwargs):
                 return SwarmResult(
                     success=True, swarm_name="test", domain="test", output={}, execution_time=0.0
@@ -1497,8 +1501,8 @@ class TestDomainSwarmTeamCoordination:
             def __init__(self, **kwargs):
                 pass
 
-        class TestSwarm(DomainSwarm):
-            AGENT_TEAM = AgentTeam.define((MockAgent, "Agent1"))
+        class TestSwarm(SwarmTemplate):
+            AGENT_TEAM = TeamCoordinator.define((MockAgent, "Agent1"))
 
             async def _execute_domain(self, *args, **kwargs):
                 return SwarmResult(
@@ -1530,8 +1534,10 @@ class TestDomainSwarmTeamCoordination:
         class Agent1:
             pass
 
-        class TestSwarm(DomainSwarm):
-            AGENT_TEAM = AgentTeam.define((Agent1, "Agent1"), pattern=CoordinationPattern.PARALLEL)
+        class TestSwarm(SwarmTemplate):
+            AGENT_TEAM = TeamCoordinator.define(
+                (Agent1, "Agent1"), pattern=CoordinationPattern.PARALLEL
+            )
 
             async def _execute_domain(self, *args, **kwargs):
                 return SwarmResult(
@@ -1549,8 +1555,8 @@ class TestDomainSwarmTeamCoordination:
         class Agent1:
             pass
 
-        class TestSwarm(DomainSwarm):
-            AGENT_TEAM = AgentTeam.define((Agent1, "Agent1"))
+        class TestSwarm(SwarmTemplate):
+            AGENT_TEAM = TeamCoordinator.define((Agent1, "Agent1"))
 
             async def _execute_domain(self, *args, **kwargs):
                 return SwarmResult(
@@ -1565,7 +1571,7 @@ class TestDomainSwarmTeamCoordination:
     def test_has_team_coordination_no_team(self):
         """Test has_team_coordination returns False without team."""
 
-        class TestSwarm(DomainSwarm):
+        class TestSwarm(SwarmTemplate):
             async def _execute_domain(self, *args, **kwargs):
                 return SwarmResult(
                     success=True, swarm_name="test", domain="test", output={}, execution_time=0.0
@@ -1578,18 +1584,18 @@ class TestDomainSwarmTeamCoordination:
 
 
 # =============================================================================
-# Test DomainSwarm Helpers
+# Test SwarmTemplate Helpers
 # =============================================================================
 
 
 @pytest.mark.unit
-class TestDomainSwarmHelpers:
-    """Test DomainSwarm helper methods."""
+class TestSwarmTemplateHelpers:
+    """Test SwarmTemplate helper methods."""
 
     def test_phase_executor_creation(self):
         """Test _phase_executor creates PhaseExecutor."""
 
-        class TestSwarm(DomainSwarm):
+        class TestSwarm(SwarmTemplate):
             async def _execute_domain(self, *args, **kwargs):
                 return SwarmResult(
                     success=True, swarm_name="test", domain="test", output={}, execution_time=0.0
@@ -1610,8 +1616,8 @@ class TestDomainSwarmHelpers:
             def __init__(self, **kwargs):
                 pass
 
-        class TestSwarm(DomainSwarm):
-            AGENT_TEAM = AgentTeam.define(
+        class TestSwarm(SwarmTemplate):
+            AGENT_TEAM = TeamCoordinator.define(
                 (MockAgent, "Agent1"),
                 (MockAgent, "Agent2"),
             )
@@ -1637,7 +1643,7 @@ class TestDomainSwarmHelpers:
     def test_get_agents_no_team(self):
         """Test get_agents returns empty dict without team."""
 
-        class TestSwarm(DomainSwarm):
+        class TestSwarm(SwarmTemplate):
             async def _execute_domain(self, *args, **kwargs):
                 return SwarmResult(
                     success=True, swarm_name="test", domain="test", output={}, execution_time=0.0
@@ -1653,7 +1659,7 @@ class TestDomainSwarmHelpers:
     def test_get_io_schema_no_signature(self):
         """Test get_io_schema returns None without SWARM_SIGNATURE."""
 
-        class TestSwarm(DomainSwarm):
+        class TestSwarm(SwarmTemplate):
             async def _execute_domain(self, *args, **kwargs):
                 return SwarmResult(
                     success=True, swarm_name="test", domain="test", output={}, execution_time=0.0
@@ -1669,7 +1675,7 @@ class TestDomainSwarmHelpers:
     def test_to_composite(self):
         """Test to_composite creates CompositeAgent."""
 
-        class TestSwarm(DomainSwarm):
+        class TestSwarm(SwarmTemplate):
             async def _execute_domain(self, *args, **kwargs):
                 return SwarmResult(
                     success=True, swarm_name="test", domain="test", output={}, execution_time=0.0
@@ -1687,20 +1693,20 @@ class TestDomainSwarmHelpers:
 
 
 # =============================================================================
-# Test DomainSwarm Edge Cases
+# Test SwarmTemplate Edge Cases
 # =============================================================================
 
 
 @pytest.mark.unit
-class TestDomainSwarmEdgeCases:
-    """Test DomainSwarm edge cases and error handling."""
+class TestSwarmTemplateEdgeCases:
+    """Test SwarmTemplate edge cases and error handling."""
 
     @pytest.mark.asyncio
     async def test_empty_agent_team(self):
         """Test swarm with empty AGENT_TEAM."""
 
-        class TestSwarm(DomainSwarm):
-            AGENT_TEAM = AgentTeam()
+        class TestSwarm(SwarmTemplate):
+            AGENT_TEAM = TeamCoordinator()
 
             async def _execute_domain(self, *args, **kwargs):
                 return SwarmResult(
@@ -1723,8 +1729,8 @@ class TestDomainSwarmEdgeCases:
             def __init__(self, **kwargs):
                 raise ValueError("Agent init failed")
 
-        class TestSwarm(DomainSwarm):
-            AGENT_TEAM = AgentTeam.define((FailingAgent, "FailAgent"))
+        class TestSwarm(SwarmTemplate):
+            AGENT_TEAM = TeamCoordinator.define((FailingAgent, "FailAgent"))
 
             async def _execute_domain(self, *args, **kwargs):
                 return SwarmResult(
@@ -1745,7 +1751,7 @@ class TestDomainSwarmEdgeCases:
     async def test_safe_execute_domain_success(self):
         """Test _safe_execute_domain with successful execution."""
 
-        class TestSwarm(DomainSwarm):
+        class TestSwarm(SwarmTemplate):
             async def _execute_domain(self, *args, **kwargs):
                 return SwarmResult(
                     success=True,
@@ -1783,7 +1789,7 @@ class TestDomainSwarmEdgeCases:
     async def test_safe_execute_domain_error(self):
         """Test _safe_execute_domain with execution error."""
 
-        class TestSwarm(DomainSwarm):
+        class TestSwarm(SwarmTemplate):
             async def _execute_domain(self, *args, **kwargs):
                 return SwarmResult(
                     success=True, swarm_name="test", domain="test", output={}, execution_time=0.0
@@ -1812,7 +1818,7 @@ class TestDomainSwarmEdgeCases:
     async def test_execute_domain_is_abstract(self):
         """Test _execute_domain is abstract and must be implemented."""
 
-        class IncompleteSwarm(DomainSwarm):
+        class IncompleteSwarm(SwarmTemplate):
             pass
 
         config = SwarmBaseConfig(name="IncompleteSwarm", domain="test")
@@ -1824,7 +1830,7 @@ class TestDomainSwarmEdgeCases:
     def test_defensive_utilities_available(self):
         """Test defensive utilities are available as static methods."""
 
-        class TestSwarm(DomainSwarm):
+        class TestSwarm(SwarmTemplate):
             async def _execute_domain(self, *args, **kwargs):
                 return SwarmResult(
                     success=True, swarm_name="test", domain="test", output={}, execution_time=0.0
@@ -1838,7 +1844,7 @@ class TestDomainSwarmEdgeCases:
     def test_split_field_usage(self):
         """Test _split_field defensive utility."""
 
-        class TestSwarm(DomainSwarm):
+        class TestSwarm(SwarmTemplate):
             async def _execute_domain(self, *args, **kwargs):
                 return SwarmResult(
                     success=True, swarm_name="test", domain="test", output={}, execution_time=0.0
@@ -1853,7 +1859,7 @@ class TestDomainSwarmEdgeCases:
     def test_safe_join_usage(self):
         """Test _safe_join defensive utility."""
 
-        class TestSwarm(DomainSwarm):
+        class TestSwarm(SwarmTemplate):
             async def _execute_domain(self, *args, **kwargs):
                 return SwarmResult(
                     success=True, swarm_name="test", domain="test", output={}, execution_time=0.0
@@ -1865,7 +1871,7 @@ class TestDomainSwarmEdgeCases:
     def test_safe_num_usage(self):
         """Test _safe_num defensive utility."""
 
-        class TestSwarm(DomainSwarm):
+        class TestSwarm(SwarmTemplate):
             async def _execute_domain(self, *args, **kwargs):
                 return SwarmResult(
                     success=True, swarm_name="test", domain="test", output={}, execution_time=0.0
@@ -1890,18 +1896,18 @@ Test Coverage Summary:
 2. MergeStrategy enum - 2 tests
 3. AgentSpec - 9 tests
 4. TeamResult - 4 tests
-5. AgentTeam.define() - 9 tests
-6. AgentTeam operations - 8 tests
-7. AgentTeam execution - 11 tests
-8. AgentTeam merge outputs - 6 tests
+5. TeamCoordinator.define() - 9 tests
+6. TeamCoordinator operations - 8 tests
+7. TeamCoordinator execution - 11 tests
+8. TeamCoordinator merge outputs - 6 tests
 9. PhaseExecutor - 6 tests
-10. DomainSwarm init - 3 tests
-11. DomainSwarm init agents - 4 tests
-12. DomainSwarm create agent - 3 tests
-13. DomainSwarm execute - 5 tests
-14. DomainSwarm team coordination - 6 tests
-15. DomainSwarm helpers - 6 tests
-16. DomainSwarm edge cases - 11 tests
+10. SwarmTemplate init - 3 tests
+11. SwarmTemplate init agents - 4 tests
+12. SwarmTemplate create agent - 3 tests
+13. SwarmTemplate execute - 5 tests
+14. SwarmTemplate team coordination - 6 tests
+15. SwarmTemplate helpers - 6 tests
+16. SwarmTemplate edge cases - 11 tests
 
 Total: 95 tests (individual test methods)
 
@@ -1910,11 +1916,11 @@ Coverage areas:
 - All enum values and types
 - AgentSpec creation and attr_name generation (various cases)
 - TeamResult with all field combinations
-- AgentTeam definition with all spec tuple lengths
+- TeamCoordinator definition with all spec tuple lengths
 - All coordination patterns (PIPELINE, PARALLEL, CONSENSUS, HIERARCHICAL, BLACKBOARD, ROUND_ROBIN)
 - All merge strategies (COMBINE, FIRST, BEST, VOTE, CONCAT)
 - PhaseExecutor timing, phase execution, parallel execution, error handling
-- DomainSwarm lifecycle (init, agent creation, execution template)
+- SwarmTemplate lifecycle (init, agent creation, execution template)
 - Team coordination integration
 - Edge cases (errors, empty teams, failures)
 - Defensive utilities (_split_field, _safe_join, _safe_num)

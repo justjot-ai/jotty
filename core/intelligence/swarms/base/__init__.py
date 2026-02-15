@@ -6,17 +6,17 @@ Architecture:
     Agent (skills, LLM) → Team (coordination) → Swarm (learning)
 
 Provides:
-- AgentTeam: Declarative agent composition with coordination patterns
-- DomainSwarm: Template for domain-specific swarms with learning
+- TeamCoordinator: Declarative agent composition with coordination patterns
+- SwarmTemplate: Template for domain-specific swarms with learning
 - CoordinationPattern: How agents work together (pipeline, parallel, etc.)
 - MergeStrategy: How to combine parallel results
 
 Usage:
     # Simple swarm (manual coordination)
-    from Jotty.core.intelligence.swarms.base import DomainSwarm, AgentTeam
+    from Jotty.core.intelligence.swarms.base import SwarmTemplate, TeamCoordinator
 
-    class MySwarm(DomainSwarm):
-        AGENT_TEAM = AgentTeam.define(
+    class MySwarm(SwarmTemplate):
+        AGENT_TEAM = TeamCoordinator.define(
             (AgentA, "AgentA"),
             (AgentB, "AgentB"),
         )
@@ -29,8 +29,8 @@ Usage:
     # Team-coordinated swarm (automatic orchestration)
     from Jotty.core.intelligence.swarms.base import CoordinationPattern, MergeStrategy
 
-    class ReviewSwarm(DomainSwarm):
-        AGENT_TEAM = AgentTeam.define(
+    class ReviewSwarm(SwarmTemplate):
+        AGENT_TEAM = TeamCoordinator.define(
             (SecurityReviewer, "Security"),
             (PerformanceReviewer, "Performance"),
             pattern=CoordinationPattern.PARALLEL,
@@ -42,19 +42,25 @@ Usage:
             return ReviewResult(findings=team_result.merged_output)
 """
 
-from .agent_team import AgentSpec, AgentTeam, CoordinationPattern, MergeStrategy, TeamResult
-from .domain_swarm import DomainSwarm, PhaseExecutor, _safe_join, _safe_num, _split_field
+from .swarm_template import PhaseExecutor, SwarmTemplate, _safe_join, _safe_num, _split_field
+from .team_coordinator import (
+    AgentSpec,
+    CoordinationPattern,
+    MergeStrategy,
+    TeamCoordinator,
+    TeamResult,
+)
 
 __all__ = [
     # Team composition
-    "AgentTeam",
+    "TeamCoordinator",
     "AgentSpec",
     "TeamResult",
     # Coordination patterns
     "CoordinationPattern",
     "MergeStrategy",
     # Swarm base
-    "DomainSwarm",
+    "SwarmTemplate",
     "PhaseExecutor",
     # Defensive utilities
     "_split_field",

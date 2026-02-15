@@ -8,7 +8,7 @@
 
 ## 🎯 Objectives
 
-1. **Single unified BaseSwarm** - Replaces DomainSwarm + SwarmTemplate
+1. **Single unified SwarmLearning** - Replaces SwarmTemplate + SwarmTemplate
 2. **AUTO pattern** - Swarm intelligently selects coordination pattern
 3. **Comprehensive learning** - Integrate ALL 8 learning mechanisms
 4. **Zero learning loss** - Preserve every learning capability
@@ -74,7 +74,7 @@ class SynthesisStrategy(Enum):
 
 ---
 
-## 📦 Phase 2: Unified BaseSwarm (3 hours)
+## 📦 Phase 2: Unified SwarmLearning (3 hours)
 
 ### Files to create:
 - `core/intelligence/swarms/unified_swarm.py` (NEW)
@@ -86,7 +86,7 @@ class SynthesisStrategy(Enum):
 ### New Architecture:
 
 ```python
-class BaseSwarm(SwarmLearningMixin, ABC):
+class SwarmLearning(SwarmLearningMixin, ABC):
     """
     Universal base for ALL swarms - integrates ALL learning.
 
@@ -102,7 +102,7 @@ class BaseSwarm(SwarmLearningMixin, ABC):
     """
 
     # ========== Configuration ==========
-    AGENT_TEAM: ClassVar[AgentTeam]
+    AGENT_TEAM: ClassVar[TeamCoordinator]
     COORDINATION: ClassVar[CoordinationPattern] = CoordinationPattern.AUTO
     STAGES: ClassVar[List[StageConfig]] = []
 
@@ -336,7 +336,7 @@ class BaseSwarm(SwarmLearningMixin, ABC):
 # core/intelligence/swarms/patterns/debate.py
 
 async def execute_debate(
-    swarm: BaseSwarm,
+    swarm: SwarmLearning,
     task: Any,
     agents: List[Agent],
     rounds: int = 3,
@@ -445,12 +445,12 @@ Demonstrates:
 
 import asyncio
 from Jotty.core.intelligence.swarms import UnifiedSwarm
-from Jotty.core.intelligence.swarms.base.agent_team import AgentTeam, CoordinationPattern
+from Jotty.core.intelligence.swarms.base.agent_team import TeamCoordinator, CoordinationPattern
 
 class AutoSwarm(UnifiedSwarm):
     """Swarm with AUTO pattern selection."""
 
-    AGENT_TEAM = AgentTeam.define(
+    AGENT_TEAM = TeamCoordinator.define(
         (ResearcherAgent, "Researcher"),
         (AnalystAgent, "Analyst"),
         (WriterAgent, "Writer"),
@@ -507,17 +507,17 @@ if __name__ == "__main__":
 # core/intelligence/swarms/base/domain_swarm.py
 
 # Keep as alias for backward compatibility
-class DomainSwarm(BaseSwarm):
+class SwarmTemplate(SwarmLearning):
     """
-    DEPRECATED: Use BaseSwarm directly.
+    DEPRECATED: Use SwarmLearning directly.
 
     This class is kept for backward compatibility.
-    All functionality moved to BaseSwarm.
+    All functionality moved to SwarmLearning.
     """
 
     def __init__(self, config):
         warnings.warn(
-            "DomainSwarm is deprecated. Use BaseSwarm instead.",
+            "SwarmTemplate is deprecated. Use SwarmLearning instead.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -527,7 +527,7 @@ class DomainSwarm(BaseSwarm):
 
 class SwarmTemplate:
     """
-    DEPRECATED: Use BaseSwarm with STAGES instead.
+    DEPRECATED: Use SwarmLearning with STAGES instead.
 
     Old:
         class MySwarm(SwarmTemplate):
@@ -535,8 +535,8 @@ class SwarmTemplate:
             pipeline = [...]
 
     New:
-        class MySwarm(BaseSwarm):
-            AGENT_TEAM = AgentTeam.define(...)
+        class MySwarm(SwarmLearning):
+            AGENT_TEAM = TeamCoordinator.define(...)
             STAGES = [...]
             COORDINATION = CoordinationPattern.CUSTOM
     """
@@ -597,7 +597,7 @@ async def test_world_class_swarm():
 
 ## 🎯 Success Criteria
 
-✅ Single unified BaseSwarm replaces 3 separate concepts
+✅ Single unified SwarmLearning replaces 3 separate concepts
 ✅ AUTO pattern works and learns from experience
 ✅ All 8 learning layers integrated and active
 ✅ Examples demonstrate all patterns
@@ -611,7 +611,7 @@ async def test_world_class_swarm():
 ## 📅 Timeline
 
 - **Phase 1:** 1 hour - Enhanced patterns
-- **Phase 2:** 3 hours - Unified BaseSwarm
+- **Phase 2:** 3 hours - Unified SwarmLearning
 - **Phase 3:** 2 hours - Pattern implementations
 - **Phase 4:** 2 hours - Examples
 - **Phase 5:** 1 hour - Backward compat

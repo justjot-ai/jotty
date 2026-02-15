@@ -1,5 +1,5 @@
 """
-Coordination mixin for BaseSwarm.
+Coordination mixin for SwarmLearning.
 
 Contains coordination protocol methods: pre/post-execution wiring of
 circuit breakers, gossip, supervisor tree, backpressure, load balancing,
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 class SwarmCoordinationMixin:
-    """Mixin providing coordination protocol infrastructure for BaseSwarm.
+    """Mixin providing coordination protocol infrastructure for SwarmLearning.
 
     Methods in this mixin handle the coordination lifecycle:
     - Pre-execution: circuit breakers, gossip, supervisor tree, backpressure,
@@ -26,7 +26,7 @@ class SwarmCoordinationMixin:
     - Post-execution: byzantine verify, gossip broadcast, coalition cleanup,
       failure recovery, agent retirement, stigmergy evaporation
 
-    Expects to be mixed into BaseSwarm which provides:
+    Expects to be mixed into SwarmLearning which provides:
     - self.config with .name, .domain attributes
     - self._swarm_intelligence (SwarmIntelligence instance)
     """

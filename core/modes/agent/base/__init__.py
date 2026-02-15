@@ -27,7 +27,7 @@ Date: February 2026
 from ....infrastructure.foundation.agent_config import AgentConfig  # noqa: F401
 
 # Autonomous agent for open-ended tasks
-from .autonomous_agent import (
+from ..agents.autonomous_agent import (
     AutonomousAgent,
     AutonomousAgentConfig,
     ExecutionStep,
@@ -50,7 +50,7 @@ from .meta_agent import MetaAgent, MetaAgentConfig, create_meta_agent
 from .skill_plan_executor import SkillPlanExecutor
 
 # Shared swarm-internal base agent
-from .swarm_agent import BaseSwarmAgent
+from .swarm_agent import SwarmLearningAgent
 
 # Validation agent for pre/post validation
 from .validation_agent import (
@@ -95,7 +95,7 @@ __all__ = [
     "ExecutionStep",
     "create_autonomous_agent",
     # Swarm agent base
-    "BaseSwarmAgent",
+    "SwarmLearningAgent",
     # Composite
     "CompositeAgent",
     "CompositeAgentConfig",

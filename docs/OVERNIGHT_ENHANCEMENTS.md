@@ -388,7 +388,7 @@ python /tmp/test_overnight_enhancements.py
 ### DRY (Don't Repeat Yourself) ✅
 - Distributed tracing wraps existing `JottyTracer`
 - Cost-aware learning extends `TDLambdaLearner`
-- Multi-swarm uses existing `BaseSwarm` interface
+- Multi-swarm uses existing `SwarmLearning` interface
 - Incremental consolidation delegates to existing consolidator
 - **Zero code duplication**
 

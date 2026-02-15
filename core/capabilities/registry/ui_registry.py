@@ -34,7 +34,7 @@ Architecture:
 └─────────────────────────────────────────────────────────────────────────────┘
 
 Integration with Swarm System:
-- BaseSwarm uses UIRegistry to discover available output formats
+- SwarmLearning uses UIRegistry to discover available output formats
 - Agents select appropriate UI components based on task output
 - SwarmIntelligence tracks UI component usage for optimization
 

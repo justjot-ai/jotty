@@ -18,12 +18,12 @@
 
 ### Brain in More Detail
 
-- **BaseSwarm**
+- **SwarmLearning**
   - Self-improving loop: Expert → Reviewer → Planner → Actor (plus Auditor, Learner).
   - Shared resources: memory, context, bus, TD-Lambda learner.
   - Gold-standard DB, evaluation history, execution traces.
 
-- **DomainSwarm**
+- **SwarmTemplate**
   - Template for domain swarms.
   - Declarative **AGENT_TEAM** (agents + optional coordination pattern: pipeline, parallel, consensus).
   - `_execute_domain()` is where domain logic lives; base handles learning hooks and team lifecycle.
@@ -87,7 +87,7 @@ Jotty’s own **SwarmBenchmarks** in `core/orchestration/benchmarking.py` suppor
 | Dimension | **Jotty** | **LangGraph** | **AutoGen** | **AgentVerse** | **DSPy** |
 |-----------|-----------|---------------|-------------|----------------|----------|
 | **Paradigm** | Swarms + learning (TD-λ, memory) | Graph (nodes/edges, state) | Conversational multi-agent | Task-solving + simulation | Programming LM pipelines |
-| **Coordination** | DomainSwarm teams, SwarmIntelligence (consensus, auction, coalition, stigmergy) | Explicit graph, conditional edges | AgentTool, group chat | Config-driven task envs | Modules + optimizers |
+| **Coordination** | SwarmTemplate teams, SwarmIntelligence (consensus, auction, coalition, stigmergy) | Explicit graph, conditional edges | AgentTool, group chat | Config-driven task envs | Modules + optimizers |
 | **Learning** | TD-Lambda, 5-level memory, gold standard, self-improvement loop | Checkpointing, no built-in RL | Human-in-the-loop, no RL | Benchmarks (e.g. HumanEval) | Compile-time optimizers (prompts/weights) |
 | **Memory** | SwarmMemory (episodic → causal), consolidation, goal-conditioned | Durable state, checkpoints | Conversation/session | Task/simulation state | In-program state |
 | **Skills/Tools** | UnifiedRegistry, 126+ skills, MCP, Claude tools | LangChain tools, custom | MCP, code exec, extensions | BMTools, XAgent ToolServer | No built-in tool registry |

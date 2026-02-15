@@ -1,5 +1,5 @@
 """
-Knowledge mixin for BaseSwarm.
+Knowledge mixin for SwarmLearning.
 
 Contains knowledge retrieval and storage methods: expert knowledge retrieval
 from SwarmMemory, prior failure analysis, execution outcome storage, learned
@@ -21,13 +21,14 @@ from Jotty.core.infrastructure.foundation.exceptions import (
     MemoryRetrievalError,
     MemoryStorageError,
 )
+
 from .evaluation import EvaluationHistory, ImprovementHistory
 
 logger = logging.getLogger(__name__)
 
 
 class SwarmKnowledgeMixin:
-    """Mixin providing knowledge retrieval/storage infrastructure for BaseSwarm.
+    """Mixin providing knowledge retrieval/storage infrastructure for SwarmLearning.
 
     Methods in this mixin handle knowledge management:
     - Expert knowledge retrieval from SwarmMemory
@@ -36,7 +37,7 @@ class SwarmKnowledgeMixin:
     - Learned context string building for agent prompt injection
     - Learning pathway diagnostics
 
-    Expects to be mixed into BaseSwarm which provides:
+    Expects to be mixed into SwarmLearning which provides:
     - self._memory (SwarmMemory instance)
     - self._initialized, self._init_shared_resources()
     - self._swarm_intelligence (SwarmIntelligence instance)

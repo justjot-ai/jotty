@@ -82,7 +82,7 @@ from .swarm_types import (
 # =============================================================================
 
 
-class BaseSwarm(SwarmLearningMixin, ABC):
+class SwarmLearning(SwarmLearningMixin, ABC):
     """
     Base class for all Jotty swarms.
 
@@ -687,7 +687,7 @@ class BaseSwarm(SwarmLearningMixin, ABC):
         """
         Hand off task to another agent with context preservation.
 
-        SwarmAgentic pattern integrated into BaseSwarm.
+        SwarmAgentic pattern integrated into SwarmLearning.
         """
         if not self._swarm_intelligence:
             logger.warning("Handoff requires SwarmIntelligence connection")

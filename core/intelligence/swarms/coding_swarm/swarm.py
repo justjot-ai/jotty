@@ -16,8 +16,8 @@ from typing import Any, Dict, Optional
 
 import dspy
 
-from ..base import AgentTeam, DomainSwarm
-from ..base_swarm import AgentRole, register_swarm
+from ..base import SwarmTemplate, TeamCoordinator
+from ..swarm_learning import AgentRole, register_swarm
 from ..swarm_signatures import CodingSwarmSignature
 from . import utils as _coding_utils
 from ._codebase_mixin import CodebaseMixin
@@ -49,7 +49,7 @@ logger = logging.getLogger(__name__)
 
 
 @register_swarm("coding")
-class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, DomainSwarm):
+class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, SwarmTemplate):
     """
     World-Class Coding Swarm.
 
@@ -60,7 +60,7 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Domai
     - Optimized performance
     """
 
-    AGENT_TEAM = AgentTeam.define(
+    AGENT_TEAM = TeamCoordinator.define(
         (ArchitectAgent, "Architect", "_architect"),
         (DeveloperAgent, "Developer", "_developer"),
         (DebuggerAgent, "Debugger", "_debugger"),
@@ -463,7 +463,7 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Domai
         style: CodeStyle = None,
         **kwargs: Any,
     ) -> CodingResult:
-        """Execute code generation (called by DomainSwarm.execute())."""
+        """Execute code generation (called by SwarmTemplate.execute())."""
         return await self.generate(requirements, language, style, **kwargs)
 
     async def generate(

@@ -2,12 +2,12 @@
 
 from Jotty.core.infrastructure.foundation.types.execution_types import CoordinationPattern
 
-from ..base.agent_team import AgentTeam
-from ..base_swarm import BaseSwarm, SwarmBaseConfig, SwarmResult
+from ..base.team_coordinator import TeamCoordinator
+from ..swarm_learning import SwarmBaseConfig, SwarmLearning, SwarmResult
 
 
-class DataAnalysisTemplate(BaseSwarm):
-    AGENT_TEAM = AgentTeam.define(pattern=CoordinationPattern.AUTO)
+class DataAnalysisTemplate(SwarmLearning):
+    AGENT_TEAM = TeamCoordinator.define(pattern=CoordinationPattern.AUTO)
     TEMPLATE_NAME = "data_analysis"
 
     def __init__(self, config: SwarmBaseConfig = None):

@@ -243,8 +243,8 @@ from Jotty.core.intelligence.orchestration.facade import (
 )
 
 # SWARMS — Multi-agent coordination
-from Jotty.core.intelligence.swarms.base_swarm import BaseSwarm
-from Jotty.core.intelligence.swarms.base.domain_swarm import DomainSwarm
+from Jotty.core.intelligence.swarms.base_swarm import SwarmLearning
+from Jotty.core.intelligence.swarms.base.domain_swarm import SwarmTemplate
 from Jotty.core.intelligence.swarms.coding_swarm import CodingSwarm
 from Jotty.core.intelligence.swarms.research_swarm import ResearchSwarm
 ```
@@ -655,7 +655,7 @@ Jotty/
 │   │   ├── learning/        # TD-Lambda, Q-learning, RL
 │   │   ├── memory/          # 5-level memory system
 │   │   ├── orchestration/   # SwarmIntelligence, paradigms
-│   │   ├── swarms/          # BaseSwarm, domain swarms
+│   │   ├── swarms/          # SwarmLearning, domain swarms
 │   │   └── reasoning/       # Expert agents, templates
 │   │
 │   └── infrastructure/      # Foundation

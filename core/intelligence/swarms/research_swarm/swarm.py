@@ -11,9 +11,9 @@ from typing import Any, Dict, List, Optional
 
 import dspy
 
-from ..base import AgentTeam, DomainSwarm
-from ..base.domain_swarm import PhaseExecutor
-from ..base_swarm import AgentRole, register_swarm
+from ..base import SwarmTemplate, TeamCoordinator
+from ..base.swarm_template import PhaseExecutor
+from ..swarm_learning import AgentRole, register_swarm
 from ..swarm_signatures import ResearchSwarmSignature
 from .agents import (
     DataFetcherAgent,
@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 
 
 @register_swarm("research")
-class ResearchSwarm(DomainSwarm):
+class ResearchSwarm(SwarmTemplate):
     """
     World-Class Research Swarm with parallel agents and LLM analysis.
 
@@ -156,7 +156,7 @@ class ResearchSwarm(DomainSwarm):
         self._initialized = True
 
     async def _execute_domain(self, query: str, **kwargs: Any) -> ResearchResult:
-        """Execute research (called by DomainSwarm.execute())."""
+        """Execute research (called by SwarmTemplate.execute())."""
         return await self.research(query, **kwargs)
 
     async def research(
@@ -972,7 +972,7 @@ def research_sync(query: str, **kwargs: Any) -> ResearchResult:
 
 # Set AGENT_TEAM and SWARM_SIGNATURE now that all agent classes are defined
 ResearchSwarm.SWARM_SIGNATURE = ResearchSwarmSignature
-ResearchSwarm.AGENT_TEAM = AgentTeam.define(
+ResearchSwarm.AGENT_TEAM = TeamCoordinator.define(
     (DataFetcherAgent, "DataFetcher", "_data_fetcher"),
     (WebSearchAgent, "WebSearch", "_web_searcher"),
     (SentimentAgent, "Sentiment", "_sentiment_analyzer"),

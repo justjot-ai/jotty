@@ -13,8 +13,8 @@ from typing import Any
 
 from Jotty.core.infrastructure.foundation.types.execution_types import CoordinationPattern
 
-from ..base_swarm import BaseSwarm, SwarmBaseConfig, SwarmResult
 from ..stage_config import StageConfig
+from ..swarm_learning import SwarmBaseConfig, SwarmLearning, SwarmResult
 
 # Import existing agents (will be defined/imported from original swarm)
 try:
@@ -27,17 +27,17 @@ try:
     )
 except ImportError:
     # Fallback
-    from Jotty.core.modes.agent.base import BaseSwarmAgent as ArchitectAgent
-    from Jotty.core.modes.agent.base import BaseSwarmAgent as DeveloperAgent
-    from Jotty.core.modes.agent.base import BaseSwarmAgent as TestWriterAgent
+    from Jotty.core.modes.agent.base import SwarmLearningAgent as ArchitectAgent
+    from Jotty.core.modes.agent.base import SwarmLearningAgent as DeveloperAgent
+    from Jotty.core.modes.agent.base import SwarmLearningAgent as TestWriterAgent
 
     CodingConfig = SwarmBaseConfig
     CodingResult = SwarmResult
 
-from ..base.agent_team import AgentTeam
+from ..base.team_coordinator import TeamCoordinator
 
 
-class CodingTemplate(BaseSwarm):
+class CodingTemplate(SwarmLearning):
     """
     Coding swarm template - CUSTOM pattern with STAGES.
 
@@ -46,7 +46,7 @@ class CodingTemplate(BaseSwarm):
     2. Implement (Developer) - needs Design
     3. Test (TestWriter) - needs Implement
 
-    Inherits ALL learning layers from BaseSwarm automatically.
+    Inherits ALL learning layers from SwarmLearning automatically.
 
     Usage:
         swarm = CodingTemplate()
@@ -54,7 +54,7 @@ class CodingTemplate(BaseSwarm):
     """
 
     # Agent team definition
-    AGENT_TEAM = AgentTeam.define(
+    AGENT_TEAM = TeamCoordinator.define(
         (ArchitectAgent, "Architect", "_architect"),
         (DeveloperAgent, "Developer", "_developer"),
         (TestWriterAgent, "TestWriter", "_test_writer"),

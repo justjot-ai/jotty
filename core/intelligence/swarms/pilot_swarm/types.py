@@ -11,7 +11,7 @@ import enum
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-from ..base_swarm import SwarmResult
+from ..swarm_learning import SwarmResult
 from ..swarm_types import SwarmConfig
 
 

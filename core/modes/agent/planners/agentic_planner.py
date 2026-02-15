@@ -227,7 +227,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
         """
         Call a DSPy module with automatic retry and context compression.
 
-        Learned from BaseSwarmAgent pattern:
+        Learned from SwarmLearningAgent pattern:
         - Detect error types (context length, timeout, parse, rate limit)
         - Compress context on context length errors
         - Exponential backoff on timeouts

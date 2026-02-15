@@ -77,7 +77,7 @@ class TestSwarmBaseConfigDefaults:
 
     def test_identity_defaults(self):
         config = SwarmBaseConfig()
-        assert config.name == "BaseSwarm"
+        assert config.name == "SwarmLearning"
         assert config.domain == "general"
         assert config.version == "1.0.0"
 

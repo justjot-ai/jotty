@@ -5,9 +5,9 @@ Swarm Tests — Mocked Unit Tests
 Tests for the swarm infrastructure:
 - SwarmTypes: SwarmBaseConfig, SwarmResult, ExecutionTrace, enums
 - SwarmRegistry: register, get, list, create
-- AgentTeam: define, coordination patterns, merge strategies
+- TeamCoordinator: define, coordination patterns, merge strategies
 - PhaseExecutor: run_phase, run_parallel, build_error_result
-- DomainSwarm: execute lifecycle, team coordination, to_composite, validate_output
+- SwarmTemplate: execute lifecycle, team coordination, to_composite, validate_output
 
 All tests use mocks — no LLM calls, no API keys.
 
@@ -24,12 +24,12 @@ import pytest
 
 from Jotty.core.intelligence.swarms.base.agent_team import (
     AgentSpec,
-    AgentTeam,
     CoordinationPattern,
     MergeStrategy,
+    TeamCoordinator,
     TeamResult,
 )
-from Jotty.core.intelligence.swarms.base.domain_swarm import DomainSwarm, PhaseExecutor
+from Jotty.core.intelligence.swarms.base.domain_swarm import PhaseExecutor, SwarmTemplate
 from Jotty.core.intelligence.swarms.registry import SwarmRegistry, register_swarm
 from Jotty.core.intelligence.swarms.swarm_types import (
     AgentRole,
@@ -291,17 +291,17 @@ class TestAgentSpec:
 
 
 # =============================================================================
-# AgentTeam
+# TeamCoordinator
 # =============================================================================
 
 
 @pytest.mark.unit
-class TestAgentTeam:
-    """Test AgentTeam definition and coordination execution."""
+class TestTeamCoordinator:
+    """Test TeamCoordinator definition and coordination execution."""
 
     def test_define_simple(self):
-        """AgentTeam.define() creates team from tuples."""
-        team = AgentTeam.define(
+        """TeamCoordinator.define() creates team from tuples."""
+        team = TeamCoordinator.define(
             (Mock, "Agent1"),
             (Mock, "Agent2"),
         )
@@ -310,8 +310,8 @@ class TestAgentTeam:
         assert team.get_agent_names() == ["Agent1", "Agent2"]
 
     def test_define_with_pattern(self):
-        """AgentTeam.define() accepts coordination pattern."""
-        team = AgentTeam.define(
+        """TeamCoordinator.define() accepts coordination pattern."""
+        team = TeamCoordinator.define(
             (Mock, "A"),
             (Mock, "B"),
             pattern=CoordinationPattern.PIPELINE,
@@ -322,13 +322,13 @@ class TestAgentTeam:
 
     def test_add_agent(self):
         """add() fluently adds agents to team."""
-        team = AgentTeam()
+        team = TeamCoordinator()
         team.add(Mock, "First").add(Mock, "Second")
         assert len(team) == 2
 
     def test_get_agents_by_role(self):
         """get_agents_by_role() filters by role."""
-        team = AgentTeam.define(
+        team = TeamCoordinator.define(
             (Mock, "Manager", None, "manager"),
             (Mock, "Worker1", None, "worker"),
             (Mock, "Worker2", None, "worker"),
@@ -338,7 +338,7 @@ class TestAgentTeam:
 
     def test_get_ordered_agents(self):
         """get_ordered_agents() sorts by priority descending."""
-        team = AgentTeam.define(
+        team = TeamCoordinator.define(
             (Mock, "Low", None, None, 1),
             (Mock, "High", None, None, 10),
             (Mock, "Mid", None, None, 5),
@@ -348,8 +348,8 @@ class TestAgentTeam:
         assert names == ["High", "Mid", "Low"]
 
     def test_iter_team(self):
-        """AgentTeam is iterable over (attr_name, spec) pairs."""
-        team = AgentTeam.define((Mock, "A"), (Mock, "B"))
+        """TeamCoordinator is iterable over (attr_name, spec) pairs."""
+        team = TeamCoordinator.define((Mock, "A"), (Mock, "B"))
         items = list(team)
         assert len(items) == 2
         assert all(isinstance(name, str) for name, _ in items)
@@ -357,7 +357,7 @@ class TestAgentTeam:
     @pytest.mark.asyncio
     async def test_execute_none_pattern(self):
         """NONE pattern returns empty outputs for swarm to handle."""
-        team = AgentTeam.define((Mock, "A"))
+        team = TeamCoordinator.define((Mock, "A"))
         team.set_instances({"_a": Mock()})
 
         result = await team.execute("task")
@@ -369,7 +369,7 @@ class TestAgentTeam:
     @pytest.mark.asyncio
     async def test_execute_without_instances_raises(self):
         """execute() raises when instances not set."""
-        team = AgentTeam.define((Mock, "A"))
+        team = TeamCoordinator.define((Mock, "A"))
 
         with pytest.raises(RuntimeError, match="instances not set"):
             await team.execute("task")
@@ -380,7 +380,7 @@ class TestAgentTeam:
         a1 = make_concrete_agent(name="A1", output={"step": "1"})
         a2 = make_concrete_agent(name="A2", output={"step": "2"})
 
-        team = AgentTeam.define(
+        team = TeamCoordinator.define(
             (Mock, "A1", "_a1", None, 2),
             (Mock, "A2", "_a2", None, 1),
             pattern=CoordinationPattern.PIPELINE,
@@ -404,7 +404,7 @@ class TestAgentTeam:
         a2 = AsyncMock()
         a2.execute = AsyncMock(return_value=Mock(output="never"))
 
-        team = AgentTeam.define(
+        team = TeamCoordinator.define(
             (Mock, "A1", "_a1", None, 2),
             (Mock, "A2", "_a2", None, 1),
             pattern=CoordinationPattern.PIPELINE,
@@ -423,7 +423,7 @@ class TestAgentTeam:
         a1 = make_concrete_agent(name="P1", output={"p1": "done"})
         a2 = make_concrete_agent(name="P2", output={"p2": "done"})
 
-        team = AgentTeam.define(
+        team = TeamCoordinator.define(
             (Mock, "P1", "_p1"),
             (Mock, "P2", "_p2"),
             pattern=CoordinationPattern.PARALLEL,
@@ -445,7 +445,7 @@ class TestAgentTeam:
         a2 = make_concrete_agent(name="V2", output="yes")
         a3 = make_concrete_agent(name="V3", output="no")
 
-        team = AgentTeam.define(
+        team = TeamCoordinator.define(
             (Mock, "V1", "_v1"),
             (Mock, "V2", "_v2"),
             (Mock, "V3", "_v3"),
@@ -465,7 +465,7 @@ class TestAgentTeam:
         a1 = make_concrete_agent(name="RR1", output="r1")
         a2 = make_concrete_agent(name="RR2", output="r2")
 
-        team = AgentTeam.define(
+        team = TeamCoordinator.define(
             (Mock, "RR1", "_rr1"),
             (Mock, "RR2", "_rr2"),
             pattern=CoordinationPattern.ROUND_ROBIN,
@@ -480,32 +480,32 @@ class TestAgentTeam:
 
     def test_merge_combine(self):
         """COMBINE returns dict as-is."""
-        team = AgentTeam(merge_strategy=MergeStrategy.COMBINE)
+        team = TeamCoordinator(merge_strategy=MergeStrategy.COMBINE)
         assert team._merge_outputs({"a": 1, "b": 2}) == {"a": 1, "b": 2}
 
     def test_merge_first(self):
         """FIRST returns first value."""
-        team = AgentTeam(merge_strategy=MergeStrategy.FIRST)
+        team = TeamCoordinator(merge_strategy=MergeStrategy.FIRST)
         result = team._merge_outputs({"a": "first", "b": "second"})
         assert result == "first"
 
     def test_merge_concat(self):
         """CONCAT joins string representations."""
-        team = AgentTeam(merge_strategy=MergeStrategy.CONCAT)
+        team = TeamCoordinator(merge_strategy=MergeStrategy.CONCAT)
         result = team._merge_outputs({"a": "hello", "b": "world"})
         assert "hello" in result
         assert "world" in result
 
     def test_merge_vote(self):
         """VOTE picks most common output."""
-        team = AgentTeam(merge_strategy=MergeStrategy.VOTE)
+        team = TeamCoordinator(merge_strategy=MergeStrategy.VOTE)
         result = team._merge_outputs({"a": "yes", "b": "yes", "c": "no"})
         assert result == "yes"
 
     def test_merge_empty(self):
         """Empty outputs returns None."""
         for strategy in MergeStrategy:
-            team = AgentTeam(merge_strategy=strategy)
+            team = TeamCoordinator(merge_strategy=strategy)
             assert team._merge_outputs({}) is None
 
 
@@ -519,9 +519,9 @@ class TestPhaseExecutor:
     """Test PhaseExecutor phase management."""
 
     def _make_domain_swarm(self):
-        """Create a minimal concrete DomainSwarm for testing."""
+        """Create a minimal concrete SwarmTemplate for testing."""
 
-        class TestSwarm(DomainSwarm):
+        class TestSwarm(SwarmTemplate):
             async def _execute_domain(self, *args, **kwargs):
                 return SwarmResult(
                     success=True,
@@ -656,18 +656,18 @@ class TestPhaseExecutor:
 
 
 # =============================================================================
-# DomainSwarm
+# SwarmTemplate
 # =============================================================================
 
 
 @pytest.mark.unit
-class TestDomainSwarm:
-    """Test DomainSwarm lifecycle and features."""
+class TestSwarmTemplate:
+    """Test SwarmTemplate lifecycle and features."""
 
     def _make_test_swarm(self, output=None, raises=None):
-        """Create a concrete DomainSwarm for testing."""
+        """Create a concrete SwarmTemplate for testing."""
 
-        class TestSwarm(DomainSwarm):
+        class TestSwarm(SwarmTemplate):
             async def _execute_domain(self, *args, **kwargs):
                 if raises:
                     raise raises

@@ -25,11 +25,17 @@ from typing import Any
 # =========================================================================
 # EAGER: Base infrastructure (lightweight, needed everywhere)
 # =========================================================================
-from .base import AgentSpec, AgentTeam, CoordinationPattern, DomainSwarm, MergeStrategy, TeamResult
-from .base_swarm import (
+from .base import (
+    AgentSpec,
+    CoordinationPattern,
+    MergeStrategy,
+    SwarmTemplate,
+    TeamCoordinator,
+    TeamResult,
+)
+from .swarm_learning import (
     ActorAgent,
     AgentRole,
-    BaseSwarm,
     Evaluation,
     EvaluationResult,
     ExecutionTrace,
@@ -43,6 +49,7 @@ from .base_swarm import (
     ReviewerAgent,
     SwarmAgentConfig,
     SwarmBaseConfig,
+    SwarmLearning,
     SwarmRegistry,
     SwarmResult,
     register_swarm,
@@ -67,7 +74,7 @@ _LAZY_IMPORTS: dict[str, str] = {
     "RatingType": ".research_swarm",
     "research": ".research_swarm",
     "research_sync": ".research_swarm",
-    "BaseSwarmAgent": ".research_swarm",
+    "SwarmLearningAgent": ".research_swarm",
     "DataFetcherAgent": ".research_swarm",
     "WebSearchAgent": ".research_swarm",
     "SentimentAgent": ".research_swarm",
@@ -337,8 +344,8 @@ def __getattr__(name: str) -> Any:
 
 __all__ = [
     # Base (eager)
-    "DomainSwarm",
-    "AgentTeam",
+    "SwarmTemplate",
+    "TeamCoordinator",
     "AgentSpec",
     "TeamResult",
     "CoordinationPattern",
@@ -363,7 +370,7 @@ __all__ = [
     "ReviewerAgent",
     "PlannerAgent",
     "ActorAgent",
-    "BaseSwarm",
+    "SwarmLearning",
     "SwarmRegistry",
     "register_swarm",
     # Lazy (all swarm names)

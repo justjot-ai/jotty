@@ -30,8 +30,8 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from ..base import AgentTeam, DomainSwarm, PhaseExecutor
-from ..base_swarm import AgentRole, register_swarm
+from ..base import PhaseExecutor, SwarmTemplate, TeamCoordinator
+from ..swarm_learning import AgentRole, register_swarm
 from .agents import (
     ContentAssemblerAgent,
     CurriculumDesignerAgent,
@@ -91,7 +91,7 @@ else:
 
 
 @register_swarm("perspective_learning")
-class PerspectiveLearningSwarm(DomainSwarm):
+class PerspectiveLearningSwarm(SwarmTemplate):
     """
     Multi-Perspective Learning Swarm.
 
@@ -111,7 +111,7 @@ class PerspectiveLearningSwarm(DomainSwarm):
     10. NarrativeEditor - Final polish and coherence pass
     """
 
-    AGENT_TEAM = AgentTeam.define(
+    AGENT_TEAM = TeamCoordinator.define(
         (CurriculumDesignerAgent, "CurriculumDesigner", "_curriculum_designer"),
         (IntuitiveExplainerAgent, "IntuitiveExplainer", "_intuitive_explainer"),
         (FrameworkBuilderAgent, "FrameworkBuilder", "_framework_builder"),

@@ -1,8 +1,8 @@
 """
-Swarm Templates - All swarms as configuration on unified BaseSwarm
+Swarm Templates - All swarms as configuration on unified SwarmLearning
 ===================================================================
 
-All templates inherit from BaseSwarm and define:
+All templates inherit from SwarmLearning and define:
 - AGENT_TEAM: Agent composition
 - COORDINATION: Pattern (AUTO, SEQUENTIAL, PARALLEL, etc.)
 - Optional: STAGES for CUSTOM pattern

@@ -60,10 +60,10 @@ from typing import Dict, List, Optional
 
 import dspy
 
-from Jotty.core.modes.agent.base import BaseSwarmAgent
+from Jotty.core.modes.agent.base import SwarmLearningAgent
 
-from .base import AgentTeam, DomainSwarm, _safe_join, _safe_num, _split_field
-from .base_swarm import AgentRole, SwarmBaseConfig, SwarmResult, register_swarm
+from .base import SwarmTemplate, TeamCoordinator, _safe_join, _safe_num, _split_field
+from .swarm_learning import AgentRole, SwarmBaseConfig, SwarmResult, register_swarm
 from .swarm_signatures import FundamentalSwarmSignature
 
 logger = logging.getLogger(__name__)
@@ -405,7 +405,7 @@ class InvestmentThesisSignature(dspy.Signature):
 # =============================================================================
 
 
-class FinancialStatementAgent(BaseSwarmAgent):
+class FinancialStatementAgent(SwarmLearningAgent):
     """Analyzes financial statements."""
 
     def __init__(
@@ -447,7 +447,7 @@ class FinancialStatementAgent(BaseSwarmAgent):
             return {"error": str(e)}
 
 
-class RatioAnalysisAgent(BaseSwarmAgent):
+class RatioAnalysisAgent(SwarmLearningAgent):
     """Performs ratio analysis."""
 
     def __init__(
@@ -501,7 +501,7 @@ class RatioAnalysisAgent(BaseSwarmAgent):
             return {"error": str(e)}
 
 
-class ValuationAgent(BaseSwarmAgent):
+class ValuationAgent(SwarmLearningAgent):
     """Performs company valuation."""
 
     def __init__(
@@ -564,7 +564,7 @@ class ValuationAgent(BaseSwarmAgent):
             )
 
 
-class QualityEarningsAgent(BaseSwarmAgent):
+class QualityEarningsAgent(SwarmLearningAgent):
     """Assesses earnings quality."""
 
     def __init__(
@@ -609,7 +609,7 @@ class QualityEarningsAgent(BaseSwarmAgent):
             return {"error": str(e)}
 
 
-class ManagementAgent(BaseSwarmAgent):
+class ManagementAgent(SwarmLearningAgent):
     """Analyzes management quality."""
 
     def __init__(
@@ -663,7 +663,7 @@ class ManagementAgent(BaseSwarmAgent):
             return {"error": str(e)}
 
 
-class MoatAgent(BaseSwarmAgent):
+class MoatAgent(SwarmLearningAgent):
     """Analyzes competitive moat."""
 
     def __init__(
@@ -716,7 +716,7 @@ class MoatAgent(BaseSwarmAgent):
             return {"error": str(e)}
 
 
-class ThesisAgent(BaseSwarmAgent):
+class ThesisAgent(SwarmLearningAgent):
     """Generates investment thesis."""
 
     def __init__(
@@ -801,7 +801,7 @@ class ThesisAgent(BaseSwarmAgent):
 
 
 @register_swarm("fundamental")
-class FundamentalSwarm(DomainSwarm):
+class FundamentalSwarm(SwarmTemplate):
     """
     World-Class Fundamental Analysis Swarm.
 
@@ -815,8 +815,8 @@ class FundamentalSwarm(DomainSwarm):
     - Investment thesis
     """
 
-    # Declarative agent team - auto-initialized by DomainSwarm
-    AGENT_TEAM = AgentTeam.define(
+    # Declarative agent team - auto-initialized by SwarmTemplate
+    AGENT_TEAM = TeamCoordinator.define(
         (FinancialStatementAgent, "FinancialStatement", "_financial_agent"),
         (RatioAnalysisAgent, "RatioAnalysis", "_ratio_agent"),
         (ValuationAgent, "Valuation", "_valuation_agent"),
@@ -831,7 +831,7 @@ class FundamentalSwarm(DomainSwarm):
         super().__init__(config or FundamentalConfig())
 
     async def _execute_domain(self, ticker: str, **kwargs: Any) -> FundamentalResult:
-        """Execute fundamental analysis (called by DomainSwarm.execute())."""
+        """Execute fundamental analysis (called by SwarmTemplate.execute())."""
         return await self.analyze(ticker, **kwargs)
 
     async def analyze(

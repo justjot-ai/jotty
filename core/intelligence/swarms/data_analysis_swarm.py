@@ -58,10 +58,10 @@ from typing import Dict, List, Optional
 
 import dspy
 
-from Jotty.core.modes.agent.base import BaseSwarmAgent
+from Jotty.core.modes.agent.base import SwarmLearningAgent
 
-from .base import AgentTeam, DomainSwarm, _split_field
-from .base_swarm import AgentRole, SwarmBaseConfig, SwarmResult, register_swarm
+from .base import SwarmTemplate, TeamCoordinator, _split_field
+from .swarm_learning import AgentRole, SwarmBaseConfig, SwarmResult, register_swarm
 from .swarm_signatures import DataAnalysisSwarmSignature
 
 logger = logging.getLogger(__name__)
@@ -360,7 +360,7 @@ class VisualizationSignature(dspy.Signature):
 # =============================================================================
 
 
-class DataProfilerAgent(BaseSwarmAgent):
+class DataProfilerAgent(SwarmLearningAgent):
     """Profiles datasets."""
 
     def __init__(
@@ -408,7 +408,7 @@ class DataProfilerAgent(BaseSwarmAgent):
             return {"error": str(e)}
 
 
-class EDAAgent(BaseSwarmAgent):
+class EDAAgent(SwarmLearningAgent):
     """Performs exploratory data analysis."""
 
     def __init__(
@@ -450,7 +450,7 @@ class EDAAgent(BaseSwarmAgent):
             return {"error": str(e)}
 
 
-class StatisticalAgent(BaseSwarmAgent):
+class StatisticalAgent(SwarmLearningAgent):
     """Performs statistical analysis."""
 
     def __init__(
@@ -506,7 +506,7 @@ class StatisticalAgent(BaseSwarmAgent):
             }
 
 
-class InsightAgent(BaseSwarmAgent):
+class InsightAgent(SwarmLearningAgent):
     """Generates insights."""
 
     def __init__(
@@ -557,7 +557,7 @@ class InsightAgent(BaseSwarmAgent):
             return []
 
 
-class MLRecommenderAgent(BaseSwarmAgent):
+class MLRecommenderAgent(SwarmLearningAgent):
     """Recommends ML approaches."""
 
     def __init__(
@@ -607,7 +607,7 @@ class MLRecommenderAgent(BaseSwarmAgent):
             )
 
 
-class VisualizationAgent(BaseSwarmAgent):
+class VisualizationAgent(SwarmLearningAgent):
     """Recommends visualizations."""
 
     def __init__(
@@ -667,7 +667,7 @@ class VisualizationAgent(BaseSwarmAgent):
 
 
 @register_swarm("data_analysis")
-class DataAnalysisSwarm(DomainSwarm):
+class DataAnalysisSwarm(SwarmTemplate):
     """
     World-Class Data Analysis Swarm.
 
@@ -680,8 +680,8 @@ class DataAnalysisSwarm(DomainSwarm):
     - Visualization suggestions
     """
 
-    # Declarative agent team - auto-initialized by DomainSwarm
-    AGENT_TEAM = AgentTeam.define(
+    # Declarative agent team - auto-initialized by SwarmTemplate
+    AGENT_TEAM = TeamCoordinator.define(
         (DataProfilerAgent, "DataProfiler", "_profiler"),
         (EDAAgent, "EDA", "_eda_agent"),
         (StatisticalAgent, "Statistical", "_statistical_agent"),
@@ -698,7 +698,7 @@ class DataAnalysisSwarm(DomainSwarm):
         super().__init__(config or DataAnalysisConfig())
 
     async def _execute_domain(self, data: Any, **kwargs: Any) -> AnalysisResult:
-        """Execute data analysis (called by DomainSwarm.execute())."""
+        """Execute data analysis (called by SwarmTemplate.execute())."""
         return await self.analyze(data, **kwargs)
 
     async def analyze(

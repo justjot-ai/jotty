@@ -4,7 +4,7 @@ Analyze functions missing type hints and suggest proper types.
 """
 
 import ast
-import re
+import re  # noqa: F401
 from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List, Tuple
@@ -105,7 +105,7 @@ def suggest_param_type(param_name: str, default_value, func_name: str, file_cont
     if "agent" in name_lower:
         return "BaseAgent"
     if "swarm" in name_lower:
-        return "BaseSwarm"
+        return "SwarmLearning"
     if "model" in name_lower:
         return "str"  # model name
 
@@ -174,7 +174,7 @@ def analyze_file(filepath: Path) -> List[Dict]:
 
 
 def main():
-    import sys
+    import sys  # noqa: F401
 
     # Analyze core/ directory
     all_suggestions = []

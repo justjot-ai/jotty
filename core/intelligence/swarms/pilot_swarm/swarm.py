@@ -22,8 +22,8 @@ import subprocess
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from ..base import AgentTeam, DomainSwarm, PhaseExecutor
-from ..base_swarm import AgentRole, register_swarm
+from ..base import PhaseExecutor, SwarmTemplate, TeamCoordinator
+from ..swarm_learning import AgentRole, register_swarm
 from .agents import (
     PilotCoderAgent,
     PilotPlannerAgent,
@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 
 
 @register_swarm("pilot")
-class PilotSwarm(DomainSwarm):
+class PilotSwarm(SwarmTemplate):
     """
     Autonomous Pilot Swarm — the general-purpose goal-completion engine.
 
@@ -61,7 +61,7 @@ class PilotSwarm(DomainSwarm):
     6. ValidatorAgent — validates goal completion
     """
 
-    AGENT_TEAM = AgentTeam.define(
+    AGENT_TEAM = TeamCoordinator.define(
         (PilotPlannerAgent, "Planner", "_planner"),
         (PilotSearchAgent, "Searcher", "_searcher"),
         (PilotCoderAgent, "Coder", "_coder"),
@@ -535,7 +535,7 @@ class PilotSwarm(DomainSwarm):
         swarm_name = subtask.tool_hint or "coding"
 
         try:
-            from ..base_swarm import SwarmRegistry
+            from ..swarm_learning import SwarmRegistry
 
             swarm_class = SwarmRegistry.get(swarm_name)
 

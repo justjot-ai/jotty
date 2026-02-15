@@ -1,9 +1,9 @@
 """
-AgentTeam - Declarative Agent Composition with Coordination Patterns
+TeamCoordinator - Declarative Agent Composition with Coordination Patterns
 =====================================================================
 
 Provides:
-1. Declarative agent composition via AgentTeam.define()
+1. Declarative agent composition via TeamCoordinator.define()
 2. Coordination patterns (pipeline, parallel, consensus, etc.)
 3. Automatic agent initialization and execution
 
@@ -12,15 +12,15 @@ Architecture:
 
 Usage:
     # Simple team (manual coordination by swarm)
-    class CodingSwarm(DomainSwarm):
-        AGENT_TEAM = AgentTeam.define(
+    class CodingSwarm(SwarmTemplate):
+        AGENT_TEAM = TeamCoordinator.define(
             (ArchitectAgent, "Architect"),
             (DeveloperAgent, "Developer"),
         )
 
     # Team with coordination pattern
-    class ReviewSwarm(DomainSwarm):
-        AGENT_TEAM = AgentTeam.define(
+    class ReviewSwarm(SwarmTemplate):
+        AGENT_TEAM = TeamCoordinator.define(
             (SecurityReviewer, "Security"),
             (PerformanceReviewer, "Performance"),
             (StyleReviewer, "Style"),
@@ -99,7 +99,7 @@ class TeamResult:
 
 
 @dataclass
-class AgentTeam:
+class TeamCoordinator:
     """
     Declarative agent team with optional coordination pattern.
 
@@ -109,13 +109,13 @@ class AgentTeam:
 
     Examples:
         # Simple declarative (backward compatible)
-        team = AgentTeam.define(
+        team = TeamCoordinator.define(
             (ArchitectAgent, "Architect"),
             (DeveloperAgent, "Developer"),
         )
 
         # With coordination pattern
-        team = AgentTeam.define(
+        team = TeamCoordinator.define(
             (Agent1, "Agent1"),
             (Agent2, "Agent2"),
             pattern=CoordinationPattern.PARALLEL,
@@ -160,7 +160,7 @@ class AgentTeam:
         attr_name: str = None,
         role: str = None,
         priority: int = 0,
-    ) -> "AgentTeam":
+    ) -> "TeamCoordinator":
         """
         Add an agent to the team.
 
@@ -1036,7 +1036,7 @@ class AgentTeam:
         quality_threshold: float = 0.8,
         max_iterations: int = 5,
         debate_rounds: int = 3,
-    ) -> "AgentTeam":
+    ) -> "TeamCoordinator":
         """
         Create a team from tuples with optional coordination pattern.
 
@@ -1048,13 +1048,13 @@ class AgentTeam:
 
         Example:
             # Simple team (swarm coordinates)
-            team = AgentTeam.define(
+            team = TeamCoordinator.define(
                 (ArchitectAgent, "Architect"),
                 (DeveloperAgent, "Developer"),
             )
 
             # Pipeline team
-            team = AgentTeam.define(
+            team = TeamCoordinator.define(
                 (ArchitectAgent, "Architect", None, None, 3),  # First
                 (DeveloperAgent, "Developer", None, None, 2),
                 (TesterAgent, "Tester", None, None, 1),  # Last
@@ -1062,7 +1062,7 @@ class AgentTeam:
             )
 
             # Parallel team with merge
-            team = AgentTeam.define(
+            team = TeamCoordinator.define(
                 (Reviewer1, "Security"),
                 (Reviewer2, "Performance"),
                 (Reviewer3, "Style"),
@@ -1098,7 +1098,7 @@ class AgentTeam:
 
 
 __all__ = [
-    "AgentTeam",
+    "TeamCoordinator",
     "AgentSpec",
     "TeamResult",
     "CoordinationPattern",

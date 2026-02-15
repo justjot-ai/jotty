@@ -11,7 +11,7 @@ Requires: ANTHROPIC_API_KEY environment variable
 Optional - Claude Code Router (CCR) integration:
   Set ANTHROPIC_BASE_URL=http://127.0.0.1:3456 (and run `ccr start`) to route
   all Jotty LLM calls through claude-code-router for multi-provider routing
-  (e.g. default/think/longContext/background models). No BaseSwarm code changes
+  (e.g. default/think/longContext/background models). No SwarmLearning code changes
   needed; the LM layer sends requests to CCR, which routes to your configured
   providers (OpenRouter, DeepSeek, Ollama, etc.).
 

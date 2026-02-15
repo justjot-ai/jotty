@@ -7,7 +7,7 @@ Comprehensive unit tests covering:
 - AgentResult
 - BaseAgent (via ConcreteAgent subclass)
 - DomainAgent / DomainAgentConfig / create_domain_agent
-- BaseSwarmAgent
+- SwarmLearningAgent
 - ValidationAgent / ValidationConfig
 - ToolCallCache
 - ExecutionContextManager
@@ -51,7 +51,7 @@ except ImportError:
     DOMAIN_AGENT_AVAILABLE = False
 
 try:
-    from Jotty.core.modes.agent.agents.swarm_agent import BaseSwarmAgent
+    from Jotty.core.modes.agent.agents.swarm_agent import SwarmLearningAgent
 
     SWARM_AGENT_AVAILABLE = True
 except ImportError:
@@ -872,18 +872,18 @@ class TestDomainAgent:
 
 
 # =============================================================================
-# TestBaseSwarmAgent
+# TestSwarmLearningAgent
 # =============================================================================
 
 
 @pytest.mark.unit
-@pytest.mark.skipif(not SWARM_AGENT_AVAILABLE, reason="BaseSwarmAgent not importable")
-class TestBaseSwarmAgent:
-    """Tests for BaseSwarmAgent."""
+@pytest.mark.skipif(not SWARM_AGENT_AVAILABLE, reason="SwarmLearningAgent not importable")
+class TestSwarmLearningAgent:
+    """Tests for SwarmLearningAgent."""
 
     def _make_agent(self, memory=None, context=None, bus=None, learned_context=""):
         with patch(_PATCH_DSPY):
-            return BaseSwarmAgent(
+            return SwarmLearningAgent(
                 memory=memory,
                 context=context,
                 bus=bus,

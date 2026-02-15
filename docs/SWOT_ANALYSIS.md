@@ -21,7 +21,7 @@ Jotty is a **self-improving AI agent framework** built on DSPy. It coordinates m
 | **Self-improvement loop** | TD-Lambda learning, SwarmIntelligence (specialization, consensus, stigmergy, Byzantine verification), and 5-level SwarmMemory (episodic → semantic → procedural → meta → causal) with consolidation. |
 | **Production-oriented design** | Structured exception hierarchy (30+ JottyError types), lazy initialization for fast startup, singleton-with-reset for tests, ConfigView proxy for scoped config, circuit breaker and budget tracking. |
 | **Strong test discipline** | ~9,000 tests; mandatory unit tests for changes; mocks for LLMs (no real API calls); fast, offline test runs; V3 execution and observability test patterns. |
-| **Extensibility** | Skill packs with lazy loading, capability tags, semantic discovery; DomainSwarm + AgentTeam pattern; MCP integration for tools; SwarmRegistry for pluggable swarms. |
+| **Extensibility** | Skill packs with lazy loading, capability tags, semantic discovery; SwarmTemplate + TeamCoordinator pattern; MCP integration for tools; SwarmRegistry for pluggable swarms. |
 | **Multi-paradigm execution** | Single-agent, relay, debate, refinement; AgenticPlanner (LLM-based planning with DSPy signatures); SkillPlanExecutor with caching and parameter resolution. |
 | **Documentation** | `JOTTY_ARCHITECTURE.md`, `CLAUDE.md`, capability discovery API (`capabilities()`, `explain()`), and subsystem facades for memory, learning, context, skills, orchestration, utils. |
 
@@ -33,7 +33,7 @@ Jotty is a **self-improving AI agent framework** built on DSPy. It coordinates m
 |------|-------------|
 | **Dual config naming** | ✅ **RESOLVED:** `SwarmLearningConfig` (data_structures, 175 fields for RL/orchestration) vs `SwarmConfig` (swarm_types, 12 fields for swarm metadata). Clear naming eliminates confusion. Deprecation warnings guide migration. |
 | **Documentation drift** | ✅ **RESOLVED:** Skill count standardized to 273 across all documentation. "Legacy" vs "facade" imports and multiple entry points can confuse new contributors. |
-| **Complexity** | Many orchestration components (Orchestrator, SwarmIntelligence, BaseSwarm, DomainSwarm, AgentTeam, PilotSwarm, templates); learning pipeline and memory consolidation add cognitive load. |
+| **Complexity** | Many orchestration components (Orchestrator, SwarmIntelligence, SwarmLearning, SwarmTemplate, TeamCoordinator, PilotSwarm, templates); learning pipeline and memory consolidation add cognitive load. |
 | **DSPy coupling** | Core planning and learning depend on DSPy (signatures, modules); version lock (`dspy-ai>=2.0.0`) and API changes could require non-trivial refactors. |
 | **External dependencies** | Reliance on multiple LLM providers (Anthropic, OpenAI, Groq) and channel-specific tokens (Telegram, Slack, Discord, WhatsApp); optional extras (web, cli, telegram, mongodb, redis, sql) fragment install surface. |
 | **UI and frontend split** | “Frontend UI code is in separate Jotty/ui/ Next.js app”; gateway serves API/WS but full UX lives elsewhere—onboarding and deployment story is split. |

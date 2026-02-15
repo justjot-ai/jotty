@@ -1,7 +1,7 @@
 from typing import Any
 
 """
-DomainSwarm - Template Base Class for Domain-Specific Swarms
+SwarmTemplate - Template Base Class for Domain-Specific Swarms
 =============================================================
 
 Architecture:
@@ -14,13 +14,13 @@ Provides:
 - Template execute() with pre/post learning hooks
 
 Subclasses define:
-- AGENT_TEAM: AgentTeam class attribute with optional coordination pattern
+- AGENT_TEAM: TeamCoordinator class attribute with optional coordination pattern
 - _execute_domain(): Domain-specific logic (or use team coordination)
 
 Usage:
     # Manual coordination (swarm handles agent orchestration)
-    class CodingSwarm(DomainSwarm):
-        AGENT_TEAM = AgentTeam.define(
+    class CodingSwarm(SwarmTemplate):
+        AGENT_TEAM = TeamCoordinator.define(
             (ArchitectAgent, "Architect"),
             (DeveloperAgent, "Developer"),
         )
@@ -31,8 +31,8 @@ Usage:
             return CodingResult(code=code)
 
     # Team coordination (team handles agent orchestration)
-    class ReviewSwarm(DomainSwarm):
-        AGENT_TEAM = AgentTeam.define(
+    class ReviewSwarm(SwarmTemplate):
+        AGENT_TEAM = TeamCoordinator.define(
             (SecurityReviewer, "Security"),
             (PerformanceReviewer, "Performance"),
             pattern=CoordinationPattern.PARALLEL,
@@ -55,9 +55,9 @@ from abc import abstractmethod
 from datetime import datetime
 from typing import Callable, ClassVar, Dict, List, Optional, Tuple, Type
 
-from ..base_swarm import AgentRole, BaseSwarm, SwarmBaseConfig, SwarmResult
+from ..swarm_learning import AgentRole, SwarmBaseConfig, SwarmLearning, SwarmResult
 from ..swarm_types import _safe_join, _safe_num, _split_field
-from .agent_team import AgentTeam, CoordinationPattern, TeamResult
+from .team_coordinator import CoordinationPattern, TeamCoordinator, TeamResult
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +71,7 @@ class PhaseExecutor:
     - Exception-safe parallel execution via asyncio.gather
     - Standard error result building
 
-    Usage inside a DomainSwarm subclass::
+    Usage inside a SwarmTemplate subclass::
 
         executor = self._phase_executor()
         result = await executor.run_phase(
@@ -81,7 +81,7 @@ class PhaseExecutor:
         )
     """
 
-    def __init__(self, swarm: "DomainSwarm") -> None:
+    def __init__(self, swarm: "SwarmTemplate") -> None:
         self.swarm = swarm
         self._start_time = datetime.now()
 
@@ -209,18 +209,18 @@ class PhaseExecutor:
         )
 
 
-class DomainSwarm(BaseSwarm):
+class SwarmTemplate(SwarmLearning):
     """
     Base class for domain-specific swarms.
 
-    Inherits self-improving loop from BaseSwarm and adds:
+    Inherits self-improving loop from SwarmLearning and adds:
     - Declarative agent team via AGENT_TEAM class attribute
     - Automatic agent initialization
     - Team coordination patterns
     - Template execute() pattern
 
     Class Attributes:
-        AGENT_TEAM: Optional AgentTeam defining the swarm's agents.
+        AGENT_TEAM: Optional TeamCoordinator defining the swarm's agents.
                     If None, subclass must override _init_agents().
 
     Team Coordination:
@@ -229,7 +229,7 @@ class DomainSwarm(BaseSwarm):
     """
 
     # Subclasses override this with their agent team
-    AGENT_TEAM: ClassVar[Optional[AgentTeam]] = None
+    AGENT_TEAM: ClassVar[Optional[TeamCoordinator]] = None
     # Subclasses set this to a DSPy Signature for typed I/O contracts
     SWARM_SIGNATURE: ClassVar[Optional[Type]] = None
 
@@ -245,7 +245,7 @@ class DomainSwarm(BaseSwarm):
 
     def __init__(self, config: SwarmBaseConfig) -> None:
         """
-        Initialize DomainSwarm.
+        Initialize SwarmTemplate.
 
         Args:
             config: Swarm configuration (subclass-specific)
@@ -428,8 +428,8 @@ class DomainSwarm(BaseSwarm):
             TeamResult with outputs from all agents and merged result
 
         Example:
-            class ReviewSwarm(DomainSwarm):
-                AGENT_TEAM = AgentTeam.define(
+            class ReviewSwarm(SwarmTemplate):
+                AGENT_TEAM = TeamCoordinator.define(
                     (SecurityReviewer, "Security"),
                     (PerformanceReviewer, "Performance"),
                     pattern=CoordinationPattern.PARALLEL,
@@ -829,4 +829,4 @@ class DomainSwarm(BaseSwarm):
         return f"{self.__class__.__name__}(agents={agent_count}, pattern={pattern}, initialized={self._agents_initialized})"
 
 
-__all__ = ["DomainSwarm", "PhaseExecutor", "_split_field", "_safe_join", "_safe_num"]
+__all__ = ["SwarmTemplate", "PhaseExecutor", "_split_field", "_safe_join", "_safe_num"]
