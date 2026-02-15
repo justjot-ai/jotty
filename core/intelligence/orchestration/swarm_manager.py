@@ -36,7 +36,6 @@ import logging
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
 
 if TYPE_CHECKING:
-    from Jotty.core.intelligence.orchestration.agent_runner import AgentRunner
     from Jotty.core.intelligence.orchestration.swarm_roadmap import SwarmTaskBoard
     from Jotty.core.modes.agent.planners.agentic_planner import TaskPlanner
     from Jotty.core.modes.agent.autonomous.intent_parser import IntentParser
@@ -58,7 +57,6 @@ if TYPE_CHECKING:
     from Jotty.core.intelligence.orchestration.learning_pipeline import SwarmLearningPipeline
     from Jotty.core.intelligence.orchestration.mas_learning import MASLearning
     from Jotty.core.infrastructure.monitoring.monitoring.profiler import PerformanceProfiler
-    from Jotty.core.modes.agent.base.auto_agent import AutoAgent
 
 from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
 from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult, SwarmConfig
@@ -69,8 +67,10 @@ from Jotty.core.infrastructure.foundation.exceptions import (
     LLMError,
 )
 from Jotty.core.infrastructure.utils.async_utils import StatusReporter, safe_status
+from Jotty.core.modes.agent.auto_agent import AutoAgent
 
 from ._lazy import LazyComponent
+from .agent_runner import AgentRunner, AgentRunnerConfig
 from .ensemble_manager import EnsembleManager
 from .learning_delegate import LearningDelegate
 from .mas_zero_controller import MASZeroController
@@ -81,6 +81,26 @@ from .paradigm_executor import ParadigmExecutor
 from .provider_manager import ProviderManager
 from .swarm_router import SwarmRouter
 from .training_daemon import TrainingDaemon
+
+# Optional feedback channel imports
+try:
+    from Jotty.core.modes.agent.feedback_channel import FeedbackMessage, FeedbackType
+except ImportError:
+    FeedbackMessage = None  # type: ignore
+    FeedbackType = None  # type: ignore
+
+# Optional observability imports
+try:
+    from Jotty.core.infrastructure.monitoring.observability import get_metrics, get_tracer
+except ImportError:
+    get_metrics = None  # type: ignore
+    get_tracer = None  # type: ignore
+
+# Optional dspy import
+try:
+    import dspy
+except ImportError:
+    dspy = None  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -323,11 +343,6 @@ class AgentFactory:
         if sm._runners_built:
             return
 
-        from Jotty.core.intelligence.orchestration.agent_runner import (
-            AgentRunner,
-            AgentRunnerConfig,
-        )
-
         for agent_config in sm.agents:
             if agent_config.name in sm.runners:
                 continue
@@ -406,7 +421,6 @@ class AgentFactory:
     def register_agents_with_axon(self) -> None:
         """Register all agents with SmartAgentSlack for inter-agent messaging."""
         sm = self._manager
-        from Jotty.core.modes.agent.feedback_channel import FeedbackMessage, FeedbackType
 
         def _make_slack_callback(target_actor_name: str) -> Any:
             def _callback(message: Any) -> Any:
@@ -550,13 +564,10 @@ class ExecutionEngine:
         run_start_time = _time.time()
 
         # Observability: Start trace and root span
-        try:
-            from Jotty.core.infrastructure.monitoring.observability import get_tracer
-
+        _tracer = None
+        if get_tracer:
             _tracer = get_tracer()
             _tracer.new_trace(metadata={"goal": goal[:200], "mode": sm.mode})
-        except ImportError:
-            _tracer = None
 
         # Lazy init: Build runners on first run
         sm._ensure_runners()
@@ -613,9 +624,7 @@ class ExecutionEngine:
                 )
 
         # Ensure DSPy LM is configured (critical for all agent operations)
-        import dspy
-
-        if not hasattr(dspy.settings, "lm") or dspy.settings.lm is None:
+        if dspy and (not hasattr(dspy.settings, "lm") or dspy.settings.lm is None):
             lm = sm.swarm_provider_gateway.get_lm()
             if lm:
                 dspy.configure(lm=lm)
@@ -663,17 +672,13 @@ class ExecutionEngine:
                 tier_decision = sm._model_tier_router.get_model_for_mode(ValidationMode.DIRECT)
                 tier_lm = sm._model_tier_router.get_lm_for_mode(ValidationMode.DIRECT)
                 if tier_lm:
-                    import dspy as _dspy
-
                     lm = tier_lm
                     _status(
                         "Model tier",
                         f"{tier_decision.tier.value} ({tier_decision.model}) — cost ratio {tier_decision.estimated_cost_ratio:.1f}x",
                     )
                 else:
-                    import dspy as _dspy
-
-                    lm = _dspy.settings.lm
+                    lm = dspy.settings.lm if dspy else None
                     if lm is None:
                         raise AgentExecutionError("No LM configured")
 
@@ -790,9 +795,7 @@ class ExecutionEngine:
                     sm._model_tier_router = ModelTierRouter()
                 tier_decision = sm._model_tier_router.get_model_for_mode(_gate_decision.mode)
                 tier_lm = sm._model_tier_router.get_lm_for_mode(_gate_decision.mode)
-                if tier_lm:
-                    import dspy
-
+                if tier_lm and dspy:
                     dspy.configure(lm=tier_lm)
                     _status("Model tier", f"{tier_decision.tier.value} ({tier_decision.model})")
             except (ConfigurationError, LLMError) as e:
@@ -816,11 +819,6 @@ class ExecutionEngine:
                 )
 
                 # Create runners for new agents
-                from Jotty.core.intelligence.orchestration.agent_runner import (
-                    AgentRunner,
-                    AgentRunnerConfig,
-                )
-
                 for agent_config in sm.agents:
                     if agent_config.name not in sm.runners:
                         runner_config = AgentRunnerConfig(
@@ -1222,15 +1220,8 @@ class ExecutionEngine:
         _exec_start = _t.time()
 
         # Observability: trace agent execution
-        _tracer = None
-        _metrics = None
-        try:
-            from Jotty.core.infrastructure.monitoring.observability import get_metrics, get_tracer
-
-            _tracer = get_tracer()
-            _metrics = get_metrics()
-        except ImportError:
-            pass
+        _tracer = get_tracer() if get_tracer else None
+        _metrics = get_metrics() if get_metrics else None
 
         if _tracer:
             with _tracer.span("agent_execute", agent=agent_config.name, mode="single") as _span:
@@ -1277,7 +1268,6 @@ class ExecutionEngine:
         sm = self._manager
         from Jotty.core.intelligence.learning.predictive_marl import ActualTrajectory
         from Jotty.core.intelligence.orchestration.swarm_roadmap import TaskStatus
-        from Jotty.core.modes.agent.feedback_channel import FeedbackMessage, FeedbackType
 
         # Extract callbacks and ensemble params before passing to runners
         kwargs.pop("ensemble_context", None)
@@ -1700,19 +1690,18 @@ class ExecutionEngine:
         sm._schedule_background_learning(combined_result, goal)
 
         # Observability: record per-agent metrics
-        try:
-            from Jotty.core.infrastructure.monitoring.observability import get_metrics
-
-            _metrics = get_metrics()
-            for agent_name, result in all_results.items():
-                _metrics.record_execution(
-                    agent_name=agent_name,
-                    task_type="multi_agent",
-                    duration_s=getattr(result, "execution_time", 0.0),
-                    success=result.success if hasattr(result, "success") else False,
-                )
-        except (ImportError, Exception):
-            pass
+        if get_metrics:
+            try:
+                _metrics = get_metrics()
+                for agent_name, result in all_results.items():
+                    _metrics.record_execution(
+                        agent_name=agent_name,
+                        task_type="multi_agent",
+                        duration_s=getattr(result, "execution_time", 0.0),
+                        success=result.success if hasattr(result, "success") else False,
+                    )
+            except Exception:
+                pass
 
         return combined_result
 
@@ -1981,8 +1970,6 @@ class Orchestrator:
 
         # Normalize agents
         if agents is None:
-            from Jotty.core.modes.agent.auto_agent import AutoAgent
-
             agents = [AgentConfig(name="auto", agent=AutoAgent())]
         elif isinstance(agents, AgentConfig):
             agents = [agents]
@@ -2515,26 +2502,25 @@ class Orchestrator:
             result["lotus_stats"] = self.get_lotus_stats()
 
         # Add observability metrics
-        try:
-            from Jotty.core.infrastructure.monitoring.observability import get_metrics, get_tracer
-
-            _metrics = get_metrics()
-            result["observability"] = {
-                "metrics": _metrics.get_summary(),
-                "cost_breakdown": _metrics.get_cost_breakdown(),
-            }
-            _tracer = get_tracer()
-            _trace = _tracer.get_current_trace()
-            if _trace:
-                result["observability"]["last_trace"] = {
-                    "trace_id": _trace.trace_id[:8],
-                    "spans": _trace.span_count,
-                    "duration_ms": round(_trace.duration_ms, 0),
-                    "total_cost_usd": round(_trace.total_cost, 6),
-                    "total_tokens": _trace.total_tokens,
+        if get_metrics and get_tracer:
+            try:
+                _metrics = get_metrics()
+                result["observability"] = {
+                    "metrics": _metrics.get_summary(),
+                    "cost_breakdown": _metrics.get_cost_breakdown(),
                 }
-        except (ImportError, Exception) as e:
-            logger.debug(f"Observability metrics unavailable: {e}")
+                _tracer = get_tracer()
+                _trace = _tracer.get_current_trace()
+                if _trace:
+                    result["observability"]["last_trace"] = {
+                        "trace_id": _trace.trace_id[:8],
+                        "spans": _trace.span_count,
+                        "duration_ms": round(_trace.duration_ms, 0),
+                        "total_cost_usd": round(_trace.total_cost, 6),
+                        "total_tokens": _trace.total_tokens,
+                    }
+            except Exception as e:
+                logger.debug(f"Observability metrics unavailable: {e}")
 
         # Add model tier routing stats
         if self._model_tier_router:
@@ -2807,7 +2793,6 @@ class Orchestrator:
         If the event loop shuts down before completion, learnings are best-effort
         (next successful run will re-save).
         """
-        import asyncio
 
         async def _background() -> Any:
             try:
@@ -2834,8 +2819,6 @@ class Orchestrator:
 
     async def _drain_background_tasks(self, timeout: float = 10.0) -> Any:
         """Await all pending background learning tasks (with timeout)."""
-        import asyncio
-
         tasks = getattr(self, "_background_tasks", set())
         if tasks:
             pending = [t for t in tasks if not t.done()]
@@ -2920,41 +2903,41 @@ class Orchestrator:
     # Warmup — delegated to SwarmWarmup
     # =====================================================================
 
-    async def warmup(self, **kwargs: Any) -> Dict[str, Any]:
-        """DrZero-inspired zero-data bootstrapping. See SwarmWarmup."""
+    def _ensure_warmup(self) -> Any:
+        """Lazy-load SwarmWarmup instance."""
         if not hasattr(self, "_warmup") or self._warmup is None:
             from Jotty.core.intelligence.orchestration.swarm_warmup import SwarmWarmup
 
             self._warmup = SwarmWarmup(self)
-        return await self._warmup.warmup(**kwargs)
+        return self._warmup
+
+    async def warmup(self, **kwargs: Any) -> Dict[str, Any]:
+        """DrZero-inspired zero-data bootstrapping. See SwarmWarmup."""
+        return await self._ensure_warmup().warmup(**kwargs)
 
     def get_warmup_recommendation(self) -> Dict[str, Any]:
         """Check if warmup would be beneficial."""
-        if not hasattr(self, "_warmup") or self._warmup is None:
-            from Jotty.core.intelligence.orchestration.swarm_warmup import SwarmWarmup
-
-            self._warmup = SwarmWarmup(self)
-        return self._warmup.get_recommendation()
+        return self._ensure_warmup().get_recommendation()
 
     # =====================================================================
     # DAG — delegated to SwarmDAGExecutor
     # =====================================================================
 
-    async def run_with_dag(self, implementation_plan: str, **kwargs: Any) -> EpisodeResult:
-        """Execute via DAG-based orchestration. See SwarmDAGExecutor."""
+    def _ensure_dag_executor(self) -> Any:
+        """Lazy-load SwarmDAGExecutor instance."""
         if not hasattr(self, "_dag_executor") or self._dag_executor is None:
             from Jotty.core.intelligence.orchestration.swarm_dag_executor import SwarmDAGExecutor
 
             self._dag_executor = SwarmDAGExecutor(self)
-        return await self._dag_executor.run(implementation_plan, **kwargs)
+        return self._dag_executor
+
+    async def run_with_dag(self, implementation_plan: str, **kwargs: Any) -> EpisodeResult:
+        """Execute via DAG-based orchestration. See SwarmDAGExecutor."""
+        return await self._ensure_dag_executor().run(implementation_plan, **kwargs)
 
     def get_dag_agents(self) -> Any:
         """Get DAG agents for external use."""
-        if not hasattr(self, "_dag_executor") or self._dag_executor is None:
-            from Jotty.core.intelligence.orchestration.swarm_dag_executor import SwarmDAGExecutor
-
-            self._dag_executor = SwarmDAGExecutor(self)
-        return self._dag_executor.get_agents()
+        return self._ensure_dag_executor().get_agents()
 
     # =========================================================================
     # Self-improvement — delegated to TrainingDaemon
